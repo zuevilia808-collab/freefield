@@ -1,8 +1,8 @@
 // Service worker: делает Freefield устанавливаемым и открывает его без интернета.
 // Файлы приложения — «сначала сеть» (обновления приходят сразу), шрифты — из кэша.
 // Запросы к сервисам генерации не кэшируются и идут напрямую.
-const CACHE = 'freefield-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'freefield-v2';
+const SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
