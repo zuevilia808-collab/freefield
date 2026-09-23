@@ -1,0 +1,2880 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Freefield">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Freefield — AI-студия</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='8' fill='%23d4ff3a'/%3E%3Cpath d='M9 20.5V7.5h10.5M9 14h8' stroke='%230a0a0c' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0c;--panel:#111114;--panel2:#17171b;--panel3:#1f1f25;--line:#24242a;--line2:#33333b;
+  --text:#ededf0;--muted:#8d8d98;--dim:#5f5f6a;
+  --free:#d4ff3a;--free-h:#e2ff75;--paid:#ffb547;--paid-h:#ffc978;--ink:#0a0a0c;--danger:#ff5d62;--ok:#4ade80;
+  --r:14px;--top:58px;--nav:0px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea{font:inherit;color:inherit}
+a{color:var(--free)}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#26262d;border-radius:99px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- tier badges ---------- */
+.tier{display:inline-flex;align-items:center;gap:4px;font:700 9.5px/1 Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border-radius:99px;white-space:nowrap}
+.tier.free{background:var(--free);color:var(--ink)}
+.tier.paid{background:var(--paid);color:var(--ink)}
+
+/* ---------- top bar ---------- */
+.topbar{height:var(--top);display:flex;align-items:center;gap:22px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--bg);position:relative;z-index:20}
+.brand{display:flex;align-items:center;gap:10px;font:700 17px Unbounded,sans-serif;letter-spacing:-.02em}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);padding:4px;border-radius:12px}
+.tab{padding:7px 16px;border-radius:9px;color:var(--muted);font-weight:600;transition:.15s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--panel3);color:var(--text)}
+.top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.wallet{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted);transition:.15s;white-space:nowrap}
+.wallet:hover{border-color:var(--line2);color:var(--text)}
+.wallet b{color:var(--paid)}
+.install-btn{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:99px;background:var(--free);color:var(--ink);white-space:nowrap}
+.install-btn:hover{background:var(--free-h)}
+.inst-step{display:flex;gap:12px;align-items:flex-start;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;font-size:13.5px}
+.inst-step b.n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--free);color:var(--ink);display:grid;place-items:center;font-size:12px}
+.inst-qr{display:grid;justify-items:center;gap:10px;margin:6px 0 16px}
+.inst-qr canvas,.inst-qr img{background:#fff;padding:10px;border-radius:14px;width:200px;height:200px;image-rendering:pixelated}
+.inst-url{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;word-break:break-all;text-align:center}
+.inst-note{font-size:12.5px;color:var(--muted);margin-top:12px}
+.inst-big{width:100%;height:48px;border-radius:13px;background:var(--free);color:var(--ink);font-weight:700;font-size:15px;margin-bottom:12px}
+.icon-btn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line);font-size:15px;transition:.15s;flex:none}
+.icon-btn:hover{border-color:var(--line2);background:var(--panel3)}
+
+/* ---------- layout ---------- */
+.layout{display:grid;grid-template-columns:372px 1fr;height:calc(100dvh - var(--top))}
+.panel{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.panel-scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px}
+.block-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px}
+.lbl,.adv summary{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.hint{font-size:12px;color:var(--dim)}
+.hint b{color:var(--text);font-weight:600}
+
+/* model picker */
+.model-pick{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border-radius:16px;background:var(--panel2);border:1px solid var(--line);transition:.15s;position:relative}
+.model-pick:hover{border-color:var(--line2);background:var(--panel3)}
+.model-pick.free{box-shadow:inset 0 0 0 1px rgba(212,255,58,.18)}
+.model-pick.paid{box-shadow:inset 0 0 0 1px rgba(255,181,71,.25)}
+.mc-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font:700 13px Unbounded,sans-serif;color:#fff;flex:none;text-shadow:0 1px 4px rgba(0,0,0,.35)}
+.mp-body{flex:1;min-width:0}
+.mp-top{display:flex;gap:6px;align-items:center;margin-bottom:3px}
+.mp-pub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mp-title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mp-price{font-size:12px;color:var(--muted);margin-top:1px}
+.mp-chev{color:var(--muted);font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:4px 8px;white-space:nowrap}
+
+/* prompt */
+.prompt-box{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);transition:border-color .15s,box-shadow .15s}
+.prompt-box:focus-within{border-color:var(--line2);box-shadow:0 0 0 3px rgba(212,255,58,.07)}
+.prompt-box textarea{display:block;width:100%;background:none;border:0;outline:0;resize:vertical;padding:13px 14px 10px;min-height:108px;font-size:15px;line-height:1.5}
+.prompt-box textarea::placeholder{color:var(--dim)}
+.prompt-tools{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-top:1px solid var(--line);gap:8px}
+.chip-btn{padding:6px 11px;border-radius:9px;background:var(--panel3);font-size:12.5px;font-weight:600;transition:.15s;white-space:nowrap}
+.chip-btn:hover{background:var(--line2)}
+.chip-btn.loading{opacity:.55;pointer-events:none}
+.toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+.toggle input{display:none}
+.toggle span{width:30px;height:18px;border-radius:99px;background:var(--line2);position:relative;transition:.15s;flex:none}
+.toggle span::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#cfcfd6;transition:.15s}
+.toggle input:checked+span{background:var(--free)}
+.toggle input:checked+span::after{left:14px;background:var(--ink)}
+
+/* segmented + chips */
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+.seg button{flex:1;padding:7px 8px;border-radius:8px;color:var(--muted);font-weight:600;font-size:13px;transition:.12s;white-space:nowrap}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--panel3);color:var(--text)}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 10px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:7px;transition:.12s}
+.chip:hover{color:var(--text)}
+.chip .ar{border:1.6px solid currentColor;border-radius:2.5px;display:inline-block}
+.chip.on{border-color:var(--free);color:var(--text)}
+
+/* style + motion cards */
+.style-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.motion-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.style-card,.motion-card{border-radius:12px;overflow:hidden;border:2px solid transparent;background:var(--panel2);text-align:center;transition:transform .15s,border-color .15s}
+.style-card .th{aspect-ratio:1;display:grid;place-items:center;font-size:24px;text-shadow:0 2px 10px rgba(0,0,0,.35)}
+.style-card .nm,.motion-card .nm{font-size:11px;padding:5px 3px 6px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.style-card:hover,.motion-card:hover{transform:translateY(-2px)}
+.style-card.on,.motion-card.on{border-color:var(--free)}
+.style-card.on .nm,.motion-card.on .nm{color:var(--text)}
+.mv{position:relative;aspect-ratio:16/10;overflow:hidden;background:#10121a}
+.mv i{position:absolute;inset:-22%;background:
+  radial-gradient(circle at 50% 56%,#ffe2b8 0 5.5%,transparent 6%),
+  radial-gradient(9% 15% at 50% 72%,#ff7a59 0 96%,transparent 100%),
+  radial-gradient(circle at 28% 30%,#fff 0 .9%,transparent 1.3%),
+  radial-gradient(circle at 70% 24%,#fff 0 .7%,transparent 1.1%),
+  radial-gradient(circle at 80% 40%,#ffd36b 0 5%,transparent 5.5%),
+  linear-gradient(180deg,#27306e 0%,#7a3f8f 58%,#1a1c2a 58.5%,#0f1118 100%);
+  animation:2.2s ease-in-out infinite alternate paused;will-change:transform}
+.motion-card:hover .mv i,.motion-card.on .mv i{animation-play-state:running}
+@keyframes mv-static{from{transform:none}to{transform:scale(1.015)}}
+@keyframes mv-live{from{transform:scale(1)}to{transform:scale(1.05) translateY(-1.5%)}}
+@keyframes mv-in{from{transform:scale(1)}to{transform:scale(1.5)}}
+@keyframes mv-out{from{transform:scale(1.5)}to{transform:scale(1)}}
+@keyframes mv-crash{0%,45%{transform:scale(1)}60%,100%{transform:scale(2.3)}}
+@keyframes mv-orbit{from{transform:perspective(140px) rotateY(-26deg) scale(1.12)}to{transform:perspective(140px) rotateY(26deg) scale(1.12)}}
+@keyframes mv-pan{from{transform:translateX(-13%)}to{transform:translateX(13%)}}
+@keyframes mv-crane{from{transform:translateY(13%) scale(1.05)}to{transform:translateY(-13%) scale(1.05)}}
+@keyframes mv-hand{0%{transform:translate(0,0) rotate(0)}20%{transform:translate(-1.6%,1%) rotate(-.7deg)}40%{transform:translate(1.2%,-1.3%) rotate(.6deg)}60%{transform:translate(-1%,.9%) rotate(.3deg)}80%{transform:translate(1.5%,.4%) rotate(-.5deg)}100%{transform:translate(0,0)}}
+@keyframes mv-fpv{from{transform:scale(1) rotate(-7deg) translateY(7%)}to{transform:scale(1.7) rotate(7deg) translateY(-4%)}}
+@keyframes mv-bullet{from{transform:perspective(140px) rotateY(-42deg) scale(1.18);filter:saturate(.6)}to{transform:perspective(140px) rotateY(42deg) scale(1.18);filter:saturate(.6)}}
+@keyframes mv-slow{from{transform:scale(1.05) translateY(2%)}to{transform:scale(1.08) translateY(-2%)}}
+
+/* dropzone */
+.dropzone{margin-top:10px;border:1.5px dashed var(--line2);border-radius:var(--r);min-height:124px;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:12.5px;padding:14px;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+.dropzone:hover,.dropzone.drag{border-color:var(--free);color:var(--text);background:rgba(212,255,58,.03)}
+.dropzone u{color:var(--free);text-decoration:none;font-weight:600}
+.dz-big{font-size:26px;margin-bottom:6px}
+.dz-preview{position:absolute;inset:0;background:#000}
+.dz-preview img{width:100%;height:100%;object-fit:contain}
+.dz-preview .icon-btn{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6)}
+input[type=range]{width:100%;accent-color:var(--free);height:24px}
+
+/* advanced */
+.adv{border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;background:var(--panel2)}
+.adv summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between}
+.adv summary::-webkit-details-marker{display:none}
+.adv summary::after{content:"＋";color:var(--dim)}
+.adv[open] summary::after{content:"－"}
+.adv-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.field input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px;outline:0}
+.field input:focus{border-color:var(--line2)}
+
+/* generate */
+.gen-bar{padding:14px 16px 16px;border-top:1px solid var(--line);background:var(--panel)}
+.gen-btn{width:100%;height:52px;border-radius:14px;background:var(--free);color:var(--ink);font-weight:700;font-size:15.5px;display:flex;align-items:center;justify-content:center;gap:10px;transition:.15s;box-shadow:0 10px 32px -12px rgba(212,255,58,.55)}
+.gen-btn:hover{background:var(--free-h);transform:translateY(-1px)}
+.gen-btn:active{transform:none}
+.gen-btn.paid{background:var(--paid);box-shadow:0 10px 32px -12px rgba(255,181,71,.55)}
+.gen-btn.paid:hover{background:var(--paid-h)}
+.gen-sub{font-weight:700;font-size:11.5px;background:rgba(0,0,0,.13);padding:3px 8px;border-radius:99px;white-space:nowrap}
+.model-line{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);margin-top:9px;gap:8px}
+
+body[data-mode=image] .only-video{display:none}
+body[data-mode=video] .only-image{display:none}
+body[data-mode=video][data-vsource=image] .hide-vimg{display:none}
+body[data-mode=video][data-vsource=text] .dropzone{display:none}
+
+/* ---------- feed ---------- */
+.feed{overflow-y:auto;padding:0 20px 40px;min-height:0;position:relative}
+.feed-head{display:flex;gap:10px;align-items:center;position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0}
+.feed-head .seg button{flex:none;padding:6px 14px}
+.search{flex:1;max-width:320px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:8px 12px;outline:0}
+.search:focus{border-color:var(--line2)}
+.count{margin-left:auto;color:var(--dim);font-size:12.5px;white-space:nowrap}
+.grid{display:grid;gap:12px;align-items:start}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{border-radius:14px;overflow:hidden;position:relative;background:var(--panel2);cursor:zoom-in;width:100%;animation:pop .35s ease}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.card img,.card video{width:100%;height:100%;object-fit:cover;display:block}
+.card-ov{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent 45%,transparent 70%,rgba(0,0,0,.4));opacity:0;transition:.18s;display:flex;flex-direction:column;justify-content:space-between;padding:10px}
+.card:hover .card-ov{opacity:1}
+.card-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.act{height:32px;min-width:32px;border-radius:9px;background:rgba(18,18,22,.72);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:14px;transition:.12s;padding:0 8px}
+.act:hover{background:var(--free);color:var(--ink)}
+.act.wide{font-size:12px;font-weight:700;display:flex;gap:6px}
+.card-foot{display:flex;flex-direction:column;gap:6px}
+.card-prompt{font-size:12.5px;color:#e8e8ec;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-model{display:flex;gap:6px;align-items:center;font-size:11px;color:#bdbdc6}
+.badge{position:absolute;left:10px;top:10px;font-size:11px;font-weight:700;background:rgba(0,0,0,.6);padding:3px 8px;border-radius:7px;backdrop-filter:blur(6px);z-index:1}
+.card.pending{cursor:default;min-height:170px}
+.card.pending .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(10px) brightness(.45);transform:scale(1.15)}
+.shimmer{position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(212,255,58,.08) 50%,transparent 70%);background-size:200% 100%;animation:sh 1.6s linear infinite}
+.card.pending.paid .shimmer{background-image:linear-gradient(110deg,transparent 30%,rgba(255,181,71,.1) 50%,transparent 70%)}
+@keyframes sh{from{background-position:150% 0}to{background-position:-50% 0}}
+.pend-info{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:16px;gap:6px}
+.spin{width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(255,255,255,.12);border-top-color:var(--free);animation:rot .8s linear infinite;margin-bottom:4px}
+.card.paid .spin{border-top-color:var(--paid)}
+@keyframes rot{to{transform:rotate(360deg)}}
+.pend-kind{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);display:flex;gap:6px;align-items:center}
+.pend-status{font-weight:600;font-size:13.5px}
+.pend-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pend-prompt{font-size:12px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:92%}
+.card.err .pend-status{color:var(--danger)}
+.card.err .spin{display:none}
+.pend-actions{display:flex;gap:6px;margin-top:6px}
+.pend-actions button{padding:6px 11px;border-radius:8px;background:var(--panel3);font-size:12px;font-weight:600}
+.pend-actions button:first-child{background:var(--free);color:var(--ink)}
+
+/* empty */
+.empty{padding:64px 20px 40px;text-align:center;max-width:760px;margin:0 auto;position:relative}
+.empty::before{content:"";position:absolute;left:50%;top:10px;width:520px;height:260px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(212,255,58,.12),transparent);pointer-events:none;filter:blur(10px)}
+.empty h1{font:700 clamp(26px,4vw,42px)/1.12 Unbounded,sans-serif;letter-spacing:-.03em;margin-bottom:14px;position:relative}
+.empty h1 span{color:var(--free)}
+.empty p{color:var(--muted);font-size:15px;margin-bottom:24px;position:relative}
+.ideas{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.idea{padding:8px 13px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:13px;color:var(--muted);transition:.15s}
+.idea:hover{border-color:var(--free);color:var(--text)}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:34px;text-align:left}
+.feat{border:1px solid var(--line);border-radius:var(--r);padding:14px;background:var(--panel)}
+.feat b{display:flex;gap:8px;align-items:center;margin-bottom:5px}
+.feat span{font-size:12.5px;color:var(--muted)}
+
+/* ---------- sheets (catalog / settings) ---------- */
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(5,5,7,.72);backdrop-filter:blur(5px);display:grid;place-items:center;padding:24px;animation:fade .2s ease}
+@keyframes fade{from{opacity:0}}
+.sheet-panel{width:min(560px,100%);max-height:calc(100dvh - 48px);background:var(--panel);border:1px solid var(--line2);border-radius:20px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6);animation:rise .25s ease}
+.sheet-panel.wide{width:min(1040px,100%)}
+@keyframes rise{from{transform:translateY(16px);opacity:0}}
+.sheet-head{display:flex;align-items:center;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--line)}
+.sheet-head h2{font:700 18px Unbounded,sans-serif;letter-spacing:-.02em}
+.sheet-head .icon-btn{margin-left:auto}
+.sheet-body{overflow-y:auto;padding:18px 20px 24px}
+.cat-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
+.cat-tools .search{max-width:none;flex:1 1 200px}
+.cat-sec{margin-bottom:26px}
+.cat-sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.cat-sec-head h3{font:700 15px Unbounded,sans-serif;display:flex;align-items:center;gap:8px}
+.cat-sec-head p{font-size:12.5px;color:var(--muted)}
+.key-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(255,181,71,.07);border:1px solid rgba(255,181,71,.3);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+.key-banner button{margin-left:auto;background:var(--paid);color:var(--ink);font-weight:700;padding:7px 12px;border-radius:9px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.mcard{display:flex;flex-direction:column;gap:9px;text-align:left;padding:13px;border-radius:14px;background:var(--panel2);border:1.5px solid var(--line);transition:.15s;min-width:0}
+.mcard:hover{border-color:var(--line2);transform:translateY(-2px)}
+.mcard.on{border-color:var(--free);background:rgba(212,255,58,.04)}
+.mcard.paid.on{border-color:var(--paid);background:rgba(255,181,71,.05)}
+.mcard.down{opacity:.45}
+.mc-head{display:flex;gap:10px;align-items:center}
+.mc-head .mc-ico{width:36px;height:36px;border-radius:10px;font-size:11.5px}
+.mc-name{flex:1;min-width:0}
+.mc-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-pub{font-size:11.5px;color:var(--muted)}
+.mc-desc{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px}
+.mc-tags{display:flex;flex-wrap:wrap;gap:5px}
+.mc-tags span{font-size:10.5px;font-weight:600;color:#c9c9d2;background:var(--panel3);padding:3px 7px;border-radius:6px}
+.mc-tags span.hot{background:rgba(212,255,58,.12);color:var(--free)}
+.mc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:9px;margin-top:auto}
+.mc-price{font-weight:700;font-size:13px}
+.mcard.free .mc-price{color:var(--free)}
+.mcard.paid .mc-price{color:var(--paid)}
+.mc-price small{font-weight:500;color:var(--muted);font-size:11.5px}
+.mc-credits{font-size:12.5px;display:grid;gap:3px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.mc-credits .eq{color:var(--free);font-weight:600}
+.mcard.paid .mc-credits .eq{color:var(--paid)}
+.mc-credits .nt{color:var(--muted);font-size:11.5px}
+.tier.site{background:transparent;color:var(--free);box-shadow:inset 0 0 0 1.5px var(--free)}
+.cat-sub{font-size:12.5px;font-weight:700;color:var(--muted);margin:16px 0 10px;text-transform:uppercase;letter-spacing:.06em}
+.health{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.health::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.health.healthy::before{background:var(--ok)}
+.health.degraded::before{background:var(--paid)}
+.health.down::before{background:var(--danger)}
+.cat-empty{color:var(--muted);text-align:center;padding:30px}
+
+/* settings */
+.how{display:grid;gap:8px;margin-bottom:18px}
+.how-row{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#cfcfd6;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.how-row .tier{margin-top:1px}
+.steps{padding-left:20px;display:grid;gap:6px;font-size:13px;color:#cfcfd6;margin-bottom:18px}
+.key-row{display:flex;gap:8px}
+.key-row input{flex:1;-webkit-text-security:disc;font-family:ui-monospace,Consolas,monospace}
+.key-row input.show{-webkit-text-security:none}
+.btn{padding:9px 14px;border-radius:10px;background:var(--panel3);font-weight:600;font-size:13px;transition:.12s;white-space:nowrap}
+.btn:hover{background:var(--line2)}
+.btn.primary{background:var(--paid);color:var(--ink)}
+.btn.primary:hover{background:var(--paid-h)}
+.btn.danger{color:var(--danger)}
+.wallet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
+.wallet-grid div{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.wallet-grid span{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.wallet-grid b{font-size:16px;font-variant-numeric:tabular-nums}
+.set-foot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:16px}
+.set-h{display:flex;align-items:center;gap:8px;font:700 14px Unbounded,sans-serif;margin:4px 0 12px}
+.set-h:not(:first-child){margin-top:26px}
+.set-card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
+.set-card-head{display:flex;gap:11px;align-items:center;margin-bottom:9px}
+.set-card-head .mc-ico{width:36px;height:36px;border-radius:10px;font-size:12px}
+.set-p{font-size:13px;color:#c4c4cc;margin-bottom:10px}
+.set-card .steps{margin-bottom:10px}
+.set-card code{font-family:ui-monospace,Consolas,monospace;background:var(--panel3);padding:1px 5px;border-radius:5px}
+.set-toggle{margin-top:12px;white-space:normal;align-items:flex-start;line-height:1.35}
+.btn.free{background:var(--free);color:var(--ink)}
+.btn.free:hover{background:var(--free-h)}
+.btn.small{padding:6px 10px;font-size:12px;margin-top:8px}
+
+.svc-group{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px}
+.svc-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.svc-row .mc-ico{width:32px;height:32px;border-radius:9px;font-size:11px}
+.svc-main{flex:1;min-width:0;display:grid;gap:2px;font-size:12.5px}
+.svc-cr{color:#d8d8de}
+.svc-eq{color:var(--free)}
+.svc-row .btn.small{margin-top:0;text-decoration:none;color:var(--text)}
+
+/* быстрый переключатель сервисов */
+.quick-svc{display:flex;flex:none;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:-8px;padding-bottom:2px}
+.quick-svc::-webkit-scrollbar{display:none}
+.qchip{flex:none;display:flex;align-items:center;gap:6px;padding:5px 10px 5px 5px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;transition:.12s}
+.qchip .mc-ico{width:20px;height:20px;border-radius:50%;font-size:8px}
+.qchip small{background:var(--panel3);color:var(--text);border-radius:99px;padding:0 5px;font-size:10px}
+.qchip:hover{color:var(--text)}
+.qchip.on{border-color:var(--free);color:var(--text)}
+.qchip.add{padding:5px 11px;color:var(--free);border-style:dashed}
+/* мои сервисы */
+.hub-intro{font-size:13px;color:#c4c4cc;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:6px}
+.hub-row{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.hub-row .mc-ico{width:36px;height:36px;border-radius:10px;font-size:11.5px}
+.hub-row.on .mc-ico{box-shadow:0 0 0 2px var(--free)}
+.hub-main{flex:1;min-width:0;display:grid;gap:4px;font-size:12.5px}
+.hub-fresh{white-space:nowrap;font-size:11px;font-weight:700;color:var(--ink);background:var(--free);border-radius:99px;padding:1px 7px}
+.hub-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:3px}
+.hub-acts button{padding:6px 10px;border-radius:9px;background:var(--panel3);font-size:12px;font-weight:600}
+.hub-acts button:hover{background:var(--line2)}
+.hub-acts button[data-use]{background:var(--free);color:var(--ink)}
+.hub-acts .toggle{font-size:12px;margin-left:auto}
+.hub-btn{color:var(--text)}
+/* автоимпорт в карточке */
+.ext-auto{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);background:var(--panel2);border:1px dashed var(--line2);border-radius:10px;padding:8px 10px}
+.ext-auto span{flex:1}
+.ext-auto button{padding:6px 10px;border-radius:8px;background:var(--free);color:var(--ink);font-weight:700;font-size:12px}
+.ext-auto.on{border-style:solid;border-color:rgba(212,255,58,.35);color:var(--text)}
+.ext-auto.on .spin{width:16px;height:16px;margin:0}
+.ext-auto.off{border-style:solid}
+
+/* карточка Google Vids в галерее */
+.ext-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:12px}
+.ext-strip:empty{display:none}
+.card.ext{cursor:default;padding:14px;display:flex;flex-direction:column;gap:10px;border:1.5px dashed var(--line2);background:var(--panel)}
+.card.ext.drag{border-color:var(--free)}
+.ext-head{display:flex;gap:10px;align-items:center;padding-right:26px}
+.ext-head .mc-ico{width:34px;height:34px;border-radius:10px}
+.ext-steps{padding-left:18px;font-size:12px;color:var(--muted);display:grid;gap:3px}
+.ext-prompt{font-size:12.5px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:130px;overflow-y:auto;white-space:pre-wrap}
+.ext-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ext-actions button{padding:8px;border-radius:9px;background:var(--panel3);font-size:12.5px;font-weight:600}
+.ext-actions button:hover{background:var(--line2)}
+.ext-actions .primary{grid-column:1/-1;background:var(--free);color:var(--ink)}
+.ext-wait{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted)}
+.ext-wait .spin{margin:0;width:18px;height:18px}
+.ext-del{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;color:var(--muted)}
+.ext-del:hover{background:var(--panel3);color:var(--text)}
+.pend-actions{flex-wrap:wrap;justify-content:center}
+
+/* ---------- lightbox ---------- */
+.lightbox{position:fixed;inset:0;z-index:50;background:rgba(6,6,8,.95);backdrop-filter:blur(6px);display:grid;grid-template-columns:1fr 360px}
+.lb-media{display:grid;place-items:center;padding:28px 70px;min-height:0;min-width:0;position:relative}
+.lb-media img,.lb-media video{max-width:100%;max-height:calc(100dvh - 56px);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.6);display:block}
+.lb-info{background:var(--panel);border-left:1px solid var(--line);padding:22px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.lb-info h4{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.lb-info p{font-size:14px;white-space:pre-wrap;word-break:break-word}
+.lb-info p.final{font-size:12.5px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;font-size:13px}
+.meta dt{color:var(--dim)}
+.meta dd{text-align:right;font-variant-numeric:tabular-nums}
+.lb-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto}
+.lb-actions button{padding:10px;border-radius:10px;background:var(--panel3);font-weight:600;font-size:13px;transition:.12s}
+.lb-actions button:hover{background:var(--line2)}
+.lb-actions button.primary{background:var(--free);color:var(--ink);grid-column:1/-1}
+.lb-actions button.danger{color:var(--danger)}
+.lb-btn{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(30,30,36,.85);display:grid;place-items:center;font-size:20px;z-index:2;transition:.12s}
+.lb-btn:hover{background:var(--panel3)}
+.lb-close{top:18px;left:18px}
+.lb-prev{left:14px;top:50%;transform:translateY(-50%)}
+.lb-next{right:14px;top:50%;transform:translateY(-50%)}
+
+/* toasts */
+.toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:80;max-width:380px}
+.toast{background:var(--panel3);border:1px solid var(--line2);border-radius:12px;padding:11px 14px;font-size:13px;display:flex;gap:12px;align-items:center;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:tin .25s ease;transition:.3s}
+.toast.err{border-color:rgba(255,93,98,.5)}
+.toast.ok{border-color:rgba(212,255,58,.4)}
+.toast button{color:var(--free);font-weight:700;margin-left:auto;white-space:nowrap}
+.toast.out{opacity:0;transform:translateY(8px)}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+.shake{animation:shake .35s}
+
+/* ---------- mobile nav ---------- */
+.bottom-nav{display:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:900px){
+  :root{--top:54px;--nav:calc(62px + env(safe-area-inset-bottom))}
+  .topbar{gap:10px;padding:0 12px}
+  .brand span{display:none}
+  .tabs{margin:0 auto}
+  .tab{padding:7px 12px;font-size:13px}
+  .top-right{margin-left:0}
+  .wallet .wl-text,.install-btn .wl-text{display:none}
+  .install-btn,.wallet{padding:7px 10px}
+  .topbar{overflow:hidden}
+  #settingsBtn{display:none}
+  .layout{display:block;height:calc(100dvh - var(--top) - var(--nav))}
+  .panel,.feed{height:100%}
+  .panel{border-right:0}
+  body[data-view=create] .feed,body[data-view=gallery] .panel{display:none}
+  .feed{padding:0 12px 24px}
+  .feed-head{padding:10px 0;flex-wrap:wrap}
+  .count{display:none}
+  .features{grid-template-columns:1fr}
+  .empty{padding:36px 8px 24px}
+  .gen-bar{padding:10px 12px 12px}
+  .bottom-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;height:var(--nav);padding-bottom:env(safe-area-inset-bottom);background:rgba(12,12,15,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:30}
+  .bottom-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10.5px;font-weight:600;color:var(--muted);position:relative}
+  .bottom-nav button i{font-style:normal;font-size:19px;line-height:1}
+  .bottom-nav button.on{color:var(--text)}
+  .bottom-nav button.on i{filter:drop-shadow(0 0 8px rgba(212,255,58,.6))}
+  .bottom-nav .nb{position:absolute;top:7px;left:calc(50% + 6px);background:var(--free);color:var(--ink);font-size:10px;font-weight:700;border-radius:99px;padding:1px 5px;min-width:16px}
+  .toasts{left:12px;right:12px;bottom:calc(var(--nav) + 10px);max-width:none}
+  .sheet{place-items:end stretch;padding:0}
+  .sheet-panel,.sheet-panel.wide{width:100%;max-height:90dvh;border-radius:20px 20px 0 0;border-bottom:0;padding-bottom:env(safe-area-inset-bottom)}
+  .cat-tools{padding:10px 12px}
+  .cat-tools .seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .cat-tools .seg::-webkit-scrollbar{display:none}
+  .cat-tools .seg button{flex:none}
+  .mgrid{grid-template-columns:1fr 1fr}
+  .mcard{padding:11px}
+  .mc-desc{display:none}
+  .wallet-grid{grid-template-columns:1fr 1fr}
+  .lightbox{grid-template-columns:1fr;grid-template-rows:auto auto;overflow-y:auto;align-content:start}
+  .lb-media{padding:64px 12px 12px}
+  .lb-media img,.lb-media video{max-height:62dvh}
+  .lb-info{border-left:0;border-top:1px solid var(--line);padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+  .lb-prev,.lb-next{top:12px;transform:none}
+  .lb-prev{left:auto;right:66px}
+  .lb-next{right:14px}
+  .lb-close{top:12px;left:12px}
+  .card .card-ov{opacity:1;justify-content:flex-end;background:linear-gradient(to top,rgba(0,0,0,.7),transparent 38%)}
+  .card .card-actions,.card .card-prompt{display:none}
+}
+@media (max-width:420px){ .mgrid{grid-template-columns:1fr} .mc-desc{display:-webkit-box} }
+@media (hover:none){ .card .card-ov{opacity:1} }
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body data-mode="image" data-vsource="text" data-view="create">
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#d4ff3a"/><path d="M9 20.5V7.5h10.5M9 14h8" stroke="#0a0a0c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    <span>Freefield</span>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-mode="image">🖼 Картинки</button>
+    <button class="tab" data-mode="video">🎬 Видео</button>
+  </nav>
+  <div class="top-right">
+    <button class="install-btn hidden" id="installBtn" title="Установить на телефон или компьютер">📲 <span class="wl-text">Установить</span></button>
+    <button class="wallet hub-btn" id="hubBtn" title="Мои сервисы с бесплатными кредитами">🎁 <span class="wl-text">Мои сервисы</span></button>
+    <button class="wallet" id="walletBtn" title="Ключи и оплата">💳 <span class="wl-text" id="walletText">Платные модели</span></button>
+    <button class="icon-btn" id="settingsBtn" title="Ключи и оплата">⚙</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="panel">
+    <div class="panel-scroll">
+
+      <button class="model-pick" id="modelPick" title="Открыть каталог моделей">
+        <span class="mc-ico" id="mpIcon"></span>
+        <div class="mp-body">
+          <div class="mp-top"><span class="tier" id="mpTier"></span><span class="mp-pub" id="mpPub"></span></div>
+          <div class="mp-title" id="mpTitle"></div>
+          <div class="mp-price" id="mpPrice"></div>
+        </div>
+        <span class="mp-chev">Сменить</span>
+      </button>
+      <div class="quick-svc" id="quickSvc"></div>
+
+      <section class="only-video">
+        <div class="block-head"><span class="lbl">Источник</span></div>
+        <div class="seg" id="vSourceSeg">
+          <button data-v="text" class="on">✍️ Из текста</button>
+          <button data-v="image">🖼 Из картинки</button>
+        </div>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" accept="image/*" hidden>
+          <div class="dz-empty">
+            <div class="dz-big">⤓</div>
+            Перетащите картинку, <u>выберите файл</u> или вставьте Ctrl+V<br>
+            <span class="hint">или нажмите «🎬 Оживить» на картинке в галерее</span>
+          </div>
+          <div class="dz-preview hidden" id="dzPreview"><img id="dzImg" alt=""><button class="icon-btn" id="dzClear" title="Убрать">✕</button></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="block-head">
+          <span class="lbl" id="promptLabel">Промпт</span>
+          <button class="icon-btn" id="diceBtn" title="Случайная идея">🎲</button>
+        </div>
+        <div class="prompt-box">
+          <textarea id="prompt" rows="4"></textarea>
+          <div class="prompt-tools">
+            <button class="chip-btn" id="enhanceBtn" title="Переписать промпт как профи (и перевести на английский) — бесплатно">✨ Улучшить</button>
+            <label class="toggle" title="Автоматически улучшать промпт перед каждой генерацией"><input type="checkbox" id="autoEnhance"><span></span>Авто-улучшение</label>
+          </div>
+        </div>
+      </section>
+
+      <section class="only-video">
+        <div class="block-head"><span class="lbl">Движение камеры</span><span class="hint" id="motionName"></span></div>
+        <div class="motion-grid" id="motionGrid"></div>
+      </section>
+
+      <section class="hide-vimg">
+        <div class="block-head"><span class="lbl">Стиль</span><span class="hint" id="styleName"></span></div>
+        <div class="style-grid" id="styleGrid"></div>
+      </section>
+
+      <section class="hide-vimg">
+        <div class="block-head"><span class="lbl">Формат</span></div>
+        <div class="chips" id="aspectChips"></div>
+      </section>
+
+      <section class="only-image">
+        <div class="block-head"><span class="lbl">Количество</span></div>
+        <div class="seg" id="countSeg">
+          <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button>
+        </div>
+      </section>
+
+      <section class="only-video" id="durBlock">
+        <div class="block-head"><span class="lbl">Длительность</span><span class="hint"><b id="durVal">3.5</b> сек</span></div>
+        <div id="durCtl"></div>
+      </section>
+
+      <section class="only-video" id="resBlock">
+        <div class="block-head"><span class="lbl">Качество</span></div>
+        <div class="chips" id="resChips"></div>
+      </section>
+
+      <section class="only-video" id="audioBlock">
+        <label class="toggle" style="justify-content:space-between;color:var(--text)"><span class="lbl" style="background:none;width:auto;height:auto">Звук в видео</span><input type="checkbox" id="audioToggle"><span></span></label>
+      </section>
+
+      <details class="adv">
+        <summary>Дополнительно</summary>
+        <div class="adv-body">
+          <div class="field"><label for="seed">Seed (пусто = случайный)</label><input id="seed" type="number" min="0" placeholder="например, 42"></div>
+          <div class="field"><label for="negative">Чего избегать</label><input id="negative" placeholder="текст, водяные знаки, лишние пальцы"></div>
+        </div>
+      </details>
+
+    </div>
+    <div class="gen-bar">
+      <button class="gen-btn" id="genBtn"><span id="genLabel">Сгенерировать</span><span class="gen-sub" id="genSub">Бесплатно</span></button>
+      <div class="model-line"><span id="etaLine"></span><span id="queueInfo">Ctrl+Enter</span></div>
+    </div>
+  </aside>
+
+  <section class="feed" id="feed">
+    <div class="feed-head">
+      <div class="seg" id="filterSeg">
+        <button data-v="all" class="on">Все</button><button data-v="image">Фото</button><button data-v="video">Видео</button>
+      </div>
+      <input class="search" id="search" placeholder="Поиск по промптам…">
+      <span class="count" id="countLabel"></span>
+    </div>
+
+    <div class="empty" id="empty">
+      <h1>Картинки и видео<br><span>бесплатно</span> — или платите только за результат</h1>
+      <p>Без подписок и регистрации. Пишите по-русски — промпт улучшится сам.</p>
+      <div class="ideas" id="ideas"></div>
+      <div class="features">
+        <div class="feat"><b><span class="tier free">Free</span> Бесплатные модели</b><span>Работают сразу, без ключа. Есть очередь и дневной лимит GPU.</span></div>
+        <div class="feat"><b><span class="tier paid">Paid</span> Топовые модели</b><span>Veo, Seedance, Nano Banana, GPT Image, Flux 2… Цена видна до запуска.</span></div>
+        <div class="feat"><b>🎬 Картинка → видео</b><span>Оживите любую картинку: 12 пресетов движения камеры.</span></div>
+      </div>
+    </div>
+
+    <div class="ext-strip" id="extStrip"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+
+<nav class="bottom-nav" id="bottomNav">
+  <button data-nav="create" class="on"><i>✦</i>Создать</button>
+  <button data-nav="gallery"><i>▦</i>Галерея<span class="nb hidden" id="navBadge"></span></button>
+  <button data-nav="hub"><i>🎁</i>Сервисы</button>
+  <button data-nav="models"><i>◎</i>Модели</button>
+  <button data-nav="settings"><i>🔑</i>Лимиты</button>
+</nav>
+
+<!-- catalog -->
+<div class="sheet hidden" id="catalogSheet">
+  <div class="sheet-panel wide">
+    <div class="sheet-head">
+      <h2>Модели</h2>
+      <div class="seg" id="catKindSeg"><button data-v="image" class="on">🖼 Картинки</button><button data-v="video">🎬 Видео</button></div>
+      <button class="icon-btn" data-close title="Закрыть">✕</button>
+    </div>
+    <div class="cat-tools">
+      <div class="seg" id="catTierSeg"><button data-v="all" class="on">Все</button><button data-v="free">Бесплатно здесь</button><button data-v="sites">Кредиты на сайтах</button><button data-v="paid">Платные</button></div>
+      <div class="seg" id="catSortSeg"><button data-v="top" class="on">Популярные</button><button data-v="cheap">Дешевле</button><button data-v="new">Новые</button></div>
+      <input class="search" id="catSearch" placeholder="Veo, Seedance, Flux…">
+    </div>
+    <div class="sheet-body" id="catBody"></div>
+  </div>
+</div>
+
+<!-- мои сервисы -->
+<div class="sheet hidden" id="hubSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2>Мои сервисы</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-body" id="hubBody"></div>
+  </div>
+</div>
+
+<!-- install -->
+<div class="sheet hidden" id="installSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2>Установить Freefield</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-body" id="installBody"></div>
+  </div>
+</div>
+
+<!-- settings -->
+<div class="sheet hidden" id="settingsSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2>Лимиты и оплата</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-body">
+      <div class="set-h"><span class="tier free">Free</span> Бесплатно — как получить больше</div>
+
+      <div class="set-card" id="hfSection">
+        <div class="set-card-head"><span class="mc-ico" style="background:#ffd21e;color:#000;font-size:18px">🤗</span>
+          <div><b>Hugging Face — больше бесплатного GPU</b><div class="hint" id="hfStatus"></div></div></div>
+        <p class="set-p">FLUX и Wan работают на бесплатных GPU Hugging Face. Без входа лимит — <b>2 минуты GPU в день</b>, с бесплатным аккаунтом — <b>5 минут</b> и очередь быстрее. Это официальная возможность Hugging Face.</p>
+        <ol class="steps">
+          <li>Зарегистрируйтесь на <a href="https://huggingface.co/join" target="_blank" rel="noopener">huggingface.co</a> — бесплатно.</li>
+          <li>Откройте <a href="https://huggingface.co/settings/tokens/new?tokenType=read" target="_blank" rel="noopener">создание токена</a>, тип <b>Read</b>, нажмите «Create token».</li>
+          <li>Скопируйте токен (начинается с <code>hf_</code>) и вставьте сюда.</li>
+        </ol>
+        <div class="key-row">
+          <input id="hfInput" type="text" placeholder="hf_…" autocomplete="off" spellcheck="false">
+          <button class="btn" data-eye="hfInput" title="Показать/скрыть">👁</button>
+          <button class="btn free" id="hfSave">Войти</button>
+        </div>
+        <button class="btn danger small hidden" id="hfClear">Выйти из Hugging Face</button>
+      </div>
+
+      <div class="set-card" id="geminiSection">
+        <div class="set-card-head"><span class="mc-ico" style="background:linear-gradient(135deg,#4285f4,#9b72cb,#d96570);color:#fff">✦</span>
+          <div><b>Google Gemini — умные промпты бесплатно</b><div class="hint" id="geminiStatus"></div></div></div>
+        <p class="set-p">Вход через ваш Google-аккаунт на сайте Google. Gemini переписывает идею в профессиональный промпт — бесплатно в рамках лимитов Google. Без ключа промпт только переводится на английский.</p>
+        <ol class="steps">
+          <li>Откройте <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> и войдите своим Google-аккаунтом.</li>
+          <li>Нажмите «Create API key» и скопируйте ключ.</li>
+          <li>Вставьте его сюда.</li>
+        </ol>
+        <div class="key-row">
+          <input id="geminiInput" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false">
+          <button class="btn" data-eye="geminiInput" title="Показать/скрыть">👁</button>
+          <button class="btn free" id="geminiSave">Сохранить</button>
+        </div>
+      </div>
+
+      <div class="set-card">
+        <div class="set-card-head"><span class="mc-ico" style="background:linear-gradient(135deg,#8b5cf6,#4c1d95);color:#fff">AH</span>
+          <div><b>AI Horde — картинки без дневного лимита</b><div class="hint" id="hordeStatus"></div></div></div>
+        <p class="set-p">Видеокарты добровольцев. Необязательный бесплатный ключ с <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a> поднимает вас в очереди.</p>
+        <div class="key-row">
+          <input id="hordeInput" type="text" placeholder="ключ AI Horde (необязательно)" autocomplete="off" spellcheck="false">
+          <button class="btn" data-eye="hordeInput" title="Показать/скрыть">👁</button>
+          <button class="btn free" id="hordeSave">Сохранить</button>
+        </div>
+        <label class="toggle set-toggle"><input type="checkbox" id="autoFallback"><span></span>Когда лимит FLUX кончился — автоматически рисовать через AI Horde</label>
+      </div>
+
+      <div class="set-card" id="svcSection">
+        <div class="set-card-head"><span class="mc-ico" style="background:linear-gradient(135deg,#d4ff3a,#7bc41a);color:#0a0a0c;font-size:17px">🎁</span>
+          <div><b>Бесплатные кредиты на сайтах</b><div class="hint">Вход — вашим аккаунтом на сайте сервиса, пароль никогда не попадает во Freefield</div></div></div>
+        <p class="set-p">Выберите любой из этих сервисов в каталоге моделей: Freefield подготовит промпт, откроет сайт и примет готовую картинку или видео в галерею. Лимиты — на сентябрь 2026, сервисы их меняют.</p>
+        <div id="svcList"></div>
+      </div>
+
+      <div class="set-h"><span class="tier paid">Paid</span> Платно — только за генерацию</div>
+      <div class="how">
+        <div class="how-row"><span class="tier paid">Paid</span><div>Платные модели идут через <b>Pollinations</b>: один ключ на все модели, <b>никаких подписок</b> — списывается только цена каждой генерации. Цена показана на кнопке до запуска.</div></div>
+      </div>
+      <ol class="steps">
+        <li>Откройте <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a> и войдите.</li>
+        <li>Пополните баланс на любую сумму (1 pollen ≈ $1).</li>
+        <li>Создайте ключ — лучше <b>с лимитом бюджета</b> — и вставьте его ниже.</li>
+      </ol>
+      <div class="field">
+        <label for="keyInput">API-ключ Pollinations</label>
+        <div class="key-row">
+          <input id="keyInput" type="text" placeholder="pk_… или sk_…" autocomplete="off" spellcheck="false">
+          <button class="btn" data-eye="keyInput" title="Показать/скрыть">👁</button>
+          <button class="btn primary" id="keySave">Сохранить</button>
+        </div>
+        <div class="hint" style="margin-top:6px">Ключ хранится только в этом браузере и уходит только на gen.pollinations.ai.</div>
+      </div>
+      <div class="wallet-grid">
+        <div><span>Баланс</span><b id="balVal">—</b></div>
+        <div><span>Потрачено сегодня</span><b id="spToday">$0</b></div>
+        <div><span>Потрачено всего</span><b id="spTotal">$0</b></div>
+      </div>
+      <div class="field">
+        <label for="confirmOver">Спрашивать подтверждение, если генерация дороже ($)</label>
+        <input id="confirmOver" type="number" min="0" step="0.05">
+      </div>
+      <div class="set-foot">
+        <button class="btn" id="balRefresh">↻ Обновить баланс</button>
+        <button class="btn danger" id="keyClear">Удалить ключ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox hidden" id="lightbox">
+  <div class="lb-media">
+    <button class="lb-btn lb-close" id="lbClose" title="Закрыть (Esc)">✕</button>
+    <button class="lb-btn lb-prev" id="lbPrev" title="Назад (←)">‹</button>
+    <button class="lb-btn lb-next" id="lbNext" title="Вперёд (→)">›</button>
+    <div id="lbMedia"></div>
+  </div>
+  <aside class="lb-info" id="lbInfo"></aside>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+'use strict';
+/* =============================== config =============================== */
+const API = {
+  text:  'https://gen.pollinations.ai/v1/chat/completions',            // бесплатно, без ключа: LLM для улучшения промптов
+  gen:   'https://gen.pollinations.ai',                                // платно по ключу: 60+ моделей, оплата за генерацию
+};
+
+// Бесплатные модели — официальные демо на бесплатных GPU Hugging Face (ZeroGPU), без ключа.
+const FREE_MODELS = [
+  {id: 'free:flux-schnell', kind: 'image', tier: 'free', provider: 'hf', ico: 'BF', title: 'FLUX.1 [schnell]', publisher: 'Black Forest Labs · бесплатный GPU',
+   desc: 'Быстрая бесплатная модель: ~5 с на картинку. Дневной лимит GPU: без входа — немного, с бесплатным аккаунтом Hugging Face — больше.',
+   host: 'https://black-forest-labs-flux-1-schnell.hf.space', endpoint: 'infer',
+   args: (p, w, h, seed) => [p, seed, false, w, h, 4], tags: ['⚡ ~5 с', 'лимит GPU'], credits: 'общий лимит GPU Hugging Face: 2 мин в день без входа, 5 мин — с бесплатным аккаунтом',
+   equiv: '≈ 5–7 картинок в день без входа, ≈ 40 — с аккаунтом HF (≈ 5 с GPU на картинку)',
+   inputs: ['text'], outputs: ['image'], caps: [], health: 'healthy', eta: '≈ 5–20 с'},
+  {id: 'free:flux-dev', kind: 'image', tier: 'free', provider: 'hf', ico: 'BF', title: 'FLUX.1 [dev]', publisher: 'Black Forest Labs · бесплатный GPU',
+   desc: 'Выше качество и детализация, медленнее (~20–40 с) и сильнее тратит дневной лимит GPU.',
+   host: 'https://black-forest-labs-flux-1-dev.hf.space', endpoint: 'infer',
+   args: (p, w, h, seed) => [p, seed, false, w, h, 3.5, 28], tags: ['💎 качество', 'лимит GPU'], credits: 'общий лимит GPU Hugging Face: 2 мин в день без входа, 5 мин — с бесплатным аккаунтом',
+   equiv: '≈ 1–2 картинки в день без входа, ≈ 8–10 — с аккаунтом HF (≈ 25 с GPU на картинку)',
+   inputs: ['text'], outputs: ['image'], caps: [], health: 'healthy', eta: '≈ 20–60 с'},
+  {id: 'free:horde', kind: 'image', tier: 'free', provider: 'horde', ico: 'AH', title: 'AI Horde · SDXL', publisher: 'Сообщество волонтёров',
+   desc: 'Картинки на видеокартах добровольцев: без дневного лимита, но очередь 1–10 минут. С бесплатным ключом AI Horde — быстрее.',
+   tags: ['♾ без лимита', '🐢 очередь'], credits: 'без кредитов и без дневного лимита',
+   equiv: 'сколько угодно картинок, но каждая ждёт в очереди 1–10 минут', inputs: ['text'], outputs: ['image'], caps: [], health: 'healthy', eta: '≈ 1–10 мин'},
+  {id: 'free:wan22', kind: 'video', tier: 'free', provider: 'hf', ico: 'W', title: 'Wan 2.2 Fast', publisher: 'Alibaba · бесплатный GPU',
+   desc: 'Оживляет картинку (или сначала рисует кадр из текста через FLUX). До 5 с, дневной лимит GPU.',
+   host: 'https://zerogpu-aoti-wan2-2-fp8da-aoti-faster.hf.space', endpoint: 'generate_video', tags: ['лимит GPU'], credits: 'общий лимит GPU Hugging Face: 2 мин в день без входа, 5 мин — с бесплатным аккаунтом',
+   equiv: '≈ 1–2 видео в день без входа, ≈ 5–8 — с аккаунтом HF (лимит общий с FLUX)',
+   inputs: ['text', 'image'], outputs: ['video'], caps: ['start_frame'], health: 'healthy', minDur: 1, maxDur: 5, durStep: 0.5, defDur: 3.5, eta: '≈ 1–2 мин'},
+];
+
+// ---------------------------------------------------------------------------
+// Бесплатные кредиты на сайтах сервисов (данные на сентябрь 2026 — сервисы их меняют).
+// Публичного API у них нет, поэтому генерация идёт на их сайте под вашим аккаунтом:
+// Freefield готовит промпт, открывает сайт и принимает готовый файл в галерею.
+// credits — сколько даёт сервис; equiv — на сколько генераций этого хватает.
+const SERVICES = [
+  // ---- каждый день ----
+  {id: 'dola', name: 'Dola', by: 'ByteDance', url: 'https://www.dola.com/', ico: 'Do', color: 'linear-gradient(135deg,#00c2ff,#7a5cff)',
+   period: 'day', credits: '≈ 50 кредитов в день (точное число Dola не публикует)', short: '≈ 50 кр./день',
+   note: 'Недоступна в США, Канаде и Австралии.',
+   image: {models: 'Seedream 5.0', equiv: 'лимит на картинки Dola не публикует'},
+   video: {models: 'Seedance 2.5', equiv: '≈ 3–4 видео в день (по отзывам пользователей)', dur: [5, 10]}},
+  {id: 'flow', name: 'Google Flow', by: 'Google', url: 'https://flow.google.com/', ico: 'FL', color: 'linear-gradient(135deg,#1a73e8,#34a853 60%,#fbbc05)',
+   period: 'day', credits: '50 кредитов в день', short: '50 кр./день', ids: {image: 'ext:flow-image', video: 'ext:flow-video'},
+   image: {models: 'Nano Banana', equiv: '25 картинок Nano Banana (2 кр.) или 6 — Nano Banana Pro / 2 (8 кр.)'},
+   video: {models: 'Veo 3.1', engine: 'Veo 3.1 Lite или Fast (дешевле по кредитам)', dur: [4, 6, 8],
+     equiv: '5 видео Veo 3.1 Lite (10 кр.) или 2 — Fast (20 кр.); на Quality (100 кр.) не хватает'}},
+  {id: 'gemini', name: 'Gemini', by: 'Google', url: 'https://gemini.google.com/', ico: 'Ge', color: 'linear-gradient(135deg,#4285f4,#9b72cb,#d96570)',
+   period: 'day', credits: 'без кредитов — дневной лимит', short: '≈ 20 картинок/день',
+   image: {models: 'Nano Banana 2', equiv: '≈ 20 картинок в день (Nano Banana Pro — 2 в день)'}},
+  {id: 'aistudio', name: 'Google AI Studio', by: 'Google', url: 'https://aistudio.google.com/', ico: 'AI', color: 'linear-gradient(135deg,#1a73e8,#0b57d0)',
+   period: 'day', credits: 'без кредитов — динамический дневной лимит', short: 'сотни/день',
+   image: {models: 'Nano Banana', engine: 'модель Nano Banana (…flash-image) в чате', equiv: 'обычно сотни картинок в день (зависит от сложности запросов)'}},
+  {id: 'kling', name: 'Kling AI', by: 'Kuaishou', url: 'https://kling.ai/', ico: 'Kl', color: 'linear-gradient(135deg,#00e0a4,#0a7cff)',
+   period: 'day', credits: '66 кредитов в день (сгорают через 24 ч)', short: '66 кр./день',
+   video: {models: 'Kling 3.0', dur: [5, 10], equiv: '≈ 2–4 видео 720p по 5 с (15–30 кр. каждое), с водяным знаком'}},
+  {id: 'dreamina', name: 'Dreamina', by: 'CapCut · ByteDance', url: 'https://dreamina.capcut.com/', ico: 'Dr', color: 'linear-gradient(135deg,#6d5dfc,#00d1ff)',
+   period: 'day', credits: '≈ 120 кредитов в день (зависит от региона)', short: '≈ 120 кр./день',
+   image: {models: 'Seedream 5.0 Lite', equiv: 'цену картинки Dreamina не публикует — зависит от модели'},
+   video: {models: 'Seedance 2.0 / 2.5', dur: [5, 10], equiv: '≈ 1–3 видео в день; новым аккаунтам — 4 пробных Seedance 2.5 на 3 дня'}},
+  {id: 'pixverse', name: 'PixVerse', by: 'PixVerse', url: 'https://app.pixverse.ai/', ico: 'PV', color: 'linear-gradient(135deg,#ff4d8d,#7a3cff)',
+   period: 'day', credits: '60 кредитов в день + 90 при регистрации', short: '60 кр./день',
+   video: {models: 'PixVerse', dur: [5], equiv: '≈ 2 видео в день (≈ 25 кр. за ролик), с водяным знаком'}},
+  {id: 'qwen', name: 'Qwen Chat', by: 'Alibaba', url: 'https://chat.qwen.ai/', ico: 'Qw', color: 'linear-gradient(135deg,#615ced,#2a1f9d)',
+   period: 'day', credits: 'без кредитов и жёсткого лимита', short: 'без лимита',
+   image: {models: 'Qwen-Image', equiv: 'без жёсткого лимита (после 6–7 подряд замедляется)'},
+   video: {models: 'Wan 2.7', dur: [5], equiv: 'без жёсткого лимита и без водяного знака (после 6–7 подряд замедляется)'}},
+  {id: 'meta', name: 'Meta AI', by: 'Meta', url: 'https://www.meta.ai/', ico: 'Me', color: 'linear-gradient(135deg,#0081fb,#a33bff)',
+   period: 'day', credits: 'без кредитов, платного тарифа нет', short: 'бесплатно', note: 'Доступность зависит от страны.',
+   image: {models: 'Imagine', equiv: 'бесплатно, лимит Meta не публикует'},
+   video: {models: 'Vibes', dur: [5], equiv: 'бесплатно, лимит Meta не публикует'}},
+  {id: 'bing', name: 'Bing Creator', by: 'Microsoft', url: 'https://www.bing.com/images/create', ico: 'Bi', color: 'linear-gradient(135deg,#00a4ef,#7fba00)',
+   period: 'day', credits: '15 быстрых генераций в день + без лимита в обычной скорости', short: '15 быстро/день + ∞',
+   image: {models: 'DALL·E 3 / GPT-4o', equiv: '15 картинок быстро, дальше сколько угодно медленно (45 с – 4 мин)'},
+   video: {models: 'Sora', dur: [5], equiv: '10 быстрых видео разово, дальше без лимита в обычной скорости (5 с, 9:16)'}},
+  {id: 'chatgpt', name: 'ChatGPT', by: 'OpenAI', url: 'https://chatgpt.com/', ico: 'GP', color: 'linear-gradient(135deg,#10a37f,#0b6e56)',
+   period: 'day', credits: 'без кредитов — лимит на 24 часа', short: '2–3 картинки/день',
+   image: {models: 'GPT Image', equiv: '2–3 картинки за 24 часа'}},
+  {id: 'leonardo', name: 'Leonardo AI', by: 'Canva', url: 'https://app.leonardo.ai/', ico: 'Le', color: 'linear-gradient(135deg,#ff7a45,#c8358f)',
+   period: 'day', credits: '150 токенов в день', short: '150 ток./день',
+   image: {models: 'Lucid Origin и др.', equiv: '≈ 10–15 картинок на своих моделях (премиум-модели — меньше)'}},
+  {id: 'krea', name: 'Krea', by: 'Krea', url: 'https://www.krea.ai/', ico: 'Kr', color: 'linear-gradient(135deg,#222,#666)',
+   period: 'day', credits: '100 единиц в день', short: '100 ед./день',
+   image: {models: 'Krea 2, Nano Banana 2…', equiv: '≈ 1 картинка Nano Banana 2; на своей модели Krea 2 — больше'}},
+  {id: 'recraft', name: 'Recraft', by: 'Recraft', url: 'https://www.recraft.ai/', ico: 'Rc', color: 'linear-gradient(135deg,#ff6b35,#f7c548)',
+   period: 'day', credits: '30 кредитов в день', short: '30 кр./день',
+   image: {models: 'Recraft (дизайн, вектор)', equiv: '30 растровых картинок (1 кр.) или 15 векторных (2 кр.)'}},
+  {id: 'tensor', name: 'Tensor.Art', by: 'Tensor.Art', url: 'https://tensor.art/', ico: 'TA', color: 'linear-gradient(135deg,#3a7bd5,#00d2ff)',
+   period: 'day', credits: '≈ 100 кредитов в день (по разным данным 50–100)', short: '≈ 100 кр./день',
+   image: {models: 'тысячи моделей SD / FLUX', equiv: 'десятки картинок (цена зависит от модели)'}},
+  {id: 'seaart', name: 'SeaArt', by: 'SeaArt', url: 'https://www.seaart.ai/', ico: 'SA', color: 'linear-gradient(135deg,#1fa2ff,#12d8fa,#a6ffcb)',
+   period: 'day', credits: '150 «энергии» в день', short: '150 эн./день',
+   image: {models: 'модели SD / FLUX', equiv: 'десятки картинок (цена зависит от модели)'}},
+  // ---- каждую неделю / месяц ----
+  {id: 'ideogram', name: 'Ideogram', by: 'Ideogram', url: 'https://ideogram.ai/', ico: 'Id', color: 'linear-gradient(135deg,#111,#555)',
+   period: 'week', credits: '10 кредитов в неделю', short: '10 кр./нед.',
+   image: {models: 'Ideogram (текст на картинках)', equiv: '≈ 10 генераций в неделю в медленной очереди'}},
+  {id: 'vids', name: 'Google Vids', by: 'Google', url: 'https://vids.google.com/', ico: 'G', color: 'conic-gradient(from 200deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)',
+   period: 'month', credits: '10 видео в месяц', short: '10 видео/мес.', ids: {video: 'ext:google-vids'}, count: {n: 10, per: 'month'},
+   video: {models: 'Veo 3.1', engine: 'генерацию видео (Veo)', dur: [8], equiv: '10 видео по 8 с, 720p, со звуком'}},
+  {id: 'vidu', name: 'Vidu', by: 'Shengshu', url: 'https://www.vidu.com/', ico: 'Vi', color: 'linear-gradient(135deg,#00c6ff,#0072ff)',
+   period: 'month', credits: '80 кредитов в месяц + без лимита в непиковые часы', short: '80 кр./мес. + ночью ∞',
+   video: {models: 'Vidu Q3', dur: [4, 8], equiv: '≈ 20 коротких клипов в месяц + бесплатно в непиковые часы'}},
+  {id: 'pika', name: 'Pika', by: 'Pika', url: 'https://pika.art/', ico: 'Pi', color: 'linear-gradient(135deg,#f953c6,#b91d73)',
+   period: 'month', credits: '80 кредитов в месяц', short: '80 кр./мес.',
+   video: {models: 'Pika 2.5', dur: [5, 10], equiv: '1 видео 10 с 1080p (80 кр.) или несколько в 480p'}},
+  {id: 'firefly', name: 'Adobe Firefly', by: 'Adobe', url: 'https://firefly.adobe.com/', ico: 'Ff', color: 'linear-gradient(135deg,#fa0f00,#ff7a00)',
+   period: 'month', credits: '25 кредитов в месяц', short: '25 кр./мес.',
+   image: {models: 'Firefly Image', equiv: '≈ 25 картинок (1 кр. за стандартную)'}},
+  // ---- разово (пробный период) ----
+  {id: 'openart', name: 'OpenArt', by: 'OpenArt', url: 'https://openart.ai/', ico: 'OA', color: 'linear-gradient(135deg,#8e2de2,#4a00e0)',
+   period: 'once', credits: '40 кредитов на 7 дней (+50 за вступление в их Discord)', short: '40 кр. разово',
+   video: {models: 'Kling 3.0 Omni, Seedance…', dur: [5, 10], equiv: '≈ 2 видео Kling 3.0 Omni (с бонусом Discord — больше)'}},
+  {id: 'hailuo', name: 'Hailuo AI', by: 'MiniMax', url: 'https://hailuoai.video/', ico: 'Ha', color: 'linear-gradient(135deg,#ff512f,#dd2476)',
+   period: 'once', credits: '≈ 200 кредитов разово, сгорают через 3 дня', short: '≈ 200 кр. разово',
+   video: {models: 'Hailuo', dur: [6], equiv: '≈ 8 видео 768p по 6 с (25 кр. каждое), с водяным знаком'}},
+  {id: 'runway', name: 'Runway', by: 'Runway', url: 'https://app.runwayml.com/', ico: 'Rw', color: 'linear-gradient(135deg,#0f0f0f,#4a4a4a)',
+   period: 'once', credits: '125 кредитов разово', short: '125 кр. разово',
+   video: {models: 'Gen-4 Turbo', dur: [5, 10], equiv: '≈ 25 секунд видео (5 кр./с) — 2–5 роликов'}},
+];
+
+const PERIODS = {day: '🔄 каждый день', week: '🔄 каждую неделю', month: '🗓 каждый месяц', once: '🎁 разово (пробный период)'};
+const EXT_MODELS = SERVICES.flatMap(s => ['image', 'video'].filter(k => s[k]).map(k => ({
+  id: s.ids?.[k] || `ext:${s.id}-${k}`, kind: k, tier: 'free', provider: 'ext', external: true, service: s.id,
+  ico: s.ico, color: s.color, title: `${s.name} · ${s[k].models}`, publisher: `${s.by} · на их сайте`,
+  site: s.name, url: s.url, engine: s[k].engine || s[k].models, period: s.period,
+  credits: s.credits, equiv: s[k].equiv, short: s.short, note: s.note, count: s.count,
+  desc: `${s.credits}. ${s[k].equiv}.${s.note ? ' ' + s.note : ''}`,
+  tags: [PERIODS[s.period], ...(k === 'video' && s.video.dur ? [`⏱ ${s.video.dur.join('/')} с`] : [])],
+  inputs: ['text'], outputs: [k], caps: [], health: 'healthy', eta: 'вручную на сайте',
+  ...(k === 'video' ? {durations: s.video.dur || [5], defDur: (s.video.dur || [5])[0]} : {}),
+})));
+FREE_MODELS.push(...EXT_MODELS);
+
+const HORDE = {
+  api: 'https://aihorde.net/api/v2',
+  agent: 'freefield:0.2:local',
+  models: ['AlbedoBase XL 3.1', 'Juggernaut XL', 'ICBINP XL', 'AlbedoBase XL (SDXL)'],
+};
+
+// показываются первыми в «Популярных»
+const FEATURED = [
+  'google/gemini-3.1-flash-image', 'openai/gpt-image-2', 'black-forest-labs/flux.2-pro', 'bytedance/seedream-5.0-lite',
+  'google/gemini-3-pro-image', 'ideogram-ai/ideogram-v4-turbo', 'x-ai/grok-imagine-image', 'qwen/qwen-image-3',
+  'google/veo-3.1-fast', 'bytedance/seedance-2.0-fast', 'bytedance/seedance-2.5', 'x-ai/grok-imagine-video',
+  'alibaba/wan-2.7', 'minimax/minimax-h3-max-turbo', 'alibaba/wan-2.2-fast', 'prunaai/p-video',
+];
+
+// запасной каталог, если живой не загрузился (цены на сентябрь 2026)
+const FALLBACK_CATALOG = [
+  {name: 'google/gemini-3.1-flash-image', title: 'Nano Banana 2', publisher: 'Google', category: 'image', paid_only: true, input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.0000633'}},
+  {name: 'openai/gpt-image-2', title: 'GPT Image 2', publisher: 'OpenAI', category: 'image', input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.0000225'}},
+  {name: 'black-forest-labs/flux.2-pro', title: 'FLUX.2 Pro', publisher: 'Black Forest Labs', category: 'image', paid_only: true, input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.01125'}, flat_rate: true},
+  {name: 'bytedance/seedream-5.0-lite', title: 'Seedream 5 Lite', publisher: 'ByteDance', category: 'image', paid_only: true, input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.035'}, flat_rate: true},
+  {name: 'ideogram-ai/ideogram-v4-turbo', title: 'Ideogram v4 Turbo', publisher: 'Ideogram', category: 'image', paid_only: true, input_modalities: ['text'], pricing: {completionImageTokens: '0.03'}, flat_rate: true},
+  {name: 'tongyi-mai/z-image-turbo', title: 'Z-Image Turbo', publisher: 'Alibaba', category: 'image', input_modalities: ['text'], pricing: {completionImageTokens: '0.004'}, flat_rate: true},
+  {name: 'google/veo-3.1-fast', title: 'Veo 3.1 Fast', publisher: 'Google', category: 'video', paid_only: true, input_modalities: ['text', 'image'], video_capabilities: ['start_frame', 'audio_output'], resolutions: ['720p', '1080p'], allowed_durations: [4, 6, 8], default_duration: 4, pricing: {completionVideoSeconds: '0.08', completionAudioSeconds: '0.02'}},
+  {name: 'bytedance/seedance-2.0-fast', title: 'Seedance 2.0 Fast', publisher: 'ByteDance', category: 'video', paid_only: true, input_modalities: ['text', 'image'], min_duration: 4, max_duration: 12, default_duration: 5, pricing: {completionVideoSeconds: '0.07'}},
+  {name: 'x-ai/grok-imagine-video', title: 'Grok Imagine Video', publisher: 'xAI', category: 'video', paid_only: true, input_modalities: ['text', 'image'], min_duration: 1, max_duration: 15, default_duration: 6, pricing: {completionVideoSeconds: '0.07'}},
+  {name: 'alibaba/wan-2.2-fast', title: 'Wan 2.2 Fast', publisher: 'Alibaba', category: 'video', paid_only: true, input_modalities: ['text', 'image'], min_duration: 5, max_duration: 5, default_duration: 5, pricing: {completionVideoSeconds: '0.01'}},
+];
+
+const STYLES = [
+  {id:'none',      name:'Без стиля',   emoji:'○',  bg:'linear-gradient(135deg,#2a2a31,#17171b)', suffix:''},
+  {id:'cinematic', name:'Кино',        emoji:'🎬', bg:'linear-gradient(135deg,#123247,#c7773a)', suffix:'cinematic film still, anamorphic lens, dramatic lighting, shallow depth of field, color graded, 35mm film grain'},
+  {id:'photo',     name:'Фото',        emoji:'📷', bg:'linear-gradient(135deg,#2f4034,#a8bf9f)', suffix:'ultra realistic photograph, 85mm lens, natural light, highly detailed, sharp focus, 8k'},
+  {id:'anime',     name:'Аниме',       emoji:'🌸', bg:'linear-gradient(135deg,#ff8fb1,#6f62ff)', suffix:'anime style, studio ghibli inspired, vibrant colors, detailed background, cel shading'},
+  {id:'3d',        name:'3D-мульт',    emoji:'🧸', bg:'linear-gradient(135deg,#43b8ee,#a146b8)', suffix:'3d render, pixar style, soft global illumination, cute, octane render, subsurface scattering'},
+  {id:'cyber',     name:'Киберпанк',   emoji:'🌆', bg:'linear-gradient(135deg,#ff00a8,#00d9ff)', suffix:'cyberpunk, neon lights, rain-soaked streets, blade runner aesthetic, magenta and cyan glow'},
+  {id:'fantasy',   name:'Фэнтези',     emoji:'🐉', bg:'linear-gradient(135deg,#2a1c5a,#d8a24a)', suffix:'epic fantasy concept art, ethereal lighting, highly detailed, matte painting'},
+  {id:'oil',       name:'Живопись',    emoji:'🎨', bg:'linear-gradient(135deg,#7c4d22,#e8c27d)', suffix:'oil painting, visible brush strokes, impressionism, rich texture, canvas'},
+  {id:'fashion',   name:'Fashion',     emoji:'👠', bg:'linear-gradient(135deg,#0d0d0d,#d9d9d9)', suffix:'high fashion editorial photoshoot, vogue magazine, studio lighting, bold styling'},
+  {id:'retro',     name:'VHS 90-х',    emoji:'📼', bg:'linear-gradient(135deg,#ff6b6b,#ffd93d)', suffix:'1990s VHS camcorder aesthetic, retro, film noise, washed colors, nostalgic'},
+  {id:'noir',      name:'Нуар',        emoji:'🕵️', bg:'linear-gradient(135deg,#000,#8a8a8a)',     suffix:'black and white film noir, high contrast, dramatic shadows, moody'},
+  {id:'comic',     name:'Комикс',      emoji:'💥', bg:'linear-gradient(135deg,#ffd600,#e60023)', suffix:'comic book art, bold ink lines, halftone dots, dynamic composition, vibrant'},
+];
+
+const MOTIONS = [
+  {id:'static',    name:'Без движения', anim:'static', prompt:'static camera, subtle natural motion'},
+  {id:'live',      name:'Живое фото',   anim:'live',   prompt:'subtle living photo motion, gentle breathing, hair and clothes softly moving in the wind, static camera'},
+  {id:'dolly_in',  name:'Наезд',        anim:'in',     prompt:'slow cinematic dolly-in, camera smoothly pushes toward the subject'},
+  {id:'dolly_out', name:'Отъезд',       anim:'out',    prompt:'slow dolly-out, camera pulls back revealing the environment'},
+  {id:'crash',     name:'Crash Zoom',   anim:'crash',  prompt:'sudden fast crash zoom into the subject, dramatic'},
+  {id:'orbit',     name:'Облёт',        anim:'orbit',  prompt:'camera smoothly orbits around the subject, strong parallax'},
+  {id:'pan',       name:'Панорама',     anim:'pan',    prompt:'smooth lateral tracking shot, camera pans from left to right'},
+  {id:'crane',     name:'Кран вверх',   anim:'crane',  prompt:'camera cranes up and rises high above the scene'},
+  {id:'hand',      name:'С рук',        anim:'hand',   prompt:'handheld camera, natural subtle shake, documentary realism'},
+  {id:'fpv',       name:'FPV-дрон',     anim:'fpv',    prompt:'fast FPV drone flight swooping through the scene, dynamic motion'},
+  {id:'bullet',    name:'Bullet Time',  anim:'bullet', prompt:'bullet time effect, time frozen, camera arcs around the subject'},
+  {id:'slowmo',    name:'Slow-Mo',      anim:'slow',   prompt:'dramatic slow motion, graceful fluid movement'},
+];
+
+const ASPECTS = [
+  {id:'1:1',  w:1024, h:1024}, {id:'4:5', w:896, h:1120}, {id:'3:4', w:864, h:1152}, {id:'2:3', w:832, h:1248},
+  {id:'9:16', w:736,  h:1312}, {id:'16:9', w:1312, h:736}, {id:'21:9', w:1344, h:576},
+];
+const VIDEO_ASPECTS = ['16:9', '9:16', '1:1'];
+
+const IDEAS = [
+  'Рыжая лиса в заснеженном лесу на рассвете',
+  'Киберпанк-самурай под неоновым дождём в Токио',
+  'Уютная кофейня внутри гигантской тыквы, осенний вечер',
+  'Астронавт верхом на лошади по поверхности Марса',
+  'Портрет старого рыбака, суровое лицо, морской ветер',
+  'Парящий остров с водопадами над облаками',
+  'Кот в костюме викторианского детектива читает газету',
+  'Футуристический спорткар в пустыне на закате',
+  'Девушка в красном платье посреди лавандового поля',
+  'Древний дракон спит на горе золота в пещере',
+  'Маленький робот поливает цветок на крыше небоскрёба',
+  'Подводный город с китами и светящимися медузами',
+];
+
+const SYS = {
+  image: `You are a world-class prompt engineer for text-to-image models.
+Rewrite the user's idea (any language) into ONE vivid English prompt of 40-80 words.
+Cover: main subject and action, environment, composition and camera/lens, lighting, mood, color palette, quality details.
+Keep every concrete detail the user gave. Do not add text/lettering unless asked.
+Output ONLY the prompt: no preamble, no quotes, no lists, no markdown.`,
+  video: `You are a prompt engineer for an image-to-video AI model.
+From the user's idea (any language), write ONE English prompt of 20-45 words describing MOTION:
+what moves and how (subject action, face/body, hair, cloth, particles, water, light), pacing, and camera behaviour.
+Keep the user's details. Output ONLY the prompt: no preamble, no quotes, no markdown.`,
+  t2v: `You are a prompt engineer for a text-to-video AI model (like Veo or Seedance).
+Rewrite the user's idea (any language) into ONE cinematic English prompt of 40-70 words:
+subject and appearance, setting, the action unfolding over time, camera movement, lighting, mood, style.
+Keep the user's details. Output ONLY the prompt: no preamble, no quotes, no markdown.`,
+};
+
+const WAN_NEG = '色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 静止不动的画面, 杂乱的背景, 三条腿, 背景人很多, 倒着走';
+
+/* =============================== utils =============================== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const randSeed = () => Math.floor(Math.random() * 2147483647);
+const byId = (arr, id) => arr.find(x => x.id === id) || arr[0];
+const fmtTime = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const fmtUSD = v => v == null ? '—' : '$' + (v < 0.1 ? +v.toPrecision(2) : v.toFixed(2));
+const isMobile = () => matchMedia('(max-width: 900px)').matches;
+const encPrompt = p => encodeURIComponent(p.replace(/[\/\\]/g, ' ').slice(0, 1800));
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+
+function toast(msg, opts = {}) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (opts.type || '');
+  t.innerHTML = `<span>${esc(msg)}</span>`;
+  if (opts.action) {
+    const b = document.createElement('button');
+    b.textContent = opts.action;
+    b.onclick = () => { opts.onAction(); t.remove(); };
+    t.append(b);
+  }
+  $('#toasts').append(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, opts.ms || 4200);
+}
+
+async function dims(blob) {
+  try { const b = await createImageBitmap(blob); const d = [b.width, b.height]; b.close?.(); return d; }
+  catch { return null; }
+}
+
+async function downscale(blob, max = 1024) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    if (k === 1 && blob.type === 'image/jpeg') return blob;
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+  } catch { return blob; }
+}
+
+function hue(str) { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+function icoStyle(m) {
+  if (m.provider === 'ext') return `background:${m.color};color:#fff`;
+  if (m.provider === 'flow') return 'background:linear-gradient(135deg,#1a73e8,#34a853 60%,#fbbc05);color:#fff';
+  if (m.provider === 'vids') return 'background:conic-gradient(from 200deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4);color:#fff';
+  if (m.provider === 'horde') return 'background:linear-gradient(135deg,#8b5cf6,#4c1d95);color:#fff';
+  if (m.tier === 'free') return 'background:linear-gradient(135deg,#d4ff3a,#7bc41a);color:#0a0a0c;text-shadow:none';
+  const h = hue(m.publisher || m.title);
+  return `background:linear-gradient(135deg,hsl(${h} 70% 55%),hsl(${(h + 50) % 360} 65% 38%))`;
+}
+function initials(m) {
+  if (m.ico) return m.ico;
+  const w = (m.publisher || m.title).replace(/[^A-Za-zА-Яа-я0-9 ]/g, ' ').trim().split(/\s+/);
+  return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
+}
+
+class Queue {
+  constructor() { this.jobs = []; this.busy = false; }
+  get size() { return this.jobs.length + (this.busy ? 1 : 0); }
+  push(fn) { return new Promise((resolve, reject) => { this.jobs.push({fn, resolve, reject}); this.next(); }); }
+  async next() {
+    if (this.busy || !this.jobs.length) return;
+    const job = this.jobs.shift();
+    this.busy = true;
+    try { job.resolve(await job.fn()); } catch (e) { job.reject(e); }
+    finally { this.busy = false; this.next(); }
+  }
+}
+const freeImageQueue = new Queue();   // анонимный бесплатный API — строго по одному
+const freeVideoQueue = new Queue();   // бесплатный GPU — строго по одному
+
+/* =============================== storage =============================== */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('freefield', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('items', {keyPath: 'id'});
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  req(mode, fn) {
+    if (!this.db) return Promise.resolve(null);
+    return new Promise((res, rej) => {
+      const r = fn(this.db.transaction('items', mode).objectStore('items'));
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  },
+  all() { return this.req('readonly', s => s.getAll()); },
+  put(it) {
+    const clean = {};
+    for (const k in it) if (!k.startsWith('_')) clean[k] = it[k];
+    return this.req('readwrite', s => s.put(clean)).catch(e => toast('Не удалось сохранить в галерею: ' + e.message, {type: 'err'}));
+  },
+  del(id) { return this.req('readwrite', s => s.delete(id)).catch(() => {}); },
+};
+
+const SETTINGS_KEY = 'freefield.settings.v2';
+const state = Object.assign({
+  mode: 'image', view: 'create', vSource: 'text',
+  models: {image: 'free:flux-schnell', video: 'free:wan22'},
+  aspects: {image: '1:1', video: '16:9'},
+  style: 'none', count: 1, motion: 'dolly_in', duration: 3.5, res: null, audio: false, autoFallback: true,
+  autoEnhance: true, filter: 'all', prompts: {image: '', video: ''}, confirmOver: 0.5,
+}, ls.get(SETTINGS_KEY, {}));
+state.vImage = null;
+function saveSettings() { const {vImage, ...rest} = state; ls.set(SETTINGS_KEY, rest); }
+
+let items = [];
+let catalog = [];                   // платные модели (живой каталог)
+const cat = {kind: 'image', tier: 'all', sort: 'top', q: ''};
+
+/* =============================== wallet =============================== */
+const wallet = {
+  key: ls.get('freefield.key', ''),           // Pollinations (платные модели)
+  hf: ls.get('freefield.hf', ''),             // Hugging Face (больше бесплатного GPU)
+  hfUser: ls.get('freefield.hfUser', ''),
+  horde: ls.get('freefield.horde', ''),       // AI Horde (выше в бесплатной очереди)
+  gemini: ls.get('freefield.gemini', ''),     // Google Gemini (бесплатное улучшение промптов)
+  balance: null,
+  spend: ls.get('freefield.spend.v1', {total: 0, days: {}}),
+  today() { return new Date().toISOString().slice(0, 10); },
+  add(cost) {
+    if (!cost) return;
+    this.spend.total += cost;
+    const d = this.today();
+    this.spend.days[d] = (this.spend.days[d] || 0) + cost;
+    ls.set('freefield.spend.v1', this.spend);
+    renderWallet();
+    refreshBalance();
+  },
+};
+
+async function refreshBalance() {
+  if (!wallet.key) { wallet.balance = null; return renderWallet(); }
+  try {
+    const r = await fetch(API.gen + '/account/balance', {headers: {Authorization: 'Bearer ' + wallet.key}});
+    if (r.status === 401) { wallet.balance = 'bad'; }
+    else if (r.ok) { const j = await r.json(); wallet.balance = typeof j.balance === 'number' ? j.balance : 'ok'; }
+    else wallet.balance = 'ok';
+  } catch { wallet.balance = 'ok'; }
+  renderWallet();
+}
+
+function renderWallet() {
+  const b = wallet.balance;
+  let top, bal;
+  $('#hfStatus').textContent = wallet.hfUser
+    ? `✓ Вы вошли как ${wallet.hfUser} — 5 мин GPU в день`
+    : 'Без входа: 2 мин GPU в день — это всего несколько генераций';
+  $('#hfSave').textContent = wallet.hfUser ? 'Обновить' : 'Войти';
+  $('#hfClear').classList.toggle('hidden', !wallet.hf);
+  $('#hordeStatus').textContent = wallet.horde ? '✓ Ключ сохранён — вы выше в очереди' : 'Работает без ключа, очередь 1–10 минут';
+  $('#geminiStatus').textContent = wallet.gemini ? '✓ Ключ сохранён — промпты улучшает Gemini' : 'Не подключено — сейчас промпт только переводится';
+  if (!wallet.key) { top = 'Лимиты и оплата'; bal = 'нет ключа'; }
+  else if (b === 'bad') { top = 'Ключ не подошёл'; bal = 'ключ неверный'; }
+  else if (typeof b === 'number') { top = `<b>${b.toFixed(2)}</b> pollen`; bal = `${b.toFixed(2)} pollen`; }
+  else { top = 'Ключ добавлен'; bal = 'ключ активен'; }
+  $('#walletText').innerHTML = top;
+  $('#balVal').textContent = bal;
+  $('#spToday').textContent = fmtUSD(wallet.spend.days[wallet.today()] || 0);
+  $('#spTotal').textContent = fmtUSD(wallet.spend.total || 0);
+}
+
+/* =============================== models / pricing =============================== */
+function normalize(m) {
+  const kind = m.category === 'video' ? 'video' : 'image';
+  return {
+    id: 'pol:' + m.name, api: m.name, kind, tier: 'paid',
+    title: m.title || m.name.split('/').pop(), publisher: m.publisher || m.name.split('/')[0],
+    desc: m.description || '', pricing: m.pricing || {}, variants: m.pricing_variants || [],
+    defaultRes: m.pricing_default_label || null, flat: !!m.flat_rate,
+    inputs: m.input_modalities || ['text'], outputs: m.output_modalities || [kind],
+    caps: m.video_capabilities || m.capabilities || [], resolutions: m.resolutions || [],
+    durations: m.allowed_durations || null, minDur: m.min_duration, maxDur: m.max_duration,
+    defDur: m.default_duration, durStep: m.duration_step || 1,
+    health: m.health?.status || 'unknown', added: m.added_date || 0,
+    featured: FEATURED.indexOf(m.name), eta: kind === 'video' ? '≈ 1–4 мин' : '≈ 10–40 с',
+  };
+}
+
+async function loadCatalog() {
+  const cached = ls.get('freefield.catalog.v1', null);
+  catalog = (cached?.list || FALLBACK_CATALOG).map(normalize);
+  refreshModelUI();
+  try {
+    const [im, vi] = await Promise.all(['image', 'video'].map(k =>
+      fetch(`${API.gen}/${k}/models`).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)))));
+    const seen = new Set(), list = [];
+    for (const m of [...vi, ...im]) {
+      if (m.community || String(m.name).startsWith('community/')) continue;
+      if (!['image', 'video'].includes(m.category) || seen.has(m.name)) continue;
+      seen.add(m.name); list.push(m);
+    }
+    if (list.length) {
+      ls.set('freefield.catalog.v1', {at: Date.now(), list});
+      catalog = list.map(normalize);
+      refreshModelUI();
+    }
+  } catch { /* остаёмся на кэше/запасном каталоге */ }
+}
+
+const allModels = () => [...FREE_MODELS, ...catalog];
+function currentModel(kind = state.mode) {
+  return allModels().find(m => m.id === state.models[kind]) || FREE_MODELS.find(m => m.kind === kind);
+}
+
+function priceOf(m, res) {
+  const v = res && m.variants.find(v => v.name === res || v.label === res);
+  return (v && v.pricing) || m.pricing || {};
+}
+
+// оценка стоимости одной генерации в pollen (≈ $)
+function estimate(m, o = {}) {
+  if (m.tier === 'free') return 0;
+  const p = priceOf(m, o.res);
+  if (m.kind === 'image') {
+    const v = +p.completionImageTokens;
+    if (!v) return null;
+    return (m.flat || v >= 0.001) ? v : v * 1300;      // потокенные модели: ~1300 токенов на картинку
+  }
+  const s = +p.completionVideoSeconds;
+  if (!s) return null;
+  const d = o.dur || m.defDur || m.minDur || 5;
+  return s * d + (o.audio && +p.completionAudioSeconds ? +p.completionAudioSeconds * d : 0);
+}
+
+function priceLabel(m) {
+  if (m.external) return `Бесплатно <small>· ${esc(m.short)}${extLeft(m) != null ? ` · осталось ${extLeft(m)}` : ''}</small>`;
+  if (m.tier === 'free') return 'Бесплатно';
+  if (m.kind === 'image') { const e = estimate(m); return e == null ? 'цена по факту' : `≈ ${fmtUSD(e)} <small>/ картинка</small>`; }
+  const s = +priceOf(m, m.defaultRes).completionVideoSeconds;
+  return s ? `${fmtUSD(s)} <small>/ секунда</small>` : 'цена по факту';
+}
+
+function durRange(m) {
+  if (m.durations?.length) return m.durations.length > 1 ? `${Math.min(...m.durations)}–${Math.max(...m.durations)} с` : `${m.durations[0]} с`;
+  if (m.minDur && m.maxDur) return m.minDur === m.maxDur ? `${m.minDur} с` : `${m.minDur}–${m.maxDur} с`;
+  return '';
+}
+
+function modelTags(m) {
+  const t = (m.tags || []).map(x => `<span>${x}</span>`);
+  if (m.featured >= 0) t.push('<span class="hot">★ Хит</span>');
+  if (m.external || m.provider === 'horde') return t.join('');
+  if (m.kind === 'video') {
+    if (m.inputs.includes('image')) t.push('<span>🖼→🎬</span>');
+    if (m.caps?.includes('audio_output') || m.outputs?.includes('audio')) t.push('<span>🔊 звук</span>');
+    const d = durRange(m); if (d) t.push(`<span>⏱ ${d}</span>`);
+    if (m.resolutions?.length) t.push(`<span>${m.resolutions[m.resolutions.length - 1]}</span>`);
+  } else if (m.inputs.includes('image')) t.push('<span>✏️ правки по фото</span>');
+  return t.join('');
+}
+
+function currentCost() {
+  const m = currentModel();
+  if (state.mode === 'image') { const e = estimate(m); return e == null ? null : e * state.count; }
+  return estimate(m, {dur: state.duration, res: state.res, audio: state.audio});
+}
+
+/* =============================== APIs =============================== */
+// Улучшение промпта — по цепочке, от лучшего доступного бесплатного варианта:
+// 1) Gemini (бесплатный ключ Google AI Studio) → 2) Hugging Face (бесплатные кредиты аккаунта)
+// → 3) Pollinations (если есть платный ключ, доли цента) → 4) без ключей: только перевод на английский.
+const cleanLLM = s => (s || '').trim().replace(/^(prompt|промпт)\s*:\s*/i, '').replace(/^["'«“]+|["'»”]+$/g, '').trim();
+
+async function timedFetch(url, opts, ms = 40000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, {...opts, signal: ctrl.signal}); } finally { clearTimeout(t); }
+}
+
+const LLM = [
+  {name: 'Gemini', ok: () => !!wallet.gemini, async run(sys, text) {
+    for (const model of ['gemini-flash-latest', 'gemini-2.5-flash']) {
+      const r = await timedFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini},
+        body: JSON.stringify({systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [{text}]}],
+          generationConfig: {temperature: 0.9, maxOutputTokens: 2048}}),
+      });
+      if (r.status === 404) continue;
+      if (!r.ok) throw new Error('Gemini ' + r.status);
+      const j = await r.json();
+      return (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
+    }
+    throw new Error('Gemini: модель не найдена');
+  }},
+  {name: 'Hugging Face', ok: () => !!wallet.hf, async run(sys, text) {
+    const r = await timedFetch('https://router.huggingface.co/v1/chat/completions', {
+      method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + wallet.hf},
+      body: JSON.stringify({model: 'meta-llama/Llama-3.1-8B-Instruct', max_tokens: 300, temperature: 0.9,
+        messages: [{role: 'system', content: sys}, {role: 'user', content: text}]}),
+    });
+    if (!r.ok) throw new Error('HF ' + r.status);
+    return (await r.json()).choices?.[0]?.message?.content;
+  }},
+  {name: 'Pollinations', ok: () => !!wallet.key, async run(sys, text) {
+    const r = await timedFetch(API.text, {
+      method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + wallet.key},
+      body: JSON.stringify({model: 'openai', messages: [{role: 'system', content: sys}, {role: 'user', content: text}]}),
+    });
+    if (!r.ok) throw new Error('Pollinations ' + r.status);
+    return (await r.json()).choices?.[0]?.message?.content;
+  }},
+];
+
+async function translateToEnglish(text) {
+  if (!/[а-яё]/i.test(text)) return text;
+  const r = await timedFetch('https://api.mymemory.translated.net/get?' + new URLSearchParams({q: text.slice(0, 480), langpair: 'ru|en'}), {}, 15000);
+  const j = await r.json();
+  const out = j.responseData?.translatedText;
+  if (j.responseStatus !== 200 || !out || /MYMEMORY WARNING/i.test(out)) throw new Error('перевод недоступен');
+  return out;
+}
+
+let lastEnhancer = '';
+async function enhancePrompt(text, kind) {
+  for (const p of LLM.filter(p => p.ok())) {
+    try {
+      const out = cleanLLM(await p.run(SYS[kind] || SYS.image, text));
+      if (out.length >= 8) { lastEnhancer = p.name; return out; }
+    } catch { /* пробуем следующий */ }
+  }
+  lastEnhancer = 'перевод';
+  return translateToEnglish(text);   // без ключей: хотя бы переводим на английский
+}
+
+// ---- бесплатно: Gradio-очередь на бесплатных GPU Hugging Face (ZeroGPU) ----
+class GpuError extends Error { constructor(msg, kind = 'other') { super(msg); this.kind = kind; } }
+const hfHeaders = (extra = {}) => wallet.hf ? {...extra, Authorization: 'Bearer ' + wallet.hf} : extra;
+const HF_OUT_KEY = 'freefield.hfQuotaOut';
+const hfQuotaOut = () => Date.now() - ls.get(HF_OUT_KEY, 0) < 30 * 60e3;   // после «лимит исчерпан» 30 мин не дёргаем HF
+
+function gpuError(raw, title = '') {
+  const s = String(raw ?? '');
+  if (/quota/i.test(s + ' ' + title)) {
+    ls.set(HF_OUT_KEY, Date.now());
+    const m = s.match(/Try again in (\d+):(\d+):\d+/);
+    const mins = m ? +m[1] * 60 + +m[2] : 0;
+    const when = mins >= 60 ? ` (обновится через ≈ ${Math.round(mins / 60)} ч)` : mins > 0 ? ` (обновится через ${mins} мин)` : '';
+    return new GpuError(`закончился дневной бесплатный лимит GPU${when}`, 'quota');
+  }
+  if (!s || s === 'null') return new GpuError('бесплатный GPU не справился — попробуйте ещё раз', 'busy');
+  return new GpuError(s.slice(0, 180));
+}
+
+const gradioFns = {};
+async function gradioFnIndex(host, endpoint) {
+  const key = host + endpoint;
+  if (gradioFns[key] == null) {
+    let r;
+    try { r = await fetch(host + '/config'); } catch { throw new GpuError('нет связи с бесплатным GPU', 'down'); }
+    if (!r.ok) throw new GpuError(`бесплатная модель сейчас недоступна (${r.status})`, 'down');
+    const deps = (await r.json()).dependencies || [];
+    const i = deps.findIndex(d => d.api_name === endpoint);
+    if (i < 0) throw new GpuError('бесплатная модель изменила API', 'down');
+    gradioFns[key] = deps[i].id ?? i;
+  }
+  return gradioFns[key];
+}
+
+async function gradioUpload(host, blob) {
+  const fd = new FormData();
+  fd.append('files', blob, 'frame.jpg');
+  const r = await fetch(host + '/gradio_api/upload', {method: 'POST', body: fd, headers: hfHeaders()});
+  if (!r.ok) throw new GpuError(`бесплатный GPU недоступен (${r.status})`, 'down');
+  const [path] = await r.json();
+  return {path, meta: {_type: 'gradio.FileData'}};
+}
+
+// ставит задачу в очередь Space и читает поток событий: позиция в очереди, прогресс, результат или точная ошибка
+async function gradioCall(host, endpoint, data, onStatus, runMsg = 'GPU генерирует…') {
+  const fn_index = await gradioFnIndex(host, endpoint);
+  const session_hash = Math.random().toString(36).slice(2, 12);
+  let r;
+  try {
+    r = await fetch(`${host}/gradio_api/queue/join`, {
+      method: 'POST', headers: hfHeaders({'Content-Type': 'application/json'}),
+      body: JSON.stringify({data, fn_index, session_hash, trigger_id: null, event_data: null})});
+  } catch { throw new GpuError('нет связи с бесплатным GPU', 'down'); }
+  if (r.status === 401) throw new GpuError('токен Hugging Face не подошёл — проверьте его в «Лимитах»', 'auth');
+  if (!r.ok) throw new GpuError(`бесплатный GPU недоступен (${r.status})`, 'down');
+  onStatus('Встаю в очередь GPU…');
+  r = await fetch(`${host}/gradio_api/queue/data?session_hash=${session_hash}`, {headers: hfHeaders()});
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  try {
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith('data:')) continue;
+        let m;
+        try { m = JSON.parse(line.slice(5)); } catch { continue; }
+        if (m.msg === 'estimation') onStatus(m.rank > 0 ? `Очередь GPU: ${m.rank + 1}-й${m.rank_eta ? ` · ≈ ${Math.ceil(m.rank_eta)} с` : ''}` : 'Сейчас начнём…');
+        else if (m.msg === 'process_starts') onStatus(runMsg);
+        else if (m.msg === 'progress') { const p = m.progress_data?.[0]; if (p?.length) onStatus(`${runMsg} ${Math.round(100 * p.index / p.length)}%`); }
+        else if (m.msg === 'process_completed') {
+          if (m.success) return m.output.data;
+          throw gpuError(m.output?.error, m.output?.title || m.title);
+        }
+        else if (m.msg === 'unexpected_error') throw gpuError(m.message);
+      }
+    }
+  } finally { reader.cancel().catch(() => {}); }
+  throw new GpuError('бесплатный GPU оборвал соединение', 'busy');
+}
+
+// ---- бесплатно: AI Horde (видеокарты волонтёров, без дневного лимита) ----
+async function hordeImage({prompt, w, h, seed, negative, onStatus}) {
+  const k = 1024 / Math.max(w, h);
+  const W = Math.round(w * k / 64) * 64, H = Math.round(h * k / 64) * 64;
+  const headers = {'Content-Type': 'application/json', apikey: wallet.horde || '0000000000', 'Client-Agent': HORDE.agent};
+  let r;
+  try {
+    r = await fetch(HORDE.api + '/generate/async', {method: 'POST', headers, body: JSON.stringify({
+      prompt: (negative ? `${prompt} ### ${negative}` : prompt).slice(0, 1500),
+      params: {width: W, height: H, steps: 25, cfg_scale: 6, sampler_name: 'k_euler_a', seed: String(seed), n: 1, karras: true},
+      models: HORDE.models, nsfw: false, censor_nsfw: true, r2: false, slow_workers: true,
+    })});
+  } catch { throw new GpuError('нет связи с AI Horde', 'down'); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.id) throw new GpuError('AI Horde: ' + (j.message || `ошибка ${r.status}`));
+  const t0 = Date.now();
+  while (true) {
+    await sleep(5000);
+    if (Date.now() - t0 > 20 * 60e3) {
+      fetch(`${HORDE.api}/generate/status/${j.id}`, {method: 'DELETE', headers}).catch(() => {});
+      throw new GpuError('AI Horde не успел за 20 минут — попробуйте ещё раз', 'busy');
+    }
+    const c = await fetch(`${HORDE.api}/generate/check/${j.id}`, {headers: {'Client-Agent': HORDE.agent}}).then(x => x.json()).catch(() => null);
+    if (!c) continue;
+    if (c.faulted) throw new GpuError('AI Horde: генерация сорвалась, попробуйте ещё раз', 'busy');
+    if (c.is_possible === false) throw new GpuError('AI Horde: сейчас нет подходящих видеокарт', 'busy');
+    if (c.done) break;
+    onStatus(c.processing ? 'Рисуется у волонтёра…' :
+      `Очередь AI Horde: #${c.queue_position}${c.wait_time ? ` · ≈ ${c.wait_time >= 90 ? Math.round(c.wait_time / 60) + ' мин' : c.wait_time + ' с'}` : ''}`);
+  }
+  const s = await fetch(`${HORDE.api}/generate/status/${j.id}`, {headers: {'Client-Agent': HORDE.agent}}).then(x => x.json());
+  const g = s.generations?.[0];
+  if (!g?.img) throw new GpuError('AI Horde не вернул картинку', 'busy');
+  if (g.censored) throw new GpuError('AI Horde скрыл картинку фильтром — измените промпт');
+  if (/^https?:/.test(g.img)) return (await fetch(g.img)).blob();
+  const bin = atob(g.img), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type: 'image/webp'});
+}
+
+async function gradioFile(out) {
+  const url = out?.url || out?.video?.url;
+  if (!url) throw new Error('бесплатный GPU не вернул файл');
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('не удалось скачать результат');
+  return r.blob();
+}
+
+async function freeImage({model, prompt, w, h, seed, onStatus = () => {}}) {
+  const m = FREE_MODELS.find(x => x.id === model && x.provider === 'hf' && x.kind === 'image') || FREE_MODELS[0];
+  const r32 = v => Math.max(256, Math.min(2048, Math.round(v / 32) * 32));
+  const out = await gradioCall(m.host, m.endpoint, m.args(prompt.slice(0, 1800), r32(w), r32(h), seed), onStatus, 'GPU рисует…');
+  return gradioFile(out[0]);
+}
+
+async function freeVideo({imageBlob, prompt, duration, seed, negative, onStatus}) {
+  const m = FREE_MODELS.find(x => x.id === 'free:wan22');
+  onStatus('Загружаю кадр…');
+  const frame = await gradioUpload(m.host, imageBlob);
+  const out = await gradioCall(m.host, m.endpoint,
+    [frame, prompt, 6, negative ? `${WAN_NEG}, ${negative}` : WAN_NEG, duration, 1, 1, seed, false], onStatus, 'GPU генерирует видео…');
+  onStatus('Скачиваю видео…');
+  return {blob: await gradioFile(out[0]), seed: typeof out[1] === 'number' ? out[1] : seed};
+}
+
+// ---- платно (Pollinations, оплата за генерацию) ----
+async function genFetch(path, params, {method = 'GET', body, timeout = 300000} = {}) {
+  const url = API.gen + path + (params ? '?' + new URLSearchParams(params) : '');
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const r = await fetch(url, {method, body, signal: ctrl.signal, headers: {Authorization: 'Bearer ' + wallet.key}});
+    if (r.ok) return await r.blob().then(b => ({blob: b, type: r.headers.get('content-type') || b.type}));
+    let msg = '';
+    try { const j = await r.json(); msg = j.error?.message || j.message || ''; } catch {}
+    if (r.status === 401) throw new Error('ключ не подошёл — проверьте его в «Оплате»');
+    if (r.status === 402) throw new Error('на балансе не хватает pollen — пополните счёт');
+    if (r.status === 403) throw new Error('у ключа нет доступа к этой модели' + (msg ? ': ' + msg : ''));
+    if (r.status === 429) throw new Error('слишком много запросов — подождите минуту');
+    throw new Error(msg || `сервис ответил ${r.status}`);
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('превышено время ожидания');
+    if (e instanceof TypeError) throw new Error('нет связи с платным сервисом');
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
+async function paidImage(it) {
+  const {blob, type} = await genFetch('/image/' + encPrompt(it.finalPrompt),
+    {model: it.api, width: it.w, height: it.h, seed: it.seed}, {timeout: 300000});
+  if (!type.startsWith('image/')) throw new Error('сервис вернул не картинку');
+  return blob;
+}
+
+async function paidVideo(it, frameBlob, onStatus) {
+  const q = {model: it.api, duration: it.duration, aspectRatio: it.aspect || '16:9', seed: it.seed};
+  if (it.res) q.resolution = it.res;
+  if (it.audio) q.audio = 'true';
+  if (frameBlob) {
+    onStatus('Загружаю кадр…');
+    const fd = new FormData();
+    fd.append('file', frameBlob, 'frame.jpg');
+    const up = await genFetch('/upload', null, {method: 'POST', body: fd, timeout: 60000});
+    const j = JSON.parse(await up.blob.text());
+    if (!j.url) throw new Error('не удалось загрузить кадр');
+    q.image = j.url;
+  }
+  onStatus('Генерирую видео…');
+  const {blob, type} = await genFetch('/video/' + encPrompt(it.finalPrompt), q, {timeout: 900000});
+  if (!type.startsWith('video/')) throw new Error('сервис вернул не видео');
+  return blob;
+}
+
+/* =============================== generation =============================== */
+function composePrompt(text, styleId, kind = 'image') {
+  const s = byId(STYLES, styleId);
+  const suffix = kind === 'video' ? s.suffix.replace(/film still,?\s*/, 'film look, ') : s.suffix;
+  return suffix ? `${text}, ${suffix}` : text;
+}
+function readSeed(i = 0) {
+  const v = $('#seed').value.trim();
+  return v === '' ? randSeed() : (Math.abs(parseInt(v, 10)) + i) % 2147483647;
+}
+function modelFields(m) {
+  return {model: m.id, api: m.api, modelTitle: m.title, tier: m.tier};
+}
+function newItem(fields) {
+  const it = {id: uid(), status: 'queued', statusText: 'В очереди…', createdAt: Date.now(), ...fields};
+  items.unshift(it);
+  return it;
+}
+function setStatus(it, text, status) {
+  it.statusText = text;
+  if (status) it.status = status;
+  const el = document.querySelector(`.card[data-id="${it.id}"] [data-status]`);
+  if (el) el.textContent = text;
+}
+function finish(it, error) {
+  if (error) { it.status = 'error'; it.statusText = 'Ошибка: ' + error.message; it.errorKind = error.kind || null; }
+  else {
+    it.status = 'done'; it.statusText = '';
+    DB.put(it);
+    if (it.tier === 'paid') wallet.add(it.cost || 0);
+  }
+  refreshCard(it);
+  updateCounts();
+}
+
+// проверки перед запуском: ключ для платных и подтверждение дорогих генераций
+function preflight(m, cost) {
+  if (m.tier !== 'paid') return true;
+  if (!wallet.key) {
+    openSheet('settings');
+    toast(`«${m.title}» — платная модель. Добавьте ключ Pollinations или выберите бесплатную.`, {ms: 6000});
+    return false;
+  }
+  if (m.health === 'down' && !confirm(`Модель «${m.title}» сейчас помечена как неработающая. Всё равно запустить?`)) return false;
+  if (cost != null && state.confirmOver > 0 && cost > state.confirmOver)
+    return confirm(`Эта генерация стоит ≈ ${fmtUSD(cost)} (лимит без подтверждения — ${fmtUSD(state.confirmOver)}). Запустить?`);
+  return true;
+}
+
+async function generateImages() {
+  const raw = $('#prompt').value.trim();
+  if (!raw) return nudge('Напишите, что нарисовать — или нажмите 🎲');
+  const m = currentModel('image');
+  if (m.external) return prepareExternal(m, raw);
+  const unit = estimate(m);
+  if (!preflight(m, unit == null ? null : unit * state.count)) return false;
+  const a = byId(ASPECTS, state.aspects.image);
+  const negative = $('#negative').value.trim();
+  const batch = [];
+  for (let i = 0; i < state.count; i++) {
+    batch.push(newItem({type: 'image', prompt: raw, style: state.style, aspect: a.id, w: a.w, h: a.h,
+      seed: readSeed(i), negative, cost: unit, ...modelFields(m)}));
+  }
+  render();
+  let final = raw;
+  if (state.autoEnhance) {
+    batch.forEach(it => setStatus(it, '✨ Улучшаю промпт…'));
+    try { final = await enhancePrompt(raw, 'image'); }
+    catch { toast('Не удалось улучшить промпт — генерирую как есть'); }
+  }
+  final = composePrompt(final, state.style);
+  batch.forEach(it => { it.finalPrompt = final; runImage(it); });
+  return true;
+}
+
+function runImage(it) {
+  it.status = 'queued';
+  it.startedAt = Date.now();
+  it.errorKind = null;
+  const m = allModels().find(x => x.id === it.model) || FREE_MODELS[0];
+  const onStatus = s => setStatus(it, s, 'running');
+  const args = {prompt: it.finalPrompt, w: it.w, h: it.h, seed: it.seed, negative: it.negative, onStatus};
+  setStatus(it, freeImageQueue.size && m.provider === 'hf' ? `В очереди · перед вами ${freeImageQueue.size}` : 'Готовлю…');
+  refreshCard(it);
+  const viaHorde = () => {
+    Object.assign(it, modelFields(FREE_MODELS.find(x => x.provider === 'horde')));
+    refreshCard(it);
+    setStatus(it, 'Лимит FLUX исчерпан → рисую через AI Horde…', 'running');
+    return hordeImage(args);
+  };
+  let task;
+  if (it.tier === 'paid') { setStatus(it, 'Генерация…', 'running'); task = paidImage(it); }
+  else if (m.provider === 'horde') task = hordeImage(args);
+  else if (hfQuotaOut() && state.autoFallback) task = viaHorde();
+  else task = freeImageQueue.push(() => freeImage({model: m.id, ...args}))
+    .catch(e => { if (e.kind === 'quota' && state.autoFallback) return viaHorde(); throw e; });
+  task.then(async blob => {
+    it.blob = blob;
+    const d = await dims(blob);
+    if (d) [it.w, it.h] = d;
+    finish(it);
+  }, e => finish(it, e));
+}
+
+async function generateVideo() {
+  const raw = $('#prompt').value.trim();
+  const m = currentModel('video');
+  const motion = byId(MOTIONS, state.motion);
+  if (state.vSource === 'image' && !state.vImage) return nudge('Добавьте картинку, которую нужно оживить');
+  if (state.vSource === 'text' && !raw) return nudge('Опишите сцену для видео — или нажмите 🎲');
+  if (m.external) return prepareExternal(m, raw, motion);
+  const cost = estimate(m, {dur: state.duration, res: state.res, audio: state.audio});
+  if (!preflight(m, cost)) return false;
+  const base = {type: 'video', prompt: raw || motion.name, userPrompt: raw, motion: motion.id, duration: state.duration,
+    res: m.tier === 'paid' ? state.res : null, audio: m.tier === 'paid' && state.audio,
+    seed: readSeed(), negative: $('#negative').value.trim(), source: state.vSource, cost, ...modelFields(m)};
+  let it;
+  if (state.vSource === 'image') {
+    const r = state.vImage.w / state.vImage.h;
+    const aspect = r > 1.2 ? '16:9' : r < 0.83 ? '9:16' : '1:1';
+    it = newItem({...base, aspect, w: state.vImage.w, h: state.vImage.h, posterBlob: state.vImage.blob});
+  } else {
+    const a = byId(ASPECTS, state.aspects.video);
+    it = newItem({...base, style: state.style, aspect: a.id, w: a.w, h: a.h});
+  }
+  render();
+  runVideo(it);
+  return true;
+}
+
+// Google Vids: публичного API нет, поэтому генерация идёт на сайте Google в аккаунте пользователя.
+// Здесь готовим промпт под Veo и карточку, куда потом загружается готовый ролик.
+async function prepareExternal(m, raw, motion = null) {
+  const video = m.kind === 'video';
+  const a = byId(ASPECTS, state.aspects[m.kind]);
+  const it = newItem({type: m.kind, status: 'external', statusText: '✨ Готовлю промпт…', prompt: raw, userPrompt: raw,
+    motion: motion?.id, duration: video ? 8 : undefined, style: state.style, aspect: a.id, w: a.w, h: a.h, seed: 0, cost: 0,
+    source: 'text', ...modelFields(m)});
+  render();
+  let p = raw;
+  if (state.autoEnhance) { try { p = await enhancePrompt(raw, video ? 't2v' : 'image'); } catch {} }
+  const shape = {'9:16': 'vertical 9:16', '1:1': 'square 1:1', '16:9': 'horizontal 16:9'}[a.id] || `aspect ratio ${a.id}`;
+  it.finalPrompt = video
+    ? composePrompt([p, motion?.prompt].filter(Boolean).join(', '), it.style, 'video') + `. ${shape[0].toUpperCase() + shape.slice(1)} video.`
+    : composePrompt(p, it.style) + `, ${shape} format`;
+  it.statusText = '';
+  DB.put(it);
+  refreshCard(it);
+  return true;
+}
+
+function extLeft(m) {
+  if (!m?.count) return null;
+  const now = new Date(), same = t => { const d = new Date(t);
+    return m.count.per === 'day' ? d.toDateString() === now.toDateString() : d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); };
+  const used = items.filter(i => i.status === 'done' && i.importedAt && same(i.importedAt) &&
+    (allModels().find(x => x.id === i.model) || {}).service === m.service).length;
+  return Math.max(0, m.count.n - used);
+}
+const vidsLeft = () => extLeft(FREE_MODELS.find(m => m.id === 'ext:google-vids'));
+
+function videoDims(blob) {
+  return new Promise(res => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => res(v.videoWidth ? [v.videoWidth, v.videoHeight] : null);
+    v.onerror = () => res(null);
+    v.src = urlOf(blob);
+  });
+}
+
+async function attachExternal(it, file) {
+  const want = it.type === 'video' ? 'video/' : 'image/';
+  if (!file || !file.type.startsWith(want)) return toast(it.type === 'video' ? 'Нужен видеофайл (обычно .mp4)' : 'Нужна картинка (png, jpg, webp)', {type: 'err'});
+  it.blob = file;
+  it.status = 'done';
+  it.importedAt = Date.now();
+  const d = it.type === 'video' ? await videoDims(file) : await dims(file);
+  if (d) [it.w, it.h] = d;
+  DB.put(it);
+  render();
+  toast(`${it.type === 'video' ? 'Видео' : 'Картинка'} из ${(allModels().find(x => x.id === it.model) || {}).site || 'Google'} добавлено в галерею 🎉`, {type: 'ok'});
+}
+
+// ---- открыть сайт сервиса в окне рядом с Freefield (на телефоне — вкладкой) ----
+function openSide(url, name) {
+  if (!url) return;
+  if (isMobile()) { window.open(url, '_blank', 'noopener'); return; }
+  const w = Math.round(screen.availWidth * 0.58), h = screen.availHeight;
+  const left = (screen.availLeft || 0) + screen.availWidth - w, top = screen.availTop || 0;
+  const win = window.open(url, 'ff-' + (name || 'site'), `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+  if (win) { try { win.opener = null; } catch {} } else window.open(url, '_blank', 'noopener');
+}
+
+// ---- подключённые сервисы: «я вошёл на сайте» (сам вход хранит браузер, не Freefield) ----
+const connected = ls.get('freefield.connected', {});
+const isConnected = id => !!connected[id];
+function markConnected(id, on = true) {
+  if (!id) return;
+  if (on) connected[id] = connected[id] || Date.now(); else delete connected[id];
+  ls.set('freefield.connected', connected);
+  renderQuickSvc();
+}
+function usedToday(serviceId) {
+  const today = new Date().toDateString();
+  return items.filter(i => i.importedAt && new Date(i.importedAt).toDateString() === today &&
+    (allModels().find(x => x.id === i.model) || {}).service === serviceId).length;
+}
+
+// ---- маленькое хранилище «ключ-значение» (для доступа к папке «Загрузки») ----
+const KV = {
+  db: null,
+  async open() {
+    if (!this.db) this.db = await new Promise((res, rej) => {
+      const r = indexedDB.open('freefield-kv', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return this.db;
+  },
+  async get(k) { const db = await this.open(); return new Promise(res => { const r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = () => res(null); }); },
+  async set(k, v) { const db = await this.open(); return new Promise(res => { const r = db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); r.onsuccess = r.onerror = () => res(); }); },
+};
+
+// ---- автоимпорт: следим за папкой «Загрузки» и забираем скачанный результат в ждущую карточку ----
+const autoImport = {
+  supported: 'showDirectoryPicker' in window,
+  dir: null, perm: 'none', seen: null, since: Date.now(), target: null,
+  active() { return !!this.dir && this.perm === 'granted'; },
+  async init() {
+    if (!this.supported) return;
+    try { this.dir = await KV.get('downloadsDir'); } catch {}
+    if (this.dir) this.perm = await this.dir.queryPermission({mode: 'read'}).catch(() => 'prompt');
+    setInterval(() => this.scan().catch(() => {}), 3000);
+  },
+  async connect() {
+    try {
+      this.dir = await window.showDirectoryPicker({id: 'freefield-downloads', startIn: 'downloads', mode: 'read'});
+      await KV.set('downloadsDir', this.dir);
+      this.perm = 'granted'; this.seen = null;
+      await this.scan();
+      toast(`Автоимпорт включён: слежу за папкой «${this.dir.name}»`, {type: 'ok'});
+    } catch (e) { if (e.name !== 'AbortError') toast('Не удалось подключить папку: ' + e.message, {type: 'err'}); }
+    render();
+  },
+  async allow() {
+    if (!this.dir) return this.connect();
+    this.perm = await this.dir.requestPermission({mode: 'read'}).catch(() => 'denied');
+    if (this.perm === 'granted') { this.seen = null; await this.scan(); }
+    render();
+  },
+  async scan() {
+    if (!this.active()) return;
+    const first = !this.seen;
+    if (first) this.seen = new Set();
+    else if (!items.some(i => i.status === 'external' && !i.statusText)) return;
+    for await (const [name, h] of this.dir.entries()) {
+      if (h.kind !== 'file' || this.seen.has(name) || /\.(crdownload|part|tmp|download)$/i.test(name)) continue;
+      this.seen.add(name);
+      if (first) continue;                       // всё, что уже лежало в папке, не трогаем
+      const f = await h.getFile();
+      if (f.lastModified < this.since - 10000) continue;
+      const kind = f.type.startsWith('video/') ? 'video' : f.type.startsWith('image/') ? 'image' : null;
+      const it = kind && extTarget(kind);
+      if (it) { await attachExternal(it, f); try { window.focus(); } catch {} }
+    }
+  },
+};
+
+function extTarget(kind) {
+  const waiting = items.filter(i => i.status === 'external' && !i.statusText && i.type === kind);
+  return waiting.find(i => i.id === autoImport.target) || waiting[0] || null;
+}
+
+function autoImportBarHTML() {
+  if (!autoImport.supported) return '<div class="ext-auto off">Автоимпорт работает в Chrome и Edge на компьютере. Здесь — «Загрузить файл» или «Вставить».</div>';
+  if (!autoImport.dir) return '<div class="ext-auto">📂 <span>Подключите папку «Загрузки» — скачанный результат сам появится в галерее</span><button data-act="auto-connect">Подключить</button></div>';
+  if (autoImport.perm !== 'granted') return '<div class="ext-auto">📂 <span>Разрешите доступ к «Загрузкам» — браузер спрашивает после перезапуска</span><button data-act="auto-allow">Разрешить</button></div>';
+  return `<div class="ext-auto on"><div class="spin"></div><span>Жду файл в папке «${esc(autoImport.dir.name)}» — просто скачайте результат на сайте</span></div>`;
+}
+
+// ---- «Мои сервисы»: центр для ежедневной работы с бесплатными кредитами ----
+function renderHub() {
+  const row = x => {
+    const on = isConnected(x.id), used = usedToday(x.id);
+    const fresh = on && x.period === 'day' && !used;
+    return `<div class="hub-row ${on ? 'on' : ''}" data-svc="${x.id}">
+      <span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
+      <div class="hub-main">
+        <div class="hub-name"><b>${esc(x.name)}</b> <span class="hint">${PERIODS[x.period]}</span>${fresh ? ' <span class="hub-fresh">✨ кредиты ждут</span>' : ''}</div>
+        <div class="svc-cr">💳 ${esc(x.credits)}${used ? ` · сегодня уже: <b>${used}</b>` : ''}</div>
+        <div class="hub-acts">
+          ${x.image ? `<button data-use="image">🖼 ${esc(x.image.models)}</button>` : ''}
+          ${x.video ? `<button data-use="video">🎬 ${esc(x.video.models)}</button>` : ''}
+          <button data-open>${on ? '↗ Открыть' : '🔑 Войти на сайте'}</button>
+          <label class="toggle"><input type="checkbox" data-conn ${on ? 'checked' : ''}><span></span>вход выполнен</label>
+        </div>
+      </div>
+    </div>`;
+  };
+  const mine = SERVICES.filter(x => isConnected(x.id)), rest = SERVICES.filter(x => !isConnected(x.id));
+  $('#hubBody').innerHTML =
+    `<div class="hub-intro">Войдите в каждый сервис <b>один раз</b> — браузер запомнит вход, и дальше они будут открываться уже с вашим аккаунтом. Пароли Freefield не видит и не хранит. Отметьте «вход выполнен» — сервис появится в быстром переключателе на панели создания.</div>` +
+    (mine.length ? `<div class="svc-group">⭐ Мои сервисы — ${mine.length}</div>` + mine.map(row).join('') : '') +
+    `<div class="svc-group">${mine.length ? 'Ещё сервисы' : 'Все сервисы'}</div>` + rest.map(row).join('');
+}
+
+function useService(id, kind) {
+  const m = EXT_MODELS.find(x => x.service === id && x.kind === kind);
+  if (!m) return;
+  closeSheets();
+  setMode(kind);
+  selectModel(m.id, false);
+  setView('create');
+  $('#prompt').focus();
+  toast(`${m.title}: напишите промпт и нажмите «Подготовить»`, {type: 'ok'});
+}
+
+// быстрый переключатель под выбором модели: бесплатные модели + подключённые сервисы для текущего режима
+function renderQuickSvc() {
+  const box = $('#quickSvc');
+  if (!box) return;
+  const kind = state.mode, cur = state.models[kind];
+  const builtin = FREE_MODELS.filter(m => !m.external && m.kind === kind && m.provider !== 'horde');
+  const mine = EXT_MODELS.filter(m => m.kind === kind && isConnected(m.service));
+  const chip = m => `<button class="qchip ${m.id === cur ? 'on' : ''}" data-model="${esc(m.id)}" title="${esc(m.title)}"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>${esc(m.external ? m.site : m.title)}${m.external && usedToday(m.service) ? ` <small>${usedToday(m.service)}</small>` : ''}</button>`;
+  box.innerHTML = builtin.concat(mine).map(chip).join('') +
+    `<button class="qchip add" data-open-hub>${mine.length ? '＋' : '＋ Подключить сервисы'}</button>`;
+}
+
+function pickFile(accept) {
+  return new Promise(res => {
+    const i = document.createElement('input');
+    i.type = 'file'; i.accept = accept;
+    i.onchange = () => res(i.files[0] || null);
+    i.click();
+  });
+}
+
+async function runVideo(it) {
+  it.status = 'running';
+  it.startedAt = Date.now();
+  it.errorKind = null;
+  refreshCard(it);
+  const onStatus = s => setStatus(it, s);
+  try {
+    const motion = byId(MOTIONS, it.motion);
+    if (it.tier === 'paid') {
+      // платно: text→video напрямую или image→video
+      if (!it.finalPrompt) {
+        let p = it.userPrompt;
+        if (p && state.autoEnhance) {
+          setStatus(it, '✨ Улучшаю промпт…');
+          try { p = await enhancePrompt(p, it.posterBlob ? 'video' : 't2v'); } catch {}
+        }
+        p = [p, motion.prompt].filter(Boolean).join(', ');
+        it.finalPrompt = it.posterBlob ? p : composePrompt(p, it.style, 'video');
+      }
+      const frame = it.posterBlob ? await downscale(it.posterBlob, 1280) : null;
+      it.blob = await paidVideo(it, frame, onStatus);
+      return finish(it);
+    }
+    // бесплатно: (text→кадр) → Wan 2.2 image→video
+    if (!it.posterBlob) {
+      let imgPrompt = it.userPrompt;
+      if (state.autoEnhance) {
+        setStatus(it, '✨ Пишу промпт кадра…');
+        try { imgPrompt = await enhancePrompt(it.userPrompt, 'image'); } catch {}
+      }
+      it.imagePrompt = composePrompt(imgPrompt, it.style);
+      setStatus(it, freeImageQueue.size ? 'Первый кадр: в очереди…' : '🖼 Рисую первый кадр…');
+      const blob = await freeImageQueue.push(() => {
+        setStatus(it, '🖼 Рисую первый кадр…');
+        return freeImage({model: 'free:flux-schnell', prompt: it.imagePrompt, w: it.w, h: it.h, seed: it.seed, onStatus: s => setStatus(it, '🖼 Кадр: ' + s)});
+      });
+      it.posterBlob = blob;
+      const d = await dims(blob);
+      if (d) [it.w, it.h] = d;
+      const frame = {id: uid(), type: 'image', status: 'done', createdAt: Date.now(), prompt: it.userPrompt,
+        finalPrompt: it.imagePrompt, style: it.style, aspect: it.aspect, w: it.w, h: it.h, seed: it.seed, blob,
+        ...modelFields(FREE_MODELS[0]), cost: 0};
+      items.splice(items.indexOf(it) + 1, 0, frame);
+      DB.put(frame);
+      render();
+    }
+    if (!it.finalPrompt) {
+      let mp = it.userPrompt;
+      if (mp && state.autoEnhance) {
+        setStatus(it, '✨ Пишу промпт движения…');
+        try { mp = await enhancePrompt(mp, 'video'); } catch {}
+      }
+      it.finalPrompt = [mp, motion.prompt, 'smooth natural motion, cinematic'].filter(Boolean).join(', ');
+    }
+    setStatus(it, freeVideoQueue.size ? 'Видео: в очереди…' : 'Готовлю GPU…');
+    const frame = await downscale(it.posterBlob, 1024);
+    const res = await freeVideoQueue.push(() => freeVideo({
+      imageBlob: frame, prompt: it.finalPrompt, duration: it.duration, seed: it.seed, negative: it.negative, onStatus}));
+    it.blob = res.blob;
+    it.seed = res.seed;
+    finish(it);
+  } catch (e) { finish(it, e); }
+}
+
+function nudge(msg) {
+  toast(msg);
+  if (isMobile()) setView('create');
+  const box = $('.prompt-box');
+  box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+  $('#prompt').focus();
+  return false;
+}
+
+async function generate() {
+  const started = await (state.mode === 'video' ? generateVideo() : generateImages());
+  if (started && isMobile()) setView('gallery');
+}
+
+/* =============================== gallery =============================== */
+const urls = new Map();
+function urlOf(blob) {
+  if (!blob) return '';
+  if (!urls.has(blob)) urls.set(blob, URL.createObjectURL(blob));
+  return urls.get(blob);
+}
+
+function visibleItems() {
+  const q = $('#search').value.trim().toLowerCase();
+  return items.filter(it =>
+    (state.filter === 'all' || it.type === state.filter) &&
+    (!q || (it.prompt + ' ' + (it.finalPrompt || '') + ' ' + (it.modelTitle || '')).toLowerCase().includes(q)));
+}
+
+function tierBadge(it) {
+  return it.tier === 'paid' ? `<span class="tier paid">${it.cost != null ? fmtUSD(it.cost) : 'Paid'}</span>` : '<span class="tier free">Free</span>';
+}
+
+function extQuota(m) {
+  const left = extLeft(m);
+  return (left != null ? `осталось ${left} из ${m.count.n} · ` : '') + `${m.credits} → ${m.equiv}`;
+}
+
+function externalCardHTML(it) {
+  const m = allModels().find(x => x.id === it.model) || {};
+  const video = it.type === 'video';
+  return `<div class="card ext" data-id="${it.id}">
+    <button class="ext-del" data-act="delete" title="Удалить">✕</button>
+    <div class="ext-head"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
+      <div><b>${esc(m.title || 'Google')}</b><div class="hint">бесплатно · ${extQuota(m)}</div></div></div>
+    ${it.statusText ? `<div class="ext-wait"><div class="spin"></div>${esc(it.statusText)}</div>` : `
+    <ol class="ext-steps">
+      <li>Нажмите кнопку ниже — промпт скопируется, ${esc(m.site)} откроется в окне рядом</li>
+      <li>${isConnected(m.service) ? 'Вы уже входили — просто' : 'Войдите в свой аккаунт (один раз — браузер запомнит), затем'} выберите ${esc(m.engine)} и вставьте промпт</li>
+      <li>Скачайте готов${video ? 'ый ролик' : 'ую картинку'} — ${autoImport.active() ? 'Freefield заберёт файл сам' : 'и загрузите сюда'}</li>
+    </ol>
+    <div class="ext-prompt">${esc(it.finalPrompt)}</div>
+    <div class="ext-actions">
+      <button data-act="open-site" class="primary">↗ Скопировать промпт и открыть ${esc(m.site)}</button>
+      <button data-act="import">📥 Загрузить файл</button>
+      ${video ? '<button data-act="copy">📋 Только промпт</button>' : '<button data-act="paste-clip">📋 Вставить из буфера</button>'}
+    </div>
+    ${autoImportBarHTML()}`}
+  </div>`;
+}
+
+function cardHTML(it) {
+  const ar = `aspect-ratio:${it.w}/${it.h}`;
+  const paid = it.tier === 'paid' ? 'paid' : '';
+  if (it.status === 'external') return externalCardHTML(it);
+  if (it.status !== 'done') {
+    const err = it.status === 'error';
+    return `<div class="card pending ${paid} ${err ? 'err' : ''}" data-id="${it.id}" style="${ar}">
+      ${it.posterBlob ? `<div class="bg" style="background-image:url('${urlOf(it.posterBlob)}')"></div>` : ''}
+      ${err ? '' : '<div class="shimmer"></div>'}
+      <div class="pend-info">
+        <div class="spin"></div>
+        <div class="pend-kind">${it.type === 'video' ? '🎬' : '🖼'} ${esc(it.modelTitle || '')} ${tierBadge(it)}</div>
+        <div class="pend-status" data-status>${esc(it.statusText)}</div>
+        ${err ? '' : '<div class="pend-time" data-time></div>'}
+        <div class="pend-prompt">${esc(it.prompt)}</div>
+        ${err ? `<div class="pend-actions"><button data-act="retry">↻ Повторить${it.tier === 'paid' && it.cost ? ' · ' + fmtUSD(it.cost) : ''}</button>${
+          it.errorKind === 'quota' ? `<button data-act="limits">🔑 Больше лимита</button>${it.type === 'video' ? '<button data-act="to-vids">Google Vids</button>' : '<button data-act="to-horde">AI Horde</button>'}` : ''
+        }<button data-act="delete">Удалить</button></div>` : ''}
+      </div></div>`;
+  }
+  const media = it.type === 'video'
+    ? `<video src="${urlOf(it.blob)}" ${it.posterBlob ? `poster="${urlOf(it.posterBlob)}"` : ''} muted loop playsinline preload="metadata"></video><span class="badge">▶ ${it.duration} с</span>`
+    : `<img src="${urlOf(it.blob)}" alt="${esc(it.prompt)}" loading="lazy">`;
+  return `<div class="card ${paid}" data-id="${it.id}" style="${ar}">${media}
+    <div class="card-ov">
+      <div class="card-actions">
+        ${it.type === 'image' ? '<button class="act wide" data-act="animate" title="Сделать видео из этой картинки">🎬 Оживить</button>' : ''}
+        <button class="act" data-act="variation" title="Ещё вариант">↻</button>
+        <button class="act" data-act="reuse" title="Повторить с этими настройками">✎</button>
+        <button class="act" data-act="download" title="Скачать">⤓</button>
+        <button class="act" data-act="delete" title="Удалить">🗑</button>
+      </div>
+      <div class="card-foot">
+        <div class="card-prompt">${esc(it.prompt)}</div>
+        <div class="card-model">${tierBadge(it)} ${esc(it.modelTitle || '')}</div>
+      </div>
+    </div></div>`;
+}
+
+function bindCard(el) {
+  const v = el.querySelector('video');
+  if (!v) return;
+  el.addEventListener('mouseenter', () => v.play().catch(() => {}));
+  el.addEventListener('mouseleave', () => v.pause());
+}
+
+let lastCols = 0;
+function colCount() {
+  const w = $('#grid').clientWidth || $('#feed').clientWidth - 24;
+  const min = w < 700 ? 150 : 260;
+  return Math.max(isMobile() ? 2 : 1, Math.floor((w + 12) / (min + 12)));
+}
+function render() {
+  const grid = $('#grid');
+  const all = visibleItems();
+  const ext = all.filter(i => i.status === 'external'), list = all.filter(i => i.status !== 'external');
+  $('#extStrip').innerHTML = ext.map(externalCardHTML).join('');
+  $('#empty').classList.toggle('hidden', items.length > 0);
+  const cols = lastCols = colCount();
+  const html = Array(cols).fill(''), heights = Array(cols).fill(0);
+  for (const it of list) {
+    const k = heights.indexOf(Math.min(...heights));
+    html[k] += cardHTML(it);
+    heights[k] += it.h / it.w + 0.08;
+  }
+  grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  grid.innerHTML = html.map(h => `<div class="col">${h}</div>`).join('');
+  grid.querySelectorAll('.card').forEach(bindCard);
+  updateCounts();
+  tick();
+}
+function refreshCard(it) {
+  const el = document.querySelector(`.card[data-id="${it.id}"]`);
+  if (!el) return;
+  el.outerHTML = cardHTML(it);
+  const fresh = document.querySelector(`.card[data-id="${it.id}"]`);
+  if (fresh) bindCard(fresh);
+  tick();
+}
+function updateCounts() {
+  const done = items.filter(i => i.status === 'done');
+  const nImg = done.filter(i => i.type === 'image').length;
+  $('#countLabel').textContent = done.length ? `${nImg} фото · ${done.length - nImg} видео` : '';
+  const n = items.filter(i => i.status === 'queued' || i.status === 'running').length;
+  $('#queueInfo').textContent = n ? `⏳ В работе: ${n}` : 'Ctrl+Enter';
+  $('#navBadge').textContent = n;
+  $('#navBadge').classList.toggle('hidden', !n);
+}
+function tick() {
+  const now = Date.now();
+  for (const it of items) {
+    if ((it.status === 'queued' || it.status === 'running') && it.startedAt) {
+      const el = document.querySelector(`.card[data-id="${it.id}"] [data-time]`);
+      if (el) el.textContent = fmtTime(Math.floor((now - it.startedAt) / 1000));
+    }
+  }
+}
+setInterval(tick, 1000);
+
+function fileName(it) {
+  const slug = (it.prompt || 'art').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'art';
+  return `freefield-${slug}-${it.seed}.${it.type === 'video' ? 'mp4' : ({'image/png': 'png', 'image/webp': 'webp'}[it.blob?.type] || 'jpg')}`;
+}
+
+function removeItem(it) {
+  const idx = items.indexOf(it);
+  if (idx < 0) return;
+  items.splice(idx, 1);
+  DB.del(it.id);
+  render();
+  if (it.status !== 'done') return;
+  toast('Удалено', {action: 'Вернуть', ms: 6000, onAction: () => {
+    items.splice(Math.min(idx, items.length), 0, it); DB.put(it); render();
+  }});
+}
+
+function pick(it) {
+  const {id, blob, status, statusText, createdAt, startedAt, ...rest} = it;
+  return rest;
+}
+
+async function doAction(act, it) {
+  switch (act) {
+    case 'download': {
+      const a = document.createElement('a');
+      a.href = urlOf(it.blob); a.download = fileName(it);
+      document.body.append(a); a.click(); a.remove();
+      break;
+    }
+    case 'delete':
+      if (!$('#lightbox').classList.contains('hidden')) closeLB();
+      removeItem(it);
+      break;
+    case 'retry': {
+      const m = allModels().find(x => x.id === it.model) || {tier: it.tier, title: it.modelTitle};
+      if (!preflight(m, it.cost)) return;
+      it.type === 'video' ? runVideo(it) : runImage(it);
+      break;
+    }
+    case 'copy':
+      try { await navigator.clipboard.writeText(it.finalPrompt); }
+      catch {
+        const ta = document.createElement('textarea');
+        ta.value = it.finalPrompt; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      toast('Промпт скопирован — вставьте его в Google Vids', {type: 'ok'});
+      break;
+    case 'open-vids':
+    case 'open-site': {
+      const m = allModels().find(x => x.id === it.model) || {};
+      navigator.clipboard?.writeText(it.finalPrompt).catch(() => {});
+      openSide(m.url, m.service);
+      autoImport.target = it.id;
+      autoImport.since = Date.now();
+      markConnected(m.service);
+      toast(`Промпт скопирован. В ${m.site}: вставьте его (Ctrl+V), сгенерируйте и скачайте результат${autoImport.active() ? ' — Freefield заберёт его сам' : ''}`, {type: 'ok', ms: 7000});
+      break;
+    }
+    case 'paste-clip':
+      try {
+        for (const ci of await navigator.clipboard.read()) {
+          const t = ci.types.find(x => x.startsWith('image/'));
+          if (t) { await attachExternal(it, new File([await ci.getType(t)], 'pasted.' + t.split('/')[1], {type: t})); return; }
+        }
+        toast('В буфере нет картинки. На сайте: правый клик по картинке → «Копировать картинку»', {ms: 6000});
+      } catch { toast('Браузер не дал прочитать буфер — нажмите Ctrl+V или загрузите файл', {ms: 6000}); }
+      break;
+    case 'auto-connect': await autoImport.connect(); break;
+    case 'auto-allow': await autoImport.allow(); break;
+    case 'import': {
+      const f = await pickFile(it.type === 'video' ? 'video/*' : 'image/*');
+      if (f) attachExternal(it, f);
+      break;
+    }
+    case 'limits':
+      openSheet('settings');
+      setTimeout(() => $('#hfSection').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);
+      break;
+    case 'to-vids':
+      setMode('video');
+      selectModel('ext:google-vids', false);
+      setVSource('text');
+      $('#prompt').value = state.prompts.video = it.userPrompt || it.prompt;
+      removeItem(it);
+      setView('create');
+      toast('Выбран Google Vids (10 бесплатных видео в месяц) — нажмите «Подготовить»', {type: 'ok'});
+      break;
+    case 'to-horde':
+      Object.assign(it, modelFields(FREE_MODELS.find(x => x.provider === 'horde')));
+      runImage(it);
+      break;
+    case 'variation': {
+      if (String(it.model).startsWith('ext:')) {
+        const copy = newItem({...pick(it), status: 'external', statusText: '', importedAt: null});
+        DB.put(copy); render();
+        toast('Ещё одна карточка с тем же промптом — сгенерируйте вариант на сайте Google', {type: 'ok'});
+        break;
+      }
+      const m = allModels().find(x => x.id === it.model) || {tier: it.tier, title: it.modelTitle};
+      if (!preflight(m, it.cost)) return;
+      const copy = newItem({...pick(it), seed: randSeed()});
+      if (copy.type === 'video' && copy.source === 'text' && copy.tier !== 'paid') delete copy.posterBlob; // новый кадр
+      render();
+      copy.type === 'video' ? runVideo(copy) : runImage(copy);
+      toast('Новый вариант в работе' + (copy.tier === 'paid' && copy.cost ? ` · ≈ ${fmtUSD(copy.cost)}` : ''));
+      break;
+    }
+    case 'animate':
+      closeLB();
+      setMode('video');
+      setVSource('image');
+      await setVImage(it.blob);
+      state.prompts.video = ''; $('#prompt').value = '';
+      setView('create');
+      toast('Картинка добавлена. Выберите модель и движение — и жмите «Создать видео»', {type: 'ok'});
+      break;
+    case 'reuse':
+      closeLB();
+      setMode(it.type);
+      if (it.model && allModels().some(m => m.id === it.model)) selectModel(it.model, false);
+      $('#prompt').value = state.prompts[it.type] = it.userPrompt ?? it.prompt;
+      $('#seed').value = it.seed;
+      $('#negative').value = it.negative || '';
+      if (it.style) setStyle(it.style);
+      if (it.aspect && it.source !== 'image') setAspect(it.aspect);
+      if (it.type === 'video') {
+        setMotion(it.motion);
+        if (it.source === 'image' && it.posterBlob) { setVSource('image'); await setVImage(it.posterBlob); }
+        else setVSource('text');
+        renderVideoOptions(); setDuration(it.duration);
+      }
+      $('.adv').open = true;
+      setView('create');
+      toast('Настройки загружены — меняйте и генерируйте', {type: 'ok'});
+      break;
+  }
+}
+
+/* =============================== lightbox =============================== */
+let lbList = [], lbIndex = -1;
+function openLB(id) {
+  lbList = visibleItems().filter(i => i.status === 'done');
+  lbIndex = lbList.findIndex(i => i.id === id);
+  if (lbIndex < 0) return;
+  $('#lightbox').classList.remove('hidden');
+  showLB();
+}
+function closeLB() { $('#lightbox').classList.add('hidden'); $('#lbMedia').innerHTML = ''; }
+function showLB() {
+  const it = lbList[lbIndex];
+  if (!it) return closeLB();
+  $('#lbMedia').innerHTML = it.type === 'video'
+    ? `<video src="${urlOf(it.blob)}" controls autoplay loop playsinline></video>`
+    : `<img src="${urlOf(it.blob)}" alt="">`;
+  const rows = [
+    ['Модель', it.modelTitle || '—'],
+    ['Стоимость', it.tier === 'paid' ? (it.cost != null ? '≈ ' + fmtUSD(it.cost) : 'по факту') : 'Бесплатно'],
+    ['Размер', `${it.w} × ${it.h}`],
+    ['Seed', it.seed],
+    ...(it.type === 'video' ? [['Движение', byId(MOTIONS, it.motion).name], ['Длительность', it.duration + ' с']] : []),
+    ...(it.res ? [['Качество', it.res]] : []),
+    ...(it.style && it.style !== 'none' ? [['Стиль', byId(STYLES, it.style).name]] : []),
+    ['Создано', new Date(it.createdAt).toLocaleString('ru-RU', {dateStyle: 'short', timeStyle: 'short'})],
+  ];
+  $('#lbInfo').innerHTML = `
+    <div>${tierBadge(it)}</div>
+    <div><h4>Промпт</h4><p>${esc(it.prompt)}</p></div>
+    ${it.finalPrompt && it.finalPrompt !== it.prompt ? `<div><h4>Итоговый промпт ✨</h4><p class="final">${esc(it.finalPrompt)}</p></div>` : ''}
+    <dl class="meta">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+    <div class="lb-actions">
+      ${it.type === 'image' ? '<button class="primary" data-act="animate">🎬 Оживить в видео</button>' : ''}
+      <button data-act="download">⤓ Скачать</button>
+      <button data-act="variation">↻ Вариант</button>
+      <button data-act="reuse">✎ Повторить</button>
+      <button data-act="delete" class="danger">🗑 Удалить</button>
+    </div>`;
+  $('#lbPrev').style.visibility = lbIndex > 0 ? '' : 'hidden';
+  $('#lbNext').style.visibility = lbIndex < lbList.length - 1 ? '' : 'hidden';
+}
+function stepLB(d) {
+  const n = lbIndex + d;
+  if (n >= 0 && n < lbList.length) { lbIndex = n; showLB(); }
+}
+
+/* =============================== catalog UI =============================== */
+function modelCardHTML(m) {
+  const on = state.models[m.kind] === m.id;
+  let hs = m.health, health = {healthy: 'работает', degraded: 'нестабильно', down: 'не работает', unknown: 'нет данных'}[m.health] || '';
+  if (m.provider === 'hf' && hfQuotaOut()) { hs = 'degraded'; health = 'лимит на сегодня исчерпан'; }
+  return `<button class="mcard ${m.tier} ${on ? 'on' : ''} ${m.health === 'down' ? 'down' : ''}" data-id="${esc(m.id)}">
+    <div class="mc-head">
+      <span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
+      <div class="mc-name"><div class="mc-title">${esc(m.title)}</div><div class="mc-pub">${esc(m.publisher)}</div></div>
+      <span class="tier ${m.tier}${m.external ? ' site' : ''}">${m.external ? 'Free · сайт' : m.tier === 'free' ? 'Free' : 'Paid'}</span>
+    </div>
+    ${m.credits ? `<div class="mc-credits"><div>💳 ${esc(m.credits)}</div><div class="eq">→ ${esc(m.equiv)}</div>${m.note ? `<div class="nt">⚠ ${esc(m.note)}</div>` : ''}</div>` : `<div class="mc-desc">${esc(m.desc)}</div>`}
+    <div class="mc-tags">${modelTags(m)}</div>
+    <div class="mc-foot"><span class="mc-price">${priceLabel(m)}</span><span class="health ${hs}">${health}</span></div>
+  </button>`;
+}
+
+function renderCatalog() {
+  const q = cat.q.toLowerCase();
+  const match = m => m.kind === cat.kind && (!q || `${m.title} ${m.publisher} ${m.desc} ${m.api || ''}`.toLowerCase().includes(q));
+  const free = FREE_MODELS.filter(m => !m.external && match(m));
+  const sites = FREE_MODELS.filter(m => m.external && match(m));
+  const sorters = {
+    top: (a, b) => ((a.featured < 0 ? 99 : a.featured) - (b.featured < 0 ? 99 : b.featured)) || ((estimate(a) ?? 9) - (estimate(b) ?? 9)),
+    cheap: (a, b) => (estimate(a) ?? 9) - (estimate(b) ?? 9),
+    new: (a, b) => b.added - a.added,
+  };
+  const paid = catalog.filter(match).sort(sorters[cat.sort]);
+  let html = '';
+  if ((cat.tier === 'all' || cat.tier === 'free') && free.length) {
+    html += `<section class="cat-sec"><div class="cat-sec-head"><h3><span class="tier free">Free</span> Бесплатно — прямо здесь</h3>
+      <p>Генерация внутри Freefield, без регистрации. Есть дневной лимит бесплатного GPU.</p></div>
+      <div class="mgrid">${free.map(modelCardHTML).join('')}</div></section>`;
+  }
+  if ((cat.tier === 'all' || cat.tier === 'sites') && sites.length) {
+    const groups = [['day', 'Кредиты каждый день'], ['week', 'Каждую неделю'], ['month', 'Каждый месяц'], ['once', 'Разово — пробный период']];
+    html += `<section class="cat-sec"><div class="cat-sec-head"><h3><span class="tier free site">Free · сайт</span> Бесплатные кредиты на сайтах</h3>
+      <p>Генерация на сайте сервиса под вашим аккаунтом: Freefield готовит промпт, открывает сайт и принимает результат в галерею. Лимиты — на сентябрь 2026, сервисы их меняют.</p></div>
+      ${groups.map(([p, t]) => { const g = sites.filter(m => m.period === p); return g.length ? `<h4 class="cat-sub">${PERIODS[p]}</h4><div class="mgrid">${g.map(modelCardHTML).join('')}</div>` : ''; }).join('')}
+    </section>`;
+  }
+  if ((cat.tier === 'all' || cat.tier === 'paid') && paid.length) {
+    html += `<section class="cat-sec"><div class="cat-sec-head"><h3><span class="tier paid">Paid</span> Платные</h3>
+      <p>Оплата только за каждую генерацию, без подписки. Цены в pollen (≈ $), видны до запуска.</p></div>
+      ${wallet.key ? '' : '<div class="key-banner">🔑 Чтобы запускать платные модели, добавьте ключ Pollinations (пара минут). <button data-open-settings>Добавить ключ</button></div>'}
+      <div class="mgrid">${paid.map(modelCardHTML).join('')}</div></section>`;
+  }
+  $('#catBody').innerHTML = html || '<div class="cat-empty">Ничего не найдено</div>';
+}
+
+function renderServices() {
+  const groups = [['day', 'Каждый день'], ['week', 'Каждую неделю'], ['month', 'Каждый месяц'], ['once', 'Разово — пробный период']];
+  $('#svcList').innerHTML = groups.map(([p, t]) => {
+    const list = SERVICES.filter(x => x.period === p);
+    return `<div class="svc-group">${PERIODS[p]}</div>` + list.map(x => `
+      <div class="svc-row">
+        <span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
+        <div class="svc-main">
+          <div><b>${esc(x.name)}</b> <span class="hint">${esc(x.by)}</span></div>
+          <div class="svc-cr">💳 ${esc(x.credits)}</div>
+          ${x.image ? `<div class="svc-eq">🖼 ${esc(x.image.models)} — ${esc(x.image.equiv)}</div>` : ''}
+          ${x.video ? `<div class="svc-eq">🎬 ${esc(x.video.models)} — ${esc(x.video.equiv)}</div>` : ''}
+          ${x.note ? `<div class="hint">⚠ ${esc(x.note)}</div>` : ''}
+        </div>
+        <a class="btn small" href="${x.url}" target="_blank" rel="noopener">Открыть ↗</a>
+      </div>`).join('');
+  }).join('');
+}
+
+function openSheet(which) {
+  if (which === 'catalog') {
+    cat.kind = state.mode;
+    $$('#catKindSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === cat.kind));
+    renderCatalog();
+  } else {
+    $('#keyInput').value = wallet.key;
+    $('#hfInput').value = wallet.hf;
+    $('#hordeInput').value = wallet.horde;
+    $('#geminiInput').value = wallet.gemini;
+    $('#autoFallback').checked = state.autoFallback;
+    $('#confirmOver').value = state.confirmOver;
+    renderWallet();
+    refreshBalance();
+  }
+  $$('.sheet').forEach(s => s.classList.add('hidden'));
+  $(`#${which}Sheet`).classList.remove('hidden');
+}
+function openHub() {
+  renderHub();
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#hubSheet').classList.remove('hidden');
+}
+
+function closeSheets() { $$('.sheet').forEach(s => s.classList.add('hidden')); }
+
+function selectModel(id, announce = true) {
+  const m = allModels().find(x => x.id === id);
+  if (!m) return;
+  state.models[m.kind] = m.id;
+  if (m.kind !== state.mode) setMode(m.kind);
+  saveSettings();
+  refreshModelUI();
+  if (announce) toast(m.tier === 'free' ? `${m.title} — бесплатно` : `${m.title} — ${priceLabel(m).replace(/<[^>]+>/g, '')}`, {type: 'ok'});
+}
+
+/* =============================== controls =============================== */
+function refreshModelUI() {
+  const m = currentModel();
+  const pick = $('#modelPick');
+  pick.className = 'model-pick ' + m.tier;
+  $('#mpIcon').setAttribute('style', icoStyle(m));
+  $('#mpIcon').textContent = initials(m);
+  $('#mpTier').className = 'tier ' + m.tier;
+  $('#mpTier').textContent = m.tier === 'free' ? 'Free' : 'Paid';
+  $('#mpPub').textContent = m.publisher;
+  $('#mpTitle').textContent = m.title;
+  $('#mpPrice').innerHTML = priceLabel(m);
+  renderQuickSvc();
+  if (state.mode === 'video') renderVideoOptions();
+  updateGenButton();
+  if (!$('#catalogSheet').classList.contains('hidden')) renderCatalog();
+}
+
+function renderVideoOptions() {
+  const m = currentModel('video');
+  // источник: картинка доступна, если модель принимает image
+  const canImg = m.inputs.includes('image');
+  const imgBtn = $('#vSourceSeg [data-v=image]');
+  imgBtn.disabled = !canImg;
+  imgBtn.title = canImg ? '' : 'Эта модель умеет только текст → видео';
+  if (!canImg && state.vSource === 'image') setVSource('text');
+  // длительность
+  const ctl = $('#durCtl');
+  let d = state.duration;
+  if (m.durations?.length) {
+    if (!m.durations.includes(d)) d = m.defDur && m.durations.includes(m.defDur) ? m.defDur : m.durations[0];
+    ctl.innerHTML = `<div class="chips">${m.durations.map(v => `<button class="chip ${v === d ? 'on' : ''}" data-dur="${v}">${v} с</button>`).join('')}</div>`;
+  } else {
+    const min = m.minDur ?? 1, max = m.maxDur ?? 10, step = m.durStep || 1;
+    if (d < min || d > max) d = m.defDur ?? min;
+    if (min === max) ctl.innerHTML = `<div class="hint">Фиксированная длительность: ${min} с</div>`;
+    else ctl.innerHTML = `<input type="range" id="duration" min="${min}" max="${max}" step="${step}" value="${d}">`;
+  }
+  setDuration(d);
+  // качество
+  const rs = m.tier === 'paid' ? (m.resolutions || []) : [];
+  $('#resBlock').classList.toggle('hidden', rs.length < 2);
+  if (!rs.includes(state.res)) state.res = rs.length ? (m.defaultRes && rs.includes(m.defaultRes) ? m.defaultRes : rs[0]) : null;
+  $('#resChips').innerHTML = rs.map(r => {
+    const s = +priceOf(m, r).completionVideoSeconds;
+    return `<button class="chip ${r === state.res ? 'on' : ''}" data-res="${r}">${r}${s ? ` · ${fmtUSD(s)}/с` : ''}</button>`;
+  }).join('');
+  // звук
+  const audio = m.tier === 'paid' && (m.caps.includes('audio_output'));
+  $('#audioBlock').classList.toggle('hidden', !audio);
+  if (!audio) state.audio = false;
+  $('#audioToggle').checked = state.audio;
+  updateGenButton();
+}
+
+function updateGenButton() {
+  const m = currentModel();
+  const video = state.mode === 'video';
+  const cost = currentCost();
+  const btn = $('#genBtn');
+  btn.classList.toggle('paid', m.tier === 'paid');
+  $('#genLabel').textContent = m.external ? `🔗 Подготовить для ${m.site}` : video ? '🎬 Создать видео' : state.count > 1 ? `Сгенерировать ×${state.count}` : 'Сгенерировать';
+  $('#genSub').textContent = m.external ? (extLeft(m) != null ? `${extLeft(m)}/${m.count.n}` : m.short) : m.tier === 'free' ? 'Бесплатно' : cost == null ? 'цена по факту' : '≈ ' + fmtUSD(cost);
+  $('#etaLine').textContent = `${m.title} · ${m.eta || ''}` + (m.tier === 'paid' && !wallet.key ? ' · нужен ключ' : '') +
+    (m.provider === 'hf' && m.kind === 'image' && hfQuotaOut() && state.autoFallback ? ' · лимит исчерпан → AI Horde' : '');
+}
+
+function setMode(mode) {
+  state.prompts[state.mode] = $('#prompt').value;
+  state.mode = mode;
+  document.body.dataset.mode = mode;
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  $('#prompt').value = state.prompts[mode] || '';
+  renderAspects();
+  updateLabels();
+  refreshModelUI();
+  saveSettings();
+}
+function setView(v) {
+  state.view = v;
+  document.body.dataset.view = v;
+  $$('#bottomNav [data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === v));
+  if (v === 'gallery') requestAnimationFrame(() => { if (colCount() !== lastCols) render(); });
+}
+function setVSource(v) {
+  state.vSource = v;
+  document.body.dataset.vsource = v;
+  $$('#vSourceSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  updateLabels();
+  saveSettings();
+}
+function setStyle(id) {
+  state.style = id;
+  $$('.style-card').forEach(c => c.classList.toggle('on', c.dataset.id === id));
+  $('#styleName').textContent = byId(STYLES, id).name;
+  saveSettings();
+}
+function setMotion(id) {
+  state.motion = id;
+  $$('.motion-card').forEach(c => c.classList.toggle('on', c.dataset.id === id));
+  $('#motionName').textContent = byId(MOTIONS, id).name;
+  saveSettings();
+}
+function renderAspects() {
+  const list = state.mode === 'video' ? ASPECTS.filter(a => VIDEO_ASPECTS.includes(a.id)) : ASPECTS;
+  if (!list.some(a => a.id === state.aspects[state.mode])) state.aspects[state.mode] = list[0].id;
+  $('#aspectChips').innerHTML = list.map(a => {
+    const k = 13 / Math.max(a.w, a.h);
+    return `<button class="chip ${a.id === state.aspects[state.mode] ? 'on' : ''}" data-id="${a.id}"><span class="ar" style="width:${Math.round(a.w * k)}px;height:${Math.round(a.h * k)}px"></span>${a.id}</button>`;
+  }).join('');
+}
+function setAspect(id) {
+  state.aspects[state.mode] = id;
+  renderAspects();
+  saveSettings();
+}
+function setCount(n) {
+  state.count = n;
+  $$('#countSeg button').forEach(b => b.classList.toggle('on', +b.dataset.v === n));
+  updateLabels();
+  updateGenButton();
+  saveSettings();
+}
+function setDuration(v) {
+  state.duration = +v;
+  $('#durVal').textContent = +v;
+  const r = $('#duration'); if (r) r.value = v;
+  $$('#durCtl [data-dur]').forEach(c => c.classList.toggle('on', +c.dataset.dur === +v));
+  updateGenButton();
+  saveSettings();
+}
+async function setVImage(blob) {
+  if (!blob) {
+    state.vImage = null;
+    $('#dzPreview').classList.add('hidden');
+    $('.dz-empty').classList.remove('hidden');
+    return;
+  }
+  const d = await dims(blob);
+  if (!d) return toast('Не получилось прочитать картинку', {type: 'err'});
+  state.vImage = {blob, w: d[0], h: d[1]};
+  $('#dzImg').src = urlOf(blob);
+  $('#dzPreview').classList.remove('hidden');
+  $('.dz-empty').classList.add('hidden');
+}
+function updateLabels() {
+  const video = state.mode === 'video';
+  const fromImg = video && state.vSource === 'image';
+  $('#promptLabel').textContent = fromImg ? 'Движение (необязательно)' : video ? 'Сцена и действие' : 'Промпт';
+  $('#prompt').placeholder = fromImg
+    ? 'Что должно происходить? «девушка поворачивается и улыбается, волосы развеваются»'
+    : video ? 'Опишите сцену и действие: «кот в скафандре плывёт в невесомости»'
+    : 'Опишите картинку… можно по-русски, промпт улучшится сам ✨';
+  updateGenButton();
+}
+
+function buildControls() {
+  $('#styleGrid').innerHTML = STYLES.map(s =>
+    `<button class="style-card" data-id="${s.id}" title="${esc(s.suffix || 'Без добавок к промпту')}"><div class="th" style="background:${s.bg}">${s.emoji}</div><div class="nm">${s.name}</div></button>`).join('');
+  $('#motionGrid').innerHTML = MOTIONS.map(m =>
+    `<button class="motion-card" data-id="${m.id}" title="${esc(m.prompt)}"><div class="mv"><i style="animation-name:mv-${m.anim}"></i></div><div class="nm">${m.name}</div></button>`).join('');
+  $('#ideas').innerHTML = IDEAS.slice(0, 6).map(i => `<button class="idea">${esc(i)}</button>`).join('');
+}
+
+function bindControls() {
+  $('#tabs').addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) { setMode(t.dataset.mode); if (isMobile()) setView('create'); } });
+  $('#vSourceSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) setVSource(b.dataset.v); });
+  $('#styleGrid').addEventListener('click', e => { const c = e.target.closest('.style-card'); if (c) setStyle(c.dataset.id); });
+  $('#motionGrid').addEventListener('click', e => { const c = e.target.closest('.motion-card'); if (c) setMotion(c.dataset.id); });
+  $('#aspectChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) setAspect(c.dataset.id); });
+  $('#countSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setCount(+b.dataset.v); });
+  $('#durCtl').addEventListener('input', e => { if (e.target.id === 'duration') setDuration(e.target.value); });
+  $('#durCtl').addEventListener('click', e => { const c = e.target.closest('[data-dur]'); if (c) setDuration(c.dataset.dur); });
+  $('#resChips').addEventListener('click', e => {
+    const c = e.target.closest('[data-res]'); if (!c) return;
+    state.res = c.dataset.res; saveSettings();
+    $$('#resChips .chip').forEach(x => x.classList.toggle('on', x === c));
+    updateGenButton();
+  });
+  $('#audioToggle').addEventListener('change', e => { state.audio = e.target.checked; saveSettings(); updateGenButton(); });
+  $('#autoEnhance').addEventListener('change', e => { state.autoEnhance = e.target.checked; saveSettings(); });
+  $('#prompt').addEventListener('input', e => { state.prompts[state.mode] = e.target.value; saveSettings(); });
+  $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); generate(); } });
+  $('#genBtn').addEventListener('click', generate);
+  $('#modelPick').addEventListener('click', () => openSheet('catalog'));
+  $('#hubBtn').addEventListener('click', openHub);
+  $('#quickSvc').addEventListener('click', e => {
+    if (e.target.closest('[data-open-hub]')) return openHub();
+    const c = e.target.closest('[data-model]');
+    if (c) selectModel(c.dataset.model, false);
+  });
+  $('#hubBody').addEventListener('click', e => {
+    const r = e.target.closest('.hub-row'); if (!r) return;
+    const x = SERVICES.find(v => v.id === r.dataset.svc);
+    const use = e.target.closest('[data-use]');
+    if (use) return useService(x.id, use.dataset.use);
+    if (e.target.closest('[data-open]')) { openSide(x.url, x.id); if (!isConnected(x.id)) toast(`Войдите в ${x.name} в открывшемся окне, затем отметьте «вход выполнен»`, {ms: 6000}); }
+  });
+  $('#hubBody').addEventListener('change', e => {
+    const c = e.target.closest('[data-conn]'); if (!c) return;
+    markConnected(c.closest('.hub-row').dataset.svc, c.checked);
+    renderHub();
+  });
+  $('#walletBtn').addEventListener('click', () => openSheet('settings'));
+  $('#settingsBtn').addEventListener('click', () => openSheet('settings'));
+
+  $('#diceBtn').addEventListener('click', () => {
+    const cur = $('#prompt').value;
+    let next; do { next = IDEAS[Math.floor(Math.random() * IDEAS.length)]; } while (next === cur);
+    $('#prompt').value = state.prompts[state.mode] = next;
+    saveSettings();
+  });
+  $('#ideas').addEventListener('click', e => {
+    const b = e.target.closest('.idea'); if (!b) return;
+    setMode('image');
+    $('#prompt').value = state.prompts.image = b.textContent;
+    setView('create');
+    $('#prompt').focus();
+  });
+
+  $('#enhanceBtn').addEventListener('click', async () => {
+    const btn = $('#enhanceBtn'), ta = $('#prompt');
+    const raw = ta.value.trim();
+    if (!raw) return nudge('Сначала напишите идею — я превращу её в профессиональный промпт');
+    btn.classList.add('loading'); btn.textContent = '✨ Думаю…';
+    const kind = state.mode === 'image' ? 'image' : state.vSource === 'image' ? 'video' : (currentModel().tier === 'paid' || currentModel().external) ? 't2v' : 'image';
+    try {
+      ta.value = state.prompts[state.mode] = await enhancePrompt(raw, kind);
+      saveSettings();
+      toast(lastEnhancer === 'перевод' ? 'Переведено на английский. Для умного улучшения подключите бесплатный Gemini в «Лимитах»' : `Промпт улучшен ✨ (${lastEnhancer})`, {type: 'ok', ms: 6000, action: 'Отменить', onAction: () => { ta.value = state.prompts[state.mode] = raw; }});
+    } catch (e) { toast('Не удалось улучшить: ' + e.message, {type: 'err'}); }
+    finally { btn.classList.remove('loading'); btn.textContent = '✨ Улучшить'; }
+  });
+
+  // dropzone / paste
+  const dz = $('#dropzone'), fi = $('#fileInput');
+  dz.addEventListener('click', e => { if (!e.target.closest('#dzClear')) fi.click(); });
+  fi.addEventListener('change', () => { if (fi.files[0]) setVImage(fi.files[0]); fi.value = ''; });
+  $('#dzClear').addEventListener('click', e => { e.stopPropagation(); setVImage(null); });
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag');
+    const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/'));
+    if (f) setVImage(f);
+  });
+  document.addEventListener('paste', e => {
+    const any = [...(e.clipboardData?.files || [])].find(f => /^(image|video)\//.test(f.type));
+    const waiting = any && extTarget(any.type.startsWith('video/') ? 'video' : 'image');
+    if (waiting) { e.preventDefault(); attachExternal(waiting, any); return; }
+    const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
+    if (!f) return;
+    e.preventDefault();
+    setMode('video'); setVSource('image'); setVImage(f); setView('create');
+    toast('Картинка вставлена — оживим её 🎬', {type: 'ok'});
+  });
+
+  // gallery
+  $('#filterSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.filter = b.dataset.v;
+    $$('#filterSeg button').forEach(x => x.classList.toggle('on', x === b));
+    render();
+  });
+  $('#search').addEventListener('input', render);
+  $('#extStrip').addEventListener('dragover', e => { if (e.target.closest('.card.ext')) e.preventDefault(); });
+  $('#extStrip').addEventListener('drop', e => {
+    const card = e.target.closest('.card.ext'); if (!card) return;
+    e.preventDefault();
+    const it = items.find(i => i.id === card.dataset.id);
+    if (it) attachExternal(it, [...e.dataTransfer.files].find(f => /^(image|video)\//.test(f.type)));
+  });
+  $('#extStrip').addEventListener('click', e => {
+    const card = e.target.closest('.card'); const act = e.target.closest('[data-act]');
+    const it = card && items.find(i => i.id === card.dataset.id);
+    if (it && act) doAction(act.dataset.act, it);
+  });
+  $('#grid').addEventListener('click', e => {
+    const card = e.target.closest('.card'); if (!card) return;
+    const it = items.find(i => i.id === card.dataset.id); if (!it) return;
+    const act = e.target.closest('[data-act]');
+    if (act) { e.stopPropagation(); doAction(act.dataset.act, it); }
+    else if (it.status === 'done') openLB(it.id);
+  });
+  new ResizeObserver(() => { if (colCount() !== lastCols) render(); }).observe($('#feed'));
+
+  // mobile nav
+  $('#bottomNav').addEventListener('click', e => {
+    const b = e.target.closest('[data-nav]'); if (!b) return;
+    const v = b.dataset.nav;
+    if (v === 'models') openSheet('catalog');
+    else if (v === 'hub') openHub();
+    else if (v === 'settings') openSheet('settings');
+    else setView(v);
+  });
+
+  // sheets
+  $$('.sheet').forEach(s => s.addEventListener('click', e => {
+    if (e.target === s || e.target.closest('[data-close]')) closeSheets();
+    if (e.target.closest('[data-open-settings]')) openSheet('settings');
+  }));
+  $('#catKindSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    cat.kind = b.dataset.v;
+    $$('#catKindSeg button').forEach(x => x.classList.toggle('on', x === b));
+    renderCatalog();
+  });
+  $('#catTierSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    cat.tier = b.dataset.v;
+    $$('#catTierSeg button').forEach(x => x.classList.toggle('on', x === b));
+    renderCatalog();
+  });
+  $('#catSortSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    cat.sort = b.dataset.v;
+    $$('#catSortSeg button').forEach(x => x.classList.toggle('on', x === b));
+    renderCatalog();
+  });
+  $('#catSearch').addEventListener('input', e => { cat.q = e.target.value.trim(); renderCatalog(); });
+  $('#catBody').addEventListener('click', e => {
+    const c = e.target.closest('.mcard'); if (!c) return;
+    selectModel(c.dataset.id);
+    closeSheets();
+  });
+
+  // settings
+  document.addEventListener('click', e => { const b = e.target.closest('[data-eye]'); if (b) $('#' + b.dataset.eye).classList.toggle('show'); });
+  $('#keySave').addEventListener('click', async () => {
+    const k = $('#keyInput').value.trim();
+    if (!k) return toast('Вставьте ключ');
+    wallet.key = k; ls.set('freefield.key', k);
+    await refreshBalance();
+    toast(wallet.balance === 'bad' ? 'Ключ не подошёл — проверьте его' : 'Ключ сохранён — платные модели доступны', {type: wallet.balance === 'bad' ? 'err' : 'ok'});
+    refreshModelUI();
+  });
+  $('#keyClear').addEventListener('click', () => {
+    wallet.key = ''; wallet.balance = null; ls.del('freefield.key');
+    $('#keyInput').value = '';
+    renderWallet(); refreshModelUI();
+    toast('Ключ удалён из браузера');
+  });
+  $('#balRefresh').addEventListener('click', refreshBalance);
+  $('#hfSave').addEventListener('click', async () => {
+    const t = $('#hfInput').value.trim();
+    if (!/^hf_\w{10,}/.test(t)) return toast('Токен Hugging Face начинается с hf_', {type: 'err'});
+    try {
+      const r = await fetch('https://huggingface.co/api/whoami-v2', {headers: {Authorization: 'Bearer ' + t}});
+      if (!r.ok) throw new Error();
+      const j = await r.json();
+      wallet.hf = t; wallet.hfUser = j.name || 'аккаунт';
+      ls.set('freefield.hf', t); ls.set('freefield.hfUser', wallet.hfUser); ls.del(HF_OUT_KEY);
+      renderWallet(); refreshModelUI();
+      toast(`Вы вошли в Hugging Face как ${wallet.hfUser} — бесплатный лимит GPU увеличен`, {type: 'ok'});
+    } catch { toast('Токен не подошёл — проверьте, что он скопирован целиком', {type: 'err'}); }
+  });
+  $('#hfClear').addEventListener('click', () => {
+    wallet.hf = ''; wallet.hfUser = ''; ls.del('freefield.hf'); ls.del('freefield.hfUser');
+    $('#hfInput').value = ''; renderWallet(); toast('Вы вышли из Hugging Face');
+  });
+  $('#geminiSave').addEventListener('click', async () => {
+    const k = $('#geminiInput').value.trim();
+    if (!k) { wallet.gemini = ''; ls.del('freefield.gemini'); renderWallet(); return toast('Ключ Gemini удалён'); }
+    try {
+      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {headers: {'x-goog-api-key': k}});
+      if (!r.ok) throw new Error();
+      wallet.gemini = k; ls.set('freefield.gemini', k); renderWallet();
+      toast('Gemini подключён — промпты теперь улучшаются умно и бесплатно ✨', {type: 'ok'});
+    } catch { toast('Ключ Gemini не подошёл — проверьте, что скопировали его целиком', {type: 'err'}); }
+  });
+  $('#hordeSave').addEventListener('click', () => {
+    wallet.horde = $('#hordeInput').value.trim();
+    wallet.horde ? ls.set('freefield.horde', wallet.horde) : ls.del('freefield.horde');
+    renderWallet(); toast(wallet.horde ? 'Ключ AI Horde сохранён' : 'Ключ AI Horde удалён', {type: 'ok'});
+  });
+  $('#autoFallback').addEventListener('change', e => { state.autoFallback = e.target.checked; saveSettings(); updateGenButton(); });
+  $('#confirmOver').addEventListener('change', e => { state.confirmOver = Math.max(0, +e.target.value || 0); saveSettings(); });
+
+  // keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeSheets(); if (!$('#lightbox').classList.contains('hidden')) closeLB(); }
+    if ($('#lightbox').classList.contains('hidden')) return;
+    if (e.key === 'ArrowLeft') stepLB(-1);
+    if (e.key === 'ArrowRight') stepLB(1);
+  });
+  $('#lbClose').addEventListener('click', closeLB);
+  $('#lbPrev').addEventListener('click', () => stepLB(-1));
+  $('#lbNext').addEventListener('click', () => stepLB(1));
+  $('#lightbox').addEventListener('click', e => { if (e.target.classList.contains('lb-media')) closeLB(); });
+  $('#lbInfo').addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    doAction(b.dataset.act, lbList[lbIndex]);
+  });
+}
+
+/* =============================== установка (PWA) =============================== */
+const pwa = {
+  prompt: null,   // системное окно установки (Chrome/Edge/Android)
+  standalone: () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+  ios: () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+  android: () => /android/i.test(navigator.userAgent),
+  mobile: () => pwa.ios() || pwa.android(),
+  hosted: () => location.protocol === 'https:' && !/^(localhost|127\.)/.test(location.hostname),
+};
+
+function initPwa() {
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.)/.test(location.hostname)))
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pwa.prompt = e; });
+  window.addEventListener('appinstalled', () => {
+    pwa.prompt = null; closeSheets(); updateInstallBtn();
+    toast('Freefield установлен 🎉 Иконка — на главном экране', {type: 'ok', ms: 6000});
+  });
+  $('#installBtn').addEventListener('click', openInstall);
+  $('#installBody').addEventListener('click', e => { if (e.target.closest('[data-install]')) runInstallPrompt(); });
+  updateInstallBtn();
+}
+
+function updateInstallBtn() { $('#installBtn').classList.toggle('hidden', pwa.standalone()); }
+
+async function runInstallPrompt() {
+  if (!pwa.prompt) return;
+  pwa.prompt.prompt();
+  await pwa.prompt.userChoice.catch(() => null);
+  pwa.prompt = null;
+  renderInstall();
+}
+
+function openInstall() {
+  if (pwa.android() && pwa.prompt) return runInstallPrompt();   // Android: сразу системное окно
+  renderInstall();
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#installSheet').classList.remove('hidden');
+}
+
+function renderInstall() {
+  const url = location.origin + location.pathname;
+  const steps = list => list.map((t, i) => `<div class="inst-step"><b class="n">${i + 1}</b><div>${t}</div></div>`).join('');
+  let html = '';
+  if (pwa.mobile()) {
+    if (pwa.ios()) html += steps([
+      'Откройте этот адрес в <b>Safari</b> (из Chrome на iPhone установить нельзя).',
+      'Нажмите кнопку <b>«Поделиться»</b> ⬆️ внизу экрана.',
+      'Выберите <b>«На экран „Домой“»</b> → «Добавить». Иконка Freefield появится на главном экране.']);
+    else if (pwa.prompt) html += '<button class="inst-big" data-install>📲 Установить Freefield</button>';
+    else html += steps([
+      'Откройте меню браузера <b>⋮</b> справа вверху.',
+      'Нажмите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b>.',
+      'Подтвердите — иконка Freefield появится на главном экране.']);
+    if (!pwa.hosted()) html += '<p class="inst-note">⚠ Сейчас Freefield открыт с вашего компьютера по Wi-Fi. Иконка добавится, но работать приложение будет только дома и пока на компьютере запущен сервер. Для полноценной установки Freefield нужно выложить по адресу https:// — см. PLAN.md.</p>';
+  } else {
+    html += '<div class="set-h">📱 На телефон</div>';
+    if (pwa.hosted()) html += `<div class="inst-qr"><div id="qrBox"></div><div class="inst-url">${esc(url)}</div></div>` + steps([
+      'Наведите камеру телефона на QR-код и откройте ссылку.',
+      'Нажмите <b>📲</b> вверху приложения и следуйте подсказке (Android — «Установить», iPhone — «Поделиться» → «На экран „Домой“»).']);
+    else html += `<p class="set-p">Сейчас Freefield открыт с этого компьютера (<b>${esc(location.host || 'файл')}</b>). Телефоны устанавливают приложения только с защищённого адреса <b>https://</b>, поэтому Freefield сначала нужно бесплатно выложить в интернет. Как только он откроется по https-адресу, здесь появится QR-код для телефона.</p>`;
+    html += '<div class="set-h">💻 На этот компьютер</div>' + (pwa.prompt
+      ? '<button class="inst-big" data-install>Установить на компьютер</button>'
+      : '<p class="set-p">В Chrome или Edge: значок установки в адресной строке или меню ⋮ → «Установить Freefield».</p>');
+  }
+  html += '<p class="inst-note">Галерея, ключи и настройки хранятся на каждом устройстве отдельно — на телефоне их нужно ввести заново.</p>';
+  $('#installBody').innerHTML = html;
+  if ($('#qrBox')) drawQR($('#qrBox'), url);
+}
+
+function drawQR(box, text) {
+  const draw = () => { const qr = qrcode(0, 'M'); qr.addData(text); qr.make(); box.innerHTML = qr.createImgTag(6, 0); };
+  if (window.qrcode) return draw();
+  const sc = document.createElement('script');
+  sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+  sc.onload = draw;
+  sc.onerror = () => { box.textContent = 'QR-код не загрузился — откройте адрес ниже на телефоне вручную'; };
+  document.head.append(sc);
+}
+
+/* =============================== init =============================== */
+(async function init() {
+  buildControls();
+  bindControls();
+  renderServices();
+  $('#autoEnhance').checked = state.autoEnhance;
+  setStyle(state.style); setMotion(state.motion); setCount(state.count);
+  setVSource(state.vSource);
+  const mode = state.mode; state.mode = 'image'; setMode(mode);
+  const qMode = new URLSearchParams(location.search).get('mode');   // ярлыки иконки: «Новая картинка» / «Новое видео»
+  if (qMode === 'image' || qMode === 'video') setMode(qMode);
+  initPwa();
+  autoImport.init().then(render);
+  setView('create');
+  renderWallet();
+  loadCatalog();
+  if (wallet.key) refreshBalance();
+  try {
+    await DB.open();
+    items = ((await DB.all()) || []).filter(i => (i.status === 'done' && i.blob) || i.status === 'external').sort((a, b) => b.createdAt - a.createdAt);
+  } catch {
+    toast('Браузер не даёт сохранять галерею — работы пропадут после закрытия вкладки', {type: 'err', ms: 8000});
+  }
+  render();
+})();
+</script>
+</body>
+</html>

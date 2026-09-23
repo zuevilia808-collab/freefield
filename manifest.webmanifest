@@ -1,0 +1,23 @@
+{
+  "id": "./",
+  "name": "Freefield — AI-студия",
+  "short_name": "Freefield",
+  "description": "Картинки и видео: бесплатные модели, бесплатные кредиты сервисов и платные модели с оплатой только за генерацию",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "categories": ["photo", "productivity"],
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Новая картинка", "url": "./?mode=image", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
+    {"name": "Новое видео", "url": "./?mode=video", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]}
+  ]
+}
