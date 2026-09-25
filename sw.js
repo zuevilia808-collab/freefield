@@ -1,7 +1,7 @@
 // Service worker: делает Freefield устанавливаемым и открывает его без интернета.
 // Файлы приложения — «сначала сеть» (обновления приходят сразу), шрифты — из кэша.
 // Запросы к сервисам генерации не кэшируются и идут напрямую.
-const CACHE = 'freefield-v2';
+const CACHE = 'freefield-v3';
 const SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -20,6 +20,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  if (url.pathname.endsWith('.apk')) return;   // установщик Android не кэшируем
   if (url.origin === location.origin) {
     e.respondWith(fetch(req).then(res => res.ok ? put(req, res) : res)
       .catch(() => caches.match(req, {ignoreSearch: true}).then(r => r || caches.match('./index.html'))));

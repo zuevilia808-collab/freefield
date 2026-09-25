@@ -2864,6 +2864,9 @@ function renderInstall() {
       'Откройте меню браузера <b>⋮</b> справа вверху.',
       'Нажмите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b>.',
       'Подтвердите — иконка Freefield появится на главном экране.']);
+    if (pwa.android()) html += '<div class="set-h">📦 Или отдельное приложение</div>' +
+      '<a class="inst-big" style="display:grid;place-items:center;text-decoration:none" href="Freefield.apk" download>Скачать Freefield.apk (4 МБ)</a>' +
+      '<p class="inst-note">Откройте скачанный файл и разрешите установку из этого источника. Android может предупредить о неизвестном разработчике — это нормально для приложений не из Google Play: нажмите «Всё равно установить».</p>';
     if (!pwa.hosted()) html += '<p class="inst-note">⚠ Сейчас Freefield открыт с вашего компьютера по Wi-Fi. Иконка добавится, но работать приложение будет только дома и пока на компьютере запущен сервер. Для полноценной установки Freefield нужно выложить по адресу https:// — см. PLAN.md.</p>';
   } else {
     html += '<div class="set-h">📱 На телефон</div>';
