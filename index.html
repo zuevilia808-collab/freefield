@@ -424,6 +424,9 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .asset-item-f input.miss{border-color:var(--danger)}
 .asset-item-f .hint{font-size:12px;padding-top:10px}
 .asset-items-head .hint button{color:var(--free);font-weight:600}
+.asset-item-rm{flex:none;width:26px;height:26px;margin-top:7px;border-radius:99px;display:grid;place-items:center;color:var(--muted);font-size:11px;border:1px solid var(--line);background:var(--panel2);transition:background .2s,color .2s,transform .2s var(--spring)}
+.asset-item-rm .ic{width:12px;height:12px}
+.asset-item-rm:hover{background:var(--danger);border-color:transparent;color:#fff;transform:scale(1.08)}
 .asset-refs .hint{flex:1;min-width:140px;font-size:11.5px;line-height:1.4}
 #assetOpts .chips{margin-bottom:4px}
 .scn-fmt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;font-size:12px;color:var(--muted)}
@@ -4879,7 +4882,8 @@ function assetItemsHTML() {
     return `<div class="asset-item"><b class="n">${i + 1}</b>
       <button class="asset-item-ph ${it.ref ? 'has' : ''}" data-ai-ph="${i}" title="${it.ref ? 'Убрать фото этой картинки' : 'Своё фото для этой картинки (например, герой для развёртки)'}">${it.ref ? `<img src="${it.ref}" alt="">` : ic('plus')}</button>
       <div class="asset-item-f">${f.length ? f.map(key => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${esc(FIELD_RU[key] || key)}" aria-label="${esc(FIELD_RU[key] || key)}" enterkeyhint="next" autocomplete="off">`).join('')
-        : `<span class="hint">${it.ref ? 'по этому фото — промпт общий' : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div></div>`;
+        : `<span class="hint">${it.ref ? 'по этому фото — промпт общий' : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div>
+      ${asset.n > 1 ? `<button class="asset-item-rm" data-ai-rm="${i}" title="Убрать эту картинку" aria-label="Убрать картинку ${i + 1}">✕</button>` : ''}</div>`;
   }).join('');
   return `<div class="block-head asset-items-head" style="margin-top:14px"><span class="lbl">${K.many} · ${asset.n}</span>
       <span class="hint">у каждой — свой промпт · <button data-akind-n title="Поменять, сколько картинок нужно">сколько</button> · <button data-akind-off title="Убрать карточки и писать один свой промпт">свой промпт</button></span></div>
@@ -5108,6 +5112,8 @@ function bindAsset() {
     if (b.dataset.acount) { asset.count = +b.dataset.acount; asset.save(); renderAsset(); return updateGenButton(); }
     if (b.dataset.akind) return setAssetKind(b.dataset.akind);
     if (b.hasAttribute('data-akind-n')) return openAkindSheet();
+    // ✕ у картинки — убрать её (остальные сдвигаются, их поля и фото сохраняются)
+    if (b.dataset.aiRm) { asset.items.splice(+b.dataset.aiRm, 1); asset.n = Math.max(1, asset.n - 1); renderAsset(); return updateGenButton(); }
     if (b.hasAttribute('data-akind-off')) { asset.kind = null; renderAsset(); updateLabels(); return; }   // обратно к одному своему промпту
     // своё фото картинки: есть — убрать, нет — выбрать
     if (b.dataset.aiPh) {
