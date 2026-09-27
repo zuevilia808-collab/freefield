@@ -3812,7 +3812,7 @@ function useImageSource() {
 }
 // оживить картинку в Google Flow / Vids / Dola / Arena: задание с фото уходит на компьютер, готовое видео придёт в галерею
 async function videoViaHub(m, raw, motion) {
-  if (!hubLink.ok) {
+  if (!(await hubReady())) {
     return toast(`Оживить картинку в ${m.site} Freefield может только через компьютер — откройте его с компьютера. Или возьмите Wan 2.2 прямо здесь`,
       {type: 'err', ms: 9000, action: 'Wan 2.2', onAction: () => selectModel('free:wan22')});
   }
@@ -4709,14 +4709,14 @@ async function clSwitchAccount(id, btn) {
 function clLiveHTML(where = 'create') {
   const conn = hubLink.ok
     ? `<div class="cl-conn on">🟢 Приложение подключено к компьютеру — задания уйдут прямо туда${hubLink.info?.flowLeft != null ? ` · во Flow осталось <b>${hubLink.info.flowLeft}</b> из 50 кредитов` : ''}${hubLink.onPc() ? ' <button class="btn small" data-phone-qr title="QR-код: открыть Freefield с вашими аккаунтами на телефоне">📱 На телефон</button>' : ''}</div>`
-    : hubLink.denied ? '<div class="cl-conn">🔑 Ключ связи сменился — отсканируйте новый QR-код с компьютера (попросите Claude: «подключи телефон к Freefield»).</div>'
+    : hubLink.denied ? '<div class="cl-conn">🔑 Ключ связи сменился — отсканируйте новый QR-код: на компьютере во Freefield кнопка «📱 На телефон».</div>'
     : hubLink.key && hubLink.local() ? '<div class="cl-conn">🔴 Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi.</div>'
     : where === 'asset' ? ''   // в «Создании ассетов» инструкцию для телефона не показываем (просьба пользователя 2026-09-27)
-    : `<div class="cl-conn"><b>Как отправлять сценарии с телефона прямо на компьютер</b>
-        <ol class="steps"><li>На компьютере напишите Claude: <i>«подключи телефон к Freefield»</i>.</li>
-        <li>Отсканируйте телефоном QR-код, который покажет Claude. Телефон и компьютер — в одной сети Wi-Fi.</li>
-        <li>Откроется Freefield с компьютера — пишите сценарии в «Создать» → «Видео сервисы» и жмите «Запустить».</li></ol>
-        Без подключения кнопка внизу копирует задание — вставьте его в чат с Claude.</div>`;
+    : `<div class="cl-conn"><b>Эта версия не видит ваш компьютер — как запускать через Flow, Vids, Dola и Arena</b>
+        <ol class="steps"><li>На компьютере откройте Freefield и нажмите <b>«📱 На телефон»</b>.</li>
+        <li>Отсканируйте телефоном верхний QR-код. Телефон и компьютер — в одной сети Wi-Fi.</li>
+        <li>Откроется Freefield с компьютера — пишите сценарии в «Видео сервисы» и жмите «Запустить». Эту страницу добавьте на экран «Домой».</li></ol>
+        Без подключения кнопка внизу копирует задание — его можно вставить в чат с Claude.</div>`;
   return `${conn}
     <div class="cl-acts">
       ${where === 'create' && hubLink.ok ? '<button class="btn" data-copy>📋 Скопировать задание для Claude</button>' : ''}
@@ -4820,7 +4820,7 @@ function setCreateMode(m) {
   updateGenButton();
 }
 // большая кнопка внизу в режиме сценариев: отправить на компьютер или скопировать задание для Claude
-function scnGo() { return hubLink.ok ? clSend() : clCopy(); }
+async function scnGo() { return (await hubReady()) ? clSend() : clCopy(true); }
 // большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
 function createGo() { return cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
 
@@ -5280,14 +5280,14 @@ async function assetGo() {
   // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow)
   const imgsOf = it => [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
   const tasks = (list || [null]).map((it, i) => assetTask(composePrompt(prompts[i], state.style, 'image'), imgsOf(it)));
-  if (!hubLink.ok) {
+  if (!(await hubReady())) {
     const m = scnModel('image', asset.svc, asset.model[asset.svc]);
     const photos = tasks.some(t => t.images) ? ' Фото-референсы приложу в чат — возьми их через chat_photos.' : '';
     const text = tasks.length > 1
       ? `Сделай через Freefield ассеты — ${tasks.length} картинок одним пакетом (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}), у каждой свой промпт — как написан.${photos}\n` + tasks.map((t, i) => `${i + 1}. ${t.prompt}`).join('\n')
       : `Сделай через Freefield ассет — картинку (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}). ` +
         `${asset.kind ? 'Промпт — как написан.' : 'Перепиши промпт в подробный английский.'}${photos}\n${tasks[0].prompt}`;
-    return toast(await clCopyText(text) ? 'Компьютер не подключён — задание скопировано, вставьте его в чат с Claude' : 'Не удалось скопировать — выделите текст вручную', {type: 'ok', ms: 7000});
+    return hubMissingToast(await clCopyText(text) ? 'Задание скопировано — можно вставить в чат с Claude.' : '');
   }
   asset.sending = true;
   updateGenButton();
@@ -5770,9 +5770,9 @@ function writeOutHTML() {
 async function writeAssets(list) {
   list = list.filter(s => s.asset_prompt.length >= 3);
   if (!list.length) return toast('У сценария нет промпта для ассета', {type: 'err'});
-  if (!hubLink.ok) {
+  if (!(await hubReady())) {
     const text = `Сделай через Freefield ассеты (batch_generate: kind="image", service="flow", model="nano-banana-2", aspect_ratio="3:4", count=4). Развёртку героя приложу в чат — возьми её через chat_photos как image_path.\n` + list.map((s, i) => `${i + 1}. ${s.asset_prompt}`).join('\n');
-    return toast(await clCopyText(text) ? 'Компьютер не подключён — задание скопировано, вставьте его в чат с Claude' : 'Не удалось скопировать', {type: 'ok', ms: 7000});
+    return hubMissingToast(await clCopyText(text) ? 'Задание скопировано — можно вставить в чат с Claude.' : '');
   }
   try {
     const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -5881,14 +5881,16 @@ async function clCopyText(t) {
   }
 }
 
-async function clCopy() {
+async function clCopy(missing = false) {   // missing — нажали «Запустить», а компьютер не ответил
   const list = cl.ready();
   if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
   const svc = {auto: 'сервис выбери сам', flow: 'Google Flow', arena: 'Arena', dola: 'Dola'};
   const text = `Сгенерируй через Freefield пакет сценариев (batch_generate). Перепиши каждый в подробный английский промпт ` +
     `(сцена, действие, камера, свет, стиль) и разложи по Google Flow / Arena / Dola так, чтобы хватило бесплатных кредитов. Длина видео: ${cl.seconds} с (seconds=${cl.seconds}).\n` +
     list.map((s, i) => `${i + 1}. ${s.kind === 'video' ? 'Видео' : 'Картинка'} · ${svc[s.service]} · формат ${scnAspect(s)}${s.ref || s.sheet ? ` · с фото (${[s.ref && 'персонаж в локации', s.sheet && 'развёртка'].filter(Boolean).join(' и ')}) — приложу в чат` : ''}: ${composePrompt(s.kind === 'video' ? withCamera(s.prompt.trim(), s.camera) : s.prompt.trim(), s.style ?? state.style, s.kind)}`).join('\n');
-  toast(await clCopyText(text) ? 'Задание скопировано — вставьте его в чат с Claude' : 'Не удалось скопировать — выделите текст вручную', {type: 'ok'});
+  const copied = await clCopyText(text);
+  if (missing) return hubMissingToast(copied ? 'Задание скопировано — можно вставить в чат с Claude.' : '');
+  toast(copied ? 'Задание скопировано — вставьте его в чат с Claude' : 'Не удалось скопировать — выделите текст вручную', {type: 'ok'});
 }
 
 async function clSend() {
@@ -6089,6 +6091,12 @@ function renderInstall() {
     if (pwa.android()) html += '<div class="set-h">📦 Или отдельное приложение</div>' +
       '<a class="inst-big" style="display:grid;place-items:center;text-decoration:none" href="Freefield.apk" download>Скачать Freefield.apk (4 МБ)</a>' +
       '<p class="inst-note">Откройте скачанный файл и разрешите установку из этого источника. Android может предупредить о неизвестном разработчике — это нормально для приложений не из Google Play: нажмите «Всё равно установить».</p>';
+    // версия с GitHub до компьютера не достаёт — как открыть Freefield «с компьютера» (вторая иконка на экране «Домой»)
+    if (pwa.hosted() || native.on()) html += '<div class="set-h">📡 Через ваши аккаунты на компьютере</div>' + steps([
+      'На компьютере откройте Freefield и нажмите <b>«📱 На телефон»</b> — в зелёной строке «Приложение подключено к компьютеру».',
+      'Отсканируйте верхний QR-код этим телефоном. Телефон — в той же сети Wi-Fi, что и компьютер (или компьютер подключён к точке доступа телефона).',
+      'Добавьте и ту страницу на экран «Домой» — будет вторая иконка Freefield: она запускает видео и фото через Google Flow, Vids, Dola и Arena на компьютере.']) +
+      '<p class="inst-note">Эта версия (с GitHub) работает где угодно, но до компьютера не достаёт: телефон не пускает защищённый сайт к домашнему компьютеру.</p>';
     if (!pwa.hosted()) html += `<p class="inst-note">⚠ Сейчас Freefield открыт с вашего компьютера по Wi-Fi — с вашими аккаунтами Flow, Vids, Dola и Arena. Работает, пока компьютер включён и телефон в той же сети. Вне дома — версия с GitHub: <b>${esc(SITE_URL)}</b> (без ваших аккаунтов).</p>`;
   } else {
     // на компьютере: QR «телефон с вашими аккаунтами» (ссылка с секретным ключом — её отдаёт только сам компьютер) и QR версии с GitHub
@@ -6114,6 +6122,22 @@ function renderInstall() {
   if ($('#qrHome')) drawQR($('#qrHome'), hubLinkHome());
   if ($('#qrBox')) drawQR($('#qrBox'), pwa.mobile() || pwa.hosted() ? url : SITE_URL);
 }
+// Перед отправкой на компьютер: ответа от него ещё не было (страница только открылась, компьютер занят генерациями) —
+// спрашиваем ещё раз и ждём, а не сразу «компьютер не подключён». Версия с GitHub / из APK до компьютера не достаёт вовсе
+async function hubReady() {
+  if (hubLink.ok) return true;
+  if (!hubLink.local()) return false;
+  if (!hubLink.key && !(hubLink.onPc() && await hubLink.localKey())) return false;
+  await hubLink.refresh();
+  return hubLink.ok;
+}
+// почему задание не ушло на компьютер — по-человечески (пользователь открыл на iPhone QR «везде» и не понял, почему не работает)
+function hubMissing() {
+  if (hubLink.local()) return 'Freefield на компьютере не отвечает — проверьте, что компьютер включён, Claude Desktop открыт, а телефон в той же сети Wi-Fi.';
+  return 'Эта версия Freefield (с GitHub) не видит ваш компьютер: телефон не пускает защищённый сайт к домашнему компьютеру. Flow, Vids, Dola и Arena работают во Freefield, открытом по QR-коду «с компьютера» (на компьютере — кнопка «📱 На телефон»).';
+}
+// уведомление «не ушло на компьютер» + кнопка «Как подключить» (окно установки с инструкцией)
+const hubMissingToast = tail => toast(`${hubMissing()}${tail ? ' ' + tail : ''}`, {type: 'err', ms: 15000, action: 'Как подключить', onAction: () => openInstall()});
 // ссылка «телефон с вашими аккаунтами»: адрес компьютера в домашней сети + секретный ключ (как в QR от Claude — phone_link)
 const hubLinkHome = () => { const lan = hubLink.info?.lan?.[0]; return lan && hubLink.key ? `http://${lan}:${hubLink.info.port || 5180}/?k=${encodeURIComponent(hubLink.key)}#claude` : ''; };
 const SITE_URL = 'https://zuevilia808-collab.github.io/freefield/';   // Freefield на GitHub Pages — открывается где угодно
