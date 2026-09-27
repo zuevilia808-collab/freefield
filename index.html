@@ -397,6 +397,33 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .asset-kind.add:hover{border-color:var(--free)}
 .asset-kind.add:hover .ic{color:var(--free)}
 .asset-kind:disabled{opacity:.45;pointer-events:none}
+.asset-kind .n-badge{font:800 10.5px var(--display);color:var(--ink);background:var(--lime-grad);border-radius:99px;padding:2px 7px;margin-left:4px;vertical-align:1px}
+/* сколько картинок: 1–10, под числом — сколько аккаунтов возьмётся сразу */
+.akind-nums{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:6px 0 4px}
+.akind-nums button{display:grid;gap:2px;place-items:center;padding:12px 4px 10px;border-radius:14px;background:var(--card);border:1px solid var(--line);box-shadow:var(--hl);transition:border-color .2s,transform .3s var(--spring),background .2s}
+.akind-nums button b{font:800 20px var(--display);color:var(--text);line-height:1}
+.akind-nums button small{font-size:10.5px;color:var(--muted)}
+.akind-nums button:hover{border-color:var(--free);transform:translateY(-2px)}
+.akind-nums button:active{transform:scale(.95)}
+.akind-nums button:disabled{opacity:.38;pointer-events:none;box-shadow:none}
+.akind-nums button.on{border-color:rgba(212,255,58,.75);background:radial-gradient(120% 90% at 50% 0%,rgba(212,255,58,.14),transparent 70%),var(--panel2)}
+/* картинки ассета: у каждой — свои поля промпта и (по желанию) своё фото */
+.asset-items{display:grid;gap:6px}
+.asset-item{display:flex;gap:10px;align-items:flex-start;padding:9px;border-radius:14px;background:var(--card);border:1px solid var(--line);box-shadow:var(--hl)}
+.asset-item .n{flex:none;width:22px;height:22px;margin-top:9px;border-radius:50%;background:var(--lime-grad);color:var(--ink);display:grid;place-items:center;font:800 11px var(--display)}
+.asset-item-ph{flex:none;position:relative;width:40px;height:40px;border-radius:10px;border:1px dashed var(--line2);color:var(--muted);display:grid;place-items:center;overflow:hidden;transition:border-color .2s,color .2s}
+.asset-item-ph .ic{width:16px;height:16px}
+.asset-item-ph:hover{border-color:var(--free);color:var(--free)}
+.asset-item-ph img{width:100%;height:100%;object-fit:cover}
+.asset-item-ph.has{border-style:solid}
+.asset-item-ph.has::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,10,12,.6);color:#fff;font-size:13px;opacity:0;transition:opacity .2s}
+.asset-item-ph.has:hover::after{opacity:1}
+.asset-item-f{flex:1;min-width:0;display:grid;gap:6px}
+.asset-item-f input{width:100%;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--text);font:500 13.5px var(--font);transition:border-color .2s,box-shadow .2s}
+.asset-item-f input:focus{outline:none;border-color:rgba(212,255,58,.6);box-shadow:0 0 0 3px rgba(212,255,58,.12)}
+.asset-item-f input.miss{border-color:var(--danger)}
+.asset-item-f .hint{font-size:12px;padding-top:10px}
+.asset-items-head .hint button{color:var(--free);font-weight:600}
 .asset-refs .hint{flex:1;min-width:140px;font-size:11.5px;line-height:1.4}
 #assetOpts .chips{margin-bottom:4px}
 .scn-fmt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;font-size:12px;color:var(--muted)}
@@ -1138,6 +1165,18 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
       <div class="motion-grid" id="camGrid"></div>
       <div class="cam-foot"><span class="hint">Выбранное движение допишется в промпт видео — в строку «Camera & framing». Без пресета промпт уходит как есть.</span>
         <button class="btn small" data-cam-none>Без пресета</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- «Создание ассетов» → «Что создаём»: сколько картинок нужно (у каждой — свой промпт) -->
+<div class="sheet hidden" id="akindSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2 id="akindTitle">Сколько нужно?</h2><button class="icon-btn" data-close title="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body">
+      <p class="set-p" id="akindNote"></p>
+      <div class="akind-nums" id="akindNums"></div>
+      <p class="inst-note" id="akindPlan"></p>
     </div>
   </div>
 </div>
@@ -3676,7 +3715,8 @@ function updateGenButton() {
     const btn = $('#genBtn'), m = scnModel('image', asset.svc, asset.model[asset.svc]) || scnModel('image', asset.svc, scnDefault('image', asset.svc));
     btn.classList.remove('paid');
     btn.disabled = asset.sending;
-    $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать в ${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
+    const n = asset.kind ? asset.n : 1;   // несколько картинок со своими промптами — «Создать 10 картинок · Google Flow ×4»
+    $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
     $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'задание для Claude';
     $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
       (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · компьютер не подключён');
@@ -3772,7 +3812,7 @@ function styleSync() {
 function renderStyleGrid() {
   $('#styleGrid').innerHTML = allStyles().map(s =>
     `<button class="style-card" data-id="${s.id}" title="${esc(s.custom ? s.text || s.suffix : s.suffix || 'Без добавок к промпту')}"><div class="th" style="background:${s.bg}">${s.emoji}${s.custom
-      ? `<span class="style-del" data-style-del="${s.id}" title="Удалить этот стиль">✕</span>` : `<img src="img/styles/${s.id}.webp" alt="" loading="lazy" onerror="this.remove()">`}</div><div class="nm">${esc(s.name)}</div></button>`).join('') +
+      ? `<span class="style-del" data-style-del="${s.id}" title="Удалить этот стиль">✕</span>` : `<img src="img/styles/${s.id}.webp" alt="" loading="lazy" onerror="styleImgFail(this)">`}</div><div class="nm">${esc(s.name)}</div></button>`).join('') +
     '<button class="style-card style-add" data-style-add title="Добавить свой стиль: название и описание"><div class="th">＋</div><div class="nm">Свой стиль</div></button>';
   styleSync();
 }
@@ -3902,7 +3942,7 @@ function updateLabels() {
   const video = state.mode === 'video';
   const fromImg = video && state.vSource === 'image';
   const svc = asset.svc !== 'other';   // «Создание ассетов» через сервисы
-  $('#promptLabel').textContent = svc ? 'Что на фото' : fromImg ? 'Движение (необязательно)' : video ? 'Сцена и действие' : 'Промпт';
+  $('#promptLabel').textContent = svc ? (asset.kind ? 'Общий промпт — поля из карточек выше' : 'Что на фото') : fromImg ? 'Движение (необязательно)' : video ? 'Сцена и действие' : 'Промпт';
   $('#prompt').placeholder = svc ? 'Например: тот же герой с развёртки сидит за столом в старой мастерской, в руке ноутбук, тёплый свет… Можно по-русски — кнопка «🌐 На английский» переведёт'
     : fromImg ? 'Что должно происходить? «девушка поворачивается и улыбается, волосы развеваются»'
     : video ? 'Опишите сцену и действие: «кот в скафандре плывёт в невесомости»'
@@ -4757,14 +4797,17 @@ const ASSET_MAX_REFS = 4;
 // «Что создаём» — ассеты рилса по шагам (пользователь 2026-09-27): готовый английский промпт с [ПОЛЯМИ], формат и количество.
 // Промпт — шаблон: пользователь меняет [ПОЛЯ] на своё, больше ничего не дописывается
 const ASSET_KINDS = {
-  info: {ico: 'chart', name: 'Создать инфографику', sub: 'о чём ролик · 9:16', aspect: '9:16',
+  info: {ico: 'chart', name: 'Создать инфографику', sub: 'о чём ролик · 9:16', aspect: '9:16', many: 'Инфографики',
+    ask: 'Сколько инфографик нужно?', note: 'У каждой — своя тема и заголовок. Дальше откроется выбор фото-примера стиля (не обязателен).',
     hint: 'Впишите в промпт вместо [ПОЛЕЙ] тему и заголовок. Референс не обязателен — можно добавить пример стиля',
     prompt: 'Vertical infographic poster for a short video about [TOPIC]. Bold headline at the top: "[HEADLINE]". 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.'},
-  sheet: {ico: 'user', name: 'Развёртка героя', sub: 'спереди, сбоку, сзади · 16:9', aspect: '16:9',
+  sheet: {ico: 'user', name: 'Развёртка героя', sub: 'спереди, сбоку, сзади · 16:9', aspect: '16:9', many: 'Развёртки героев',
+    ask: 'Сколько развёрток героя нужно?', note: 'По одной на героя. Дальше откроется выбор фото: по одному фото на героя, по порядку. Нет фото — опишете героя словами.',
     hint: 'Есть фото героя — добавьте его референсом, развёртка будет по нему. Нет — опишите героя вместо [ПОЛЯ]',
     prompt: 'Character turnaround sheet of [CHARACTER: age, face, hair, clothing]: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.',
     promptRef: 'Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.'},
-  loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке · 3:4 ×4', aspect: '3:4', count: 4,
+  loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке · 3:4 ×4', aspect: '3:4', count: 4, many: 'Кадры героя в локациях',
+    ask: 'Сколько кадров «персонаж в локации» нужно?', note: 'Один кадр на сценарий: 5 сценариев — 5 кадров. У каждого — своё место и действие, герой — по развёртке.',
     hint: 'Нужна развёртка героя — добавьте её референсом. В промпте вместо [ПОЛЕЙ] — что делает герой и где',
     prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. [ACTION] in [LOCATION]. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'},
 };
@@ -4775,6 +4818,9 @@ const asset = {
   count: ls.get('freefield.asset.count', 4),
   refs: [],   // data URL фото-референсов (только в этой вкладке)
   kind: null,   // выбранная кнопка «Что создаём» (ASSET_KINDS) или null — свой промпт
+  n: 1, items: [],   // сколько картинок и у каждой — поля промпта и своё фото ({vals, ref})
+  pickFor: null,   // куда пойдут фото из окна выбора: общие референсы, фото героев развёрток или одной картинки
+  tookSheet: false,
   sending: false,
   save() { ls.set('freefield.asset.svc', this.svc); ls.set('freefield.asset.model', this.model); ls.set('freefield.asset.aspect', this.aspect); ls.set('freefield.asset.count', this.count); },
 };
@@ -4790,7 +4836,7 @@ function setAssetSvc(svc) {
 }
 function assetRefsHTML() {
   const note = !asset.refs.length ? (ASSET_KINDS[asset.kind]?.hint || 'Фото героя (например, полная развёртка персонажа) или сцены — перетащите сюда, вставьте Ctrl+V или нажмите «Добавить референс»')
-    : asset.svc === 'flow' ? 'Flow возьмёт все фото как «ингредиенты»: внешность героя сохранится, а сцена будет по промпту'
+    : asset.svc === 'flow' ? `Flow возьмёт ${asset.n > 1 ? 'эти фото для каждой картинки' : 'все фото'} как «ингредиенты»: внешность героя сохранится, а сцена будет по промпту`
     : `${SITE_SHORT[asset.svc]} возьмёт ${asset.refs.length > 1 ? 'только первое фото' : 'это фото'} и сделает картинку по нему`;
   return asset.refs.map((r, i) => `<div class="asset-ref"><img src="${r}" alt=""><button data-aref-rm="${i}" title="Убрать фото">✕</button></div>`).join('') +
     `<span class="hint">${note}</span>`;
@@ -4798,39 +4844,140 @@ function assetRefsHTML() {
 // кнопки «Что создаём»: инфографика, развёртка, герой в локации — и просто «Добавить референс»
 function assetKindsHTML() {
   const full = asset.refs.length >= ASSET_MAX_REFS;
-  return Object.entries(ASSET_KINDS).map(([k, K]) => `<button class="asset-kind ${asset.kind === k ? 'on' : ''}" data-akind="${k}" aria-pressed="${asset.kind === k}">${ic(K.ico)}<b>${K.name}</b><small>${K.sub}</small></button>`).join('') +
+  return Object.entries(ASSET_KINDS).map(([k, K]) => `<button class="asset-kind ${asset.kind === k ? 'on' : ''}" data-akind="${k}" aria-pressed="${asset.kind === k}">${ic(K.ico)}<b>${K.name}${asset.kind === k ? `<span class="n-badge">${asset.n} шт.</span>` : ''}</b><small>${K.sub}</small></button>`).join('') +
     `<button class="asset-kind add" data-aref-add ${full ? 'disabled' : ''}>${ic('plus')}<b>Добавить референс</b><small>${full ? 'уже 4 фото — больше нельзя' : 'фото героя или сцены · до 4'}</small></button>`;
 }
-// промпт-шаблон — в поле промпта; первое [ПОЛЕ] выделено, чтобы сразу вписать своё
+
+// ---- несколько картинок сразу: у каждой свой промпт (поля шаблона) и, по желанию, своё фото ----
+const AKIND_MAX = 10;   // за один раз компьютер принимает до 10 заданий
+// поля шаблона: [TOPIC], [HEADLINE], [CHARACTER: …], [ACTION], [LOCATION]
+const FIELD_RE = /\[([A-Z][A-Z ]*?)(?::[^\]]*)?\]/g;
+const FIELD_RU = {TOPIC: 'Тема ролика', HEADLINE: 'Заголовок на картинке', CHARACTER: 'Герой: возраст, лицо, волосы, одежда', ACTION: 'Что делает герой', LOCATION: 'Где: место, обстановка'};
+const assetFields = p => [...new Set([...String(p).matchAll(FIELD_RE)].map(m => m[1]))];
+const blankItem = () => ({vals: {}, ref: null});
+// основа промпта картинки — общий промпт из поля «Что на фото»; своё фото героя у развёртки — шаблон «по этому фото»
+function assetItemBase(it) {
+  const K = ASSET_KINDS[asset.kind], p = $('#prompt').value.trim();
+  return K?.promptRef && it.ref && p === K.prompt ? K.promptRef : p;
+}
+const assetItemPrompt = it => assetItemBase(it).replace(FIELD_RE, (a, key, off, str) => {
+  let v = (it.vals[key] || '').trim();
+  if (!v) return a;
+  if (/(^|[.!?]s+)$/.test(str.slice(0, off))) v = v[0].toUpperCase() + v.slice(1);   // в начале предложения — с большой буквы
+  return v;
+});
+const assetItemFields = it => assetFields(assetItemBase(it));
+// сколько аккаунтов возьмётся сразу: во Flow 4 генерации на аккаунт, в Dola и Arena — 2
+const assetCap = () => ({flow: 4, dola: 2, arena: 2})[asset.svc] || 4;
+const splitPlan = (n, cap) => Array.from({length: Math.ceil(n / cap)}, (_, i) => Math.min(cap, n - i * cap)).join(' + ');
+
+function assetItemsHTML() {
+  const K = ASSET_KINDS[asset.kind];
+  if (!K) return '';
+  const cards = asset.items.slice(0, asset.n).map((it, i) => {
+    const f = assetItemFields(it);
+    return `<div class="asset-item"><b class="n">${i + 1}</b>
+      <button class="asset-item-ph ${it.ref ? 'has' : ''}" data-ai-ph="${i}" title="${it.ref ? 'Убрать фото этой картинки' : 'Своё фото для этой картинки (например, герой для развёртки)'}">${it.ref ? `<img src="${it.ref}" alt="">` : ic('plus')}</button>
+      <div class="asset-item-f">${f.length ? f.map(key => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${esc(FIELD_RU[key] || key)}" aria-label="${esc(FIELD_RU[key] || key)}" enterkeyhint="next" autocomplete="off">`).join('')
+        : `<span class="hint">${it.ref ? 'по этому фото — промпт общий' : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div></div>`;
+  }).join('');
+  return `<div class="block-head asset-items-head" style="margin-top:14px"><span class="lbl">${K.many} · ${asset.n}</span>
+      <span class="hint">у каждой — свой промпт · <button data-akind-n title="Поменять, сколько картинок нужно">сколько</button> · <button data-akind-off title="Убрать карточки и писать один свой промпт">свой промпт</button></span></div>
+    <div class="asset-items">${cards}</div>`;
+}
+function renderAssetItems() { const box = $('#assetItems'); if (box) box.innerHTML = assetItemsHTML(); }
+
+// промпт-шаблон — в поле «Что на фото» (общая часть); поля каждой картинки вписываются в её карточке
 function fillAssetPrompt(text) {
   const box = $('#prompt');
   box.value = text;
   box.dispatchEvent(new Event('input', {bubbles: true}));
-  box.focus();
-  const i = text.indexOf('['), j = text.indexOf(']', i);
-  if (i >= 0 && j > i) box.setSelectionRange(i, j + 1);
 }
 function setAssetKind(k) {
-  if (asset.kind === k) { asset.kind = null; return renderAsset(); }   // повторное нажатие — снять выбор, промпт остаётся
+  if (asset.kind === k) return openAkindSheet();   // та же кнопка ещё раз — поменять количество
   const K = ASSET_KINDS[k];
   asset.kind = k;
+  asset.n = 1;
+  asset.items = [blankItem()];
   if (asset.svc === 'other') setAssetSvc('flow');   // шаблоны — для Flow / Dola / Arena на компьютере
   asset.aspect = K.aspect;
   if (K.count) asset.count = K.count;
   asset.save();
   // «Персонаж в локации» — по развёртке: берём её из «Создания сценария», если она там уже есть
-  let tookSheet = false;
-  if (k === 'loc' && !asset.refs.length && wr.sheet) { asset.refs.push(wr.sheet); tookSheet = true; }
+  asset.tookSheet = k === 'loc' && !asset.refs.length && !!wr.sheet;
+  if (asset.tookSheet) asset.refs.push(wr.sheet);
   const text = k === 'sheet' && asset.refs.length ? K.promptRef : K.prompt;
   const cur = $('#prompt').value.trim();
   const mine = cur && !Object.values(ASSET_KINDS).some(x => x.prompt === cur || x.promptRef === cur);
-  if (mine) toast('В поле уже ваш промпт — оставил его', {ms: 9000, action: 'Заменить на шаблон', onAction: () => fillAssetPrompt(text)});
+  if (mine) toast('В поле «Что на фото» уже ваш промпт — оставил его', {ms: 9000, action: 'Заменить на шаблон', onAction: () => { fillAssetPrompt(text); renderAssetItems(); }});
   else fillAssetPrompt(text);
   renderAsset();
-  updateGenButton();
-  if (tookSheet) toast('Развёртку героя взял из «Создания сценария». Впишите, что делает герой и где', {type: 'ok', ms: 6000});
-  else if (k === 'loc' && !asset.refs.length) { toast('Выберите фото развёртки героя'); $('#assetFile').value = ''; $('#assetFile').click(); }
+  updateLabels();
+  openAkindSheet();
 }
+// окно «Сколько нужно?» (1…10) — общее: картинки в «Создании ассетов» и сценарии в «Видео сервисах».
+// nums: [{n, sub — подпись под числом, on — выбрано сейчас, off — нельзя}]; onPick(n) — нажали число
+const countSheet = {onPick: null};
+function openCountSheet({title, note, nums, plan, onPick}) {
+  $('#akindTitle').textContent = title;
+  $('#akindNote').textContent = note;
+  $('#akindNums').innerHTML = nums.map(x => `<button data-an="${x.n}" class="${x.on ? 'on' : ''}" ${x.off ? 'disabled' : ''}><b>${x.n}</b><small>${x.sub}</small></button>`).join('');
+  $('#akindPlan').textContent = plan;
+  countSheet.onPick = onPick;
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#akindSheet').classList.remove('hidden');
+}
+const oneToTen = () => Array.from({length: AKIND_MAX}, (_, i) => i + 1);
+// «Что создаём» → сколько картинок; под числом — сколько аккаунтов сразу возьмутся за работу
+function openAkindSheet() {
+  const K = ASSET_KINDS[asset.kind];
+  if (!K) return;
+  const cap = assetCap();
+  openCountSheet({title: K.ask, note: K.note, onPick: setAssetCount,
+    nums: oneToTen().map(n => ({n, on: asset.n === n, sub: `${Math.ceil(n / cap)} акк.`})),
+    plan: `Под числом — сколько аккаунтов возьмутся сразу. В ${SITE_SHORT[asset.svc]} одновременно идут ${cap} ${plur(cap, 'генерация', 'генерации', 'генераций')} на аккаунт; если нужно больше, Freefield тут же подключит другие профили Chrome: например, 10 = ${splitPlan(10, cap)}. Если окон Chrome открыто больше — разложит по всем открытым поровну, так ещё быстрее.` +
+      (asset.svc === 'flow' && asset.count > 1 ? ` У каждой картинки будет ×${asset.count} варианта — это меняется ниже, в «Вариантов каждой».` : '')});
+}
+// «Видео сервисы» → «＋ Сценарий»: сколько сценариев нужно всего (новые — с настройками последнего)
+function openScnCount() {
+  const have = cl.scn.length, last = cl.scn.at(-1);
+  openCountSheet({title: 'Сколько сценариев нужно?', onPick: n => addScenarios(n - have),
+    note: `Сейчас — ${have}. Новые получат настройки последнего: ${last?.kind === 'image' ? 'фото' : 'видео'}, сервис и модель, формат, стиль, камеру и развёртку; текст у каждого свой.`,
+    nums: oneToTen().map(n => ({n, on: n === have, off: n <= have, sub: n <= have ? 'уже есть' : `+${n - have}`})),
+    plan: 'Freefield запустит все сразу и разложит по аккаунтам: во Flow — до 4 на аккаунт, в Dola и Arena — до 2, в Google Vids — 1; нужно больше — тут же подключит другие профили Chrome.'});
+}
+function addScenarios(k) {
+  closeSheets();
+  const first = cl.scn.length;
+  for (let i = 0; i < k && cl.scn.length < CL_MAX; i++) cl.scn.push(scnLike(cl.scn.at(-1)));
+  const added = cl.scn.length - first;
+  if (!added) return;
+  cl.save(); renderScn(); updateGenButton();
+  const box = $$('#scnCreate [data-prompt]')[first];   // к первому новому сценарию
+  box?.scrollIntoView({block: 'center', behavior: 'smooth'});
+  box?.focus({preventScroll: true});
+  toast(`Добавлено ${added} ${plur(added, 'сценарий', 'сценария', 'сценариев')} — впишите текст каждому`, {type: 'ok'});
+}
+function setAssetCount(n) {
+  asset.n = Math.max(1, Math.min(AKIND_MAX, n));
+  while (asset.items.length < asset.n) asset.items.push(blankItem());
+  closeSheets();
+  renderAsset();
+  updateGenButton();
+  // «Персонаж в локации» с готовой развёрткой — фото выбирать не нужно
+  if (asset.kind === 'loc' && asset.refs.length) {
+    if (asset.tookSheet) toast('Развёртку героя взял из «Создания сценария». Впишите у каждой картинки, что делает герой и где', {type: 'ok', ms: 6000});
+    asset.tookSheet = false;
+    return;
+  }
+  // сразу — окно выбора фото (нажатие на число — жест пользователя, браузер откроет окно)
+  asset.pickFor = asset.kind === 'sheet' ? 'items' : 'common';
+  toast(asset.kind === 'sheet' ? 'Выберите фото героев — по одному на развёртку, по порядку. Нет фото — закройте окно и опишите героя словами'
+    : asset.kind === 'loc' ? 'Выберите фото развёртки героя' : 'Выберите фото-пример стиля — или закройте окно, он не обязателен', {ms: 6000});
+  $('#assetFile').value = '';
+  $('#assetFile').click();
+}
+
 function renderAsset() {
   const box = $('#assetCreate');
   if (!box) return;
@@ -4846,55 +4993,107 @@ function renderAsset() {
       <div class="block-head" style="margin-top:14px"><span class="lbl">Что создаём</span><span class="hint">готовый промпт и формат — останется вписать своё</span></div>
       <div class="asset-kinds">${assetKindsHTML()}</div>
       <div class="asset-refs" id="assetRefs">${assetRefsHTML()}</div>
+      <div id="assetItems">${assetItemsHTML()}</div>
     </div>`;
   const ar = SITE_AR.image[asset.svc] || SITE_AR.image.flow, cur = assetAspect();   // форматы — как на сайте выбранного сервиса
   $('#assetOpts').innerHTML = `
     <div class="block-head"><span class="lbl">Формат</span><span class="hint">${AR_NAME[cur] || ''}${asset.svc === 'arena' ? ' · Arena допишет формат в промпт' : ''}</span></div>
     <div class="chips">${ar.map(a => arChip(a, cur === a, 'data-aar')).join('')}</div>
-    ${asset.svc === 'flow' ? `<div class="block-head" style="margin-top:12px"><span class="lbl">Количество</span></div>
+    ${asset.svc === 'flow' ? `<div class="block-head" style="margin-top:12px"><span class="lbl">${asset.kind ? 'Вариантов каждой' : 'Количество'}</span></div>
       <div class="seg">${[1, 2, 3, 4].map(n => `<button data-acount="${n}" class="${asset.count === n ? 'on' : ''}">×${n}</button>`).join('')}</div>` : ''}
     <div class="cl-live" data-where="asset">${clLiveHTML('asset')}</div>`;
 }
-async function assetAddRefs(files) {
+// to: 'common' / не задано — общие референсы; 'items' — фото героев развёрток по порядку; число — фото одной картинки
+async function assetAddRefs(files, to) {
   const list = [...files].filter(f => f && f.type?.startsWith('image/'));
   if (!list.length) return;
+  if (typeof to === 'number' && asset.items[to]) {
+    try { asset.items[to].ref = await refDataUrl(list[0]); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
+    renderAsset(); updateGenButton();
+    return toast(`Картинка ${to + 1}: своё фото добавлено`, {type: 'ok'});
+  }
+  if (to === 'items') {
+    // фото k — развёртке k (по порядку, в свободные карточки); фото больше, чем развёрток, — развёрток станет больше (до 10)
+    let k = 0, got = 0;
+    for (const f of list) {
+      while (k < AKIND_MAX && asset.items[k]?.ref) k++;
+      if (k >= AKIND_MAX) break;
+      asset.items[k] ||= blankItem();
+      try { asset.items[k].ref = await refDataUrl(f); got++; } catch { toast('Не удалось прочитать фото', {type: 'err'}); }
+      k++;
+    }
+    asset.n = Math.min(AKIND_MAX, Math.max(asset.n, k));
+    while (asset.items.length < asset.n) asset.items.push(blankItem());
+    renderAsset(); updateGenButton();
+    if (list.length > got && k >= AKIND_MAX) toast(`Больше ${AKIND_MAX} развёрток за раз нельзя — лишние фото не взял`, {type: 'err'});
+    return got && toast(`Фото героев: ${got} — развёртки будут по ним`, {type: 'ok'});
+  }
   let added = 0;
   for (const f of list) {
     if (asset.refs.length >= ASSET_MAX_REFS) { toast(`Не больше ${ASSET_MAX_REFS} референсов`, {type: 'err'}); break; }
     try { asset.refs.push(await refDataUrl(f)); added++; } catch { toast('Не удалось прочитать фото', {type: 'err'}); }
   }
-  // развёртка: появилось фото героя — шаблон «по описанию» меняем на «по этому фото» (если его ещё не правили)
+  // развёртка: появилось общее фото героя — шаблон «по описанию» меняем на «по этому фото» (если его ещё не правили)
   if (added && asset.kind === 'sheet' && $('#prompt').value.trim() === ASSET_KINDS.sheet.prompt) fillAssetPrompt(ASSET_KINDS.sheet.promptRef);
   renderAsset();
   updateGenButton();
   if (added) toast(added > 1 ? `Добавлено референсов: ${added}` : asset.kind ? 'Референс добавлен' : 'Референс добавлен — опишите, что должно быть на фото', {type: 'ok'});
 }
-function assetTask(prompt) {
+function assetTask(prompt, images = asset.refs) {
   const m = scnModel('image', asset.svc, asset.model[asset.svc]) || scnModel('image', asset.svc, scnDefault('image', asset.svc));
   return {prompt, kind: 'image', service: asset.svc, model: asset.svc === 'arena' ? undefined : m?.[1], aspect_ratio: assetAspect(),
-    count: asset.svc === 'flow' ? asset.count : undefined, images: asset.refs.length ? asset.refs : undefined};
+    count: asset.svc === 'flow' ? asset.count : undefined, images: images.length ? images : undefined};
 }
 async function assetGo() {
   const raw = $('#prompt').value.trim();
   if (raw.length < 3) return nudge('Опишите, что должно быть на фото: герой, место, действие, свет');
-  // шаблон из «Что создаём» с незаполненными [ПОЛЯМИ]
-  if (/\[[A-Z][A-Z ]*[\]:]/.test(raw)) return nudge('Впишите своё вместо [ПОЛЕЙ] в промпте: тема, герой, место…');
-  if (asset.kind === 'loc' && !asset.refs.length) { toast('Для «Персонажа в локации» нужна развёртка героя — нажмите «Добавить референс»', {type: 'err', ms: 6000}); return; }
+  const list = asset.kind ? asset.items.slice(0, asset.n) : null;
+  // у каждой картинки должны быть вписаны её поля
+  for (const [i, it] of (list || []).entries()) {
+    const miss = assetItemFields(it).find(key => !(it.vals[key] || '').trim());
+    if (!miss) continue;
+    const inp = $(`#assetCreate [data-ai-i="${i}"][data-ai-f="${miss}"]`);
+    inp?.classList.add('miss');
+    inp?.scrollIntoView({block: 'center', behavior: 'smooth'});
+    inp?.focus({preventScroll: true});
+    return toast(`Картинка ${i + 1}: впишите «${FIELD_RU[miss] || miss}»`, {type: 'err'});
+  }
+  // поля по-русски — на английский как есть (заголовок инфографики — надпись на картинке — остаётся как написан)
+  let items = list;
+  if (list?.some(it => Object.entries(it.vals).some(([k, v]) => k !== 'HEADLINE' && /[а-яё]/i.test(v)))) {
+    asset.sending = true; updateGenButton();
+    items = await Promise.all(list.map(async it => ({...it, vals: Object.fromEntries(await Promise.all(Object.entries(it.vals)
+      .map(async ([k, v]) => [k, k === 'HEADLINE' ? v : await asIs(v)])))})));
+    asset.sending = false; updateGenButton();
+  }
+  const prompts = items ? items.map(assetItemPrompt) : [raw];
+  // шаблон с незаполненными [ПОЛЯМИ]
+  if (prompts.some(p => /\[[A-Z][A-Z ]*[\]:]/.test(p))) return nudge('Впишите своё вместо [ПОЛЕЙ] в промпте: тема, герой, место…');
+  if (asset.kind === 'loc' && !asset.refs.length && !list.every(it => it.ref)) { toast('Для «Персонажа в локации» нужна развёртка героя — нажмите «Добавить референс»', {type: 'err', ms: 6000}); return; }
+  // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow)
+  const imgsOf = it => [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
+  const tasks = (list || [null]).map((it, i) => assetTask(composePrompt(prompts[i], state.style, 'image'), imgsOf(it)));
   if (!hubLink.ok) {
     const m = scnModel('image', asset.svc, asset.model[asset.svc]);
-    const text = `Сделай через Freefield ассет — картинку (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}). ` +
-      `Перепиши промпт в подробный английский.${asset.refs.length ? ` Фото-референсы (${asset.refs.length}) приложу в чат — возьми их через chat_photos.` : ''}\n${composePrompt(raw, state.style, 'image')}`;
+    const photos = tasks.some(t => t.images) ? ' Фото-референсы приложу в чат — возьми их через chat_photos.' : '';
+    const text = tasks.length > 1
+      ? `Сделай через Freefield ассеты — ${tasks.length} картинок одним пакетом (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}), у каждой свой промпт — как написан.${photos}\n` + tasks.map((t, i) => `${i + 1}. ${t.prompt}`).join('\n')
+      : `Сделай через Freefield ассет — картинку (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}). ` +
+        `${asset.kind ? 'Промпт — как написан.' : 'Перепиши промпт в подробный английский.'}${photos}\n${tasks[0].prompt}`;
     return toast(await clCopyText(text) ? 'Компьютер не подключён — задание скопировано, вставьте его в чат с Claude' : 'Не удалось скопировать — выделите текст вручную', {type: 'ok', ms: 7000});
   }
   asset.sending = true;
   updateGenButton();
   try {
-    // промпт уходит как написан (без авто-улучшения); перевести — кнопкой «🌐 На английский»
-    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({scenarios: [assetTask(composePrompt(raw, state.style, 'image'))]})});
+    // промпты уходят как написаны (без авто-улучшения); компьютер раскладывает их по аккаунтам: во Flow — до 4 на аккаунт сразу
+    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
-    toast(`Отправлено в ${SITE_SHORT[asset.svc]} — готовые фото сами появятся в галерее`, {type: 'ok', ms: 6000});
+    const by = {};
+    for (const x of j.items || []) { const k = `${SITE_SHORT[x.site] || x.site}${x.profileName ? ' · ' + x.profileName : ''}`; by[k] = (by[k] || 0) + 1; }
+    const where = Object.entries(by).map(([k, n]) => `${k}: ${n}`).join(', ');
+    toast(tasks.length > 1 ? `Отправлено ${tasks.length} ${plur(tasks.length, 'картинка', 'картинки', 'картинок')} — ${where || SITE_SHORT[asset.svc]}. Готовые фото сами появятся в галерее`
+      : `Отправлено в ${SITE_SHORT[asset.svc]} — готовые фото сами появятся в галерее`, {type: 'ok', ms: 9000});
   } catch (e) { toast('Не удалось отправить: ' + e.message, {type: 'err'}); }
   asset.sending = false;
   updateGenButton();
@@ -4908,7 +5107,15 @@ function bindAsset() {
     if (b.dataset.aar) { asset.aspect = b.dataset.aar; asset.save(); return renderAsset(); }
     if (b.dataset.acount) { asset.count = +b.dataset.acount; asset.save(); renderAsset(); return updateGenButton(); }
     if (b.dataset.akind) return setAssetKind(b.dataset.akind);
-    if (b.hasAttribute('data-aref-add')) { $('#assetFile').value = ''; return $('#assetFile').click(); }
+    if (b.hasAttribute('data-akind-n')) return openAkindSheet();
+    if (b.hasAttribute('data-akind-off')) { asset.kind = null; renderAsset(); updateLabels(); return; }   // обратно к одному своему промпту
+    // своё фото картинки: есть — убрать, нет — выбрать
+    if (b.dataset.aiPh) {
+      const i = +b.dataset.aiPh;
+      if (asset.items[i]?.ref) { asset.items[i].ref = null; renderAsset(); return updateGenButton(); }
+      asset.pickFor = i; $('#assetFile').value = ''; return $('#assetFile').click();
+    }
+    if (b.hasAttribute('data-aref-add')) { asset.pickFor = 'common'; $('#assetFile').value = ''; return $('#assetFile').click(); }
     if (b.dataset.arefRm) { asset.refs.splice(+b.dataset.arefRm, 1); renderAsset(); return updateGenButton(); }
     if (b.hasAttribute('data-import-all')) return hubLink.importAll(b);
   };
@@ -4919,7 +5126,25 @@ function bindAsset() {
     asset.model = {...asset.model, [asset.svc]: e.target.value};
     asset.save(); updateGenButton();
   });
-  $('#assetFile').addEventListener('change', e => assetAddRefs(e.target.files));
+  // поля картинок: значение — сразу в память (без перерисовки, чтобы не сбить ввод); Enter — к следующему полю
+  $('#assetCreate').addEventListener('input', e => {
+    const f = e.target.closest('[data-ai-f]');
+    if (!f) return;
+    const it = asset.items[+f.dataset.aiI];
+    if (it) it.vals[f.dataset.aiF] = f.value;
+    f.classList.remove('miss');
+  });
+  $('#assetCreate').addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || !e.target.matches('[data-ai-f]')) return;
+    e.preventDefault();
+    const all = $$('#assetCreate [data-ai-f]'), next = all[all.indexOf(e.target) + 1];
+    next ? next.focus() : $('#prompt').focus();
+  });
+  // поменяли общий промпт — поля в карточках могли измениться
+  let itemsTimer = null;
+  $('#prompt').addEventListener('input', () => { if (asset.kind) { clearTimeout(itemsTimer); itemsTimer = setTimeout(renderAssetItems, 300); } });
+  $('#akindSheet').addEventListener('click', e => { const b = e.target.closest('[data-an]'); if (b && !b.disabled) countSheet.onPick?.(+b.dataset.an); });
+  $('#assetFile').addEventListener('change', e => { const to = asset.pickFor; asset.pickFor = null; assetAddRefs(e.target.files, to); });
   // перетаскивание фото на блок референсов
   const over = e => e.target.closest?.('#assetRefs');
   $('#assetCreate').addEventListener('dragover', e => { const z = over(e); if (z) { e.preventDefault(); z.classList.add('drag'); } });
@@ -5544,7 +5769,7 @@ function bindClaude() {
       return;
     }
     else if (b.hasAttribute('data-cam-pick')) return openCamPick(idx(e));
-    else if (b.hasAttribute('data-add')) cl.scn.push(scnLike(cl.scn.at(-1)));
+    else if (b.hasAttribute('data-add')) return openScnCount();   // сколько сценариев нужно — окно 1…10
     else if (b.dataset.sar) {   // меняется только этот сценарий; новые сценарии получат последний выбранный формат
       cl.scn.forEach(x => { x.aspect ||= scnAspect(x); });
       cl.scn[idx(e)].aspect = cl.aspect = b.dataset.sar;
@@ -5580,7 +5805,6 @@ function bindClaude() {
     cl.save();
     renderScn();
     updateGenButton();
-    if (b.hasAttribute('data-add')) $$('#scnCreate [data-prompt]').pop()?.focus();
   };
   ['#scnCreate', '#scnLive', '#scnAcc'].forEach(sel => $(sel).addEventListener('click', onClick));
 }
@@ -5683,6 +5907,12 @@ function renderInstall() {
 // ссылка «телефон с вашими аккаунтами»: адрес компьютера в домашней сети + секретный ключ (как в QR от Claude — phone_link)
 const hubLinkHome = () => { const lan = hubLink.info?.lan?.[0]; return lan && hubLink.key ? `http://${lan}:${hubLink.info.port || 5180}/?k=${encodeURIComponent(hubLink.key)}#claude` : ''; };
 const SITE_URL = 'https://zuevilia808-collab.github.io/freefield/';   // Freefield на GitHub Pages — открывается где угодно
+// превью стиля не нашлось рядом со страницей (копия страницы без папки img) — берём с GitHub; и там нет — остаётся значок
+function styleImgFail(img) {
+  if (img.dataset.gh) return img.remove();
+  img.dataset.gh = 1;
+  img.src = SITE_URL + img.getAttribute('src');
+}
 
 function drawQR(box, text) {
   const draw = () => { const qr = qrcode(0, 'M'); qr.addData(text); qr.make(); box.innerHTML = qr.createImgTag(6, 0); };
