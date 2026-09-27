@@ -5604,6 +5604,9 @@ function drawQR(box, text) {
   if (window.qrcode) return draw();
   const sc = document.createElement('script');
   sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+  // хэш файла: если CDN подменит библиотеку, браузер её не выполнит (ключи и связь с компьютером в безопасности)
+  sc.integrity = 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k';
+  sc.crossOrigin = 'anonymous';
   sc.onload = draw;
   sc.onerror = () => { box.textContent = 'QR-код не загрузился — откройте адрес ниже на телефоне вручную'; };
   document.head.append(sc);
