@@ -405,6 +405,7 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .akind-nums button small{font-size:10.5px;color:var(--muted)}
 .akind-nums button:hover{border-color:var(--free);transform:translateY(-2px)}
 .akind-nums button:active{transform:scale(.95)}
+.akind-nums button.warn small{color:var(--warn);font-weight:600}
 .akind-nums button:disabled{opacity:.38;pointer-events:none;box-shadow:none}
 .akind-nums button.on{border-color:rgba(212,255,58,.75);background:radial-gradient(120% 90% at 50% 0%,rgba(212,255,58,.14),transparent 70%),var(--panel2)}
 /* картинки ассета: у каждой — свои поля промпта и (по желанию) своё фото */
@@ -4920,35 +4921,81 @@ function setAssetKind(k) {
   openAkindSheet();
 }
 // окно «Сколько нужно?» (1…10) — общее: картинки в «Создании ассетов» и сценарии в «Видео сервисах».
-// nums: [{n, sub — подпись под числом, on — выбрано сейчас, off — нельзя}]; onPick(n) — нажали число
+// nums: [{n, sub — подпись под числом, on — выбрано сейчас, off — нельзя, warn — не хватит}]; onPick(n) — нажали число
 const countSheet = {onPick: null};
 function openCountSheet({title, note, nums, plan, onPick}) {
   $('#akindTitle').textContent = title;
   $('#akindNote').textContent = note;
-  $('#akindNums').innerHTML = nums.map(x => `<button data-an="${x.n}" class="${x.on ? 'on' : ''}" ${x.off ? 'disabled' : ''}><b>${x.n}</b><small>${x.sub}</small></button>`).join('');
+  $('#akindNums').innerHTML = nums.map(x => `<button data-an="${x.n}" class="${x.on ? 'on' : ''} ${x.warn ? 'warn' : ''}" ${x.off ? 'disabled' : ''}><b>${x.n}</b><small>${x.sub}</small></button>`).join('');
   $('#akindPlan').textContent = plan;
   countSheet.onPick = onPick;
   $$('.sheet').forEach(x => x.classList.add('hidden'));
   $('#akindSheet').classList.remove('hidden');
 }
 const oneToTen = () => Array.from({length: AKIND_MAX}, (_, i) => i + 1);
+
+// Сколько заданий возьмёт каждый аккаунт — так же, как считает компьютер (mcp/batch.js planBatch): сразу — не больше,
+// чем сайт делает одновременно (Flow 4, Dola 2, Arena 2, Vids 1), и не больше, чем хватит кредитов Flow / баллов Dola.
+// Пример пользователя: 50 кредитов Flow = 2 видео Omni 1.1 Flash (по 20) → 10 видео = 5 аккаунтов по 2.
+// Открытые окна Chrome получают задания поровну, дальше следующий аккаунт заполняется до конца. null — компьютер не подключён
+const SITE_PAR = {flow: 4, dola: 2, arena: 2, vids: 1};
+function accSim(n, site, kind, model) {
+  const info = hubLink.ok && hubLink.info;
+  if (!info?.profiles?.length || !SITE_PAR[site]) return null;
+  const m = scnModel(kind, site, model) || scnModel(kind, site, scnDefault(kind, site));
+  const cost = m?.[4] || 0, open = info.open || [];
+  const acc = info.profiles.filter(p => p.login?.[site]?.ok !== false && !p.siteOut?.[site]).map(p => {
+    const left = site === 'flow' ? p.flowLeft : site === 'dola' && kind === 'video' ? p.dolaPoints : null;
+    return {id: p.id, name: p.name, open: open.includes(p.id), load: 0,
+      room: Math.min(SITE_PAR[site], cost && left != null ? Math.floor(left / cost) : SITE_PAR[site])};
+  }).filter(a => a.room > 0).sort((a, b) => (b.open - a.open) || (open.indexOf(a.id) - open.indexOf(b.id)) || a.id - b.id);
+  let placed = 0;
+  for (; placed < n; placed++) {
+    const roomy = acc.filter(a => a.load < a.room), o = roomy.filter(a => a.open);
+    if (!roomy.length) break;
+    (o.length ? o.reduce((b, c) => c.load < b.load ? c : b) : roomy.find(a => a.load > 0) || roomy[0]).load++;
+  }
+  return {placed, total: acc.reduce((s, a) => s + a.room, 0), used: acc.filter(a => a.load).length, acc, cost, m};
+}
+// подпись под числом: сколько аккаунтов; не хватает кредитов — «не хватит» (лишние уйдут в следующий бесплатный сервис)
+const simSub = (r, n) => r.placed < n ? 'не хватит' : `${r.used} акк.`;
+// пояснение: сколько сегодня влезает и в какие аккаунты (по последней проверке баланса)
+function simPlan(site, kind, model, what) {
+  const r = accSim(99, site, kind, model);
+  if (!r) return '';
+  const S = SITE_SHORT[site] || site, per = r.acc.map(a => `${a.name} — ${a.room}`).join(', ');
+  const price = r.cost && site === 'flow' ? `${r.m[2]} — ${r.cost} кредитов: на аккаунте с 50 кредитами — ${Math.min(SITE_PAR.flow, Math.floor(50 / r.cost))} ${what}. `
+    : r.cost && site === 'dola' && kind === 'video' ? `${r.m[2]} — ${r.cost} ${plur(r.cost, 'балл', 'балла', 'баллов')} Dola за видео. ` : '';
+  return `${price}Под числом — сколько аккаунтов возьмутся сразу. Сегодня в ${S} можно запустить ${r.total} одновременно: ${per || 'нет свободных аккаунтов'}.` +
+    ` Нужно больше — лишние сразу уйдут в следующий бесплатный сервис.`;
+}
+
 // «Что создаём» → сколько картинок; под числом — сколько аккаунтов сразу возьмутся за работу
 function openAkindSheet() {
   const K = ASSET_KINDS[asset.kind];
   if (!K) return;
-  const cap = assetCap();
+  const cap = assetCap(), model = asset.model[asset.svc];
+  const sim = n => accSim(n, asset.svc, 'image', model);
   openCountSheet({title: K.ask, note: K.note, onPick: setAssetCount,
-    nums: oneToTen().map(n => ({n, on: asset.n === n, sub: `${Math.ceil(n / cap)} акк.`})),
-    plan: `Под числом — сколько аккаунтов возьмутся сразу. В ${SITE_SHORT[asset.svc]} одновременно идут ${cap} ${plur(cap, 'генерация', 'генерации', 'генераций')} на аккаунт; если нужно больше, Freefield тут же подключит другие профили Chrome: например, 10 = ${splitPlan(10, cap)}. Если окон Chrome открыто больше — разложит по всем открытым поровну, так ещё быстрее.` +
+    nums: oneToTen().map(n => { const r = sim(n); return {n, on: asset.n === n, warn: r && r.placed < n, sub: r ? simSub(r, n) : `${Math.ceil(n / cap)} акк.`}; }),
+    plan: (simPlan(asset.svc, 'image', model, 'картинки') || `Под числом — сколько аккаунтов возьмутся сразу. В ${SITE_SHORT[asset.svc]} одновременно идут ${cap} ${plur(cap, 'генерация', 'генерации', 'генераций')} на аккаунт; если нужно больше, Freefield тут же подключит другие профили Chrome: например, 10 = ${splitPlan(10, cap)}.`) +
+      ' Если окон Chrome открыто больше — задания разойдутся по всем открытым поровну, так ещё быстрее.' +
       (asset.svc === 'flow' && asset.count > 1 ? ` У каждой картинки будет ×${asset.count} варианта — это меняется ниже, в «Вариантов каждой».` : '')});
 }
 // «Видео сервисы» → «＋ Сценарий»: сколько сценариев нужно всего (новые — с настройками последнего)
 function openScnCount() {
   const have = cl.scn.length, last = cl.scn.at(-1);
+  const site = last && last.service !== 'auto' ? last.service : null, kind = last?.kind || 'video', model = last?.model;
+  const sim = n => site ? accSim(n, site, kind, model) : null;
   openCountSheet({title: 'Сколько сценариев нужно?', onPick: n => addScenarios(n - have),
-    note: `Сейчас — ${have}. Новые получат настройки последнего: ${last?.kind === 'image' ? 'фото' : 'видео'}, сервис и модель, формат, стиль, камеру и развёртку; текст у каждого свой.`,
-    nums: oneToTen().map(n => ({n, on: n === have, off: n <= have, sub: n <= have ? 'уже есть' : `+${n - have}`})),
-    plan: 'Freefield запустит все сразу и разложит по аккаунтам: во Flow — до 4 на аккаунт, в Dola и Arena — до 2, в Google Vids — 1; нужно больше — тут же подключит другие профили Chrome.'});
+    note: `Сейчас — ${have}. Новые получат настройки последнего: ${kind === 'image' ? 'фото' : 'видео'}, сервис и модель, формат, стиль, камеру и развёртку; текст у каждого свой.`,
+    nums: oneToTen().map(n => {
+      if (n <= have) return {n, on: n === have, off: true, sub: 'уже есть'};
+      const r = sim(n);
+      return {n, warn: r && r.placed < n, sub: r ? simSub(r, n) : `+${n - have}`};
+    }),
+    plan: (site && simPlan(site, kind, model, kind === 'image' ? 'картинки' : 'видео')) ||
+      'Freefield запустит все сразу и разложит по аккаунтам: во Flow — до 4 на аккаунт и не больше, чем хватит кредитов (50 кредитов = 2 видео Omni 1.1 Flash), в Dola и Arena — до 2, в Google Vids — 1; нужно больше — тут же подключит другие профили Chrome.'});
 }
 function addScenarios(k) {
   closeSheets();
