@@ -385,9 +385,18 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .asset-ref button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:99px;background:var(--panel4);border:1px solid var(--line2);font-size:10px;color:var(--text);display:grid;place-items:center;transition:background .2s,transform .2s var(--spring)}
 .asset-ref button:hover{background:var(--danger);transform:scale(1.1)}
 .asset-ref button .ic{width:11px;height:11px}
-.asset-ref-add{width:64px;height:64px;border-radius:11px;border:1px dashed var(--line2);color:var(--muted);font-size:10.5px;font-weight:600;line-height:1.2;display:grid;place-items:center;align-content:center;gap:2px;transition:color .2s,border-color .2s}
-.asset-ref-add .ic{width:18px;height:18px}
-.asset-ref-add:hover{color:var(--free);border-color:var(--free)}
+.asset-kinds{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.asset-kind{display:grid;gap:4px;justify-items:start;align-content:start;text-align:left;padding:11px 12px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--muted);font-size:11.5px;line-height:1.3;transition:border-color .2s,transform .3s var(--spring),box-shadow .25s,background .25s;box-shadow:var(--hl)}
+.asset-kind .ic{width:20px;height:20px;color:var(--free);margin-bottom:2px}
+.asset-kind b{color:var(--text);font-size:13px;font-weight:700;line-height:1.2}
+.asset-kind:hover{border-color:var(--line3);transform:translateY(-2px)}
+.asset-kind:active{transform:scale(.97)}
+.asset-kind.on{border-color:rgba(212,255,58,.75);box-shadow:0 0 0 1px rgba(212,255,58,.55) inset,0 12px 28px -16px rgba(212,255,58,.6);color:var(--text2);background:radial-gradient(120% 90% at 0% 0%,rgba(212,255,58,.1),transparent 60%),var(--panel2)}
+.asset-kind.add{border-style:dashed;border-color:var(--line2);background:transparent;box-shadow:none}
+.asset-kind.add .ic{color:var(--text2)}
+.asset-kind.add:hover{border-color:var(--free)}
+.asset-kind.add:hover .ic{color:var(--free)}
+.asset-kind:disabled{opacity:.45;pointer-events:none}
 .asset-refs .hint{flex:1;min-width:140px;font-size:11.5px;line-height:1.4}
 #assetOpts .chips{margin-bottom:4px}
 .scn-fmt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;font-size:12px;color:var(--muted)}
@@ -4623,7 +4632,7 @@ async function clSwitchAccount(id, btn) {
 // нижняя часть раздела — статус связи, кнопки, задания: обновляется при каждом опросе компьютера, не трогая поля ввода
 function clLiveHTML(where = 'create') {
   const conn = hubLink.ok
-    ? `<div class="cl-conn on">🟢 Приложение подключено к компьютеру — задания уйдут прямо туда${hubLink.info?.flowLeft != null ? ` · во Flow осталось <b>${hubLink.info.flowLeft}</b> из 50 кредитов` : ''}</div>`
+    ? `<div class="cl-conn on">🟢 Приложение подключено к компьютеру — задания уйдут прямо туда${hubLink.info?.flowLeft != null ? ` · во Flow осталось <b>${hubLink.info.flowLeft}</b> из 50 кредитов` : ''}${hubLink.onPc() ? ' <button class="btn small" data-phone-qr title="QR-код: открыть Freefield с вашими аккаунтами на телефоне">📱 На телефон</button>' : ''}</div>`
     : hubLink.denied ? '<div class="cl-conn">🔑 Ключ связи сменился — отсканируйте новый QR-код с компьютера (попросите Claude: «подключи телефон к Freefield»).</div>'
     : hubLink.key && hubLink.local() ? '<div class="cl-conn">🔴 Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi.</div>'
     : where === 'asset' ? ''   // в «Создании ассетов» инструкцию для телефона не показываем (просьба пользователя 2026-09-27)
@@ -4745,12 +4754,27 @@ const ASSET_SVC = {
   arena: {what: '2 фото от двух разных моделей · бесплатно'},
 };
 const ASSET_MAX_REFS = 4;
+// «Что создаём» — ассеты рилса по шагам (пользователь 2026-09-27): готовый английский промпт с [ПОЛЯМИ], формат и количество.
+// Промпт — шаблон: пользователь меняет [ПОЛЯ] на своё, больше ничего не дописывается
+const ASSET_KINDS = {
+  info: {ico: 'chart', name: 'Создать инфографику', sub: 'о чём ролик · 9:16', aspect: '9:16',
+    hint: 'Впишите в промпт вместо [ПОЛЕЙ] тему и заголовок. Референс не обязателен — можно добавить пример стиля',
+    prompt: 'Vertical infographic poster for a short video about [TOPIC]. Bold headline at the top: "[HEADLINE]". 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.'},
+  sheet: {ico: 'user', name: 'Развёртка героя', sub: 'спереди, сбоку, сзади · 16:9', aspect: '16:9',
+    hint: 'Есть фото героя — добавьте его референсом, развёртка будет по нему. Нет — опишите героя вместо [ПОЛЯ]',
+    prompt: 'Character turnaround sheet of [CHARACTER: age, face, hair, clothing]: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.',
+    promptRef: 'Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.'},
+  loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке · 3:4 ×4', aspect: '3:4', count: 4,
+    hint: 'Нужна развёртка героя — добавьте её референсом. В промпте вместо [ПОЛЕЙ] — что делает герой и где',
+    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. [ACTION] in [LOCATION]. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'},
+};
 const asset = {
   svc: ls.get('freefield.asset.svc', 'flow'),   // flow | dola | arena | other (прежние модели: FLUX, платные…)
   model: ls.get('freefield.asset.model', {flow: 'nano-banana-2', dola: 'seedream-5-pro'}),
   aspect: ls.get('freefield.asset.aspect', '3:4'),
   count: ls.get('freefield.asset.count', 4),
   refs: [],   // data URL фото-референсов (только в этой вкладке)
+  kind: null,   // выбранная кнопка «Что создаём» (ASSET_KINDS) или null — свой промпт
   sending: false,
   save() { ls.set('freefield.asset.svc', this.svc); ls.set('freefield.asset.model', this.model); ls.set('freefield.asset.aspect', this.aspect); ls.set('freefield.asset.count', this.count); },
 };
@@ -4765,11 +4789,47 @@ function setAssetSvc(svc) {
   updateLabels();
 }
 function assetRefsHTML() {
-  const note = !asset.refs.length ? 'Фото героя (например, полная развёртка персонажа) или сцены — перетащите сюда, вставьте Ctrl+V или нажмите «＋»'
+  const note = !asset.refs.length ? (ASSET_KINDS[asset.kind]?.hint || 'Фото героя (например, полная развёртка персонажа) или сцены — перетащите сюда, вставьте Ctrl+V или нажмите «Добавить референс»')
     : asset.svc === 'flow' ? 'Flow возьмёт все фото как «ингредиенты»: внешность героя сохранится, а сцена будет по промпту'
     : `${SITE_SHORT[asset.svc]} возьмёт ${asset.refs.length > 1 ? 'только первое фото' : 'это фото'} и сделает картинку по нему`;
   return asset.refs.map((r, i) => `<div class="asset-ref"><img src="${r}" alt=""><button data-aref-rm="${i}" title="Убрать фото">✕</button></div>`).join('') +
-    (asset.refs.length < ASSET_MAX_REFS ? '<button class="asset-ref-add" data-aref-add>＋<br>референс</button>' : '') + `<span class="hint">${note}</span>`;
+    `<span class="hint">${note}</span>`;
+}
+// кнопки «Что создаём»: инфографика, развёртка, герой в локации — и просто «Добавить референс»
+function assetKindsHTML() {
+  const full = asset.refs.length >= ASSET_MAX_REFS;
+  return Object.entries(ASSET_KINDS).map(([k, K]) => `<button class="asset-kind ${asset.kind === k ? 'on' : ''}" data-akind="${k}" aria-pressed="${asset.kind === k}">${ic(K.ico)}<b>${K.name}</b><small>${K.sub}</small></button>`).join('') +
+    `<button class="asset-kind add" data-aref-add ${full ? 'disabled' : ''}>${ic('plus')}<b>Добавить референс</b><small>${full ? 'уже 4 фото — больше нельзя' : 'фото героя или сцены · до 4'}</small></button>`;
+}
+// промпт-шаблон — в поле промпта; первое [ПОЛЕ] выделено, чтобы сразу вписать своё
+function fillAssetPrompt(text) {
+  const box = $('#prompt');
+  box.value = text;
+  box.dispatchEvent(new Event('input', {bubbles: true}));
+  box.focus();
+  const i = text.indexOf('['), j = text.indexOf(']', i);
+  if (i >= 0 && j > i) box.setSelectionRange(i, j + 1);
+}
+function setAssetKind(k) {
+  if (asset.kind === k) { asset.kind = null; return renderAsset(); }   // повторное нажатие — снять выбор, промпт остаётся
+  const K = ASSET_KINDS[k];
+  asset.kind = k;
+  if (asset.svc === 'other') setAssetSvc('flow');   // шаблоны — для Flow / Dola / Arena на компьютере
+  asset.aspect = K.aspect;
+  if (K.count) asset.count = K.count;
+  asset.save();
+  // «Персонаж в локации» — по развёртке: берём её из «Создания сценария», если она там уже есть
+  let tookSheet = false;
+  if (k === 'loc' && !asset.refs.length && wr.sheet) { asset.refs.push(wr.sheet); tookSheet = true; }
+  const text = k === 'sheet' && asset.refs.length ? K.promptRef : K.prompt;
+  const cur = $('#prompt').value.trim();
+  const mine = cur && !Object.values(ASSET_KINDS).some(x => x.prompt === cur || x.promptRef === cur);
+  if (mine) toast('В поле уже ваш промпт — оставил его', {ms: 9000, action: 'Заменить на шаблон', onAction: () => fillAssetPrompt(text)});
+  else fillAssetPrompt(text);
+  renderAsset();
+  updateGenButton();
+  if (tookSheet) toast('Развёртку героя взял из «Создания сценария». Впишите, что делает герой и где', {type: 'ok', ms: 6000});
+  else if (k === 'loc' && !asset.refs.length) { toast('Выберите фото развёртки героя'); $('#assetFile').value = ''; $('#assetFile').click(); }
 }
 function renderAsset() {
   const box = $('#assetCreate');
@@ -4783,7 +4843,8 @@ function renderAsset() {
     ${models.length ? `<select class="asset-model asset-svc-only" data-amodel aria-label="Модель">${models.map(m => `<option value="${m[1]}" ${asset.model[asset.svc] === m[1] ? 'selected' : ''}>${scnModelLabel('image', m)}</option>`).join('')}</select>` : ''}
     <button class="asset-other" data-asvc="other" title="FLUX, Wan и платные модели — прямо в приложении, без компьютера">${asset.svc === 'other' ? '✓ Другие модели — выбраны ниже' : '⋯ Другие модели (FLUX, платные)'}</button>
     <div class="asset-svc-only">
-      <div class="block-head" style="margin-top:14px"><span class="lbl">Референс</span><span class="hint">${asset.refs.length} из ${ASSET_MAX_REFS}</span></div>
+      <div class="block-head" style="margin-top:14px"><span class="lbl">Что создаём</span><span class="hint">готовый промпт и формат — останется вписать своё</span></div>
+      <div class="asset-kinds">${assetKindsHTML()}</div>
       <div class="asset-refs" id="assetRefs">${assetRefsHTML()}</div>
     </div>`;
   const ar = SITE_AR.image[asset.svc] || SITE_AR.image.flow, cur = assetAspect();   // форматы — как на сайте выбранного сервиса
@@ -4802,9 +4863,11 @@ async function assetAddRefs(files) {
     if (asset.refs.length >= ASSET_MAX_REFS) { toast(`Не больше ${ASSET_MAX_REFS} референсов`, {type: 'err'}); break; }
     try { asset.refs.push(await refDataUrl(f)); added++; } catch { toast('Не удалось прочитать фото', {type: 'err'}); }
   }
+  // развёртка: появилось фото героя — шаблон «по описанию» меняем на «по этому фото» (если его ещё не правили)
+  if (added && asset.kind === 'sheet' && $('#prompt').value.trim() === ASSET_KINDS.sheet.prompt) fillAssetPrompt(ASSET_KINDS.sheet.promptRef);
   renderAsset();
   updateGenButton();
-  if (added) toast(added > 1 ? `Добавлено референсов: ${added}` : 'Референс добавлен — опишите, что должно быть на фото', {type: 'ok'});
+  if (added) toast(added > 1 ? `Добавлено референсов: ${added}` : asset.kind ? 'Референс добавлен' : 'Референс добавлен — опишите, что должно быть на фото', {type: 'ok'});
 }
 function assetTask(prompt) {
   const m = scnModel('image', asset.svc, asset.model[asset.svc]) || scnModel('image', asset.svc, scnDefault('image', asset.svc));
@@ -4814,6 +4877,9 @@ function assetTask(prompt) {
 async function assetGo() {
   const raw = $('#prompt').value.trim();
   if (raw.length < 3) return nudge('Опишите, что должно быть на фото: герой, место, действие, свет');
+  // шаблон из «Что создаём» с незаполненными [ПОЛЯМИ]
+  if (/\[[A-Z][A-Z ]*[\]:]/.test(raw)) return nudge('Впишите своё вместо [ПОЛЕЙ] в промпте: тема, герой, место…');
+  if (asset.kind === 'loc' && !asset.refs.length) { toast('Для «Персонажа в локации» нужна развёртка героя — нажмите «Добавить референс»', {type: 'err', ms: 6000}); return; }
   if (!hubLink.ok) {
     const m = scnModel('image', asset.svc, asset.model[asset.svc]);
     const text = `Сделай через Freefield ассет — картинку (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}). ` +
@@ -4841,6 +4907,7 @@ function bindAsset() {
     if (b.dataset.asvc) return setAssetSvc(b.dataset.asvc);
     if (b.dataset.aar) { asset.aspect = b.dataset.aar; asset.save(); return renderAsset(); }
     if (b.dataset.acount) { asset.count = +b.dataset.acount; asset.save(); renderAsset(); return updateGenButton(); }
+    if (b.dataset.akind) return setAssetKind(b.dataset.akind);
     if (b.hasAttribute('data-aref-add')) { $('#assetFile').value = ''; return $('#assetFile').click(); }
     if (b.dataset.arefRm) { asset.refs.splice(+b.dataset.arefRm, 1); renderAsset(); return updateGenButton(); }
     if (b.hasAttribute('data-import-all')) return hubLink.importAll(b);
@@ -5545,7 +5612,12 @@ function initPwa() {
     toast('Freefield установлен 🎉 Иконка — на главном экране', {type: 'ok', ms: 6000});
   });
   $('#installOpen').addEventListener('click', openInstall);
-  $('#installBody').addEventListener('click', e => { if (e.target.closest('[data-install]')) runInstallPrompt(); });
+  $('#installBody').addEventListener('click', async e => {
+    if (e.target.closest('[data-install]')) runInstallPrompt();
+    if (e.target.closest('[data-copy-home]')) toast(await clCopyText(hubLinkHome()) ? 'Ссылка скопирована — откройте её на телефоне. Никому не пересылайте' : 'Не удалось скопировать', {type: 'ok', ms: 6000});
+  });
+  // «📱 На телефон» из строки связи с компьютером — то же окно с QR-кодами
+  document.addEventListener('click', e => { if (e.target.closest('[data-phone-qr]')) { closeSheets(); openInstall(); } });
   updateInstallBtn();
 }
 
@@ -5583,21 +5655,34 @@ function renderInstall() {
     if (pwa.android()) html += '<div class="set-h">📦 Или отдельное приложение</div>' +
       '<a class="inst-big" style="display:grid;place-items:center;text-decoration:none" href="Freefield.apk" download>Скачать Freefield.apk (4 МБ)</a>' +
       '<p class="inst-note">Откройте скачанный файл и разрешите установку из этого источника. Android может предупредить о неизвестном разработчике — это нормально для приложений не из Google Play: нажмите «Всё равно установить».</p>';
-    if (!pwa.hosted()) html += '<p class="inst-note">⚠ Сейчас Freefield открыт с вашего компьютера по Wi-Fi. Иконка добавится, но работать приложение будет только дома и пока на компьютере запущен сервер. Для полноценной установки Freefield нужно выложить по адресу https:// — см. PLAN.md.</p>';
+    if (!pwa.hosted()) html += `<p class="inst-note">⚠ Сейчас Freefield открыт с вашего компьютера по Wi-Fi — с вашими аккаунтами Flow, Vids, Dola и Arena. Работает, пока компьютер включён и телефон в той же сети. Вне дома — версия с GitHub: <b>${esc(SITE_URL)}</b> (без ваших аккаунтов).</p>`;
   } else {
-    html += '<div class="set-h">📱 На телефон</div>';
-    if (pwa.hosted()) html += `<div class="inst-qr"><div id="qrBox"></div><div class="inst-url">${esc(url)}</div></div>` + steps([
+    // на компьютере: QR «телефон с вашими аккаунтами» (ссылка с секретным ключом — её отдаёт только сам компьютер) и QR версии с GitHub
+    const home = hubLink.local() && hubLinkHome(), port = hubLink.info?.port || 5180;
+    if (home) html += '<div class="set-h">📱 Телефон с вашими аккаунтами</div>' +
+      `<div class="inst-qr"><div id="qrHome"></div><div class="inst-url">http://${esc(hubLink.info.lan[0])}:${port}/?k=••••••</div>
+        <button class="btn small" data-copy-home>📋 Скопировать ссылку</button></div>` + steps([
+      'Телефон — в той же сети Wi-Fi, что и компьютер (или компьютер подключён к точке доступа этого телефона).',
+      'Наведите камеру телефона на QR-код и откройте ссылку — Freefield будет запускать видео через ваши Flow, Vids, Dola и Arena.',
+      'Добавьте на главный экран (iPhone: Safari → «Поделиться» → «На экран „Домой“»; Android: меню ⋮ → «Добавить на главный экран»). Сменилась сеть — отсканируйте код отсюда заново.']) +
+      '<p class="inst-note">🔒 Ссылка секретная: с ней можно генерировать на ваших аккаунтах. Не пересылайте и не показывайте этот QR-код.</p>';
+    html += `<div class="set-h">🌐 Телефон где угодно${home ? ' — без ваших аккаунтов' : ''}</div>` +
+      `<div class="inst-qr"><div id="qrBox"></div><div class="inst-url">${esc(pwa.hosted() ? url : SITE_URL)}</div></div>` + steps([
       'Наведите камеру телефона на QR-код и откройте ссылку.',
-      'Нажмите <b>📲</b> вверху приложения и следуйте подсказке (Android — «Установить», iPhone — «Поделиться» → «На экран „Домой“»).']);
-    else html += `<p class="set-p">Сейчас Freefield открыт с этого компьютера (<b>${esc(location.host || 'файл')}</b>). Телефоны устанавливают приложения только с защищённого адреса <b>https://</b>, поэтому Freefield сначала нужно бесплатно выложить в интернет. Как только он откроется по https-адресу, здесь появится QR-код для телефона.</p>`;
+      'Нажмите <b>📲</b> в приложении и следуйте подсказке (Android — «Установить», iPhone — Safari → «Поделиться» → «На экран „Домой“»).']) +
+      '<p class="inst-note">Там работают модели по вашим ключам и бесплатные генераторы; видео через Flow, Vids, Dola и Arena — только по ссылке с компьютера выше.</p>';
     html += '<div class="set-h">💻 На этот компьютер</div>' + (pwa.prompt
       ? '<button class="inst-big" data-install>Установить на компьютер</button>'
       : '<p class="set-p">В Chrome или Edge: значок установки в адресной строке или меню ⋮ → «Установить Freefield».</p>');
   }
   html += '<p class="inst-note">Галерея, ключи и настройки хранятся на каждом устройстве отдельно — на телефоне их нужно ввести заново.</p>';
   $('#installBody').innerHTML = html;
-  if ($('#qrBox')) drawQR($('#qrBox'), url);
+  if ($('#qrHome')) drawQR($('#qrHome'), hubLinkHome());
+  if ($('#qrBox')) drawQR($('#qrBox'), pwa.mobile() || pwa.hosted() ? url : SITE_URL);
 }
+// ссылка «телефон с вашими аккаунтами»: адрес компьютера в домашней сети + секретный ключ (как в QR от Claude — phone_link)
+const hubLinkHome = () => { const lan = hubLink.info?.lan?.[0]; return lan && hubLink.key ? `http://${lan}:${hubLink.info.port || 5180}/?k=${encodeURIComponent(hubLink.key)}#claude` : ''; };
+const SITE_URL = 'https://zuevilia808-collab.github.io/freefield/';   // Freefield на GitHub Pages — открывается где угодно
 
 function drawQR(box, text) {
   const draw = () => { const qr = qrcode(0, 'M'); qr.addData(text); qr.make(); box.innerHTML = qr.createImgTag(6, 0); };
