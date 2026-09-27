@@ -425,6 +425,23 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .asset-item-f input.miss{border-color:var(--danger)}
 .asset-item-f .hint{font-size:12px;padding-top:10px}
 .asset-items-head .hint button{color:var(--free);font-weight:600}
+/* «💳 Проверить баланс» */
+.tok-model{display:grid;gap:6px;margin:12px 0 0;font-size:12.5px;color:var(--muted);font-weight:600}
+.tok-model select{width:100%}
+.tok-go{width:100%;height:46px;margin-top:12px}
+.tok-go:disabled{opacity:.6}
+.tok-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-top:10px;box-shadow:var(--hl)}
+.tok-card h4{display:flex;align-items:center;gap:8px;margin:0 0 4px;font:700 14px var(--display);color:var(--text)}
+.tok-card h4 .mc-ico{width:22px;height:22px;border-radius:7px;font-size:9px;color:#fff}
+.tok-total{font-size:13px;color:var(--text2);line-height:1.45;margin-bottom:6px}
+.tok-total b{color:var(--free);font:800 20px var(--display);margin-right:2px}
+.tok-acc{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:7px 0;border-top:1px solid var(--line)}
+.tok-acc b{font-weight:600;color:var(--text)}
+.tok-acc span{color:var(--muted);text-align:right}
+.tok-acc span.ok{color:var(--free)}
+.tok-acc span.bad{color:var(--warn)}
+.tok-note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45}
+.tok-when{font-size:12px;color:var(--muted);margin-top:12px}
 .asset-item-rm{flex:none;width:26px;height:26px;margin-top:7px;border-radius:99px;display:grid;place-items:center;color:var(--muted);font-size:11px;border:1px solid var(--line);background:var(--panel2);transition:background .2s,color .2s,transform .2s var(--spring)}
 .asset-item-rm .ic{width:12px;height:12px}
 .asset-item-rm:hover{background:var(--danger);border-color:transparent;color:#fff;transform:scale(1.08)}
@@ -1169,6 +1186,20 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
       <div class="motion-grid" id="camGrid"></div>
       <div class="cam-foot"><span class="hint">Выбранное движение допишется в промпт видео — в строку «Camera & framing». Без пресета промпт уходит как есть.</span>
         <button class="btn small" data-cam-none>Без пресета</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- «Видео сервисы» → «💳 Проверить баланс»: какие сервисы проверить и на сколько сценариев хватит -->
+<div class="sheet hidden" id="tokSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2>Баланс токенов</h2><button class="icon-btn" data-close title="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body">
+      <p class="set-p">Что проверить? Можно выбрать несколько.</p>
+      <div class="asset-kinds" id="tokSvcs"></div>
+      <label class="tok-model"><span>Считать для видео во Flow</span><select id="tokModel" aria-label="Модель видео во Flow"></select></label>
+      <button class="btn free tok-go" id="tokGo">Проверить</button>
+      <div id="tokOut"></div>
     </div>
   </div>
 </div>
@@ -4030,6 +4061,7 @@ function bindControls() {
   });
   bindClaude();
   bindAsset();
+  bindTok();
   bindWrite();
   $('#quickSvc').addEventListener('click', e => {
     if (e.target.closest('[data-open-hub]')) return openHub();
@@ -4715,6 +4747,7 @@ function renderScn() {
     ${scn}
     <div class="cl-row">
       ${cl.scn.length < CL_MAX ? '<button class="btn" data-add>＋ Сценарий</button>' : ''}
+      <button class="btn" data-tok title="Сколько кредитов во Flow и на сколько сценариев хватит; вход и лимиты в Dola, Google Vids и Arena">💳 Проверить баланс</button>
     </div>
 `;
   $('#scnLive').innerHTML = `<div class="cl-plan">${clPlanText()}</div><div class="cl-live" data-where="create">${clLiveHTML('create')}</div>`;
@@ -4997,6 +5030,129 @@ function openScnCount() {
     plan: (site && simPlan(site, kind, model, kind === 'image' ? 'картинки' : 'видео')) ||
       'Freefield запустит все сразу и разложит по аккаунтам: во Flow — до 4 на аккаунт и не больше, чем хватит кредитов (50 кредитов = 2 видео Omni 1.1 Flash), в Dola и Arena — до 2, в Google Vids — 1; нужно больше — тут же подключит другие профили Chrome.'});
 }
+/* ---- «💳 Проверить баланс» в «Видео сервисах»: какие сервисы проверить и на сколько сценариев хватит ----
+   Flow — остаток кредитов компьютер читает прямо с сайта в каждом открытом окне Chrome; сценарии = кредиты ÷ цена видео
+   (Omni 1.1 Flash — 20: 50 кредитов = 2 сценария). Dola называет баллы только после видео, Vids и Arena остаток заранее
+   не показывают — для них вход, лимиты и что известно. */
+const TOK = {sites: ls.get('freefield.tok.sites', ['flow']), model: ls.get('freefield.tok.model', 'omni-1.1-flash'), busy: false, res: null};
+const TOK_WHAT = {flow: 'кредиты — прямо с сайта', dola: 'баллы на видео Seedance', vids: 'Omni · 720p · бесплатно', arena: 'битва двух моделей · бесплатно'};
+function openTok() {
+  if (!hubLink.ok) return toast(hubLink.local() ? 'Компьютер не отвечает — проверьте, что Freefield на нём запущен' : 'Баланс проверяет компьютер — откройте Freefield по ссылке с компьютера (📱 На телефон)', {type: 'err', ms: 7000});
+  renderTok();
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#tokSheet').classList.remove('hidden');
+}
+const tokAgo = t => {
+  if (!t) return 'ещё не проверяли';
+  if (new Date(t).toDateString() !== new Date().toDateString()) return 'новый день — полный запас';
+  const m = Math.round((Date.now() - t) / 60000);
+  return m < 1 ? 'только что' : m < 60 ? `${m} мин назад` : `${Math.round(m / 60)} ч назад`;
+};
+function tokCard(site, total, rows, note) {
+  const x = SERVICES.find(v => v.id === site);
+  return `<div class="tok-card"><h4><span class="mc-ico" style="background:${x.color}">${esc(x.ico)}</span>${SITE_SHORT[site]}</h4>
+    <div class="tok-total">${total}</div>${rows.join('')}${note ? `<div class="tok-note">${note}</div>` : ''}</div>`;
+}
+const tokRow = (name, value, cls = '') => `<div class="tok-acc"><b>${esc(name)}</b><span class="${cls}">${value}</span></div>`;
+function tokResultHTML() {
+  const info = hubLink.info, profs = info?.profiles || [];
+  if (!profs.length) return '<p class="tok-note">Компьютер ещё не прислал данные об аккаунтах.</p>';
+  const err = TOK.res?.errors || {}, open = info.open || [];
+  const win = p => open.includes(p.id) ? '' : ' · окно закрыто';
+  const out = [];
+  if (TOK.sites.includes('flow')) {
+    const m = scnModel('video', 'flow', TOK.model) || SCN_MODELS.video[0], cost = m[4];
+    let videos = 0, credits = 0, accs = 0;
+    const rows = profs.map(p => {
+      if (p.login?.flow?.ok === false) return tokRow(p.name, 'не вошли во Flow', 'bad');
+      if (p.siteOut?.flow) return tokRow(p.name, 'пауза до завтра', 'bad');
+      const n = Math.floor((p.flowLeft ?? 0) / cost);
+      videos += n; credits += p.flowLeft ?? 0; if (n) accs++;
+      const why = err[p.id] ? ` · ⚠ ${esc(err[p.id])}` : ` · ${tokAgo(p.flowChecked)}${win(p)}`;
+      return tokRow(p.name, `${p.flowLeft} кр. → <b>${n}</b> ${plur(n, 'сценарий', 'сценария', 'сценариев')}${why}`, n ? 'ok' : '');
+    });
+    out.push(tokCard('flow', `<b>${videos}</b> ${plur(videos, 'сценарий', 'сценария', 'сценариев')} ${esc(m[2])} · ${cost} кредитов за видео<br>На ${accs} ${plur(accs, 'аккаунте', 'аккаунтах', 'аккаунтах')} · всего кредитов: ${credits}; одновременно — до 4 на аккаунт`,
+      rows, 'Кредиты Flow обновляются каждый день (50 на аккаунт). Закрытые окна не проверяются — для них остаток по последней проверке.'));
+  }
+  if (TOK.sites.includes('dola')) {
+    const mm = SCN_MODELS.video.filter(x => x[0] === 'dola');
+    let accs = 0;
+    const rows = profs.map(p => {
+      if (p.login?.dola?.ok === false) return tokRow(p.name, 'не вошли в Dola', 'bad');
+      if (p.siteOut?.dola) return tokRow(p.name, 'лимит на сегодня', 'bad');
+      accs++;
+      return tokRow(p.name, p.dolaPoints != null ? `${p.dolaPoints} ${plur(p.dolaPoints, 'балл', 'балла', 'баллов')} → ${mm.map(x => `${x[2].replace('Seedance ', '')}: ${Math.floor(p.dolaPoints / x[4])}`).join(', ')}` : `вход есть${win(p)}`, 'ok');
+    });
+    out.push(tokCard('dola', `<b>${accs}</b> ${plur(accs, 'аккаунт', 'аккаунта', 'аккаунтов')} с Dola · одновременно — до 2 на аккаунт`, rows,
+      'Баллы на видео Dola называет только после видео за день — до этого остаток неизвестен. Картинки в Dola — без баллов.'));
+  }
+  if (TOK.sites.includes('vids')) {
+    let accs = 0;
+    const rows = profs.map(p => {
+      if (p.login?.vids?.ok === false) return tokRow(p.name, 'не вошли в Google Vids', 'bad');
+      if (p.siteOut?.vids) return tokRow(p.name, 'лимит ИИ-видео исчерпан', 'bad');
+      if (p.vidsWait === 'smart') return tokRow(p.name, 'ждёт: включите «умные функции»', 'bad');
+      accs++;
+      const used = /(\d+)\s*видео/.exec(p.usage?.vids || '')?.[1];
+      // «правила для фото» мешают только видео с фото — видео по тексту идут
+      return tokRow(p.name, `доступно${used ? ` · сегодня сделано ${used}` : ''}${p.vidsWait === 'terms' ? ' · для фото — примите правила' : ''}${win(p)}`, 'ok');
+    });
+    out.push(tokCard('vids', `<b>${accs}</b> ${plur(accs, 'аккаунт', 'аккаунта', 'аккаунтов')} · по 1 видео Omni за раз на аккаунт, бесплатно`, rows,
+      'Google Vids даёт около 10 ИИ-видео в месяц на аккаунт; сколько осталось, сайт заранее не показывает — только когда лимит кончится.'));
+  }
+  if (TOK.sites.includes('arena')) {
+    let accs = 0;
+    const rows = profs.map(p => {
+      if (p.login?.arena?.ok === false) return tokRow(p.name, 'не вошли в Arena', 'bad');
+      if (p.siteOut?.arena) return tokRow(p.name, 'дневной лимит исчерпан', 'bad');
+      accs++;
+      return tokRow(p.name, `доступно${win(p)}`, 'ok');
+    });
+    out.push(tokCard('arena', `<b>${accs}</b> ${plur(accs, 'аккаунт', 'аккаунта', 'аккаунтов')} · до 2 запросов сразу, 2 видео за запрос, бесплатно`, rows,
+      'Дневной лимит Arena сайт показывает, только когда он исчерпан.'));
+  }
+  const when = TOK.res ? `Проверено ${tokAgo(TOK.res.at)} · окна: ${(TOK.res.checked || []).length}${err.login ? ` · ⚠ ${esc(err.login)}` : ''}` : 'Пока показаны данные последней проверки — нажмите «Проверить», чтобы обновить';
+  return out.join('') + `<div class="tok-when">${when}</div>`;
+}
+function renderTok() {
+  const tile = id => { const x = SERVICES.find(v => v.id === id), on = TOK.sites.includes(id);
+    return `<button class="asset-svc ${on ? 'on' : ''}" data-tok-svc="${id}" aria-pressed="${on}"><b><span class="mc-ico" style="background:${x.color}">${esc(x.ico)}</span>${SITE_SHORT[id]}</b>${TOK_WHAT[id]}</button>`; };
+  $('#tokSvcs').innerHTML = ['flow', 'dola', 'vids', 'arena'].map(tile).join('');
+  $('#tokModel').innerHTML = SCN_MODELS.video.filter(m => m[0] === 'flow').map(m => `<option value="${m[1]}" ${TOK.model === m[1] ? 'selected' : ''}>${m[2]} — ${m[4]} кредитов за видео</option>`).join('');
+  $('#tokModel').closest('label').classList.toggle('hidden', !TOK.sites.includes('flow'));
+  $('#tokGo').disabled = TOK.busy || !TOK.sites.length;
+  $('#tokGo').textContent = TOK.busy ? '⏳ Проверяю — во Flow по очереди в каждом окне…' : TOK.sites.length ? `Проверить: ${TOK.sites.map(s => SITE_SHORT[s]).join(', ')}` : 'Выберите сервис';
+  $('#tokOut').innerHTML = tokResultHTML();
+}
+async function runTok() {
+  TOK.busy = true; renderTok();
+  try {
+    const r = await fetch(hubLink.url('/api/balance?sites=' + TOK.sites.join(',')), {method: 'POST'});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 404) throw new Error('на компьютере старая версия Freefield — перезапустите Claude Desktop');
+    if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
+    const {ok, checked, errors, ...info} = j;
+    hubLink.info = {...hubLink.info, ...info};
+    TOK.res = {at: Date.now(), checked, errors: errors || {}};
+  } catch (e) { toast('Не удалось проверить: ' + e.message, {type: 'err', ms: 9000}); }
+  TOK.busy = false;
+  renderTok();
+}
+function bindTok() {
+  $('#tokSheet').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.tokSvc) {
+      const s = b.dataset.tokSvc;
+      TOK.sites = TOK.sites.includes(s) ? TOK.sites.filter(x => x !== s) : [...TOK.sites, s];
+      ls.set('freefield.tok.sites', TOK.sites);
+      return renderTok();
+    }
+    if (b.id === 'tokGo' && !TOK.busy) runTok();
+  });
+  $('#tokModel').addEventListener('change', e => { TOK.model = e.target.value; ls.set('freefield.tok.model', TOK.model); renderTok(); });
+}
+
 function addScenarios(k) {
   closeSheets();
   const first = cl.scn.length;
@@ -5822,7 +5978,8 @@ function bindClaude() {
       return;
     }
     else if (b.hasAttribute('data-cam-pick')) return openCamPick(idx(e));
-    else if (b.hasAttribute('data-add')) return openScnCount();   // сколько сценариев нужно — окно 1…10
+    else if (b.hasAttribute('data-add')) return openScnCount();
+    else if (b.hasAttribute('data-tok')) return openTok();   // баланс токенов по сервисам   // сколько сценариев нужно — окно 1…10
     else if (b.dataset.sar) {   // меняется только этот сценарий; новые сценарии получат последний выбранный формат
       cl.scn.forEach(x => { x.aspect ||= scnAspect(x); });
       cl.scn[idx(e)].aspect = cl.aspect = b.dataset.sar;
