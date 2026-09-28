@@ -6515,7 +6515,7 @@ async function serStep(j) {
   const c = vc.char(j.char);
   if (!c) return serFail(j, 'персонаж удалён');
   if (j.hub && (j.sentFrames || j.sentVideos)) await hubLink.refresh();   // пачки компьютера — свежие
-  if (j.stage === 'write') return serWrite(j, c);
+  if (j.stage === 'write') return j.retryAt > Date.now() ? null : serWrite(j, c);
   if (j.stage === 'frames') return j.sentFrames ? serFramesWait(j, c) : serFramesSend(j, c);
   if (j.stage === 'video') return j.sentVideos ? serVideoWait(j) : serVideoSend(j, c);
 }
@@ -6534,7 +6534,13 @@ async function serWrite(j, c) {
       frame: j.frames === 'mine' ? c.locs[i] || null : null, alt: []}));
     Object.assign(j, {stage: j.frames === 'mine' ? 'video' : 'frames', by: r.by});
     serNote(j, '');
-  } catch (e) { serFail(j, 'сценарии не написаны: ' + e.message); }
+  } catch (e) {
+    if (e.transient && (j.tries || 0) < 5) {
+      j.tries = (j.tries || 0) + 1;
+      j.retryAt = Date.now() + j.tries * 60000;
+      serNote(j, `${e.message.split(' — ')[0]} — повторю сам через ${j.tries} мин (попытка ${j.tries + 1} из 6)`);
+    } else serFail(j, 'сценарии не написаны: ' + e.message);
+  }
   finally { Object.assign(wr, keep); ser.writing.delete(j.id); }
 }
 // 2. кадры «герой в локации» во Flow — по промпту ассета, с развёрткой героя; вертикально, как видео
@@ -6732,7 +6738,7 @@ function serClick(b) {
   if (b.hasAttribute('data-ser-pause')) { j.paused = !j.paused; ser.save(); renderVoices(); return serKick(); }
   if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
     const miss = j.rows?.filter(r => !r.frame && !r.skip);
-    Object.assign(j, !j.rows?.length ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
+    Object.assign(j, {tries: 0, retryAt: 0}, !j.rows?.length ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
     (j.rows || []).forEach(r => { r.err = null; if (!j.sentVideos) Object.assign(r, {vstate: null, verr: null}); });
     ser.save(); renderVoices(); return serKick();
   }
@@ -7154,27 +7160,34 @@ async function writeClaude(sys, user) {
 }
 async function writeGemini(sys, user) {
   const part = d => { const x = b64(d); return {inline_data: {mime_type: x.mime, data: x.data}}; };
+  const body = JSON.stringify({systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [
+    {text: 'IMAGE 1 — INFOGRAPHIC:'}, part(wr.info), {text: 'IMAGE 2 — CHARACTER TURNAROUND SHEET:'}, part(wr.sheet),
+    ...wr.locs.slice(0, wr.count).flatMap((d, i) => [{text: `IMAGE ${i + 3} — CHARACTER IN LOCATION (scenario ${i + 1}):`}, part(d)]), {text: user}]}],
+    generationConfig: {temperature: 1, maxOutputTokens: 16384, responseMimeType: 'application/json'}});
   let last = '';
   const tried = [];
-  // сначала Pro (пишет лучше), кончился бесплатный лимит Pro — Flash; модели — те, что есть у ключа
-  for (const model of await geminiModels('pro')) {
+  // сразу Flash (пользователь 2026-09-28: «пусть сразу будет Flash, не Pro» — Pro часто перегружен, 503); модели — те, что есть у ключа.
+  // Перегрузка (500/503) — два повтора с паузой, потом следующая модель; нет модели (404) или лимит (429) — сразу следующая
+  for (const model of await geminiModels('flash')) {
     tried.push(model);
-    const r = await timedFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini},
-      body: JSON.stringify({systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [
-        {text: 'IMAGE 1 — INFOGRAPHIC:'}, part(wr.info), {text: 'IMAGE 2 — CHARACTER TURNAROUND SHEET:'}, part(wr.sheet),
-        ...wr.locs.slice(0, wr.count).flatMap((d, i) => [{text: `IMAGE ${i + 3} — CHARACTER IN LOCATION (scenario ${i + 1}):`}, part(d)]), {text: user}]}],
-        generationConfig: {temperature: 1, maxOutputTokens: 16384, responseMimeType: 'application/json'}}),
-    }, 300000);
-    if (r.status === 404 || r.status === 429 || r.status >= 500) { last = r.status === 429 ? 'quota' : `Gemini ${r.status}`; continue; }
+    let r;
+    for (const pause of [2000, 6000, 0]) {
+      r = await timedFetch(`${GEMINI_API}/${model}:generateContent`, {method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini}, body}, 300000);
+      if (r.status < 500 || !pause) break;
+      await new Promise(res => setTimeout(res, pause));
+    }
+    if (r.status === 404 || r.status === 429 || r.status >= 500) { last = r.status === 429 ? 'quota' : r.status >= 500 ? 'busy' : 'Gemini 404'; continue; }
     if (!r.ok) throw await geminiWhy(r);
     const j = await r.json().catch(() => ({}));
     const text = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
     if (text) return {text, by: `Gemini (${model.replace(/^gemini-/, '').replace('-latest', '')})`};
     last = 'Gemini вернул пустой ответ';
   }
-  throw new Error(last === 'quota' ? 'у Gemini закончился бесплатный лимит — попробуйте позже или выберите другой ИИ'
-    : last === 'Gemini 404' ? `у ключа Gemini не нашлось модели для текста (пробовал: ${tried.join(', ')}) — создайте ключ в AI Studio заново` : last);
+  // перегрузка и лимит — временные: «Серия роликов» сама повторит позже
+  if (last === 'busy' || last === 'quota') throw Object.assign(new Error(last === 'busy'
+    ? 'Gemini сейчас перегружен (ошибка 503) — у Google не хватает мощности, попробуйте через несколько минут'
+    : 'у Gemini закончился бесплатный лимит — попробуйте позже или выберите другой ИИ'), {transient: true});
+  throw new Error(last === 'Gemini 404' ? `у ключа Gemini не нашлось модели для текста (пробовал: ${tried.join(', ')}) — создайте ключ в AI Studio заново` : last);
 }
 async function writeGo() {
   if (wr.busy) return;
@@ -7250,7 +7263,7 @@ async function geminiModels(prefer = 'pro', key = wallet.gemini) {
   const list = (geminiList.names || GEMINI_FALLBACK).filter(n => /^gemini-/.test(n) && !/tts|image|embed|audio|live|native|robotics|computer|learnlm|aqa|nano/i.test(n));
   const ver = n => /latest/.test(n) ? 99 : parseFloat((n.match(/^gemini-(\d+(?:\.\d+)?)/) || [0, 0])[1]) || 0;
   const tier = n => /lite/.test(n) ? 0 : /pro/.test(n) ? (prefer === 'pro' ? 2 : 1) : /flash/.test(n) ? (prefer === 'pro' ? 1 : 2) : 0;
-  const score = n => tier(n) * 1000 + ver(n) * 10 - (/preview|exp/.test(n) ? 5 : 0) - (/-\d{3}$|\d{2}-\d{2}$/.test(n) ? 1 : 0);
+  const score = n => tier(n) * 1000 + ver(n) * 10 - (/preview|exp/.test(n) ? 20 : 0) - (/-\d{3}$|\d{2}-\d{2}$/.test(n) ? 1 : 0);   // стабильные — раньше preview: реже перегружены
   return [...new Set(list)].sort((a, b) => score(b) - score(a)).slice(0, 6);
 }
 // отказ Google → понятная причина (пользователь 2026-09-28: «ключ не подошёл», хотя скопирован верно — причину не было видно)
@@ -7381,7 +7394,7 @@ function renderWriteAi() {
       : `<ol class="steps"><li>Откройте <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> и войдите.</li>
           <li>В «Billing» пополните баланс (от $5) — этого хватит на много сценариев.</li><li>«Create Key» → скопируйте ключ (начинается с <code>sk-ant-</code>) и вставьте сюда.</li></ol>
         ${keyRow('claude', 'sk-ant-…')}<div class="hint" style="margin-top:6px">Ключ хранится только в этом браузере и уходит только в Anthropic.</div>`}`,
-    gemini: wallet.gemini ? `✓ Ключ Gemini сохранён. Сначала пишет Gemini Pro, когда его бесплатный лимит кончится — Gemini Flash. <button class="btn small danger" data-wkey-del="gemini">Удалить ключ</button>`
+    gemini: wallet.gemini ? `✓ Ключ Gemini сохранён. Пишет Gemini Flash — быстрый и бесплатный; перегружен — Freefield подождёт и повторит. <button class="btn small danger" data-wkey-del="gemini">Удалить ключ</button>`
       : gemSetup(''),
     chat: 'Задание скопируется в буфер вместе с вашим эталонным промптом. Вставьте его в чат с Gemini, Claude или ChatGPT и приложите картинки — инфографику, развёртку и кадры «персонаж в локации» по порядку (сценарий 1 — первый кадр…). ИИ ответит по вашей структуре: название, Block 1. Photo, Block 2. Video prompt, Block 3. Post caption — каждый блок с кнопкой «копировать».',
   };
