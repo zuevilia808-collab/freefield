@@ -270,6 +270,19 @@ button.vc-item:not(:disabled):hover{border-color:var(--line3)}
 .vc-sheet-row img{width:96px;height:64px;object-fit:contain;border-radius:10px;background:rgba(0,0,0,.35)}
 .vc-en{font:12px/1.55 var(--mono);color:var(--text2);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
 .vc-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.vc-sample{display:flex;gap:8px;align-items:center;margin:8px 0}
+.vc-sample audio{flex:1;min-width:0;height:36px}
+.vc-sample small{color:var(--muted);font-size:11.5px;white-space:nowrap}
+.vc-sample .btn.small{margin-top:0}
+.vc-url{display:flex;gap:6px;margin-top:8px}
+.vc-url .vc-in{padding:7px 11px}
+.vc-url .btn.small{margin-top:0;flex:none}
+.vc-flow{margin-top:8px}
+.vc-manual{margin-top:16px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--panel2)}
+.vc-manual summary{cursor:pointer;font-weight:600;font-size:12.5px}
+.vc-manual ol{margin-top:8px}
+.ext-voice{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.ext-voice audio{flex:1;min-width:160px;height:34px}
 .mv-desc{margin-top:10px;display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--text2);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;line-height:1.45;box-shadow:var(--hl)}
 .mv-desc .ic{width:18px;height:18px;color:var(--free);margin-top:1px}
 .mv-desc b{color:var(--text)}
@@ -1246,6 +1259,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   </div>
 </div>
 <input type="file" id="vcFile" accept="image/*" hidden>
+<input type="file" id="vcAudio" accept="audio/*,video/*" hidden>
 
 <!-- «Видео сервисы» → «💳 Проверить баланс»: какие сервисы проверить и на сколько сценариев хватит -->
 <div class="sheet hidden" id="tokSheet">
@@ -2558,9 +2572,9 @@ async function gradioFnIndex(host, endpoint) {
   return gradioFns[key];
 }
 
-async function gradioUpload(host, blob) {
+async function gradioUpload(host, blob, name = 'frame.jpg') {
   const fd = new FormData();
-  fd.append('files', blob, 'frame.jpg');
+  fd.append('files', blob, name);
   const r = await fetch(host + '/gradio_api/upload', {method: 'POST', body: fd, headers: hfHeaders()});
   if (!r.ok) throw new GpuError(`бесплатный GPU недоступен (${r.status})`, 'down');
   const [path] = await r.json();
@@ -2569,7 +2583,7 @@ async function gradioUpload(host, blob) {
 
 // ставит задачу в очередь Space и читает поток событий: позиция в очереди, прогресс, результат или точная ошибка
 async function gradioCall(host, endpoint, data, onStatus, runMsg = 'GPU генерирует…') {
-  const fn_index = await gradioFnIndex(host, endpoint);
+  const fn_index = typeof endpoint === 'number' ? endpoint : await gradioFnIndex(host, endpoint);   // число — уже найденный fn_index
   const session_hash = Math.random().toString(36).slice(2, 12);
   let r;
   try {
@@ -3210,22 +3224,29 @@ function phoneCardHTML(it, m) {
   const p = it.phone, refs = it.refs || [], video = it.type === 'video', site = SITE_SHORT[p.site] || m.site;
   const set = [p.engine, p.site !== 'arena' && it.aspect, p.count && `×${p.count}`].filter(Boolean).join(' · ');
   const many = p.count > 1 || p.site === 'dola' || p.site === 'arena';   // сайт отдаёт сразу несколько вариантов
+  // персонаж с образцом голоса: в Dola — аудио-референс @Audio1, во Flow — образец голоса (Omni) или сохранённый голос @Имя
+  const ch = video && vc.char(it.char), smp = ch?.sample && ['flow', 'dola'].includes(p.site);
+  const voiceStep = !video || !ch ? '' : p.site === 'flow' && ch.flow?.name ? `<li>Голос: в промпте уже стоит ${ch.flow.kind === 'char' ? '@' + esc(ch.flow.name) : '@Voice: ' + esc(ch.flow.name)} — Flow возьмёт ваш сохранённый ${ch.flow.kind === 'char' ? 'персонаж' : 'голос'}</li>`
+    : smp ? `<li>Голос: сохраните образец (🎧 ниже) и приложите его на сайте ${p.site === 'dola' ? 'аудио-референсом — в промпте он @Audio1' : 'как образец голоса (voice reference)'}</li>` : '';
   return `<div class="card ext" data-id="${it.id}">
     <button class="ext-del" data-act="delete" title="Удалить">✕</button>
     <div class="ext-head"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
       <div><b>${p.of > 1 ? `${p.n}/${p.of} · ` : ''}${esc(site)} · ${video ? 'видео' : 'фото'}</b><div class="hint">${esc(set)}${p.info ? ' · ' + esc(p.info) : ''}</div></div></div>
     <ol class="ext-steps">
       ${refs.length ? `<li>Сохраните фото (💾 ниже) — на сайте приложите ${refs.length > 1 ? 'их' : 'его'} к запросу</li>` : ''}
+      ${voiceStep}
       <li>Нажмите «Скопировать промпт и открыть ${esc(site)}» — ${isConnected(p.site) ? 'вход уже выполнен' : 'войдите в аккаунт (один раз — браузер запомнит)'}</li>
       <li>Выберите <b>${esc(set)}</b>, вставьте промпт (${pwa.mobile() ? 'долгое нажатие → «Вставить»' : 'Ctrl+V'}) и нажмите «Создать»</li>
       <li>Скачайте готов${video ? 'ое видео' : 'ую картинку'} и нажмите «📥 Загрузить файл»${many ? ' — можно сразу все варианты' : ''}</li>
     </ol>
     ${p.site === 'vids' && pwa.mobile() ? '<div class="ext-warn">Google Vids с телефона видео не создаёт — только с компьютера. Попробуйте в меню браузера ⋮ «Версия для ПК» или сделайте этот сценарий во Flow.</div>' : ''}
     ${refs.length ? `<div class="ext-refs">${refs.map((src, k) => `<button data-act="save-ref" data-k="${k}" title="Сохранить это фото"><img src="${src}" alt=""><i>💾</i></button>`).join('')}</div>` : ''}
+    ${smp ? `<div class="ext-voice">🎧 ${esc(ch.name)}<audio controls preload="none" src="${ch.sample}"></audio></div>` : ''}
     <div class="ext-prompt">${esc(it.finalPrompt)}</div>
     <div class="ext-actions">
       <button data-act="open-site" class="primary">↗ Скопировать промпт и открыть ${esc(site)}</button>
       ${refs.length ? '<button data-act="save-refs">💾 Сохранить фото</button>' : '<button data-act="copy">📋 Только промпт</button>'}
+      ${smp ? '<button data-act="save-voice">🎧 Сохранить голос</button>' : ''}
       <button data-act="import">📥 Загрузить файл</button>
     </div>
     ${pwa.mobile() ? '' : autoImportBarHTML()}
@@ -3312,6 +3333,7 @@ function cardHTML(it) {
     <div class="card-ov">
       <div class="card-actions">
         ${it.type === 'image' ? '<button class="act wide" data-act="animate" title="Сделать видео из этой картинки">🎬 Оживить</button>' : ''}
+        ${it.type === 'video' ? '<button class="act" data-act="revoice" title="Заменить голос — на образец голоса персонажа">🎙</button>' : ''}
         <button class="act" data-act="variation" title="Ещё вариант">↻</button>
         <button class="act" data-act="reuse" title="Повторить с этими настройками">✎</button>
         <button class="act" data-act="download" title="Скачать">⤓</button>
@@ -3467,6 +3489,8 @@ async function doAction(act, it, el) {
     }
     case 'save-ref': await saveRefs(it, [it.refs?.[+el?.dataset.k]].filter(Boolean)); break;
     case 'save-refs': await saveRefs(it, it.refs || []); break;
+    case 'save-voice': { const c = vc.char(it.char); if (c?.sample) await saveFile(dataBlob(c.sample), `голос-${c.name}.wav`); break; }
+    case 'revoice': closeLB(); openRevoice(it); break;
     case 'paste-clip':
       try {
         for (const ci of await navigator.clipboard.read()) {
@@ -3604,6 +3628,7 @@ function showLB() {
     ...(it.type === 'video' ? [['Движение', byId(MOTIONS, it.motion).name], ['Длительность', it.duration + ' с']] : []),
     ...(it.res ? [['Качество', it.res]] : []),
     ...(it.style && it.style !== 'none' ? [['Стиль', styleOf(it.style).name]] : []),
+    ...(it.voiceOf ? [['Голос', it.voiceOf]] : []),
     ['Создано', new Date(it.createdAt).toLocaleString('ru-RU', {dateStyle: 'short', timeStyle: 'short'})],
   ];
   $('#lbInfo').innerHTML = `
@@ -3615,6 +3640,7 @@ function showLB() {
       ${it.type === 'image' ? '<button class="primary" data-act="animate">🎬 Оживить в видео</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-scn" title="Сделать сценарий с этим фото: Freefield отправит его в Flow / Arena / Dola">📎 В сценарий</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-asset" title="Взять это фото референсом в «Создание ассетов» — например, развёртку героя">🖼 Референс для ассета</button>' : ''}
+      ${it.type === 'video' ? '<button data-act="revoice" title="Сделать голос ровно как в образце персонажа">🎙 Заменить голос</button>' : ''}
       <button data-act="download">⤓ Скачать</button>
       <button data-act="variation">↻ Вариант</button>
       <button data-act="reuse">✎ Повторить</button>
@@ -5578,6 +5604,17 @@ function withVoice(p, v) {
   }
   return `${String(p).trim().replace(/[.,;\s]+$/, '')}. Voice: ${v.en}`;
 }
+// голос под сайт. Во Flow у персонажа сохранён голос или персонаж — ссылка на него (@Voice: Имя / @Имя) вместо описания:
+// Flow держит один и тот же голос. В Dola с образцом голоса (карточка: файл загружают на сайте) — «голос из @Audio1» + описание
+function voicePrompt(p, v, c, site, sample = false) {
+  if (!v) return p;
+  const flow = site === 'flow' && c?.flow?.name ? (c.flow.kind === 'char' ? '@' + c.flow.name : '@Voice: ' + c.flow.name) : '';
+  const en = flow || (site === 'dola' && sample && c?.sample ? `the exact voice from @Audio1 (${v.en})` : '');
+  if (!en) return withVoice(p, v);
+  // описание, которое вписал ИИ, — заменяем ссылкой
+  const re = new RegExp(v.en.split(/\s+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'i');
+  return re.test(p) ? p.replace(re, () => en) : withVoice(p, {...v, en});
+}
 // чужое описание голоса («deep calm male voice») — долой; реплики в «» и "" не трогаем
 function dropVoice(t) {
   const q = [], safe = String(t).replace(/«[^»]*»|"[^"]*"/g, m => `\u0001${q.push(m) - 1}\u0002`);
@@ -5598,7 +5635,7 @@ function openVoices(view = 'list', o = {}) { Object.assign(vcUi, {view, from: vi
 function vcOpenChar(c, from) {
   // новый персонаж — с развёрткой, которая уже есть и ещё ничья (у сценария или в «Создании сценария»); голос — первый свободный
   const guess = [from === 'pick' && cl.scn[vcUi.i]?.sheet, wr.sheet].find(x => x && !vc.chars.some(y => y.sheet === x)) || null;
-  vcUi.edit = c ? {...c} : {id: null, name: '', sheet: guess, voice: vc.all().find(v => !vc.owner(v.id))?.id || null};
+  vcUi.edit = c ? {...c, flow: c.flow ? {...c.flow} : null} : {id: null, name: '', sheet: guess, voice: vc.all().find(v => !vc.owner(v.id))?.id || null, sample: null, sampleSec: 0, flow: null};
   Object.assign(vcUi, {view: 'char', from});
   vcShow();
 }
@@ -5610,7 +5647,7 @@ function vcBack() {
 const vcThumb = c => c?.sheet ? `<img src="${c.sheet}" alt="">` : '<i class="vc-ph">🧍</i>';
 function vcCharBtn(c, attr, on = false) {
   const v = vc.voice(c.voice);
-  return `<button class="vc-char ${on ? 'on' : ''}" ${attr} title="${esc(v ? v.ru : 'Голос не выбран')}">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(v?.name || 'голос не выбран')}</small></span></button>`;
+  return `<button class="vc-char ${on ? 'on' : ''}" ${attr} title="${esc(v ? v.ru : 'Голос не выбран')}">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(v?.name || 'голос не выбран')}${c.sample ? ' · 🎧 образец' : ''}${c.flow?.name ? ' · Flow' : ''}</small></span></button>`;
 }
 // строка голоса: с attr — кнопка выбора (занятый другим персонажем — недоступен), без — просто строка списка
 function vcItem(v, {on = false, owner = null, attr = '', tools = ''} = {}) {
@@ -5622,9 +5659,9 @@ function renderVoices() {
   const body = $('#vcBody');
   if (!body) return;
   const v = vcUi.view;
-  $('#vcTitle').textContent = v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
+  $('#vcTitle').textContent = v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
-  body.innerHTML = v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+  body.innerHTML = v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
 }
 function vcListHTML() {
   const tools = v => v.custom ? `<button class="vc-tool" data-vf-edit="${v.id}" title="Изменить голос">✎</button><button class="vc-tool" data-vf-del="${v.id}" title="Удалить голос">🗑</button>` : '';
@@ -5642,7 +5679,16 @@ function vcCharHTML() {
       <button class="btn small" data-vc-sheet>📁 ${d.sheet ? 'Другое фото' : 'Загрузить'}</button>
       ${!d.sheet && wr.sheet ? '<button class="btn small" data-vc-sheet-wr>🧍 Из «Создания сценария»</button>' : ''}
       ${d.sheet ? '<button class="btn small" data-vc-sheet-rm>✕ Убрать</button>' : ''}</div></div>
-    <div class="vc-opt"><span>Голос — у каждого персонажа свой: занятые другими выбрать нельзя</span>
+    <div class="vc-opt"><span>🎧 Точный голос — образец 5–15 с чистой речи одного человека, без музыки (необязательно)</span>
+      ${d.sample ? `<div class="vc-sample"><audio controls src="${d.sample}"></audio><small>${d.sampleSec || ''} с</small><button class="btn small" data-vc-sample-rm title="Убрать образец">✕</button></div>` : ''}
+      <button class="btn small" data-vc-sample>📁 ${d.sample ? 'Другой файл' : 'Аудио или видео с голосом'}</button>
+      <div class="vc-url"><input class="vc-in" data-vc-url placeholder="или прямая ссылка на файл .mp3 / .wav / .m4a" inputmode="url"><button class="btn small" data-vc-url-go>Взять</button></div>
+      <div class="hint vc-note">С образцом: у готового видео кнопка «🎙 Заменить голос» сделает голос ровно таким; в карточках для Dola образец уйдёт аудио-референсом (@Audio1).</div></div>
+    <div class="vc-opt"><span>Голос во Flow — один и тот же в каждом ролике Flow (необязательно)</span>
+      <div class="seg">${[['', 'Нет'], ['voice', '@Voice: голос'], ['char', '@Персонаж']].map(([k, t]) => `<button data-vc-flow-kind="${k}" class="${(d.flow?.kind || '') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      ${d.flow?.kind ? `<input class="vc-in vc-flow" data-vc-flow maxlength="40" value="${esc(d.flow.name || '')}" placeholder="${d.flow.kind === 'char' ? 'Имя персонажа во Flow — как сохранили' : 'Имя голоса во Flow — например, свой голос «Дед Иван»'}">
+      <div class="hint vc-note">Во Flow: ${d.flow.kind === 'char' ? 'создайте персонажа с этим лицом и голосом (Add to Character) и сохраните' : 'Add voice → Create new voice (или готовый голос) → сохраните'} под этим именем. В промпт Flow Freefield допишет «${d.flow.kind === 'char' ? '@' + esc(d.flow.name || 'Имя') : '@Voice: ' + esc(d.flow.name || 'Имя')}» вместо описания голоса.</div>` : ''}</div>
+    <div class="vc-opt"><span>Описание голоса — для других моделей и когда нет образца. У каждого персонажа своё: занятые другими выбрать нельзя</span>
       <div class="vc-list">${vc.all().map(v => vcItem(v, {on: d.voice === v.id, owner: vc.owner(v.id, d.id), attr: `data-vc-set="${v.id}"`})).join('')}</div></div>
     <div class="vc-foot"><button class="btn free" data-vc-save>${old ? 'Сохранить' : 'Создать персонажа'}</button><button class="btn" data-vf-new>＋ Свой голос</button>
       ${old ? '<button class="btn danger" data-vc-del>🗑 Удалить</button>' : ''}<button class="btn" data-vc-back>${vcUi.from === 'write' ? 'Отмена' : 'Назад'}</button></div>`;
@@ -5685,7 +5731,8 @@ async function vcSaveChar() {
   if (!vc.voice(d.voice)) return toast('Выберите голос персонажа', {type: 'err'});
   const owner = vc.owner(d.voice, d.id);
   if (owner) return toast(`Этот голос уже у персонажа «${owner.name}» — у каждого свой`, {type: 'err'});
-  const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, voice: d.voice}, i = vc.chars.findIndex(x => x.id === c.id);
+  const flow = d.flow?.kind && d.flow.name?.trim() ? {kind: d.flow.kind, name: d.flow.name.trim().replace(/^@\s*(Voice:\s*)?/i, '')} : null;
+  const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, voice: d.voice, sample: d.sample || null, sampleSec: d.sample ? d.sampleSec : 0, flow}, i = vc.chars.findIndex(x => x.id === c.id);
   const oldSheet = i >= 0 ? vc.chars[i].sheet : null;
   if (i >= 0) vc.chars[i] = c; else vc.chars.push(c);
   await vc.saveChars();
@@ -5768,12 +5815,48 @@ function bindVoices() {
     if (x.vcPickChar) return vcAssign(vcUi.i, vc.char(x.vcPickChar));
     if (x.vcPickVoice) return vcAssign(vcUi.i, null, vc.voice(x.vcPickVoice));
     if (b.hasAttribute('data-vc-pick-none')) return vcAssign(vcUi.i);
+    // точный голос персонажа: образец из файла или по ссылке, голос во Flow
+    if (b.hasAttribute('data-vc-sample')) { vcUi.audioFor = 'sample'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
+    if (b.hasAttribute('data-vc-sample-rm')) { d.sample = null; d.sampleSec = 0; return renderVoices(); }
+    if (b.hasAttribute('data-vc-url-go')) {
+      const url = $('#vcBody [data-vc-url]')?.value.trim();
+      if (!url) return toast('Вставьте ссылку на аудиофайл', {type: 'err'});
+      b.disabled = true; b.textContent = '…';
+      return voiceSampleUrl(url).then(r => { Object.assign(d, {sample: r.data, sampleSec: r.sec}); toast(`Образец голоса: ${r.sec} с`, {type: 'ok'}); },
+        e => toast('Не получилось: ' + e.message, {type: 'err', ms: 8000})).finally(renderVoices);
+    }
+    if (x.vcFlowKind != null) { d.flow = x.vcFlowKind ? {kind: x.vcFlowKind, name: d.flow?.name || d.name || ''} : null; return renderVoices(); }
+    // замена голоса у готового видео
+    if (x.rvChar) { Object.assign(vcUi, {rvChar: x.rvChar, rvFile: null}); return renderVoices(); }
+    if (b.hasAttribute('data-rv-file')) { vcUi.audioFor = 'rv'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
+    if (b.hasAttribute('data-rv-go')) return revoiceGo();
+    if (b.hasAttribute('data-rv-upload')) { vcUi.audioFor = 'rv-upload'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
+    if (b.hasAttribute('data-rv-save-ref')) { const smp = rvSample(); return smp && saveFile(dataBlob(smp), `голос-${rvWho() || 'образец'}.wav`); }
+    if (b.hasAttribute('data-rv-save-src')) {
+      const it = rvItem();
+      if (!it) return;
+      return decodeAudio(it.blob).then(ab => audioMono(ab, 44100)).then(ab => saveFile(wavBlob(ab), `звук-${it.id}.wav`), e => toast('Не получилось: ' + e.message, {type: 'err'}));
+    }
   });
   box.addEventListener('input', e => {
     const t = e.target;
     if (t.matches('[data-vc-name]')) vcUi.edit.name = t.value;
     else if (t.matches('[data-vf-name]')) vcUi.form.name = t.value;
     else if (t.matches('[data-vf-extra]')) { vcUi.form.extra = t.value; $('#vcEn').textContent = vfEn(vcUi.form); }
+    else if (t.matches('[data-vc-flow]') && vcUi.edit?.flow) vcUi.edit.flow.name = t.value;
+  });
+  // аудио: образец голоса персонажа, образец для замены голоса или готовый новый звук ролика
+  $('#vcAudio').addEventListener('change', async e => {
+    const file = e.target.files[0], to = vcUi.audioFor;
+    if (!file) return;
+    if (to === 'rv-upload') return revoiceUpload(file);
+    try {
+      const r = await voiceSample(file);
+      if (to === 'rv') vcUi.rvFile = r.data;
+      else if (vcUi.edit) Object.assign(vcUi.edit, {sample: r.data, sampleSec: r.sec});
+      toast(`Образец голоса: ${r.sec} с`, {type: 'ok'});
+    } catch (err) { toast('Не получилось: ' + err.message, {type: 'err', ms: 8000}); }
+    renderVoices();
   });
   box.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-vc-name]')) { e.preventDefault(); vcSaveChar(); } });
   $('#vcFile').addEventListener('change', async e => {
@@ -5782,6 +5865,203 @@ function bindVoices() {
     try { vcUi.edit.sheet = await refDataUrl(file); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
     renderVoices();
   });
+}
+
+/* ---- Точный голос: образец голоса у персонажа и замена голоса в готовом видео ---- */
+// Пользователь 2026-09-28: один и тот же голос во всех роликах. По описанию разные модели звучат по-разному, поэтому:
+// • у персонажа — образец голоса (файл 5–15 с) и имя его голоса или персонажа, сохранённого во Flow (@Voice: Имя / @Имя —
+//   Flow держит один и тот же голос); в Dola образец загружается аудио-референсом (@Audio1);
+// • «🎙 Заменить голос» у готового видео: Seed-VC (открытая модель на Hugging Face, бесплатно в пределах лимита GPU)
+//   переделывает голос ролика под образец — слова, интонации и тайминг остаются, поэтому губы совпадают.
+const VC_SAMPLE_SEC = 15;   // столько берёт Seedance (Dola); Seed-VC хватает 1–30 с
+let audioCtx = null;
+const actx = () => audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+const blobDataUrl = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+async function decodeAudio(blob) {
+  try { return await actx().decodeAudioData(await blob.arrayBuffer()); }
+  catch { throw new Error('не удалось прочитать звук — нужен mp3, wav, m4a или видео со звуком'); }
+}
+// AudioBuffer → моно с нужной частотой, кусок [from, from + sec]
+async function audioMono(ab, rate, from = 0, sec = ab.duration - from) {
+  const len = Math.max(1, Math.round(Math.max(0, Math.min(sec, ab.duration - from)) * rate));
+  const off = new OfflineAudioContext(1, len, rate), src = off.createBufferSource();
+  src.buffer = ab; src.connect(off.destination); src.start(0, from);
+  return off.startRendering();
+}
+function wavBlob(ab) {
+  const n = ab.length, rate = ab.sampleRate, v = new DataView(new ArrayBuffer(44 + n * 2)), d = ab.getChannelData(0);
+  const str = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) { const x = Math.max(-1, Math.min(1, d[i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); }
+  return new Blob([v], {type: 'audio/wav'});
+}
+// файл (аудио или видео) → образец голоса: тишину в начале срезаем, до 15 с, моно 24 кГц WAV — его примут и Flow, и Dola, и Seed-VC
+async function voiceSample(blob) {
+  const mono = await audioMono(await decodeAudio(blob), 24000), d = mono.getChannelData(0);
+  let i = 0;
+  while (i < d.length && Math.abs(d[i]) < 0.02) i++;
+  if (i >= d.length) throw new Error('в файле не слышно голоса');
+  const from = Math.max(0, i / 24000 - 0.2), sec = Math.min(VC_SAMPLE_SEC, mono.duration - from);
+  if (sec < 3) throw new Error('образец слишком короткий — нужно 5–15 секунд речи');
+  return {data: await blobDataUrl(wavBlob(await audioMono(mono, 24000, from, sec))), sec: Math.round(sec)};
+}
+// образец по ссылке: только прямая ссылка на файл — страницы (YouTube, соцсети) браузер не скачает
+async function voiceSampleUrl(url) {
+  if (!/^https?:\/\//i.test(url)) throw new Error('вставьте ссылку, начинающуюся с https://');
+  if (/youtu\.?be|tiktok|instagram|vk\.com|t\.me|drive\.google/i.test(url)) throw new Error('это ссылка на страницу, а не на файл — скачайте 10–15 с речи и загрузите файлом');
+  let r;
+  try { r = await fetch(url); } catch { throw new Error('сайт не отдаёт файл другим сайтам — скачайте его и загрузите файлом'); }
+  if (!r.ok) throw new Error(`по ссылке ошибка ${r.status}`);
+  const b = await r.blob();
+  if (/text\/html/i.test(b.type)) throw new Error('по ссылке страница, а не аудиофайл — скачайте файл и загрузите его');
+  return voiceSample(b);
+}
+// сохранить файл: в APK — «Документы/Freefield», на iPhone — «Поделиться», в остальных — «Загрузки»
+async function saveFile(blob, name) {
+  if (native.on()) { try { await native.save(blob, name); } catch (e) { toast('Не удалось сохранить: ' + e.message, {type: 'err'}); } return; }
+  const f = new File([blob], name, {type: blob.type});
+  if (pwa.ios() && navigator.canShare?.({files: [f]})) return navigator.share({files: [f]}).catch(() => {});
+  const a = document.createElement('a'), url = URL.createObjectURL(f);
+  a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  toast(`Сохранено в «Загрузки»: ${name}`, {type: 'ok'});
+}
+const dataBlob = d => { const f = dataUrlFile(d, 'x'); return new Blob([f], {type: f.type}); };
+
+// Seed-VC на Hugging Face: функцию с двумя аудио-входами (исходник и образец) находим по /config — так переживём смену API
+const SEED_VC = ['https://plachta-seed-vc.hf.space', 'https://sp2026-seed-vc.hf.space'];
+async function seedVcFn(host) {
+  let r;
+  try { r = await fetch(host + '/config'); } catch { throw new GpuError('нет связи с Seed-VC', 'down'); }
+  if (!r.ok) throw new GpuError(`Seed-VC сейчас недоступен (${r.status})`, 'down');
+  const cfg = await r.json(), comp = new Map((cfg.components || []).map(c => [c.id, c])), deps = cfg.dependencies || [];
+  const i = deps.findIndex(d => d.api_name && (d.inputs || []).filter(id => comp.get(id)?.type === 'audio').length >= 2);
+  if (i < 0) throw new GpuError('Seed-VC изменил API', 'down');
+  return {fn: deps[i].id ?? i, inputs: deps[i].inputs.map(id => comp.get(id) || {})};
+}
+const gradioUrl = (x, host) => !x ? null : Array.isArray(x) ? x.map(y => gradioUrl(y, host)).filter(Boolean).pop()
+  : typeof x !== 'object' ? null : x.url ? (x.url.startsWith('/') ? host + x.url : x.url) : Object.values(x).map(y => gradioUrl(y, host)).filter(Boolean).pop();
+async function seedVc(src, ref, onStatus) {
+  let last;
+  for (const host of SEED_VC) {
+    try {
+      const {fn, inputs} = await seedVcFn(host);
+      onStatus('Загружаю звук на GPU…');
+      const [a, b] = [await gradioUpload(host, src, 'source.wav'), await gradioUpload(host, ref, 'reference.wav')];
+      let k = 0;
+      // остальные входы — по умолчанию; шагов диффузии побольше (30): качество голоса лучше
+      const data = inputs.map(c => c.type === 'audio' ? [a, b][k++] ?? null
+        : c.type === 'slider' && /diffusion/i.test(c.props?.label || '') ? Math.min(c.props.maximum ?? 30, 30) : c.props?.value ?? null);
+      const out = await gradioCall(host, fn, data, onStatus, 'GPU меняет голос…');
+      const url = [...out].reverse().map(x => gradioUrl(x, host)).find(Boolean);
+      if (!url) throw new GpuError('Seed-VC не вернул звук', 'busy');
+      onStatus('Скачиваю звук…');
+      const r = await fetch(url);
+      if (!r.ok) throw new GpuError('не удалось скачать звук', 'busy');
+      return r.blob();
+    } catch (e) { last = e; if (e.kind !== 'down') throw e; }   // сервер лёг или сменил API — пробуем зеркало
+  }
+  throw last;
+}
+
+// ролик + новый звук → MP4: видео копируется как есть (без пережатия), звук кодируется заново (AAC, где его нет — Opus)
+const MEDIABUNNY = 'https://cdn.jsdelivr.net/npm/mediabunny@1.60.0/dist/bundles/mediabunny.min.mjs';
+let mbLoad = null;
+const mediabunny = () => mbLoad ||= import(MEDIABUNNY).catch(e => { mbLoad = null; throw new Error('не загрузилась библиотека видео — проверьте интернет'); });
+async function muxVoice(videoBlob, audio) {
+  const MB = await mediabunny();
+  const input = new MB.Input({source: new MB.BlobSource(videoBlob), formats: MB.ALL_FORMATS});
+  const vt = await input.getPrimaryVideoTrack();
+  if (!vt) throw new Error('в файле нет видео');
+  const sound = await audioMono(audio, 48000, 0, await vt.computeDuration());
+  const codec = await MB.canEncodeAudio('aac', {numberOfChannels: 1, sampleRate: 48000}) ? 'aac' : 'opus';
+  if (codec === 'opus' && !await MB.canEncodeAudio('opus', {numberOfChannels: 1, sampleRate: 48000})) throw new Error('браузер не умеет кодировать звук — обновите Chrome');
+  const output = new MB.Output({format: new MB.Mp4OutputFormat({fastStart: 'in-memory'}), target: new MB.BufferTarget()});
+  const vs = new MB.EncodedVideoPacketSource(vt.codec), as = new MB.AudioBufferSource({codec, bitrate: MB.QUALITY_HIGH});
+  output.addVideoTrack(vs, {rotation: vt.rotation});
+  output.addAudioTrack(as);
+  await output.start();
+  const decoderConfig = await vt.getDecoderConfig();
+  let first = true;
+  for await (const p of new MB.EncodedPacketSink(vt).packets()) { await vs.add(p, first ? {decoderConfig} : undefined); first = false; }
+  vs.close();
+  await as.add(sound);
+  as.close();
+  await output.finalize();
+  return new Blob([output.target.buffer], {type: 'video/mp4'});
+}
+// готовый ролик с новым звуком — новой работой в галерее рядом с исходным (исходный остаётся)
+async function revoiceSave(it, audio, who) {
+  const blob = await muxVoice(it.blob, audio);
+  const copy = newItem({...pick(it), blob, status: 'done', statusText: '', voiceOf: who});
+  await DB.put(copy);
+  render();
+  return copy;
+}
+
+// окно «🎙 Заменить голос» (то же окно, что у персонажей: вид revoice)
+function openRevoice(it) {
+  const withSample = vc.chars.filter(c => c.sample);
+  Object.assign(vcUi, {view: 'revoice', from: 'revoice', item: it.id, rvChar: vc.char(it.char)?.sample ? it.char : withSample[0]?.id || null, rvFile: null, rvNote: ''});
+  vcShow();
+}
+const rvItem = () => items.find(x => x.id === vcUi.item);
+const rvSample = () => vcUi.rvFile || vc.char(vcUi.rvChar)?.sample || null;
+const rvWho = () => vcUi.rvFile ? 'образец из файла' : vc.char(vcUi.rvChar)?.name || '';
+function vcRevoiceHTML() {
+  const it = rvItem(), smp = rvSample();
+  if (!it) return '<p class="set-p">Ролик не найден — он удалён из галереи.</p>';
+  const chars = vc.chars.filter(c => c.sample);
+  return `<p class="set-p">Слова, интонации и движения губ останутся — голос станет как в образце. Фоновые звуки и музыка ролика при замене пропадут, останется голос.</p>
+    <div class="cl-sec" style="margin-top:0">🎭 Чей голос</div>
+    <div class="vc-chars">${chars.map(c => vcCharBtn(c, `data-rv-char="${c.id}"`, !vcUi.rvFile && vcUi.rvChar === c.id)).join('')}
+      <button class="vc-char add ${vcUi.rvFile ? 'on' : ''}" data-rv-file>📁 ${vcUi.rvFile ? 'Образец из файла ✓' : 'Другой файл'}</button></div>
+    ${chars.length ? '' : '<p class="hint vc-note">Образец голоса можно сохранить у персонажа (🎙 → персонаж → «Точный голос») — тогда он будет здесь всегда.</p>'}
+    ${smp ? `<div class="vc-sample"><audio controls src="${smp}"></audio></div>` : ''}
+    <div class="vc-foot"><button class="btn free" data-rv-go ${smp && !vcUi.busy ? '' : 'disabled'}>✨ Заменить голос — бесплатно</button></div>
+    <div class="hint vc-note" id="rvNote">${vcUi.busy ? '⏳ ' + esc(vcUi.rvNote) : 'Seed-VC на Hugging Face, в пределах бесплатного лимита GPU (с токеном Hugging Face в «Лимитах» — больше). Ролик на 10 с — около минуты. Новый ролик появится в галерее рядом с исходным.'}</div>
+    <details class="vc-manual"><summary>Вручную — если автоматически не вышло</summary><ol class="ext-steps">
+      <li>Сохраните звук ролика и образец: <button class="wr-link" data-rv-save-src>💾 звук ролика</button> · <button class="wr-link" data-rv-save-ref ${smp ? '' : 'disabled'}>💾 образец</button></li>
+      <li>Откройте <a href="https://huggingface.co/spaces/Plachta/Seed-VC" target="_blank" rel="noopener">Seed-VC</a> (бесплатно) или ElevenLabs → Voice Changer: звук ролика — в «Source», образец — в «Reference», и скачайте результат</li>
+      <li><button class="wr-link" data-rv-upload>📥 Загрузите новый звук</button> — Freefield вставит его в ролик</li></ol></details>`;
+}
+function rvStatus(t) {
+  vcUi.rvNote = t;
+  const el = $('#rvNote');
+  if (el) el.textContent = '⏳ ' + t;
+}
+// замена голоса: звук ролика → Seed-VC с образцом → новый звук в ролик
+async function revoiceGo() {
+  const it = rvItem(), smp = rvSample(), who = rvWho();
+  if (!it || !smp || vcUi.busy) return;
+  vcUi.busy = true; renderVoices();
+  try {
+    rvStatus('Достаю звук из ролика…');
+    const src = wavBlob(await audioMono(await decodeAudio(it.blob), 24000));
+    const out = await seedVc(src, dataBlob(smp), rvStatus);
+    rvStatus('Собираю ролик с новым голосом…');
+    await revoiceSave(it, await decodeAudio(out), who);
+    toast(`Готово: ролик с голосом «${who}» — в галерее 🎉`, {type: 'ok', ms: 7000});
+    if (!$('#voiceSheet').classList.contains('hidden') && vcUi.view === 'revoice') closeSheets();
+  } catch (e) {
+    toast('Голос не заменён: ' + e.message + (e.kind === 'quota' ? '. Можно вручную — раздел «Вручную» в этом окне' : ''), {type: 'err', ms: 10000});
+  }
+  vcUi.busy = false; vcUi.rvNote = '';
+  if (vcUi.view === 'revoice') renderVoices();
+}
+// вручную: новый звук (с сайта Seed-VC, ElevenLabs…) — в ролик
+async function revoiceUpload(file) {
+  const it = rvItem();
+  if (!it || !file) return;
+  vcUi.busy = true; renderVoices(); rvStatus('Собираю ролик с новым голосом…');
+  try {
+    await revoiceSave(it, await decodeAudio(file), rvWho() || 'новый звук');
+    toast('Готово: ролик с новым звуком — в галерее 🎉', {type: 'ok'});
+    closeSheets();
+  } catch (e) { toast('Не получилось: ' + e.message, {type: 'err', ms: 8000}); }
+  vcUi.busy = false; vcUi.rvNote = '';
+  if (vcUi.view === 'revoice') renderVoices();
 }
 
 /* ---- «Создание сценария»: ИИ пишет сценарии рилсов по инфографике (о чём ролик) и развёртке героя (как он выглядит) ---- */
@@ -6349,15 +6629,18 @@ async function clCopy() {
 }
 
 // сценарии → задания (одни и те же для компьютера и для карточек «на телефоне»)
-async function clTasks(list) {
-  let out = list.map(s => ({prompt: s.prompt.trim(), kind: s.kind, service: s.service, aspect_ratio: scnAspect(s), seconds: s.kind === 'video' ? cl.seconds : undefined, model: s.service !== 'auto' ? s.model || undefined : undefined, image: s.ref || undefined, sheet: s.sheet || undefined, fixed: s.fixed, style: s.style, camera: s.kind === 'video' ? s.camera : undefined, voice: s.kind === 'video' ? scnVoice(s) : null}));
+async function clTasks(list, phone = false) {
+  const plan = clPlan(list);
+  let out = list.map((s, i) => ({site: plan[i].site, char: s.kind === 'video' ? vc.char(s.char) : null, prompt: s.prompt.trim(), kind: s.kind, service: s.service, aspect_ratio: scnAspect(s), seconds: s.kind === 'video' ? cl.seconds : undefined, model: s.service !== 'auto' ? s.model || undefined : undefined, image: s.ref || undefined, sheet: s.sheet || undefined, fixed: s.fixed, style: s.style, camera: s.kind === 'video' ? s.camera : undefined, voice: s.kind === 'video' ? scnVoice(s) : null}));
   // промпты не «улучшаем» (переключатель убран по просьбе пользователя) — только переводим русское на английский как есть;
   // готовые промпты из «Создания сценария» не трогаем, в эталонном (блочном) — переводим по блокам, реплики в «» остаются
   out = await Promise.all(out.map(async s => {
     if (s.fixed || !/[а-яё]/i.test(s.prompt)) return s;
     try { return {...s, prompt: isBlockPrompt(s.prompt) ? await translateBlocks(s.prompt) : await translateKeepQuotes(s.prompt)}; } catch { return s; }
   }));
-  return out.map(({fixed, style, camera, voice, ...s}) => ({...s, prompt: composePrompt(withVoice(withCamera(s.prompt, camera), voice), style ?? state.style, s.kind)}));   // у сценария может быть свой стиль и голос
+  // у сценария может быть свой стиль и голос; char — только для карточек (образец голоса), компьютеру не нужен
+  return out.map(({fixed, style, camera, voice, site, char, ...s}) => ({...s, ...(phone && char && {char: char.id}),
+    prompt: composePrompt(voicePrompt(withCamera(s.prompt, camera), voice, char, site, phone), style ?? state.style, s.kind)}));
 }
 
 async function clSend() {
@@ -6399,6 +6682,7 @@ function phoneCards(tasks) {
     const it = newItem({type: kind, status: 'external', statusText: '', prompt: t.prompt, userPrompt: t.prompt, finalPrompt: prompt,
       aspect: ar, w: r >= 1 ? 1024 : Math.round(1024 * r), h: r >= 1 ? Math.round(1024 / r) : 1024, seed: 0, cost: 0,
       source: t.images?.length ? 'image' : 'text', refs: t.images || [], ...modelFields(m),
+      ...(t.char && {char: t.char}),
       phone: {site, engine: sm ? sm[2] : m.engine, info: sm ? sm[3] : '', count: t.count > 1 ? t.count : 0, n: i + 1, of: tasks.length}});
     DB.put(it);
   });
@@ -6417,7 +6701,7 @@ async function scnPhone() {
   cl.sending = true;
   updateGenButton();
   try {
-    const plan = clPlan(list), out = await clTasks(list);
+    const plan = clPlan(list), out = await clTasks(list, true);
     // Flow и Vids берут оба фото («ингредиенты»), Dola и Arena — только первое
     phoneCards(out.map(({image, sheet, ...t}, i) => ({...t, service: plan[i].site, model: plan[i].model,
       images: [image, sheet].filter(Boolean).slice(0, ['flow', 'vids'].includes(plan[i].site) ? 2 : 1)})));
