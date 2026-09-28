@@ -229,6 +229,47 @@ a{color:var(--free);text-underline-offset:3px}
 #camSheet .sheet-head .hint{margin-left:4px}
 #camSheet .mv-groups{margin:0 -20px 12px;padding:2px 20px 4px}
 #camSheet .motion-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
+/* 🎙 персонажи и голоса: у каждого персонажа — свой голос (описание для видео-модели) */
+#voiceSheet .sheet-head .hint{margin-left:4px}
+.vc-chars{display:flex;gap:6px;flex-wrap:wrap}
+.vc-char{display:flex;align-items:center;gap:9px;min-width:0;max-width:100%;padding:5px 12px 5px 5px;border-radius:14px;background:var(--card);border:1px solid var(--line);text-align:left;transition:border-color .2s,transform .3s var(--spring),box-shadow .2s}
+.vc-char:hover{border-color:var(--line3);transform:translateY(-1px)}
+.vc-char.on{border-color:rgba(212,255,58,.7);box-shadow:0 0 0 1px rgba(212,255,58,.5) inset,0 10px 24px -14px rgba(212,255,58,.5)}
+.vc-char img,.vc-char .vc-ph{width:40px;height:40px;border-radius:10px;object-fit:cover;background:rgba(0,0,0,.35);flex:none;display:grid;place-items:center;color:var(--muted)}
+.vc-char span{display:grid;min-width:0}
+.vc-char b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-char small{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+.vc-char small .ic{width:12px;height:12px;flex:none}
+.vc-char.add{min-height:52px;padding:0 14px;border-style:dashed;color:var(--muted);font-weight:600;font-size:12.5px;gap:6px}
+.vc-char.add .ic{width:15px;height:15px}
+.vc-note{margin-top:7px}
+.vc-list{display:grid;gap:6px}
+.vc-row{display:flex;gap:6px;align-items:stretch}
+.vc-item{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:13px;background:var(--card);border:1px solid var(--line);text-align:left;transition:border-color .2s}
+button.vc-item:not(:disabled):hover{border-color:var(--line3)}
+.vc-item.on{border-color:rgba(212,255,58,.7);box-shadow:0 0 0 1px rgba(212,255,58,.5) inset}
+.vc-item:disabled{opacity:.45}
+.vc-item>span{display:grid;min-width:0;flex:1}
+.vc-item b{font-size:13px}
+.vc-item small{font-size:11.5px;color:var(--muted);line-height:1.35}
+.vc-item em{font-style:normal;font-size:11px;font-weight:700;color:var(--paid);white-space:nowrap}
+.vc-item em.ok{color:var(--free)}
+.vc-g{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;font:800 12px var(--display);font-style:normal;background:rgba(108,182,255,.14);color:var(--info)}
+.vc-g.g-f{background:rgba(160,143,255,.16);color:var(--violet)}
+.vc-g.g-k{background:var(--free-a);color:var(--free)}
+.vc-tool{width:38px;flex:none;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);display:grid;place-items:center}
+.vc-tool:hover{color:var(--text);border-color:var(--line3)}
+.vc-tool .ic{width:15px;height:15px}
+.vc-opt{margin-top:14px}
+.vc-opt:first-child{margin-top:0}
+.vc-opt>span{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.vc-opt .btn.small{margin-top:0}
+.vc-in{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text);font:13px/1.5 var(--font);outline:0;transition:border-color .2s,box-shadow .2s}
+.vc-in:focus{border-color:rgba(212,255,58,.45);box-shadow:0 0 0 3px rgba(212,255,58,.08)}
+.vc-sheet-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vc-sheet-row img{width:96px;height:64px;object-fit:contain;border-radius:10px;background:rgba(0,0,0,.35)}
+.vc-en{font:12px/1.55 var(--mono);color:var(--text2);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.vc-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:18px}
 .mv-desc{margin-top:10px;display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--text2);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;line-height:1.45;box-shadow:var(--hl)}
 .mv-desc .ic{width:18px;height:18px;color:var(--free);margin-top:1px}
 .mv-desc b{color:var(--text)}
@@ -950,6 +991,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></symbol>
 <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7.5 7H5a2.5 2.5 0 0 0-2.5 2.5v8A2.5 2.5 0 0 0 5 20h14a2.5 2.5 0 0 0 2.5-2.5v-8A2.5 2.5 0 0 0 19 7h-2.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
 <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 5 6 9H2.5v6H6l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9.2 9.2 0 0 1 0 13"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5M8.5 21.5h7"/></symbol>
 <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2.8 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4L12 17.4l-5.7 3 1.1-6.4-4.6-4.5 6.4-.9z"/></symbol>
 <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></symbol>
 <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1.2"/><rect x="14" y="4.5" width="4" height="15" rx="1.2"/></symbol>
@@ -1196,6 +1238,15 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   </div>
 </div>
 
+<!-- персонажи и голоса: у каждого персонажа — развёртка и свой голос; голос уходит в промпт видео (строка «Spoken line») -->
+<div class="sheet hidden" id="voiceSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2 id="vcTitle">Персонажи и голоса</h2><span class="hint" id="vcFor"></span><button class="icon-btn" data-close title="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body" id="vcBody"></div>
+  </div>
+</div>
+<input type="file" id="vcFile" accept="image/*" hidden>
+
 <!-- «Видео сервисы» → «💳 Проверить баланс»: какие сервисы проверить и на сколько сценариев хватит -->
 <div class="sheet hidden" id="tokSheet">
   <div class="sheet-panel">
@@ -1360,7 +1411,7 @@ const ICON_OF = {
   '👤': 'user', '🧑‍💻': 'users', '📍': ['pin', 'c-lime'], '🧍': 'sheet', '🔌': 'plug', '💻': 'laptop', '🎲': 'dice', '⛔': ['ban', 'c-danger'], '📊': 'chart',
   '✅': ['check-circle', 'c-ok'], '❌': ['x-circle', 'c-danger'], '⏱': 'timer', '🎉': ['party', 'c-lime'], '📂': 'folder', '📁': 'folder', '📥': 'inbox',
   '🗑': 'trash', '🔗': 'link', '↪': 'reroute', '🪟': 'window', '✳': 'asterisk', '⚙': 'settings', '🤗': 'smile', '💎': 'gem', '♾': 'infinity', '🐢': 'clock',
-  '🗓': 'calendar', '📷': 'camera', '🔊': 'volume', '⭐': ['star', 'c-lime'], '▶': 'play', '⏸': 'pause', '💡': ['bulb', 'c-warn'], '🚀': 'rocket', '↔': 'arrows-h',
+  '🗓': 'calendar', '📷': 'camera', '🔊': 'volume', '🎙': 'mic', '🎭': 'users', '⭐': ['star', 'c-lime'], '▶': 'play', '⏸': 'pause', '💡': ['bulb', 'c-warn'], '🚀': 'rocket', '↔': 'arrows-h',
   '🤖': 'bot', '💬': 'chat', '📐': 'ruler', '⬆': 'share', '📦': 'package', '✕': 'x', '＋': 'plus', '✓': 'check', '⤓': 'download', '✦': 'sparkle', '▦': 'grid',
 };
 const ICON_SRC = '(' + Object.keys(ICON_OF).sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?';
@@ -4131,6 +4182,7 @@ function bindControls() {
   bindAsset();
   bindTok();
   bindWrite();
+  bindVoices();
   $('#quickSvc').addEventListener('click', e => {
     if (e.target.closest('[data-open-hub]')) return openHub();
     const c = e.target.closest('[data-model]');
@@ -4362,7 +4414,7 @@ const blankScn = () => ({prompt: '', kind: 'video', service: 'auto'});   // фо
 const scnEmpty = x => !String(x.prompt || '').trim() && !x.ref;
 // «＋ Сценарий»: новый — с настройками последнего (видео/фото, сервис и модель, формат, стиль, развёртка), текст и кадр — свои
 const scnLike = s => s ? {...blankScn(), kind: s.kind, service: s.service, ...(s.model && {model: s.model}), aspect: scnAspect(s),
-  ...(s.style != null && {style: s.style}), ...(s.camera && {camera: s.camera}), ...(s.sheet && {sheet: s.sheet})} : blankScn();
+  ...(s.style != null && {style: s.style}), ...(s.camera && {camera: s.camera}), ...(s.sheet && {sheet: s.sheet}), ...(s.char && {char: s.char}), ...(s.voice && {voice: s.voice})} : blankScn();
 // раздел «Видео сервисы» открывается с одним сценарием: лишние пустые убираем, заполненные остаются
 const scnTrim = list => { const keep = list.filter(x => !scnEmpty(x)); return keep.length ? keep : [list[0] || blankScn()]; };
 const cl = {
@@ -4811,6 +4863,7 @@ function renderScn() {
         <div class="scn-opts"><div class="seg"><button data-kind="video" class="${s.kind === 'video' ? 'on' : ''}">🎬 Видео</button><button data-kind="image" class="${s.kind === 'image' ? 'on' : ''}">🖼 Фото</button></div>
         <button class="scn-style ${s.style != null ? 'has' : ''} ${cl.sel === i ? 'on' : ''}" data-style-pick title="${cl.sel === i ? 'Снять выбор' : 'Выбрать этот сценарий и назначить ему стиль в сетке «Стиль» ниже'}">🎨 ${s.style != null ? esc(styleOf(s.style).name) : 'Стиль'}</button>
         ${s.kind === 'video' ? `<button class="scn-style ${s.camera ? 'has' : ''}" data-cam-pick title="Движение камеры — допишется в промпт видео, в строку «Camera & framing»">🎥 ${s.camera ? esc(byId(MOTIONS, s.camera).name) : 'Камера'}</button>` : ''}
+        ${s.kind === 'video' ? `<button class="scn-style ${scnVoice(s) ? 'has' : ''}" data-voice-pick title="${esc(scnVoice(s) ? `Голос: ${scnVoice(s).name} — ${scnVoice(s).ru}` : 'Кто говорит: персонаж и его голос — впишется в промпт видео, в строку «Spoken line»')}">🎙 ${esc(scnVoiceLabel(s))}</button>` : ''}
         <select data-sm aria-label="Сервис и модель">${scnSelectHTML(s)}</select></div>
         <div class="scn-tools"><button class="scn-rm" data-copy-one title="Скопировать промпт этого сценария">📋</button>
         ${cl.scn.length > 1 ? '<button class="scn-rm" data-rm title="Убрать сценарий">✕</button>' : ''}</div></div>
@@ -5436,6 +5489,301 @@ function bindAsset() {
   });
 }
 
+/* ---- Голоса персонажей: у каждого персонажа (имя, развёртка) — свой голос ---- */
+// Пользователь 2026-09-28: в рилсах — выбранный голос, у каждого персонажа свой. Flow (Veo, Omni), Vids, Dola (Seedance)
+// и Arena делают звук сами — по тексту промпта, своего аудио они не принимают. Поэтому голос — это точное описание
+// (кто говорит, высота, тембр, подача, темп): одно и то же описание в каждом ролике — и персонаж звучит узнаваемо.
+// Описание уходит в строку «Spoken line» эталона (в обычный промпт — в конец). Голос, взятый одним персонажем, другому не дают.
+const VOICE_PRESETS = [
+  {id: 'm-baritone', g: 'm', name: 'Бархатный баритон', ru: 'мужчина ~40 · тёплый, уверенный, неспешный', en: 'a man in his 40s with a warm, velvety baritone voice, confident and friendly, unhurried pace, clear diction'},
+  {id: 'm-bass', g: 'm', name: 'Глубокий бас', ru: 'мужчина ~50 · низкий, раскатистый, спокойный, весомый', en: 'a man in his 50s with a deep, resonant bass voice, calm and authoritative, slow measured pace'},
+  {id: 'm-husky', g: 'm', name: 'Мужской с хрипотцой', ru: 'мужчина ~35 · низкий, с хрипотцой, расслабленный, чуть ироничный', en: 'a man in his mid-30s with a low, slightly husky, raspy voice, relaxed and a little ironic, medium pace'},
+  {id: 'm-young', g: 'm', name: 'Молодой энергичный', ru: 'парень ~22 · звонкий, бодрый, быстрый', en: 'a young man in his early 20s with a bright, energetic tenor voice, upbeat and lively, fast pace'},
+  {id: 'm-soft', g: 'm', name: 'Мягкий доверительный', ru: 'мужчина ~30 · мягкий, тёплый, говорит почти по секрету', en: 'a man in his 30s with a soft, gentle mid-pitched voice, warm and trustworthy, calm confiding tone, slow pace'},
+  {id: 'm-expert', g: 'm', name: 'Чёткий эксперт', ru: 'мужчина ~45 · твёрдый, деловой, чёткая дикция', en: 'a man in his mid-40s with a firm, clear medium-low voice, businesslike and assertive, crisp articulation, steady pace'},
+  {id: 'm-grandpa', g: 'm', name: 'Дедушка', ru: 'мужчина ~70 · с лёгкой хрипотцой, добрый, неторопливый', en: 'an elderly man in his 70s with a slightly gravelly, warm voice, kind grandfatherly tone, slow unhurried pace'},
+  {id: 'f-velvet', g: 'f', name: 'Бархатное контральто', ru: 'женщина ~40 · низкий, бархатный, спокойный, уверенный', en: 'a woman in her 40s with a low, velvety contralto voice, calm and confident, unhurried pace'},
+  {id: 'f-warm', g: 'f', name: 'Тёплый мягкий', ru: 'женщина ~30 · мягкий, дружелюбный, заботливый', en: 'a woman in her early 30s with a warm, soft mezzo-soprano voice, friendly and caring, calm pace'},
+  {id: 'f-bright', g: 'f', name: 'Звонкий молодой', ru: 'девушка ~22 · высокий, звонкий, весёлый, быстрый', en: 'a young woman in her early 20s with a bright, clear, high voice, cheerful and energetic, fast lively pace'},
+  {id: 'f-husky', g: 'f', name: 'Женский с хрипотцой', ru: 'женщина ~35 · с хрипотцой и придыханием, расслабленный, игривый', en: 'a woman in her mid-30s with a slightly husky, breathy voice, relaxed and a little playful, medium pace'},
+  {id: 'f-expert', g: 'f', name: 'Деловой чёткий', ru: 'женщина ~45 · твёрдый, уверенный, чёткая дикция', en: 'a woman in her mid-40s with a crisp, clear medium-pitched voice, businesslike and assertive, precise articulation, steady pace'},
+  {id: 'f-granny', g: 'f', name: 'Бабушка', ru: 'женщина ~70 · мягкий, чуть дрожащий, добрый, медленный', en: 'an elderly woman in her 70s with a soft, slightly shaky, warm voice, kind grandmotherly tone, slow pace'},
+  {id: 'k-child', g: 'k', name: 'Ребёнок', ru: 'ребёнок ~8 лет · высокий, чистый, любопытный', en: 'a child about 8 years old with a high, clear voice, curious and lively, natural pace'},
+];
+// кто говорит: [значок, подпись, как ИИ называет героя в сценарии]
+const VC_G = {m: ['М', 'Мужской', 'the man'], f: ['Ж', 'Женский', 'the woman'], k: ['Д', 'Детский', 'the child']};
+// конструктор своего голоса: [id, подпись, кусок английского описания]
+const VF = {
+  age: {
+    m: [['20', '~20', 'a young man in his early 20s'], ['30', '~30', 'a man in his 30s'], ['45', '~45', 'a man in his mid-40s'], ['60', '~60', 'a man in his early 60s'], ['75', '70+', 'an elderly man in his 70s']],
+    f: [['20', '~20', 'a young woman in her early 20s'], ['30', '~30', 'a woman in her 30s'], ['45', '~45', 'a woman in her mid-40s'], ['60', '~60', 'a woman in her early 60s'], ['75', '70+', 'an elderly woman in her 70s']],
+    k: [['6', '~6 лет', 'a little child about 6 years old'], ['10', '~10 лет', 'a child about 10 years old'], ['14', 'подросток', 'a teenager about 14 years old']],
+  },
+  pitch: [['low', 'Низкий', 'low'], ['mid', 'Средний', 'medium-pitched'], ['high', 'Высокий', 'high']],
+  timbre: [['velvet', 'Бархатный', 'velvety'], ['husky', 'С хрипотцой', 'slightly husky, raspy'], ['bright', 'Звонкий', 'bright, ringing'], ['soft', 'Мягкий', 'soft, gentle'],
+    ['rich', 'Густой', 'rich, full-bodied'], ['breathy', 'С придыханием', 'breathy'], ['rough', 'Грубоватый', 'rough, gravelly'], ['nasal', 'Гнусавый', 'slightly nasal']],
+  manner: [['calm', 'Спокойный', 'calm'], ['confident', 'Уверенный', 'confident and assertive'], ['warm', 'Тёплый', 'warm and friendly'], ['energetic', 'Энергичный', 'energetic and upbeat'],
+    ['ironic', 'Ироничный', 'relaxed and ironic'], ['strict', 'Строгий', 'strict and serious'], ['mystery', 'Загадочный', 'hushed and mysterious'], ['funny', 'Весёлый', 'playful and funny']],
+  tempo: [['slow', 'Медленно', 'slow unhurried pace'], ['normal', 'Обычно', 'natural pace'], ['fast', 'Быстро', 'fast lively pace']],
+};
+const vfPick = (list, id) => list.find(x => x[0] === id) || list[0];
+const vfBlank = () => ({g: 'm', age: '30', pitch: 'low', timbre: 'velvet', manner: 'calm', tempo: 'normal', extra: '', name: ''});
+// свой голос → описание: по-английски — для видео-модели (особенности — уже переведённые), по-русски — для списка
+function vfEn(f, extra = f.extra) {
+  const x = String(extra || '').trim().replace(/[.,;\s]+$/, '');
+  return `${vfPick(VF.age[f.g], f.age)[2]} with a ${vfPick(VF.pitch, f.pitch)[2]}, ${vfPick(VF.timbre, f.timbre)[2]} voice, ${vfPick(VF.manner, f.manner)[2]}, ${vfPick(VF.tempo, f.tempo)[2]}${x ? ', ' + x : ''}`;
+}
+const vfRu = f => `${VC_G[f.g][1].toLowerCase()} ${vfPick(VF.age[f.g], f.age)[1]} · ${[VF.pitch, VF.timbre, VF.manner].map((l, i) => vfPick(l, f[['pitch', 'timbre', 'manner'][i]])[1].toLowerCase()).join(', ')}, темп: ${vfPick(VF.tempo, f.tempo)[1].toLowerCase()}${f.extra.trim() ? ' · ' + f.extra.trim() : ''}`;
+const vfAutoName = f => `${VC_G[f.g][1]} · ${vfPick(VF.timbre, f.timbre)[1].toLowerCase()}`;
+
+// персонажи — отдельной записью в хранилище галереи (развёртки в localStorage не влезут; в галерею запись не попадает — нет status)
+const VC_ID = 'freefield-chars';
+const vc = {
+  custom: ls.get('freefield.voices.custom', []),   // свои голоса
+  chars: [],                                        // персонажи: {id, name, sheet, voice}
+  all() { return [...VOICE_PRESETS, ...this.custom]; },
+  voice(id) { return id ? this.all().find(v => v.id === id) || null : null; },
+  char(id) { return id ? this.chars.find(c => c.id === id) || null : null; },
+  owner(voiceId, except) { return this.chars.find(c => c.voice === voiceId && c.id !== except) || null; },   // у какого персонажа этот голос
+  saveCustom() { ls.set('freefield.voices.custom', this.custom); },
+  saveChars() { return DB.put({id: VC_ID, chars: this.chars}); },
+};
+async function vcLoad() {
+  const rec = await DB.req('readonly', s => s.get(VC_ID)).catch(() => null);
+  vc.chars = rec?.chars || [];
+  vcRefresh();
+}
+function vcRefresh() {
+  if (cl.mode === 'write') renderWrite(); else if (cl.mode === 'scn') renderScn();
+  updateGenButton();
+}
+// голос сценария: у персонажа — его текущий голос (сменили голос персонажу — у сценариев тоже), иначе — голос, выбранный сценарию
+const scnVoice = s => vc.voice(vc.char(s?.char)?.voice || s?.voice);
+const scnVoiceLabel = s => vc.char(s.char)?.name || vc.voice(s.voice)?.name || 'Голос';
+// голос героя в «Создании сценария» — у выбранного персонажа
+const wrVoice = () => vc.voice(vc.char(wr.char)?.voice);
+
+// голос → в промпт видео. В эталоне — в начало строки «Spoken line» (свою догадку о голосе ИИ из неё убираем), нет её —
+// в «Sound design», нет и её — новой строкой; в обычный промпт — в конец. Уже вписан слово в слово — промпт не трогаем
+const vcNorm = t => String(t || '').toLowerCase().replace(/\s+/g, ' ');
+function withVoice(p, v) {
+  if (!v || !String(p || '').trim() || vcNorm(p).includes(vcNorm(v.en))) return p;
+  const line = `voice — ${v.en}`;
+  if (isBlockPrompt(p)) {
+    for (const label of ['Spoken line', 'Sound design']) {
+      const re = new RegExp(`^([ \\t]*${label}[ \\t]*:)[ \\t]*(.*)$`, 'mi');
+      if (re.test(p)) return p.replace(re, (a, l, rest) => { rest = dropVoice(rest); return `${l} ${line}${rest ? '; ' + rest : ''}`; });
+    }
+    return `${p}\nSpoken line: ${line}`;
+  }
+  return `${String(p).trim().replace(/[.,;\s]+$/, '')}. Voice: ${v.en}`;
+}
+// чужое описание голоса («deep calm male voice») — долой; реплики в «» и "" не трогаем
+function dropVoice(t) {
+  const q = [], safe = String(t).replace(/«[^»]*»|"[^"]*"/g, m => `\u0001${q.push(m) - 1}\u0002`);
+  return safe.split(/(?<=[,;])/).map(seg => /\u0001/.test(seg) ? seg.replace(/(?:\b[a-z-]+\s+){0,5}voice\b\s*/i, '') : /\bvoice\b/i.test(seg) ? '' : seg).join('')
+    .replace(/\u0001(\d+)\u0002/g, (_, n) => q[+n]).replace(/\s*[,;]\s*(?=[,;]|$)/g, '').replace(/^[\s,;]+/, '').replace(/\s{2,}/g, ' ').trim();
+}
+
+// окно «Персонажи и голоса»: list — все; char — персонаж; voice — свой голос (конструктор); pick — голос сценария
+// from — откуда открыт персонаж (list / pick / write): туда и вернёмся после «Сохранить»
+const vcUi = {view: 'list', from: 'list', i: null, edit: null, form: null, formBack: 'list'};
+function vcShow() {
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#voiceSheet').classList.remove('hidden');
+  renderVoices();
+  $('#vcBody').scrollTop = 0;
+}
+function openVoices(view = 'list', o = {}) { Object.assign(vcUi, {view, from: view, ...o}); vcShow(); }
+function vcOpenChar(c, from) {
+  // новый персонаж — с развёрткой, которая уже есть и ещё ничья (у сценария или в «Создании сценария»); голос — первый свободный
+  const guess = [from === 'pick' && cl.scn[vcUi.i]?.sheet, wr.sheet].find(x => x && !vc.chars.some(y => y.sheet === x)) || null;
+  vcUi.edit = c ? {...c} : {id: null, name: '', sheet: guess, voice: vc.all().find(v => !vc.owner(v.id))?.id || null};
+  Object.assign(vcUi, {view: 'char', from});
+  vcShow();
+}
+function vcBack() {
+  if (vcUi.from === 'write') return closeSheets();
+  vcUi.view = vcUi.from === 'pick' ? 'pick' : 'list';
+  renderVoices();
+}
+const vcThumb = c => c?.sheet ? `<img src="${c.sheet}" alt="">` : '<i class="vc-ph">🧍</i>';
+function vcCharBtn(c, attr, on = false) {
+  const v = vc.voice(c.voice);
+  return `<button class="vc-char ${on ? 'on' : ''}" ${attr} title="${esc(v ? v.ru : 'Голос не выбран')}">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(v?.name || 'голос не выбран')}</small></span></button>`;
+}
+// строка голоса: с attr — кнопка выбора (занятый другим персонажем — недоступен), без — просто строка списка
+function vcItem(v, {on = false, owner = null, attr = '', tools = ''} = {}) {
+  const tag = attr ? 'button' : 'div';
+  return `<div class="vc-row"><${tag} class="vc-item ${on ? 'on' : ''}" ${attr} ${owner && attr ? 'disabled' : ''} title="${esc('В промпт видео: ' + v.en)}">
+    <i class="vc-g g-${v.g}">${VC_G[v.g][0]}</i><span><b>${esc(v.name)}</b><small>${esc(v.ru)}</small></span>${owner ? `<em>занят · ${esc(owner.name)}</em>` : on ? '<em class="ok">✓</em>' : ''}</${tag}>${tools}</div>`;
+}
+function renderVoices() {
+  const body = $('#vcBody');
+  if (!body) return;
+  const v = vcUi.view;
+  $('#vcTitle').textContent = v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
+  $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
+  body.innerHTML = v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+}
+function vcListHTML() {
+  const tools = v => v.custom ? `<button class="vc-tool" data-vf-edit="${v.id}" title="Изменить голос">✎</button><button class="vc-tool" data-vf-del="${v.id}" title="Удалить голос">🗑</button>` : '';
+  return `<p class="set-p">Голос в ролике делает сама видео-модель — Veo, Omni, Seedance — по описанию голоса в промпте. У каждого персонажа своё описание, одно и то же во всех роликах, поэтому он звучит узнаваемо.</p>
+    <div class="cl-sec" style="margin-top:0">🎭 Персонажи</div>
+    <div class="vc-chars">${vc.chars.map(c => vcCharBtn(c, `data-vc-edit="${c.id}"`)).join('')}<button class="vc-char add" data-vc-new>＋ Новый персонаж</button></div>
+    <div class="cl-sec">🎙 Голоса <span class="hint">у персонажа — только свой</span></div>
+    <div class="vc-list">${vc.all().map(v => vcItem(v, {owner: vc.owner(v.id), tools: tools(v)})).join('')}</div>
+    <div class="vc-foot"><button class="btn" data-vf-new>＋ Свой голос</button></div>`;
+}
+function vcCharHTML() {
+  const d = vcUi.edit, old = vc.char(d.id);
+  return `<div class="vc-opt"><span>Имя</span><input class="vc-in" data-vc-name maxlength="40" value="${esc(d.name)}" placeholder="Например: Дедушка Иван"></div>
+    <div class="vc-opt"><span>Развёртка — как выглядит: спереди, сбоку, сзади</span><div class="vc-sheet-row">${d.sheet ? `<img src="${d.sheet}" alt="">` : ''}
+      <button class="btn small" data-vc-sheet>📁 ${d.sheet ? 'Другое фото' : 'Загрузить'}</button>
+      ${!d.sheet && wr.sheet ? '<button class="btn small" data-vc-sheet-wr>🧍 Из «Создания сценария»</button>' : ''}
+      ${d.sheet ? '<button class="btn small" data-vc-sheet-rm>✕ Убрать</button>' : ''}</div></div>
+    <div class="vc-opt"><span>Голос — у каждого персонажа свой: занятые другими выбрать нельзя</span>
+      <div class="vc-list">${vc.all().map(v => vcItem(v, {on: d.voice === v.id, owner: vc.owner(v.id, d.id), attr: `data-vc-set="${v.id}"`})).join('')}</div></div>
+    <div class="vc-foot"><button class="btn free" data-vc-save>${old ? 'Сохранить' : 'Создать персонажа'}</button><button class="btn" data-vf-new>＋ Свой голос</button>
+      ${old ? '<button class="btn danger" data-vc-del>🗑 Удалить</button>' : ''}<button class="btn" data-vc-back>${vcUi.from === 'write' ? 'Отмена' : 'Назад'}</button></div>`;
+}
+function vcFormHTML() {
+  const f = vcUi.form;
+  const row = (key, title, list) => `<div class="vc-opt"><span>${title}</span><div class="chips">${list.map(([id, t]) => `<button class="chip ${f[key] === id ? 'on' : ''}" data-vf="${key}:${id}">${t}</button>`).join('')}</div></div>`;
+  return `${row('g', 'Кто говорит', Object.entries(VC_G).map(([id, x]) => [id, x[1]]))}${row('age', 'Возраст', VF.age[f.g])}${row('pitch', 'Высота', VF.pitch)}
+    ${row('timbre', 'Тембр', VF.timbre)}${row('manner', 'Подача', VF.manner)}${row('tempo', 'Темп речи', VF.tempo)}
+    <div class="vc-opt"><span>Особенности — необязательно</span><input class="vc-in" data-vf-extra maxlength="120" value="${esc(f.extra)}" placeholder="Например: лёгкий южный акцент, смешок в конце фраз"></div>
+    <div class="vc-opt"><span>Название</span><input class="vc-in" data-vf-name maxlength="40" value="${esc(f.name)}" placeholder="${esc(vfAutoName(f))}"></div>
+    <div class="vc-opt"><span>Так голос уйдёт в промпт видео (особенности по-русски переведу при сохранении)</span><div class="vc-en" id="vcEn" data-noicon>${esc(vfEn(f))}</div></div>
+    <div class="vc-foot"><button class="btn free" data-vf-save>Сохранить голос</button><button class="btn" data-vf-back>Назад</button></div>`;
+}
+function vcPickHTML() {
+  const s = cl.scn[vcUi.i];
+  if (!s) return '';
+  const ch = vc.char(s.char);
+  return `<div class="cl-sec" style="margin-top:0">🎭 Персонаж <span class="hint">его голос и развёртка</span></div>
+    <div class="vc-chars">${vc.chars.map(c => vcCharBtn(c, `data-vc-pick-char="${c.id}"`, c === ch)).join('')}<button class="vc-char add" data-vc-new>＋ Новый персонаж</button></div>
+    <div class="cl-sec">🎙 Или просто голос <span class="hint">свободные — не занятые персонажами</span></div>
+    <div class="vc-list">${vc.all().filter(v => !vc.owner(v.id)).map(v => vcItem(v, {on: !ch && s.voice === v.id, attr: `data-vc-pick-voice="${v.id}"`})).join('')}</div>
+    <div class="vc-foot"><button class="btn" data-vf-new>＋ Свой голос</button><button class="btn" data-vc-pick-none>Без голоса</button></div>
+    <p class="hint" style="margin-top:12px">Голос впишется в промпт видео — в начало строки «Spoken line»: реплики в «» видео-модель озвучит им.</p>`;
+}
+// сценарию — персонаж (его голос и развёртка), просто голос или ничего
+function vcAssign(i, c, v) {
+  const s = cl.scn[i];
+  if (!s) return closeSheets();
+  if (c) { s.char = c.id; s.voice = c.voice; if (c.sheet) s.sheet = c.sheet; }
+  else { delete s.char; if (v) s.voice = v.id; else delete s.voice; }
+  cl.save(); closeSheets(); renderScn(); updateGenButton();
+  toast(c ? `Сценарий ${i + 1}: говорит ${c.name} — голос «${vc.voice(c.voice)?.name}»${c.sheet ? ', развёртка приложена' : ''}`
+    : v ? `Сценарий ${i + 1}: голос «${v.name}»` : `Сценарий ${i + 1}: без голоса — его выберет видео-модель`, {type: 'ok'});
+}
+async function vcSaveChar() {
+  const d = vcUi.edit, name = d.name.trim();
+  if (!name) { toast('Впишите имя персонажа', {type: 'err'}); return $('#vcBody [data-vc-name]')?.focus(); }
+  if (vc.chars.some(c => c.id !== d.id && c.name.trim().toLowerCase() === name.toLowerCase())) return toast(`Персонаж «${name}» уже есть — дайте другое имя`, {type: 'err'});
+  if (!vc.voice(d.voice)) return toast('Выберите голос персонажа', {type: 'err'});
+  const owner = vc.owner(d.voice, d.id);
+  if (owner) return toast(`Этот голос уже у персонажа «${owner.name}» — у каждого свой`, {type: 'err'});
+  const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, voice: d.voice}, i = vc.chars.findIndex(x => x.id === c.id);
+  const oldSheet = i >= 0 ? vc.chars[i].sheet : null;
+  if (i >= 0) vc.chars[i] = c; else vc.chars.push(c);
+  await vc.saveChars();
+  // у сценариев с этим персонажем — его голос и новая развёртка
+  cl.scn.forEach(s => { if (s.char === c.id) { s.voice = c.voice; if (c.sheet && (!s.sheet || s.sheet === oldSheet)) s.sheet = c.sheet; } });
+  cl.save();
+  // «Создание сценария»: персонаж создан оттуда — сразу выбран; у выбранного сменилась развёртка — она и в ячейке
+  if (vcUi.from === 'write' || wr.char === c.id) { wrUseChar(c); wr.save(); }
+  toast(i >= 0 ? `Персонаж «${name}» сохранён` : `Персонаж «${name}» создан — голос «${vc.voice(c.voice).name}»`, {type: 'ok'});
+  if (vcUi.from === 'pick') return vcAssign(vcUi.i, c);
+  if (vcUi.from === 'list') { vcUi.view = 'list'; renderVoices(); } else closeSheets();
+  vcRefresh();
+}
+async function vcDelChar() {
+  const c = vc.char(vcUi.edit?.id);
+  if (!c || !confirm(`Удалить персонажа «${c.name}»? Его голос освободится`)) return;
+  vc.chars = vc.chars.filter(x => x.id !== c.id);
+  await vc.saveChars();
+  if (wr.char === c.id) { wr.char = null; wr.save(); }
+  cl.scn.forEach(s => { if (s.char === c.id) delete s.char; });   // голос у сценария остаётся
+  cl.save();
+  toast(`Персонаж «${c.name}» удалён`);
+  vcBack(); vcRefresh();
+}
+async function vcSaveVoice(btn) {
+  const f = vcUi.form;
+  btn.disabled = true; btn.textContent = 'Сохраняю…';
+  const extra = f.extra.trim() ? await asIs(f.extra.trim()) : '';   // особенности — на английский (не вышло — как написаны)
+  const {id, name, ...form} = f;
+  const v = {id: id || 'my-' + uid(), g: f.g, name: name.trim() || vfAutoName(f), ru: vfRu(f), en: vfEn(f, extra), custom: true, form};
+  const i = vc.custom.findIndex(x => x.id === v.id);
+  if (i >= 0) vc.custom[i] = v; else vc.custom.push(v);
+  vc.saveCustom();
+  toast(`Голос «${v.name}» ${i >= 0 ? 'сохранён' : 'добавлен'}`, {type: 'ok'});
+  if (vcUi.formBack === 'pick') return vcAssign(vcUi.i, null, v);
+  if (vcUi.formBack === 'char' && !vc.owner(v.id, vcUi.edit.id)) vcUi.edit.voice = v.id;
+  vcUi.view = vcUi.formBack;
+  renderVoices(); vcRefresh();
+}
+function vcDelVoice(id) {
+  const v = vc.voice(id), owner = vc.owner(id);
+  if (!v?.custom) return;
+  if (owner) return toast(`Этот голос у персонажа «${owner.name}» — сначала выберите ему другой`, {type: 'err', ms: 6000});
+  if (!confirm(`Удалить голос «${v.name}»?`)) return;
+  vc.custom = vc.custom.filter(x => x.id !== id);
+  vc.saveCustom();
+  cl.scn.forEach(s => { if (s.voice === id) delete s.voice; });
+  cl.save();
+  renderVoices(); vcRefresh();
+}
+function bindVoices() {
+  const box = $('#voiceSheet');
+  box.addEventListener('click', e => {
+    const b = e.target.closest('#vcBody button');
+    if (!b || b.disabled) return;
+    const d = vcUi.edit, f = vcUi.form, x = b.dataset;
+    if (x.vcEdit) return vcOpenChar(vc.char(x.vcEdit), 'list');
+    if (b.hasAttribute('data-vc-new')) return vcOpenChar(null, vcUi.view === 'pick' ? 'pick' : 'list');
+    if (x.vcSet) { d.voice = x.vcSet; return renderVoices(); }
+    if (b.hasAttribute('data-vc-sheet')) { $('#vcFile').value = ''; return $('#vcFile').click(); }
+    if (b.hasAttribute('data-vc-sheet-wr')) { d.sheet = wr.sheet; return renderVoices(); }
+    if (b.hasAttribute('data-vc-sheet-rm')) { d.sheet = null; return renderVoices(); }
+    if (b.hasAttribute('data-vc-save')) return vcSaveChar();
+    if (b.hasAttribute('data-vc-del')) return vcDelChar();
+    if (b.hasAttribute('data-vc-back')) return vcBack();
+    if (b.hasAttribute('data-vf-new') || x.vfEdit) {   // конструктор голоса; «Назад» и «Сохранить» вернут туда, откуда пришли
+      const v = vc.voice(x.vfEdit);
+      Object.assign(vcUi, {formBack: vcUi.view, form: v ? {...vfBlank(), ...v.form, id: v.id, name: v.name} : vfBlank(), view: 'voice'});
+      renderVoices(); $('#vcBody').scrollTop = 0; return;
+    }
+    if (x.vfDel) return vcDelVoice(x.vfDel);
+    if (x.vf) {
+      const [k, val] = x.vf.split(':');
+      f[k] = val;
+      if (k === 'g' && !VF.age[val].some(a => a[0] === f.age)) f.age = VF.age[val][Math.min(1, VF.age[val].length - 1)][0];
+      return renderVoices();
+    }
+    if (b.hasAttribute('data-vf-save')) return vcSaveVoice(b);
+    if (b.hasAttribute('data-vf-back')) { vcUi.view = vcUi.formBack; return renderVoices(); }
+    if (x.vcPickChar) return vcAssign(vcUi.i, vc.char(x.vcPickChar));
+    if (x.vcPickVoice) return vcAssign(vcUi.i, null, vc.voice(x.vcPickVoice));
+    if (b.hasAttribute('data-vc-pick-none')) return vcAssign(vcUi.i);
+  });
+  box.addEventListener('input', e => {
+    const t = e.target;
+    if (t.matches('[data-vc-name]')) vcUi.edit.name = t.value;
+    else if (t.matches('[data-vf-name]')) vcUi.form.name = t.value;
+    else if (t.matches('[data-vf-extra]')) { vcUi.form.extra = t.value; $('#vcEn').textContent = vfEn(vcUi.form); }
+  });
+  box.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-vc-name]')) { e.preventDefault(); vcSaveChar(); } });
+  $('#vcFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file || !vcUi.edit) return;
+    try { vcUi.edit.sheet = await refDataUrl(file); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
+    renderVoices();
+  });
+}
+
 /* ---- «Создание сценария»: ИИ пишет сценарии рилсов по инфографике (о чём ролик) и развёртке героя (как он выглядит) ---- */
 // Кто пишет — модуль выбора ИИ: Claude (ключ Anthropic, платно — лучший сценарист), Gemini (бесплатный ключ Google)
 // или «ИИ в чате» (задание копируется в буфер — для Gemini, Claude, ChatGPT). Dola убрана по просьбе пользователя (2026-09-26): пишет слабо.
@@ -5485,9 +5833,10 @@ const wr = {
   locs: [],
   result: ls.get('freefield.write.result', null), // {scenarios, by, at} или {raw, by, at} — ответ не по формату
   ref: ls.get('freefield.write.ref', REF_PROMPT),   // эталонный промпт пользователя: по нему ИИ пишет видео-промпты
+  char: ls.get('freefield.write.char', null),       // персонаж роликов: его развёртка — в ячейке, его голос ИИ впишет в каждый сценарий
   busy: false, note: '', pick: 'info',
   save() {
-    for (const k of ['ai', 'claudeModel', 'count', 'idea', 'result', 'ref']) ls.set('freefield.write.' + k, this[k]);
+    for (const k of ['ai', 'claudeModel', 'count', 'idea', 'result', 'ref', 'char']) ls.set('freefield.write.' + k, this[k]);
     // картинки — только пока хватает места в браузере (без них раздел просто попросит загрузить их снова)
     ls.set('freefield.write.info', this.info); ls.set('freefield.write.sheet', this.sheet);
   },
@@ -5510,6 +5859,19 @@ function wrLocMsg() {
   const n = wr.count, have = wr.locs.length;
   return have < n ? `Загрузите кадры «персонаж в локации»: ${n} ${plur(n, 'сценарий', 'сценария', 'сценариев')} — ${n} фото героя в разных локациях, сейчас ${have}`
     : `Кадров в локациях ${have}, а сценариев ${n} — уберите лишние кадры или выберите ${have} ${plur(have, 'сценарий', 'сценария', 'сценариев')}`;
+}
+// персонаж роликов: его развёртка — в ячейку; у него развёртки нет — убираем из ячейки чужую (другого персонажа)
+function wrUseChar(c) {
+  wr.char = c.id;
+  if (c.sheet) wr.sheet = c.sheet;
+  else if (vc.chars.some(x => x.sheet && x.sheet === wr.sheet)) wr.sheet = null;
+}
+// сменили развёртку в ячейке: у персонажа её не было — теперь это его развёртка; была другая — выбор снимаем (иначе ИИ дал бы герою чужой голос)
+function wrCharCheck() {
+  const c = vc.char(wr.char);
+  if (!c) return;
+  if (!c.sheet && wr.sheet) { c.sheet = wr.sheet; vc.saveChars(); }
+  else if (c.sheet !== wr.sheet) wr.char = null;
 }
 const writerAuto = () => wallet.anthropic ? 'claude' : wallet.gemini ? 'gemini' : 'chat';
 const writerNow = () => WRITERS[wr.ai] ? wr.ai : writerAuto();
@@ -5542,10 +5904,13 @@ function writeBrief() {
   // кадры «персонаж в локации»: по одному на сценарий — IMAGE 3 для сценария 1, IMAGE 4 для сценария 2…
   const L = Math.min(wr.locs.length, n), many = L > 1;
   const ref = (wr.ref || '').trim() || REF_PROMPT, shape = refLabels().map(l => `${l}: …`), labels = refLabels().map(l => l.toLowerCase());
+  // голос выбранного персонажа — один и тот же во всех роликах: ИИ вписывает его слово в слово (не впишет — допишем сами, см. withVoice)
+  const voice = wrVoice(), hero = voice ? VC_G[voice.g][2] : 'the man', him = {'the man': 'him', 'the woman': 'her'}[hero] || 'the hero';
   // подсказки — только к тем блокам, что есть в эталоне пользователя
   const guide = [
     ['On-screen text', `the Russian hook text in «» with its timing and place (0–2 s, upper third) and the Russian CTA text in «» for ${mid}–${sec} s, plus font style`],
-    ['Spoken line', `the hero's exact Russian speech in «», with timing and the voice (e.g. "2-${mid} s, deep calm male voice, in Russian: «…» ${mid}-${sec} s: «…»")`],
+    ['Spoken line', voice ? `the hero's fixed voice word for word, then the exact Russian speech in «» with timing (e.g. "voice — ${voice.en}; 2-${mid} s, in Russian: «…» ${mid}-${sec} s: «…»")`
+      : `the hero's exact Russian speech in «», with timing and the voice (e.g. "2-${mid} s, deep calm male voice, in Russian: «…» ${mid}-${sec} s: «…»")`],
     ['Action', 'what happens second by second, including the concrete action with the hands or a prop'],
     ['Automatic subtitles', 'burned-in subtitles of the spoken line: language, position, style (default: Russian, bottom third, bold white sans-serif with a dark outline, word-synced)'],
     ['Pose & body language', 'posture, gestures, facial expression, eye contact'],
@@ -5573,7 +5938,7 @@ AUTHOR'S REFERENCE PROMPT:
 <<<
 ${ref}
 >>>
-${guide ? `How to fill the blocks:\n${guide}\n` : ''}Everything is in English, except the Russian texts in «» (on-screen text, spoken line). No filler: never describe the hero's appearance (age, face, hair, beard, clothes, tattoos) in any block — call him just "the man"; the look comes from the reference images. 90–180 words per scenario.`;
+${guide ? `How to fill the blocks:\n${guide}\n` : ''}${voice ? `THE HERO'S VOICE is fixed for this character and must sound the same in every reel: "${voice.en}". Write it into the Spoken line word for word, as "voice — ${voice.en};" before the timing; never describe or change the voice anywhere else.\n` : ''}Everything is in English, except the Russian texts in «» (on-screen text, spoken line). No filler: never describe the hero's appearance (age, face, hair, beard, clothes, tattoos) in any block — call ${him} just "${hero}"; the look comes from the reference images. 90–180 words per scenario.`;
   const sys = `${intro}
 
 ${template}
@@ -5611,7 +5976,7 @@ ${fence}
 <текст поста к ролику и хэштеги>
 ${fence}
 
-В Block 2 внешность героя не описывай — её возьмут из фото (развёртка и «персонаж в локации»); в Location — только место.${many ? ` Приложены ${L} фото героя в разных локациях (после инфографики и развёртки) — по одному на сценарий, по порядку: сценарий 1 — в локации с первого из них, сценарий 2 — со второго и так далее; место действия — ровно как на фото.` : L ? ' Место действия — как на приложенном фото «персонаж в локации».' : ''}${wr.idea.trim() ? `
+В Block 2 внешность героя не описывай — её возьмут из фото (развёртка и «персонаж в локации»); в Location — только место.${voice ? ` Голос героя — один и тот же во всех сценариях: строка Spoken line начинается словами "voice — ${voice.en};" — слово в слово, по-английски; другой голос нигде не описывай.` : ''}${many ? ` Приложены ${L} фото героя в разных локациях (после инфографики и развёртки) — по одному на сценарий, по порядку: сценарий 1 — в локации с первого из них, сценарий 2 — со второго и так далее; место действия — ровно как на фото.` : L ? ' Место действия — как на приложенном фото «персонаж в локации».' : ''}${wr.idea.trim() ? `
 
 Пожелания: ${wr.idea.trim()}` : ''}`;
   return {sys, user, chat};
@@ -5709,8 +6074,9 @@ async function writeGo() {
   renderWriteNote(); updateGenButton();
   try {
     const r = who === 'claude' ? await writeClaude(sys, user) : await writeGemini(sys, user);
-    const list = parseScenarios(r.text, r.code);
-    wr.result = list ? {scenarios: list, by: r.by, at: Date.now()} : {raw: r.text, by: r.by, at: Date.now()};
+    const list = parseScenarios(r.text, r.code), voice = wrVoice();
+    if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
+    wr.result = list ? {scenarios: list, by: r.by, at: Date.now(), char: wr.char} : {raw: r.text, by: r.by, at: Date.now()};
     toast(list ? `Готово: ${list.length} ${plur(list.length, 'сценарий', 'сценария', 'сценариев')} — ниже` : 'ИИ ответил не по формату — его текст ниже', {type: list ? 'ok' : 'err', ms: 6000});
   } catch (e) { toast('Сценарий не написан: ' + e.message, {type: 'err', ms: 9000}); }
   wr.busy = false; wr.note = '';
@@ -5767,7 +6133,8 @@ function renderWrite() {
       <li><b>Эталонный сценарий.</b> Загрузите эти кадры в ячейку «📍 Персонаж в локации» ниже — сколько сценариев, столько кадров. ИИ напишет сценарий 1 по кадру 1, сценарий 2 по кадру 2… В «ИИ в чате» приложите кадры в чат по порядку.</li>
       <li><b>Видео.</b> В ${go('scn', '🎬 Видео сервисах')} у сценария два фото — его «персонаж в локации» и развёртка (кнопка «🎬 В видео сервисы» приложит их сама) — и эталонный промпт без лишних слов: внешность героя не описываем, её берут из фото; в Location — только место.</li>
     </ol></details>
-    <div class="wr-slots">${slot('info', '📊 Инфографика', `${need} · о чём ролик: товар, факты, выгоды`)}${slot('sheet', '🧍 Развёртка героя', `${need} · вид спереди, сбоку, сзади, лицо, одежда`)}${locSlot()}</div>
+    <div class="wr-slots">${slot('info', '📊 Инфографика', `${need} · о чём ролик: товар, факты, выгоды`)}${slot('sheet', vc.char(wr.char)?.sheet ? `🧍 Развёртка · ${esc(vc.char(wr.char).name)}` : '🧍 Развёртка героя', `${need} · вид спереди, сбоку, сзади, лицо, одежда`)}${locSlot()}</div>
+    ${wrCharsHTML()}
     <div class="block-head" style="margin-top:12px"><span class="lbl">Пожелания</span><span class="hint">необязательно</span></div>
     <textarea class="wr-idea" data-widea rows="2" placeholder="Для кого ролики, что продаём, какой призыв — например: новичкам в программировании, призыв «ссылка в профиле»">${esc(wr.idea)}</textarea>
     <div class="cl-row" style="margin-top:8px">
@@ -5783,6 +6150,15 @@ function renderWrite() {
     <div id="writeOut">${writeOutHTML()}</div>`;
   renderWriteAi();
   renderWriteNote();
+}
+// «Создание сценария» → кто говорит: выбран персонаж — его развёртка в ячейке, его голос ИИ впишет в каждый сценарий
+function wrCharsHTML() {
+  const c = vc.char(wr.char), v = wrVoice();
+  return `<div class="block-head" style="margin-top:12px"><span class="lbl">🎙 Герой и голос</span><span class="hint"><button class="wr-link" data-wvoices>все персонажи и голоса</button></span></div>
+    <div class="vc-chars">${vc.chars.map(x => vcCharBtn(x, `data-wchar="${x.id}"`, x === c)).join('')}<button class="vc-char add" data-wchar-new>＋ Персонаж</button></div>
+    <div class="hint vc-note">${c ? `Говорит <b>${esc(c.name)}</b>${v ? `: голос «${esc(v.name)}» ИИ впишет в каждый сценарий, в строку «Spoken line»` : ' — выберите ему голос'} · <button class="wr-link" data-wchar-edit="${c.id}">✎ изменить</button>`
+      : vc.chars.length ? 'Выберите, кто говорит в роликах: его развёртка встанет в ячейку, а голос ИИ впишет в каждый сценарий. Не выбран — голос придумает ИИ'
+      : 'Создайте персонажа — имя, развёртка и голос. Голос ИИ впишет в каждый сценарий, и герой будет звучать одинаково во всех роликах'}</div>`;
 }
 function renderWriteNote() {
   const el = $('#writeNote');
@@ -5853,19 +6229,19 @@ async function writeAssets(list) {
 }
 // «🎬 В видео сервисы»: видео-промпт — в «Видео сервисы» (как написан: без авто-улучшения, речь остаётся по-русски)
 function writeToScn(idxs) {
-  const list = wr.result?.scenarios || [];
+  const list = wr.result?.scenarios || [], ch = vc.char(wr.result?.char), sheet = ch?.sheet || wr.sheet;
   let added = 0, full = 0, withLoc = 0;
   for (const i of idxs) {
     const s = list[i];
     if (!s?.video_prompt) continue;
     // шаг 4: к видео — оба фото: его кадр «персонаж в локации» (сценарий i — кадр i) и развёртка
     const loc = wr.locs[i];
-    const scn = {...blankScn(), kind: 'video', prompt: fillBlocks(s.video_prompt), aspect: '9:16', fixed: true, ...(loc && {ref: loc}), ...(wr.sheet && {sheet: wr.sheet})};
+    const scn = {...blankScn(), kind: 'video', prompt: fillBlocks(s.video_prompt), aspect: '9:16', fixed: true, ...(loc && {ref: loc}), ...(sheet && {sheet}), ...(ch && {char: ch.id, voice: ch.voice})};
     const empty = cl.scn.findIndex(scnEmpty);
     if (empty >= 0) cl.scn[empty] = scn; else if (cl.scn.length < CL_MAX) cl.scn.push(scn); else break;
     added++;
     if (loc) withLoc++;
-    if (loc && wr.sheet) full++;
+    if (loc && sheet) full++;
   }
   if (!added) return toast(`Уже ${CL_MAX} сценариев — уберите лишние в «Видео сервисах»`, {type: 'err'});
   cl.save();
@@ -5886,6 +6262,7 @@ async function writeAddImage(k, files) {
     wrLocsSave();
   } else {
     try { wr[k] = await refDataUrl(files[0]); } catch { return toast('Не удалось прочитать картинку', {type: 'err'}); }
+    wrCharCheck();
     wr.save();
   }
   renderWrite(); updateGenButton();
@@ -5895,7 +6272,18 @@ function bindWrite() {
   box.addEventListener('click', async e => {
     const b = e.target.closest('button, [data-wslot]');
     if (!b || e.target.closest('a')) return;
-    if (b.dataset.wrm) { wr[b.dataset.wrm] = null; wr.save(); renderWrite(); return updateGenButton(); }
+    if (b.dataset.wrm) { wr[b.dataset.wrm] = null; wrCharCheck(); wr.save(); renderWrite(); return updateGenButton(); }
+    if (b.dataset.wchar) {   // персонаж роликов (ещё раз — снять выбор)
+      const c = vc.char(b.dataset.wchar);
+      if (!c) return;
+      const on = wr.char !== c.id;
+      if (on) wrUseChar(c); else wr.char = null;
+      wr.save(); renderWrite(); updateGenButton();
+      return on && toast(`Говорит ${c.name}: голос «${vc.voice(c.voice)?.name || 'не выбран'}»${c.sheet ? ', развёртка — в ячейке' : ' — загрузите его развёртку в ячейку'}`, {type: 'ok'});
+    }
+    if (b.hasAttribute('data-wchar-new')) { vcUi.i = null; return vcOpenChar(null, 'write'); }
+    if (b.dataset.wcharEdit) return vcOpenChar(vc.char(b.dataset.wcharEdit), 'write');
+    if (b.hasAttribute('data-wvoices')) return openVoices('list');
     if (b.dataset.wlocRm) {   // кадр локации убран — с возможностью вернуть на то же место
       const i = +b.dataset.wlocRm, [src] = wr.locs.splice(i, 1);
       wrLocsSave(); renderWrite(); updateGenButton();
@@ -5955,21 +6343,21 @@ async function clCopy() {
   const svc = {auto: 'сервис выбери сам', flow: 'Google Flow', arena: 'Arena', dola: 'Dola'};
   const text = `Сгенерируй через Freefield пакет сценариев (batch_generate). Перепиши каждый в подробный английский промпт ` +
     `(сцена, действие, камера, свет, стиль) и разложи по Google Flow / Arena / Dola так, чтобы хватило бесплатных кредитов. Длина видео: ${cl.seconds} с (seconds=${cl.seconds}).\n` +
-    list.map((s, i) => `${i + 1}. ${s.kind === 'video' ? 'Видео' : 'Картинка'} · ${svc[s.service]} · формат ${scnAspect(s)}${s.ref || s.sheet ? ` · с фото (${[s.ref && 'персонаж в локации', s.sheet && 'развёртка'].filter(Boolean).join(' и ')}) — приложу в чат` : ''}: ${composePrompt(s.kind === 'video' ? withCamera(s.prompt.trim(), s.camera) : s.prompt.trim(), s.style ?? state.style, s.kind)}`).join('\n');
+    list.map((s, i) => `${i + 1}. ${s.kind === 'video' ? 'Видео' : 'Картинка'} · ${svc[s.service]} · формат ${scnAspect(s)}${s.ref || s.sheet ? ` · с фото (${[s.ref && 'персонаж в локации', s.sheet && 'развёртка'].filter(Boolean).join(' и ')}) — приложу в чат` : ''}: ${composePrompt(s.kind === 'video' ? withVoice(withCamera(s.prompt.trim(), s.camera), scnVoice(s)) : s.prompt.trim(), s.style ?? state.style, s.kind)}`).join('\n');
   const copied = await clCopyText(text);
   toast(copied ?'Задание скопировано — вставьте его в чат с Claude' : 'Не удалось скопировать — выделите текст вручную', {type: 'ok'});
 }
 
 // сценарии → задания (одни и те же для компьютера и для карточек «на телефоне»)
 async function clTasks(list) {
-  let out = list.map(s => ({prompt: s.prompt.trim(), kind: s.kind, service: s.service, aspect_ratio: scnAspect(s), seconds: s.kind === 'video' ? cl.seconds : undefined, model: s.service !== 'auto' ? s.model || undefined : undefined, image: s.ref || undefined, sheet: s.sheet || undefined, fixed: s.fixed, style: s.style, camera: s.kind === 'video' ? s.camera : undefined}));
+  let out = list.map(s => ({prompt: s.prompt.trim(), kind: s.kind, service: s.service, aspect_ratio: scnAspect(s), seconds: s.kind === 'video' ? cl.seconds : undefined, model: s.service !== 'auto' ? s.model || undefined : undefined, image: s.ref || undefined, sheet: s.sheet || undefined, fixed: s.fixed, style: s.style, camera: s.kind === 'video' ? s.camera : undefined, voice: s.kind === 'video' ? scnVoice(s) : null}));
   // промпты не «улучшаем» (переключатель убран по просьбе пользователя) — только переводим русское на английский как есть;
   // готовые промпты из «Создания сценария» не трогаем, в эталонном (блочном) — переводим по блокам, реплики в «» остаются
   out = await Promise.all(out.map(async s => {
     if (s.fixed || !/[а-яё]/i.test(s.prompt)) return s;
     try { return {...s, prompt: isBlockPrompt(s.prompt) ? await translateBlocks(s.prompt) : await translateKeepQuotes(s.prompt)}; } catch { return s; }
   }));
-  return out.map(({fixed, style, camera, ...s}) => ({...s, prompt: composePrompt(withCamera(s.prompt, camera), style ?? state.style, s.kind)}));   // у сценария может быть свой стиль
+  return out.map(({fixed, style, camera, voice, ...s}) => ({...s, prompt: composePrompt(withVoice(withCamera(s.prompt, camera), voice), style ?? state.style, s.kind)}));   // у сценария может быть свой стиль и голос
 }
 
 async function clSend() {
@@ -6101,6 +6489,7 @@ function bindClaude() {
       return;
     }
     else if (b.hasAttribute('data-cam-pick')) return openCamPick(idx(e));
+    else if (b.hasAttribute('data-voice-pick')) return openVoices('pick', {i: idx(e)});
     else if (b.hasAttribute('data-add')) return openScnCount();
     else if (b.hasAttribute('data-tok')) return openTok();   // баланс токенов по сервисам   // сколько сценариев нужно — окно 1…10
     else if (b.dataset.sar) {   // меняется только этот сценарий; новые сценарии получат последний выбранный формат
@@ -6299,6 +6688,7 @@ function drawQR(box, text) {
     await DB.open();
     items = ((await DB.all()) || []).filter(i => (i.status === 'done' && i.blob) || i.status === 'external').sort((a, b) => b.createdAt - a.createdAt);
     wrLocsLoad();
+    vcLoad();
   } catch {
     toast('Браузер не даёт сохранять галерею — работы пропадут после закрытия вкладки', {type: 'err', ms: 8000});
   }
