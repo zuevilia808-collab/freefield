@@ -378,6 +378,10 @@ body[data-cm=chars] .only-chars{display:block}
 .scr-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
 .scr-card details summary{cursor:pointer;font-size:12px;color:var(--text2);margin-top:6px}
 .cl-sec .wr-link{margin-left:auto;font-weight:600}
+.ap-row{margin:8px 0 2px}
+.ap-row .primary{width:100%}
+.ap-hint{font-size:12px;color:var(--text2);background:rgba(212,255,58,.06);border:1px solid rgba(212,255,58,.2);border-radius:10px;padding:7px 10px;margin:8px 0 2px}
+.ap-all{grid-column:1/-1}
 .ser-line{display:block;width:100%;text-align:left;margin-top:8px;padding:8px 10px;border-radius:11px;font-size:12px;color:var(--text2);background:rgba(212,255,58,.07);border:1px solid rgba(212,255,58,.22);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ser-line.done{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.3)}
 .ser-line.error{background:rgba(255,93,98,.08);border-color:rgba(255,93,98,.3)}
@@ -3316,10 +3320,20 @@ function phoneCardHTML(it, m) {
   const ch = video && vc.char(it.char), smp = ch?.sample && ['flow', 'dola'].includes(p.site);
   const voiceStep = !video || !ch ? '' : p.site === 'flow' && ch.flow?.name ? `<li>Голос: в промпте уже стоит ${ch.flow.kind === 'char' ? '@' + esc(ch.flow.name) : '@Voice: ' + esc(ch.flow.name)} — Flow возьмёт ваш сохранённый ${ch.flow.kind === 'char' ? 'персонаж' : 'голос'}</li>`
     : smp ? `<li>Голос: сохраните образец (🎧 ниже) и приложите его на сайте ${p.site === 'dola' ? 'аудио-референсом — в промпте он @Audio1' : 'как образец голоса (voice reference)'}</li>` : '';
+  const ap = apCan(it) && !pwa.mobile();
+  if (ap && it.statusText) return `<div class="card ext" data-id="${it.id}">
+    <div class="ext-head"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
+      <div><b>${p.of > 1 ? `${p.n}/${p.of} · ` : ''}${esc(site)} · ${video ? 'видео' : 'фото'}</b><div class="hint">${esc(set)}</div></div></div>
+    <div class="ext-wait"><div class="spin"></div><span data-ap-status>${esc(it.statusText)}</span></div>
+    <div class="ext-prompt">${esc(it.finalPrompt)}</div>
+    <div class="ext-actions"><button data-act="ap-stop">✕ Остановить автопилот</button><button data-act="import">📥 Загрузить файл</button></div>
+  </div>`;
   return `<div class="card ext" data-id="${it.id}">
     <button class="ext-del" data-act="delete" title="Удалить">✕</button>
     <div class="ext-head"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
       <div><b>${p.of > 1 ? `${p.n}/${p.of} · ` : ''}${esc(site)} · ${video ? 'видео' : 'фото'}</b><div class="hint">${esc(set)}${p.info ? ' · ' + esc(p.info) : ''}</div></div></div>
+    ${ap ? (autopilot.on ? '<div class="ext-actions ap-row"><button data-act="ap-run" class="primary">🤖 Автопилот — сделать во Flow само</button></div>'
+      : '<div class="ap-hint">🤖 <button class="wr-link" data-act="ap-install">Поставьте Автопилот</button> — Flow будет делаться сам, без копирования и кнопок</div>') : ''}
     <ol class="ext-steps">
       ${refs.length ? `<li>Сохраните фото (💾 ниже) — на сайте приложите ${refs.length > 1 ? 'их' : 'его'} к запросу</li>` : ''}
       ${voiceStep}
@@ -3368,6 +3382,92 @@ async function saveRefs(it, list) {
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
   toast(files.length > 1 ? `Фото сохранены (${files.length}) — в «Загрузках»` : 'Фото сохранено — в «Загрузках»', {type: 'ok'});
+}
+
+/* ---- «🤖 Автопилот»: расширение Chrome «Freefield Автопилот» делает карточки Google Flow само ---- */
+// Пользователь 2026-09-28: «чтобы мне не надо было самому копировать и открывать Flow, выбирать Nano Banana — пусть само».
+// Сайт не может нажимать кнопки на чужом сайте, поэтому это делает расширение (папка autopilot/): открывает Flow, прикладывает
+// фото, вставляет промпт, выбирает формат и модель, нажимает «Создать», ждёт и возвращает файлы в карточку. Только компьютер.
+const AUTOPILOT_ZIP = 'autopilot/freefield-autopilot.zip';
+const autopilot = {on: false, version: '', send(msg) { window.postMessage({ff: 'app', ...msg}, '*'); }};
+const apCan = it => it?.status === 'external' && it.phone?.site === 'flow';
+const apOn = () => autopilot.on && !pwa.mobile();
+window.addEventListener('message', async e => {
+  if (e.source !== window || e.data?.ff !== 'autopilot') return;
+  const m = e.data;
+  if (m.type === 'hello') {
+    const was = autopilot.on; Object.assign(autopilot, {on: true, version: m.version});
+    if (!was) { render(); updateGenButton(); if (cl.mode === 'chars') renderChars(); autopilot.send({type: 'status'}); }
+    return;
+  }
+  if (m.type === 'queue') {   // после перезагрузки: карточки «🤖», которых нет в очереди расширения, — снова обычные
+    const lost = items.filter(x => apCan(x) && x.statusText?.startsWith('🤖') && !m.ids.includes(x.id));
+    lost.forEach(x => { x.statusText = ''; DB.put(x); });
+    if (lost.length) render();
+    return;
+  }
+  const it = items.find(x => x.id === m.id);
+  if (!it || it.status !== 'external') return;
+  if (m.type === 'progress') {
+    it.statusText = '🤖 ' + m.text;
+    const el = document.querySelector(`.card[data-id="${it.id}"] [data-ap-status]`);
+    if (el) el.textContent = it.statusText; else render();
+  }
+  if (m.type === 'result') {
+    const want = it.type === 'video' ? 'video/' : 'image/';
+    const files = (m.files || []).map((f, k) => {
+      const bin = Uint8Array.from(atob(f.data), c => c.charCodeAt(0)), type = (f.mime || '').startsWith(want) ? f.mime : want + (it.type === 'video' ? 'mp4' : 'png');
+      return new File([bin], `flow-${it.id}-${k + 1}.${type.split('/')[1]}`, {type});
+    });
+    if (!files.length) { it.statusText = ''; DB.put(it); render(); return toast('Автопилот: Flow не отдал файл — скачайте результат сами', {type: 'err'}); }
+    it.statusText = '';
+    for (const f of files.slice(1)) {   // лишние варианты — рядом в галерее
+      const extra = newItem({...pick(it), status: 'done', statusText: '', blob: f, importedAt: Date.now()});
+      delete extra.phone;
+      await DB.put(extra);
+    }
+    await attachExternal(it, files[0], true);
+    toast(`🤖 Готово во Flow: ${it.type === 'video' ? 'видео' : 'картинка'}${files.length > 1 ? ` и ещё ${files.length - 1}` : ''} — в галерее`, {type: 'ok'});
+  }
+  if (m.type === 'error') {
+    it.statusText = ''; DB.put(it); render();
+    toast(`🤖 Автопилот: ${m.message}. Карточку можно сделать вручную или «🤖» ещё раз`, {type: 'err', ms: 10000});
+  }
+});
+// карточки Flow — автопилоту (остальные сайты он пока не умеет)
+function autopilotRun(list) {
+  const todo = [].concat(list).filter(apCan);
+  if (!todo.length) return toast('Автопилот делает карточки Google Flow — таких здесь нет', {type: 'err'});
+  if (!autopilot.on) return openAutopilot();
+  todo.forEach(it => { it.statusText = '🤖 в очереди — открываю Google Flow'; DB.put(it); });
+  autopilot.send({type: 'tasks', tasks: todo.map(it => ({id: it.id, kind: it.type, prompt: it.finalPrompt, engine: it.phone.engine || '', aspect: it.aspect,
+    count: it.phone.count || 1, images: it.refs || []}))});
+  render();
+  const rest = [].concat(list).filter(it => it?.status === 'external' && !apCan(it)).length;
+  toast(`🤖 Автопилот: ${todo.length} ${plur(todo.length, 'карточка', 'карточки', 'карточек')} — Google Flow откроется в соседней вкладке, дальше само` +
+    (rest ? `. Ещё ${rest} — для других сайтов, они в галерее: «Создать» там нажмёте сами` : ''), {type: 'ok', ms: 8000});
+}
+function autopilotStop(it) {
+  autopilot.send({type: 'cancel', ids: [it.id]});
+  it.statusText = ''; DB.put(it); render();
+}
+// окно «Автопилот»: что умеет и как поставить
+function openAutopilot() { Object.assign(vcUi, {view: 'autopilot', from: 'autopilot'}); vcShow(); }
+function autopilotHTML() {
+  return `<div class="mcp-status">${autopilot.on ? `🟢 Автопилот установлен (версия ${esc(autopilot.version)}) — карточки Google Flow делаются сами` : '⚪ Автопилот не установлен в этом браузере'}</div>
+    <p class="set-p">Расширение для Chrome на компьютере. Само открывает Google Flow, прикладывает фото, вставляет промпт, выбирает формат и модель (Nano Banana, Omni, Veo), нажимает «Создать», ждёт и возвращает готовое в карточку — «🚀 Серия роликов» с ним идёт до конца сама. Кредиты тратятся ваши, как если бы нажимали вы.</p>
+    ${pwa.mobile() ? '<div class="mcp-note">📱 На телефоне расширения не работают — поставьте Автопилот в Chrome на компьютере и откройте Freefield там.</div>' : ''}
+    <div class="cl-sec">Как поставить — один раз, 2 минуты</div>
+    <ol class="steps">
+      <li><a class="btn small free" href="${AUTOPILOT_ZIP}" download>⤓ Скачать Автопилот (.zip)</a> и распакуйте архив — появится папка «freefield-autopilot».</li>
+      <li>В Chrome откройте адрес <b>chrome://extensions</b> (скопируйте его в адресную строку) и включите справа вверху <b>«Режим разработчика»</b>.</li>
+      <li>Нажмите <b>«Загрузить распакованное расширение»</b> и выберите папку «freefield-autopilot».</li>
+      <li>Войдите в <b>Google Flow</b> в этом Chrome (один раз) и обновите страницу Freefield — здесь загорится 🟢.</li></ol>
+    <div class="cl-sec">Как работает</div>
+    <ol class="steps"><li>У карточки Flow — кнопка <b>«🤖 Автопилот»</b>, над карточками — «🤖 Все карточки Flow»; в «🚀 Серии роликов» — само.</li>
+      <li>Flow открывается в соседней вкладке, в углу — панель Автопилота: что он делает сейчас.</li>
+      <li>Не нашёл кнопку (Google иногда меняет Flow) — панель попросит сделать этот шаг самому и продолжит. Нажмите там <b>«📋 Отчёт для Claude»</b> и пришлите мне — доработаю.</li></ol>
+    <div class="vc-foot"><button class="btn" data-vc-back>Закрыть</button></div>`;
 }
 
 function externalCardHTML(it) {
@@ -3465,7 +3565,8 @@ function render() {
   const grid = $('#grid');
   const all = visibleItems();
   const ext = all.filter(i => i.status === 'external'), list = all.filter(i => i.status !== 'external');
-  $('#extStrip').innerHTML = ext.map(externalCardHTML).join('');
+  const apWait = ext.filter(i => apCan(i) && !i.statusText);
+  $('#extStrip').innerHTML = (apOn() && apWait.length > 1 ? `<div class="ap-all"><button class="btn free" data-ap-all>🤖 Все карточки Flow — автопилотом (${apWait.length})</button></div>` : '') + ext.map(externalCardHTML).join('');
   $('#empty').classList.toggle('hidden', items.length > 0);
   if (!items.length) renderEmpty();
   const cols = lastCols = colCount();
@@ -3534,6 +3635,9 @@ function pick(it) {
 }
 
 async function doAction(act, it, el) {
+  if (act === 'ap-run') return autopilotRun(it);
+  if (act === 'ap-stop') return autopilotStop(it);
+  if (act === 'ap-install') return openAutopilot();
   switch (act) {
     case 'download': {
       if (native.on()) {
@@ -4036,8 +4140,8 @@ function updateGenButton() {
     btn.classList.remove('paid');
     btn.disabled = cl.sending;
     $('#genLabel').textContent = cl.sending ? (hubLink.ok ? '⏳ Отправляю…' : '⏳ Готовлю…') : `${hubLink.ok ? '🚀 Запустить' : '📱 Подготовить'} ${n ? n + ' ' + plur(n, 'сценарий', 'сценария', 'сценариев') : 'сценарии'}`;
-    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайтах';
-    $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : 'Без компьютера: подготовлю фото и промпты — «Создать» на сайтах нажмёте сами';
+    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : apOn() ? 'Flow — автопилотом' : 'вручную на сайтах';
+    $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : apOn() ? '🤖 Без компьютера: Google Flow сделает Автопилот в соседней вкладке, другие сайты — вручную' : 'Без компьютера: подготовлю фото и промпты — «Создать» на сайтах нажмёте сами';
     return;
   }
   if (asset.svc !== 'other') {
@@ -4046,9 +4150,10 @@ function updateGenButton() {
     btn.disabled = asset.sending;
     const n = asset.kind ? asset.n : 1;   // несколько картинок со своими промптами — «Создать 10 картинок · Google Flow ×4»
     $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
-    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайте';
+    const ap = !hubLink.ok && apOn() && asset.svc === 'flow';
+    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : ap ? 'автопилотом' : 'вручную на сайте';
     $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
-      (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
+      (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ap ? ' · 🤖 Автопилот сделает во Flow сам' : ' · без компьютера — «Создать» на сайте нажмёте сами');
     return;
   }
   $('#genBtn').disabled = false;
@@ -4466,6 +4571,7 @@ function bindControls() {
     if (it) attachExternal(it, [...e.dataTransfer.files].find(f => /^(image|video)\//.test(f.type)));
   });
   $('#extStrip').addEventListener('click', e => {
+    if (e.target.closest('[data-ap-all]')) return autopilotRun(items.filter(i => apCan(i) && !i.statusText));
     const card = e.target.closest('.card'); const act = e.target.closest('[data-act]');
     const it = card && items.find(i => i.id === card.dataset.id);
     if (it && act) doAction(act.dataset.act, it, act);
@@ -5831,7 +5937,7 @@ function vcOpenChar(c, from) {
   vcShow();
 }
 function vcBack() {
-  if (vcUi.from === 'write' || vcUi.from === 'chars' || vcUi.from === 'series') return closeSheets();
+  if (['write', 'chars', 'series', 'autopilot'].includes(vcUi.from)) return closeSheets();
   vcUi.view = vcUi.from === 'pick' ? 'pick' : 'list';
   renderVoices();
 }
@@ -5846,9 +5952,9 @@ function renderVoices() {
   const v = vcUi.view;
   if (rec.to && rec.view !== v) recCancel(false);
   $$('#vcBody audio').forEach(a => a.pause());
-  $('#vcTitle').textContent = v === 'series' ? `Серия роликов · ${vc.char(vcUi.serChar)?.name || ''}` : v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
+  $('#vcTitle').textContent = v === 'autopilot' ? 'Автопилот для Google Flow' : v === 'series' ? `Серия роликов · ${vc.char(vcUi.serChar)?.name || ''}` : v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
-  body.innerHTML = v === 'series' ? serHTML() : v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+  body.innerHTML = v === 'autopilot' ? autopilotHTML() : v === 'series' ? serHTML() : v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
 }
 function vcListHTML() {
   return `<p class="set-p">Голос персонажа — голос, сохранённый во Flow: его слушают и выбирают в самом Flow, и он одинаковый во всех роликах (@Voice). По желанию — точный образец (своя запись или файл): по нему Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает таким голос любого готового видео.</p>
@@ -6565,7 +6671,8 @@ async function serFramesSend(j, c) {
     const cards = phoneCards(rows.map(r => serFrameTask(r, c, false)));
     rows.forEach((r, i) => Object.assign(r, {card: cards[i]?.id, err: null}));
     j.sentFrames = Date.now();
-    serNote(j, 'Карточки кадров — в галерее: создайте фото во Flow и загрузите в карточку, дальше серия пойдёт сама');
+    const ap = apOn() && cards.some(x => x?.statusText);
+    serNote(j, ap ? '🤖 Автопилот делает кадры во Flow — в соседней вкладке' : 'Карточки кадров — в галерее: создайте фото во Flow и загрузите в карточку, дальше серия пойдёт сама');
   }
 }
 // пункт пачки компьютера: по промпту, а не нашёлся — по порядку в пачке того же размера
@@ -6613,7 +6720,8 @@ async function serVideoSend(j, c) {
   rows.forEach(r => { const x = scr.list.find(y => y.id === r.scr); if (x) x.sent = Date.now(); });
   scr.save();
   Object.assign(j, {vsent: rows.length, sentVideos: Date.now()});
-  serNote(j, j.hub ? 'Компьютер делает видео…' : 'Карточки видео — в галерее: «Создать» на сайте и загрузите результат в карточку');
+  const ap = !j.hub && Array.isArray(res) && apOn() && res.some(x => apCan(x) && x.statusText);
+  serNote(j, j.hub ? 'Компьютер делает видео…' : ap ? '🤖 Автопилот делает видео во Flow — в соседней вкладке' : 'Карточки видео — в галерее: «Создать» на сайте и загрузите результат в карточку');
 }
 async function serVideoWait(j) {
   const rows = j.rows.filter(r => r.frame && !r.skip && r.vidx != null);
@@ -6676,7 +6784,8 @@ function serSetupHTML(c) {
   const m = scnModel('video', 'flow', scnDefault('video', 'flow')), per = m?.[4] || 20, total = o.n * per, acc = Math.ceil(total / 50), left = hubLink.info?.flowLeft;
   return `<p class="set-p">Нажали — и дальше само: ${WRITERS[writerNow()]?.name || 'ИИ'} напишет сценарии (с подписью к посту), Flow сделает кадры «${esc(c.name)} в локации», по ним — видео с его голосом. ${hub
       ? '🟢 Компьютер подключён — всё пойдёт само, готовое появится в галерее.'
-      : '📱 Без компьютера — полуавтомат: на каждый шаг — карточки в галерее, «Создать» на сайте нажимаете вы; следующий шаг начнётся сам, как только результат загружен в карточку.'}</p>
+      : apOn() ? '🤖 Автопилот установлен — Flow сделает кадры и видео сам в соседней вкладке, готовое вернётся в галерею.'
+      : `📱 Без компьютера — полуавтомат: на каждый шаг — карточки в галерее, «Создать» на сайте нажимаете вы; следующий шаг начнётся сам, как только результат загружен в карточку.${pwa.mobile() ? '' : ' <button class="wr-link" data-ser-ap>🤖 Поставьте Автопилот</button> — и Flow будет делаться сам.'}`}</p>
     <div class="vc-opt"><span>Сколько видео</span><div class="chips">${Array.from({length: CL_MAX}, (_, i) => `<button class="chip ${o.n === i + 1 ? 'on' : ''}" data-ser-n="${i + 1}">${i + 1}</button>`).join('')}</div></div>
     <div class="vc-opt"><span>Кадры «в локации» — первый кадр каждого видео</span>
       <div class="seg ser-seg"><button data-ser-frames="new" class="${o.frames === 'new' ? 'on' : ''}">🖼 Новые — Flow, без кредитов</button><button data-ser-frames="mine" class="${o.frames === 'mine' ? 'on' : ''}">📍 Мои кадры (${mine})</button></div></div>
@@ -6734,6 +6843,7 @@ function serClick(b) {
   if (b.hasAttribute('data-ser-auto')) { wr.ai = 'auto'; wr.save(); return renderVoices(); }
   if (b.hasAttribute('data-ser-gemini')) { closeSheets(); setCreateMode('write'); return geminiOpen(); }
   if (b.hasAttribute('data-ser-gallery')) { closeSheets(); setView('gallery'); return render(); }
+  if (b.hasAttribute('data-ser-ap')) return openAutopilot();
   if (!j) return;
   if (b.hasAttribute('data-ser-pause')) { j.paused = !j.paused; ser.save(); renderVoices(); return serKick(); }
   if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
@@ -7654,7 +7764,8 @@ function phoneCards(tasks) {
   if (isMobile()) setView('gallery');
   requestAnimationFrame(() => $('#feed').scrollTo({top: 0, behavior: 'smooth'}));   // карточки — вверху галереи
   const n = tasks.length;
-  toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
+  if (apOn() && made.some(apCan)) autopilotRun(made);   // стоит Автопилот — карточки Flow он делает сам, без нажатий
+  else toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
   return made;
 }
 
@@ -7947,6 +8058,7 @@ function drawQR(box, text) {
   }
   render();
   hubLink.init();
+  autopilot.send({type: 'ping'});   // расширение ответит «hello» — уже после загрузки галереи, чтобы сверить карточки с его очередью
 })();
 </script>
 </body>
