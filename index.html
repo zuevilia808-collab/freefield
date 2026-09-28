@@ -766,6 +766,12 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 .ext-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:11px;background:var(--panel3);border:1px solid var(--line);font-size:12.5px;font-weight:600;transition:.2s}
 .ext-actions button:hover{background:var(--panel4)}
 .ext-actions .primary{grid-column:1/-1;background:var(--lime-grad);color:var(--ink);border-color:transparent}
+/* карточка «без компьютера»: фото-референсы — нажатие сохраняет фото на устройство */
+.ext-refs{display:flex;gap:8px;flex-wrap:wrap}
+.ext-refs button{position:relative;width:64px;height:64px;border-radius:11px;overflow:hidden;border:1px solid var(--line2);background:var(--panel3)}
+.ext-refs img{width:100%;height:100%;object-fit:cover;display:block}
+.ext-refs i{position:absolute;right:3px;bottom:3px;font-style:normal;font-size:11px;line-height:1;background:rgba(0,0,0,.65);border-radius:6px;padding:3px}
+.ext-warn{font-size:12px;color:var(--warn);background:rgba(255,197,61,.08);border:1px solid rgba(255,197,61,.3);border-radius:10px;padding:8px 10px}
 .ext-wait{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted)}
 .ext-wait .spin{margin:0;width:18px;height:18px}
 .ext-del{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:9px;color:var(--muted);display:grid;place-items:center}
@@ -2835,7 +2841,7 @@ function videoDims(blob) {
   });
 }
 
-async function attachExternal(it, file) {
+async function attachExternal(it, file, quiet = false) {   // quiet — несколько файлов сразу, общее сообщение даст вызывающий
   const want = it.type === 'video' ? 'video/' : 'image/';
   if (!file || !file.type.startsWith(want)) return toast(it.type === 'video' ? 'Нужен видеофайл (обычно .mp4)' : 'Нужна картинка (png, jpg, webp)', {type: 'err'});
   it.blob = file;
@@ -2845,7 +2851,7 @@ async function attachExternal(it, file) {
   if (d) [it.w, it.h] = d;
   DB.put(it);
   render();
-  toast(`${it.type === 'video' ? 'Видео' : 'Картинка'} из ${(allModels().find(x => x.id === it.model) || {}).site || 'Google'} добавлено в галерею 🎉`, {type: 'ok'});
+  if (!quiet) toast(`${it.type === 'video' ? 'Видео' : 'Картинка'} из ${(allModels().find(x => x.id === it.model) || {}).site || 'Google'} добавлено в галерею 🎉`, {type: 'ok'});
 }
 
 // ---- открыть сайт сервиса в окне рядом с Freefield (на телефоне — вкладкой) ----
@@ -3047,11 +3053,11 @@ function renderQuickSvc() {
     `<button class="qchip add" data-open-hub>${mine.length ? '＋' : '＋ Подключить сервисы'}</button>`;
 }
 
-function pickFile(accept) {
+function pickFile(accept, multiple = false) {   // multiple — массив файлов
   return new Promise(res => {
     const i = document.createElement('input');
-    i.type = 'file'; i.accept = accept;
-    i.onchange = () => res(i.files[0] || null);
+    i.type = 'file'; i.accept = accept; i.multiple = multiple;
+    i.onchange = () => res(multiple ? [...i.files] : i.files[0] || null);
     i.click();
   });
 }
@@ -3148,8 +3154,65 @@ function extQuota(m) {
   return (left != null ? `осталось ${left} из ${m.count.n} · ` : '') + `${m.credits} → ${m.equiv}`;
 }
 
+// карточка «без компьютера»: фото, промпт и настройки для сайта сервиса; «Создать» на сайте нажимает пользователь
+function phoneCardHTML(it, m) {
+  const p = it.phone, refs = it.refs || [], video = it.type === 'video', site = SITE_SHORT[p.site] || m.site;
+  const set = [p.engine, p.site !== 'arena' && it.aspect, p.count && `×${p.count}`].filter(Boolean).join(' · ');
+  const many = p.count > 1 || p.site === 'dola' || p.site === 'arena';   // сайт отдаёт сразу несколько вариантов
+  return `<div class="card ext" data-id="${it.id}">
+    <button class="ext-del" data-act="delete" title="Удалить">✕</button>
+    <div class="ext-head"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
+      <div><b>${p.of > 1 ? `${p.n}/${p.of} · ` : ''}${esc(site)} · ${video ? 'видео' : 'фото'}</b><div class="hint">${esc(set)}${p.info ? ' · ' + esc(p.info) : ''}</div></div></div>
+    <ol class="ext-steps">
+      ${refs.length ? `<li>Сохраните фото (💾 ниже) — на сайте приложите ${refs.length > 1 ? 'их' : 'его'} к запросу</li>` : ''}
+      <li>Нажмите «Скопировать промпт и открыть ${esc(site)}» — ${isConnected(p.site) ? 'вход уже выполнен' : 'войдите в аккаунт (один раз — браузер запомнит)'}</li>
+      <li>Выберите <b>${esc(set)}</b>, вставьте промпт (${pwa.mobile() ? 'долгое нажатие → «Вставить»' : 'Ctrl+V'}) и нажмите «Создать»</li>
+      <li>Скачайте готов${video ? 'ое видео' : 'ую картинку'} и нажмите «📥 Загрузить файл»${many ? ' — можно сразу все варианты' : ''}</li>
+    </ol>
+    ${p.site === 'vids' && pwa.mobile() ? '<div class="ext-warn">Google Vids с телефона видео не создаёт — только с компьютера. Попробуйте в меню браузера ⋮ «Версия для ПК» или сделайте этот сценарий во Flow.</div>' : ''}
+    ${refs.length ? `<div class="ext-refs">${refs.map((src, k) => `<button data-act="save-ref" data-k="${k}" title="Сохранить это фото"><img src="${src}" alt=""><i>💾</i></button>`).join('')}</div>` : ''}
+    <div class="ext-prompt">${esc(it.finalPrompt)}</div>
+    <div class="ext-actions">
+      <button data-act="open-site" class="primary">↗ Скопировать промпт и открыть ${esc(site)}</button>
+      ${refs.length ? '<button data-act="save-refs">💾 Сохранить фото</button>' : '<button data-act="copy">📋 Только промпт</button>'}
+      <button data-act="import">📥 Загрузить файл</button>
+    </div>
+    ${pwa.mobile() ? '' : autoImportBarHTML()}
+  </div>`;
+}
+
+// data URL фото-референса → файл (синхронно: «Поделиться» на iPhone работает только сразу после нажатия)
+function dataUrlFile(d, name) {
+  const [head, b64] = String(d).split(','), type = head.match(/^data:([^;,]+)/)?.[1] || 'image/jpeg';
+  const bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], `${name}.${type.split('/')[1] || 'jpg'}`, {type});
+}
+// фото карточки — в память телефона, чтобы приложить их на сайте сервиса:
+// в APK — в «Документы/Freefield», на iPhone — «Поделиться» → «Сохранить изображение», в остальных — в «Загрузки»
+async function saveRefs(it, list) {
+  const files = list.map((d, k) => dataUrlFile(d, `freefield-${it.id}-${k + 1}`));
+  if (!files.length) return;
+  if (native.on()) {
+    for (const f of files) {
+      try { await native.save(f, f.name); } catch (e) { return toast('Не удалось сохранить: ' + e.message, {type: 'err'}); }
+    }
+    return;
+  }
+  if (pwa.ios() && navigator.canShare?.({files})) return navigator.share({files}).catch(() => {});
+  for (const [k, f] of files.entries()) {
+    if (k) await new Promise(r => setTimeout(r, 500));   // несколько загрузок подряд браузер иначе отбрасывает
+    const a = document.createElement('a'), url = URL.createObjectURL(f);
+    a.href = url; a.download = f.name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+  toast(files.length > 1 ? `Фото сохранены (${files.length}) — в «Загрузках»` : 'Фото сохранено — в «Загрузках»', {type: 'ok'});
+}
+
 function externalCardHTML(it) {
   const m = allModels().find(x => x.id === it.model) || {};
+  if (it.phone) return phoneCardHTML(it, m);
   const video = it.type === 'video';
   return `<div class="card ext" data-id="${it.id}">
     <button class="ext-del" data-act="delete" title="Удалить">✕</button>
@@ -3309,7 +3372,7 @@ function pick(it) {
   return rest;
 }
 
-async function doAction(act, it) {
+async function doAction(act, it, el) {
   switch (act) {
     case 'download': {
       if (native.on()) {
@@ -3337,7 +3400,7 @@ async function doAction(act, it) {
         const ta = document.createElement('textarea');
         ta.value = it.finalPrompt; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
       }
-      toast('Промпт скопирован — вставьте его в Google Vids', {type: 'ok'});
+      toast(`Промпт скопирован — вставьте его в ${(allModels().find(x => x.id === it.model) || {}).site || 'сервис'}`, {type: 'ok'});
       break;
     case 'open-vids':
     case 'open-site': {
@@ -3347,9 +3410,12 @@ async function doAction(act, it) {
       autoImport.target = it.id;
       autoImport.since = Date.now();
       markConnected(m.service);
-      toast(`Промпт скопирован. В ${m.site}: вставьте его (Ctrl+V), сгенерируйте и скачайте результат${autoImport.active() ? ' — Freefield заберёт его сам' : ''}`, {type: 'ok', ms: 7000});
+      const paste = pwa.mobile() ? 'долгое нажатие → «Вставить»' : 'Ctrl+V';
+      toast(`Промпт скопирован. В ${m.site}: ${it.refs?.length ? 'приложите сохранённое фото, ' : ''}вставьте промпт (${paste}), сгенерируйте и скачайте результат${autoImport.active() ? ' — Freefield заберёт его сам' : ''}`, {type: 'ok', ms: 7000});
       break;
     }
+    case 'save-ref': await saveRefs(it, [it.refs?.[+el?.dataset.k]].filter(Boolean)); break;
+    case 'save-refs': await saveRefs(it, it.refs || []); break;
     case 'paste-clip':
       try {
         for (const ci of await navigator.clipboard.read()) {
@@ -3362,8 +3428,12 @@ async function doAction(act, it) {
     case 'auto-connect': await autoImport.connect(); break;
     case 'auto-allow': await autoImport.allow(); break;
     case 'import': {
-      const f = await pickFile(it.type === 'video' ? 'video/*' : 'image/*');
-      if (f) attachExternal(it, f);
+      // Flow, Dola и Arena отдают по несколько вариантов — можно выбрать все: каждый станет отдельной работой в галерее
+      const want = it.type === 'video' ? 'video/' : 'image/';
+      const fs = await pickFile(want + '*', true), ok = fs.filter(f => f.type.startsWith(want));
+      if (!ok.length) { if (fs.length) attachExternal(it, fs[0]); break; }   // не тот тип — attachExternal объяснит
+      for (const [k, f] of ok.entries()) await attachExternal(k ? newItem({...pick(it), status: 'external', statusText: '', importedAt: null}) : it, f, ok.length > 1);
+      if (ok.length > 1) toast(`Добавлено в галерею: ${ok.length} 🎉`, {type: 'ok'});
       break;
     }
     case 'limits':
@@ -3741,9 +3811,9 @@ function updateGenButton() {
     const n = cl.ready().length, btn = $('#genBtn');
     btn.classList.remove('paid');
     btn.disabled = cl.sending;
-    $('#genLabel').textContent = cl.sending ? '⏳ Отправляю…' : `🚀 Запустить ${n ? n + ' ' + plur(n, 'сценарий', 'сценария', 'сценариев') : 'сценарии'}`;
-    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'задание для Claude';
-    $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : 'Без связи с компьютером — скопирую задание для чата с Claude';
+    $('#genLabel').textContent = cl.sending ? (hubLink.ok ? '⏳ Отправляю…' : '⏳ Готовлю…') : `${hubLink.ok ? '🚀 Запустить' : '📱 Подготовить'} ${n ? n + ' ' + plur(n, 'сценарий', 'сценария', 'сценариев') : 'сценарии'}`;
+    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайтах';
+    $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : 'Без компьютера: подготовлю фото и промпты — «Создать» на сайтах нажмёте сами';
     return;
   }
   if (asset.svc !== 'other') {
@@ -3752,9 +3822,9 @@ function updateGenButton() {
     btn.disabled = asset.sending;
     const n = asset.kind ? asset.n : 1;   // несколько картинок со своими промптами — «Создать 10 картинок · Google Flow ×4»
     $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
-    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'задание для Claude';
+    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайте';
     $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
-      (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · компьютер не подключён');
+      (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
     return;
   }
   $('#genBtn').disabled = false;
@@ -3810,14 +3880,12 @@ function useImageSource() {
   }
   setVSource('image');
 }
-// оживить картинку в Google Flow / Vids / Dola / Arena: задание с фото уходит на компьютер, готовое видео придёт в галерею
+// оживить картинку в Google Flow / Vids / Dola / Arena: задание с фото уходит на компьютер, готовое видео придёт в галерею;
+// без компьютера — карточка для сайта с этим фото
 async function videoViaHub(m, raw, motion) {
-  if (!(await hubReady())) {
-    return toast(`Оживить картинку в ${m.site} Freefield может только через компьютер — откройте его с компьютера. Или возьмите Wan 2.2 прямо здесь`,
-      {type: 'err', ms: 9000, action: 'Wan 2.2', onAction: () => selectModel('free:wan22')});
-  }
   const r = state.vImage.w / state.vImage.h, aspect = r > 1.2 ? '16:9' : r < 0.83 ? '9:16' : '1:1';
   const prompt = [await asIs(raw), motion?.prompt].filter(Boolean).join(', ') || 'subtle natural motion, static camera';
+  if (!(await hubReady())) return phoneCards([{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]);
   try {
     const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({scenarios: [{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]})});
@@ -4165,7 +4233,7 @@ function bindControls() {
   $('#extStrip').addEventListener('click', e => {
     const card = e.target.closest('.card'); const act = e.target.closest('[data-act]');
     const it = card && items.find(i => i.id === card.dataset.id);
-    if (it && act) doAction(act.dataset.act, it);
+    if (it && act) doAction(act.dataset.act, it, act);
   });
   $('#grid').addEventListener('click', e => {
     const card = e.target.closest('.card'); if (!card) return;
@@ -4370,6 +4438,7 @@ const hubLink = {
     } catch { this.ok = false; }
     $$('.cl-live').forEach(el => { el.innerHTML = clLiveHTML(el.dataset.where); });
     $$('.cl-plan').forEach(el => { el.innerHTML = clPlanText(); });
+    $$('.scn-intro').forEach(el => { el.innerHTML = scnIntroText(); });
     if (!items.length) renderEmpty();
     if (!accState.checking) renderScnAcc();
     $$('#scnCreate [data-to]').forEach(el => { el.innerHTML = scnToHTML(+el.dataset.to); });
@@ -4499,6 +4568,8 @@ function scnDefault(kind, site) {
   if (kind === 'video') return {flow: 'omni-1.1-flash', dola: 'seedance-2.5', arena: 'battle', vids: 'omni'}[site];
   return {flow: 'nano-banana-2', dola: 'seedream-5-pro', arena: 'battle'}[site];
 }
+// телефон без связи с компьютером: сценарии и ассеты делаются вручную на сайтах сервисов (карточки «на телефоне»)
+const phoneOnly = () => !hubLink.ok && pwa.mobile();
 // тот же план, что у компьютера: видео — по кругу Flow → Dola → Arena, картинки — Flow ↔ Dola; сайты с лимитом пропускаем
 function clPlan(list) {
   const info = hubLink.info || {};
@@ -4521,7 +4592,8 @@ function clPlan(list) {
     };
     let site = s.service !== 'auto' ? s.service : null;
     if (!site) {
-      const order = kind === 'video' ? ['vids', 'flow', 'dola', 'arena'] : ['flow', 'dola'];
+      // Google Vids с телефона видео не создаёт (только с компьютера) — без компьютера на телефоне «Авто» его пропускает
+      const order = (kind === 'video' ? ['vids', 'flow', 'dola', 'arena'] : ['flow', 'dola']).filter(x => x !== 'vids' || !phoneOnly());
       const k = turn[kind]++ % order.length;
       const rot = [...order.slice(k), ...order.slice(0, k)];
       const fits = x => SITE_AR[kind][x].includes(scnAspect(s));   // 3:4 или 21:9 для видео — только Dola
@@ -4550,7 +4622,7 @@ function clPlanText() {
   if (c.arena) { const v = plan.filter((p, i) => p.site === 'arena' && list[i].kind === 'video').length, f = c.arena - v;
     parts.push(`<b>Arena</b> — ${c.arena} → ${[v && `${v * 2} видео`, f && `${f * 2} фото`].filter(Boolean).join(' и ')}`); }
   const st = styleOf(state.style), own = list.filter(s => s.style != null && s.style !== state.style).length;
-  return `План: ${parts.join(' · ')}. Все сценарии уходят сразу, сервисы работают параллельно.` +
+  return `План: ${parts.join(' · ')}. ${phoneOnly() ? 'На каждый сценарий — карточка с фото и промптом для сайта.' : 'Все сценарии уходят сразу, сервисы работают параллельно.'}` +
     (st.suffix ? ` Стиль «${esc(st.name)}» добавится ${own ? `ко всем, кроме ${own} со своим стилем` : 'ко всем'}.` : own ? ` Свой стиль — у ${own} ${plur(own, 'сценария', 'сценариев', 'сценариев')}.` : '');
 }
 
@@ -4710,22 +4782,28 @@ function clLiveHTML(where = 'create') {
   const conn = hubLink.ok
     ? `<div class="cl-conn on">🟢 Приложение подключено к компьютеру — задания уйдут прямо туда${hubLink.info?.flowLeft != null ? ` · во Flow осталось <b>${hubLink.info.flowLeft}</b> из 50 кредитов` : ''}${hubLink.onPc() ? ' <button class="btn small" data-phone-qr title="QR-код: открыть Freefield с вашими аккаунтами на телефоне">📱 На телефон</button>' : ''}</div>`
     : hubLink.denied ? '<div class="cl-conn">🔑 Ключ связи сменился — отсканируйте новый QR-код: на компьютере во Freefield кнопка «📱 На телефон».</div>'
-    : hubLink.key && hubLink.local() ? '<div class="cl-conn">🔴 Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi.</div>'
+    : hubLink.key && hubLink.local() ? '<div class="cl-conn">🔴 Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi. Или без него: «Подготовить» сделает карточки для сайтов — «Создать» там нажмёте сами.</div>'
     : where === 'asset' ? ''   // в «Создании ассетов» инструкцию для телефона не показываем (просьба пользователя 2026-09-27)
-    : `<div class="cl-conn"><b>Эта версия не видит ваш компьютер — как запускать через Flow, Vids, Dola и Arena</b>
-        <ol class="steps"><li>На компьютере откройте Freefield и нажмите <b>«📱 На телефон»</b>.</li>
-        <li>Отсканируйте телефоном верхний QR-код. Телефон и компьютер — в одной сети Wi-Fi.</li>
-        <li>Откроется Freefield с компьютера — пишите сценарии в «Видео сервисы» и жмите «Запустить». Эту страницу добавьте на экран «Домой».</li></ol>
-        Без подключения кнопка внизу копирует задание — его можно вставить в чат с Claude.</div>`;
+    // без компьютера (версия с GitHub, APK) — вручную на сайтах сервисов (пользователь 2026-09-28: «генерация с телефона без компа»)
+    : `<div class="cl-conn"><b>📱 Без компьютера — сами на сайтах сервисов</b>
+        <ol class="steps"><li>Нажмите <b>«Подготовить»</b> — на каждый сценарий в галерее появится карточка: фото, промпт, сервис, модель и формат.</li>
+        <li>На карточке: <b>💾 сохраните фото</b> → <b>«Скопировать промпт и открыть»</b> сайт → приложите фото, вставьте промпт и нажмите там «Создать».</li>
+        <li>Скачайте результат и нажмите <b>«📥 Загрузить файл»</b> — он появится в галерее.</li></ol>
+        Тратятся те же бесплатные кредиты ваших аккаунтов.${pwa.mobile() ? ' Google Vids с телефона видео не создаёт — «Авто» раскладывает по Flow, Dola и Arena.' : ''}
+        Чтобы всё запускалось само, нужен компьютер: там во Freefield кнопка «📱 На телефон».</div>`;
   return `${conn}
     <div class="cl-acts">
-      ${where === 'create' && hubLink.ok ? '<button class="btn" data-copy>📋 Скопировать задание для Claude</button>' : ''}
+      ${where === 'create' && (hubLink.ok || !pwa.mobile()) ? '<button class="btn" data-copy>📋 Скопировать задание для Claude</button>' : ''}
       ${hubLink.ok ? '<button class="btn" data-import-all title="Компьютер проверит сервисы (Flow…) и отдаст все картинки и видео за сегодня и вчера">🔄 Забрать всё из сервисов</button>' : ''}
     </div>
     ${hubLink.ok && hubLink.batches.length ? `<div class="cl-sec">Задания</div>${hubLink.batches.slice(0, where === 'asset' ? 3 : 6).map(clBatchHTML).join('')}` : ''}`;
 }
 
 // Сценарии в разделе «Создать»: несколько промптов сразу → Flow / Arena / Dola
+// без компьютера на телефоне — не «запустит», а подготовит (обновляется и при ответе компьютера)
+const scnIntroText = () => `Каждый сценарий — отдельное видео или фото. Freefield сам разложит их по ${phoneOnly()
+  ? 'Google Flow, Arena и Dola на бесплатных кредитах и подготовит для каждого фото и промпт — «Создать» на сайте нажмёте сами'
+  : 'Google Vids, Google Flow, Arena и Dola на бесплатных кредитах и запустит все сразу'}. До ${CL_MAX} за раз.`;
 function renderScn() {
   if (!$('#scnCreate')) return;
   const scn = cl.scn.map((s, i) => `<div class="scn ${cl.sel === i ? 'sel' : ''}" data-i="${i}">
@@ -4743,7 +4821,7 @@ function renderScn() {
       <textarea data-prompt rows="${isBlockPrompt(s.prompt) ? 10 : 3}" placeholder="${i === 0 ? 'Например: дрон пролетает над ночным мегаполисом, неон отражается в лужах, камера медленно опускается к улице' : 'Что происходит в кадре, как движется камера, какой свет и настроение'}">${esc(s.prompt)}</textarea>
     </div>`).join('');
   $('#scnCreate').innerHTML = `
-    <div class="scn-intro">Каждый сценарий — отдельное видео или фото. Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola на бесплатных кредитах и запустит все сразу. До ${CL_MAX} за раз.</div>
+    <div class="scn-intro">${scnIntroText()}</div>
     ${scn}
     <div class="cl-row">
       ${cl.scn.length < CL_MAX ? '<button class="btn" data-add>＋ Сценарий</button>' : ''}
@@ -4819,8 +4897,8 @@ function setCreateMode(m) {
   styleSync();
   updateGenButton();
 }
-// большая кнопка внизу в режиме сценариев: отправить на компьютер или скопировать задание для Claude
-async function scnGo() { return (await hubReady()) ? clSend() : clCopy(true); }
+// большая кнопка внизу в режиме сценариев: отправить на компьютер, а без него — карточки для сайтов сервисов
+async function scnGo() { return (await hubReady()) ? clSend() : scnPhone(); }
 // большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
 function createGo() { return cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
 
@@ -5280,15 +5358,8 @@ async function assetGo() {
   // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow)
   const imgsOf = it => [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
   const tasks = (list || [null]).map((it, i) => assetTask(composePrompt(prompts[i], state.style, 'image'), imgsOf(it)));
-  if (!(await hubReady())) {
-    const m = scnModel('image', asset.svc, asset.model[asset.svc]);
-    const photos = tasks.some(t => t.images) ? ' Фото-референсы приложу в чат — возьми их через chat_photos.' : '';
-    const text = tasks.length > 1
-      ? `Сделай через Freefield ассеты — ${tasks.length} картинок одним пакетом (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}), у каждой свой промпт — как написан.${photos}\n` + tasks.map((t, i) => `${i + 1}. ${t.prompt}`).join('\n')
-      : `Сделай через Freefield ассет — картинку (batch_generate: kind="image", service="${asset.svc}"${asset.svc !== 'arena' && m ? `, model="${m[1]}"` : ''}, aspect_ratio="${assetAspect()}"${asset.svc === 'flow' ? `, count=${asset.count}` : ''}). ` +
-        `${asset.kind ? 'Промпт — как написан.' : 'Перепиши промпт в подробный английский.'}${photos}\n${tasks[0].prompt}`;
-    return hubMissingToast(await clCopyText(text) ? 'Задание скопировано — можно вставить в чат с Claude.' : '');
-  }
+  // без компьютера — карточки для сайтов: «Создать» во Flow, Dola или Arena пользователь нажимает сам
+  if (!(await hubReady())) return phoneCards(tasks);
   asset.sending = true;
   updateGenButton();
   try {
@@ -5770,10 +5841,7 @@ function writeOutHTML() {
 async function writeAssets(list) {
   list = list.filter(s => s.asset_prompt.length >= 3);
   if (!list.length) return toast('У сценария нет промпта для ассета', {type: 'err'});
-  if (!(await hubReady())) {
-    const text = `Сделай через Freefield ассеты (batch_generate: kind="image", service="flow", model="nano-banana-2", aspect_ratio="3:4", count=4). Развёртку героя приложу в чат — возьми её через chat_photos как image_path.\n` + list.map((s, i) => `${i + 1}. ${s.asset_prompt}`).join('\n');
-    return hubMissingToast(await clCopyText(text) ? 'Задание скопировано — можно вставить в чат с Claude.' : '');
-  }
+  if (!(await hubReady())) return phoneCards(list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: wr.sheet ? [wr.sheet] : undefined})));
   try {
     const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({scenarios: list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: [wr.sheet]}))})});
@@ -5881,7 +5949,7 @@ async function clCopyText(t) {
   }
 }
 
-async function clCopy(missing = false) {   // missing — нажали «Запустить», а компьютер не ответил
+async function clCopy() {
   const list = cl.ready();
   if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
   const svc = {auto: 'сервис выбери сам', flow: 'Google Flow', arena: 'Arena', dola: 'Dola'};
@@ -5889,8 +5957,19 @@ async function clCopy(missing = false) {   // missing — нажали «Зап�
     `(сцена, действие, камера, свет, стиль) и разложи по Google Flow / Arena / Dola так, чтобы хватило бесплатных кредитов. Длина видео: ${cl.seconds} с (seconds=${cl.seconds}).\n` +
     list.map((s, i) => `${i + 1}. ${s.kind === 'video' ? 'Видео' : 'Картинка'} · ${svc[s.service]} · формат ${scnAspect(s)}${s.ref || s.sheet ? ` · с фото (${[s.ref && 'персонаж в локации', s.sheet && 'развёртка'].filter(Boolean).join(' и ')}) — приложу в чат` : ''}: ${composePrompt(s.kind === 'video' ? withCamera(s.prompt.trim(), s.camera) : s.prompt.trim(), s.style ?? state.style, s.kind)}`).join('\n');
   const copied = await clCopyText(text);
-  if (missing) return hubMissingToast(copied ? 'Задание скопировано — можно вставить в чат с Claude.' : '');
-  toast(copied ? 'Задание скопировано — вставьте его в чат с Claude' : 'Не удалось скопировать — выделите текст вручную', {type: 'ok'});
+  toast(copied ?'Задание скопировано — вставьте его в чат с Claude' : 'Не удалось скопировать — выделите текст вручную', {type: 'ok'});
+}
+
+// сценарии → задания (одни и те же для компьютера и для карточек «на телефоне»)
+async function clTasks(list) {
+  let out = list.map(s => ({prompt: s.prompt.trim(), kind: s.kind, service: s.service, aspect_ratio: scnAspect(s), seconds: s.kind === 'video' ? cl.seconds : undefined, model: s.service !== 'auto' ? s.model || undefined : undefined, image: s.ref || undefined, sheet: s.sheet || undefined, fixed: s.fixed, style: s.style, camera: s.kind === 'video' ? s.camera : undefined}));
+  // промпты не «улучшаем» (переключатель убран по просьбе пользователя) — только переводим русское на английский как есть;
+  // готовые промпты из «Создания сценария» не трогаем, в эталонном (блочном) — переводим по блокам, реплики в «» остаются
+  out = await Promise.all(out.map(async s => {
+    if (s.fixed || !/[а-яё]/i.test(s.prompt)) return s;
+    try { return {...s, prompt: isBlockPrompt(s.prompt) ? await translateBlocks(s.prompt) : await translateKeepQuotes(s.prompt)}; } catch { return s; }
+  }));
+  return out.map(({fixed, style, camera, ...s}) => ({...s, prompt: composePrompt(withCamera(s.prompt, camera), style ?? state.style, s.kind)}));   // у сценария может быть свой стиль
 }
 
 async function clSend() {
@@ -5899,14 +5978,7 @@ async function clSend() {
   cl.sending = true;
   updateGenButton();
   try {
-    let out = list.map(s => ({prompt: s.prompt.trim(), kind: s.kind, service: s.service, aspect_ratio: scnAspect(s), seconds: s.kind === 'video' ? cl.seconds : undefined, model: s.service !== 'auto' ? s.model || undefined : undefined, image: s.ref || undefined, sheet: s.sheet || undefined, fixed: s.fixed, style: s.style, camera: s.kind === 'video' ? s.camera : undefined}));
-    // промпты не «улучшаем» (переключатель убран по просьбе пользователя) — только переводим русское на английский как есть;
-    // готовые промпты из «Создания сценария» не трогаем, в эталонном (блочном) — переводим по блокам, реплики в «» остаются
-    out = await Promise.all(out.map(async s => {
-      if (s.fixed || !/[а-яё]/i.test(s.prompt)) return s;
-      try { return {...s, prompt: isBlockPrompt(s.prompt) ? await translateBlocks(s.prompt) : await translateKeepQuotes(s.prompt)}; } catch { return s; }
-    }));
-    out = out.map(({fixed, style, camera, ...s}) => ({...s, prompt: composePrompt(withCamera(s.prompt, camera), style ?? state.style, s.kind)}));   // у сценария может быть свой стиль
+    const out = await clTasks(list);
     const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: out})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
@@ -5920,6 +5992,55 @@ async function clSend() {
   renderScn();
   updateGenButton();
   hubLink.refresh();
+}
+
+// Без компьютера (версия с GitHub, APK, другая сеть): у Flow, Vids, Dola и Arena нет публичного API, а до компьютера,
+// где Freefield запускает их сам, эта версия не достаёт. Поэтому на каждое задание — карточка в галерее: фото, промпт,
+// сервис, модель и формат; «Создать» на сайте нажимает сам пользователь (тратятся те же бесплатные кредиты),
+// готовый файл загружается в карточку. Задания — те же, что ушли бы на компьютер (/api/batch).
+function phoneCards(tasks) {
+  // newItem кладёт карточку в начало — идём с конца, чтобы первая была сверху
+  tasks.map((t, i) => [t, i]).reverse().forEach(([t, i]) => {
+    const site = t.service, kind = t.kind;
+    const m = EXT_MODELS.find(x => x.service === site && x.kind === kind) || EXT_MODELS.find(x => x.service === site);
+    const sm = scnModel(kind, site, t.model) || scnModel(kind, site, scnDefault(kind, site));
+    // формат — из тех, что есть на сайте; Arena формат не выбирает — пишем его словами в промпт
+    const ar = site === 'arena' || !SITE_AR[kind][site] ? t.aspect_ratio : fitAr(SITE_AR[kind][site], t.aspect_ratio);
+    const r = arRatio(ar), shape = r < 0.95 ? 'vertical' : r > 1.05 ? 'horizontal' : 'square';
+    const prompt = site !== 'arena' ? t.prompt : isBlockPrompt(t.prompt) ? `${t.prompt}\nFormat: ${shape} ${ar}` : `${t.prompt}, ${shape} ${ar} format`;
+    const it = newItem({type: kind, status: 'external', statusText: '', prompt: t.prompt, userPrompt: t.prompt, finalPrompt: prompt,
+      aspect: ar, w: r >= 1 ? 1024 : Math.round(1024 * r), h: r >= 1 ? Math.round(1024 / r) : 1024, seed: 0, cost: 0,
+      source: t.images?.length ? 'image' : 'text', refs: t.images || [], ...modelFields(m),
+      phone: {site, engine: sm ? sm[2] : m.engine, info: sm ? sm[3] : '', count: t.count > 1 ? t.count : 0, n: i + 1, of: tasks.length}});
+    DB.put(it);
+  });
+  render();
+  if (isMobile()) setView('gallery');
+  requestAnimationFrame(() => $('#feed').scrollTo({top: 0, behavior: 'smooth'}));   // карточки — вверху галереи
+  const n = tasks.length;
+  toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
+  return true;
+}
+
+// «Видео сервисы» без компьютера: сервис и модель — по тому же плану, что у компьютера
+async function scnPhone() {
+  const list = cl.ready();
+  if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
+  cl.sending = true;
+  updateGenButton();
+  try {
+    const plan = clPlan(list), out = await clTasks(list);
+    // Flow и Vids берут оба фото («ингредиенты»), Dola и Arena — только первое
+    phoneCards(out.map(({image, sheet, ...t}, i) => ({...t, service: plan[i].site, model: plan[i].model,
+      images: [image, sheet].filter(Boolean).slice(0, ['flow', 'vids'].includes(plan[i].site) ? 2 : 1)})));
+    cl.scn = [scnLike(cl.scn.at(-1))];   // дальше — один пустой сценарий с теми же настройками
+    cl.sel = null;
+    cl.save();
+    styleSync();
+  } catch (e) { toast('Не удалось подготовить: ' + e.message, {type: 'err'}); }
+  cl.sending = false;
+  renderScn();
+  updateGenButton();
 }
 
 function bindClaude() {
@@ -6091,8 +6212,10 @@ function renderInstall() {
     if (pwa.android()) html += '<div class="set-h">📦 Или отдельное приложение</div>' +
       '<a class="inst-big" style="display:grid;place-items:center;text-decoration:none" href="Freefield.apk" download>Скачать Freefield.apk (4 МБ)</a>' +
       '<p class="inst-note">Откройте скачанный файл и разрешите установку из этого источника. Android может предупредить о неизвестном разработчике — это нормально для приложений не из Google Play: нажмите «Всё равно установить».</p>';
-    // версия с GitHub до компьютера не достаёт — как открыть Freefield «с компьютера» (вторая иконка на экране «Домой»)
-    if (pwa.hosted() || native.on()) html += '<div class="set-h">📡 Через ваши аккаунты на компьютере</div>' + steps([
+    // версия с GitHub до компьютера не достаёт: Flow, Dola и Arena — вручную на сайтах (карточки), или Freefield «с компьютера»
+    if (pwa.hosted() || native.on()) html += '<div class="set-h">📱 Без компьютера</div>' +
+      '<p class="set-p">Flow, Dola и Arena работают и отсюда — вручную: «Подготовить» в «Видео сервисах» или «Создать» в «Ассетах» кладёт в галерею карточку с фото и промптом. На ней: 💾 сохранить фото → «Скопировать промпт и открыть» сайт → там «Создать» → «📥 Загрузить файл». Google Vids с телефона видео не создаёт.</p>' +
+      '<div class="set-h">📡 Чтобы запускалось само — через компьютер</div>' + steps([
       'На компьютере откройте Freefield и нажмите <b>«📱 На телефон»</b> — в зелёной строке «Приложение подключено к компьютеру».',
       'Отсканируйте верхний QR-код этим телефоном. Телефон — в той же сети Wi-Fi, что и компьютер (или компьютер подключён к точке доступа телефона).',
       'Добавьте и ту страницу на экран «Домой» — будет вторая иконка Freefield: она запускает видео и фото через Google Flow, Vids, Dola и Arena на компьютере.']) +
@@ -6123,7 +6246,8 @@ function renderInstall() {
   if ($('#qrBox')) drawQR($('#qrBox'), pwa.mobile() || pwa.hosted() ? url : SITE_URL);
 }
 // Перед отправкой на компьютер: ответа от него ещё не было (страница только открылась, компьютер занят генерациями) —
-// спрашиваем ещё раз и ждём, а не сразу «компьютер не подключён». Версия с GitHub / из APK до компьютера не достаёт вовсе
+// спрашиваем ещё раз и ждём, а не сразу «компьютер не подключён». Версия с GitHub / из APK до компьютера не достаёт вовсе —
+// тогда задания становятся карточками для сайтов (phoneCards)
 async function hubReady() {
   if (hubLink.ok) return true;
   if (!hubLink.local()) return false;
@@ -6131,13 +6255,6 @@ async function hubReady() {
   await hubLink.refresh();
   return hubLink.ok;
 }
-// почему задание не ушло на компьютер — по-человечески (пользователь открыл на iPhone QR «везде» и не понял, почему не работает)
-function hubMissing() {
-  if (hubLink.local()) return 'Freefield на компьютере не отвечает — проверьте, что компьютер включён, Claude Desktop открыт, а телефон в той же сети Wi-Fi.';
-  return 'Эта версия Freefield (с GitHub) не видит ваш компьютер: телефон не пускает защищённый сайт к домашнему компьютеру. Flow, Vids, Dola и Arena работают во Freefield, открытом по QR-коду «с компьютера» (на компьютере — кнопка «📱 На телефон»).';
-}
-// уведомление «не ушло на компьютер» + кнопка «Как подключить» (окно установки с инструкцией)
-const hubMissingToast = tail => toast(`${hubMissing()}${tail ? ' ' + tail : ''}`, {type: 'err', ms: 15000, action: 'Как подключить', onAction: () => openInstall()});
 // ссылка «телефон с вашими аккаунтами»: адрес компьютера в домашней сети + секретный ключ (как в QR от Claude — phone_link)
 const hubLinkHome = () => { const lan = hubLink.info?.lan?.[0]; return lan && hubLink.key ? `http://${lan}:${hubLink.info.port || 5180}/?k=${encodeURIComponent(hubLink.key)}#claude` : ''; };
 const SITE_URL = 'https://zuevilia808-collab.github.io/freefield/';   // Freefield на GitHub Pages — открывается где угодно
