@@ -370,20 +370,6 @@ body[data-cm=chars] .only-chars{display:block}
 .ch-tags u .ic{width:12px;height:12px}
 .ch-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .ch-acts .btn.small{margin-top:0}
-.vc-lib{display:grid;gap:8px;margin-top:8px}
-.vc-libv{border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--panel2)}
-.vc-libv.on{border-color:rgba(212,255,58,.5);background:linear-gradient(90deg,rgba(212,255,58,.07),transparent),var(--panel2)}
-.vc-libh{display:flex;align-items:center;gap:10px}
-.vc-libh span{display:grid;gap:2px;flex:1;min-width:0}
-.vc-libh b{font-size:13px}
-.vc-libh small{font-size:11.5px;color:var(--muted)}
-.vc-libh em{font-style:normal;font-size:11px;font-weight:700;color:var(--paid);white-space:nowrap}
-.vc-libh em.ok{color:var(--free)}
-.vc-libh .btn.small{margin-top:0;flex:none}
-.vc-libv audio{width:100%;height:34px;margin-top:8px}
-.vc-credit{display:block;font-size:10.5px;color:var(--dim);margin-top:2px}
-.vc-own{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:12.5px;color:var(--text2)}
-.vc-own .vc-src{margin-top:8px}
 .vc-now{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 2px}
 .vc-now .btn.small{margin-top:0}
 .scr-f{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
@@ -600,6 +586,10 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 /* кнопки профиля — всегда справа, даже когда переносятся под длинное название */
 .acc-prof-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .acc-prof-btns .btn:disabled{opacity:.35;cursor:default}
+.acc-sub{padding-left:40px;flex-wrap:wrap;gap:6px 8px}
+.acc-sub .acc-main{flex:1 1 100%}
+.acc-sub .acc-main b{font-size:12.5px;font-weight:600;overflow-wrap:anywhere}
+.acc-add{margin:8px 0 4px}
 .acc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
 .scn-refs{display:grid;gap:6px;margin-top:8px}
 .scn-refs .btns{display:flex;flex-wrap:wrap;gap:6px}
@@ -3842,20 +3832,37 @@ function openMcp() {
   $('#mcpSheet').classList.remove('hidden');
 }
 let mcpVals = [];
+// https-туннель к Freefield на компьютере — для Claude Code в облаке и приложения Claude на телефоне (пользователь 2026-09-28:
+// «должна быть возможность подключить по MCP к Claude Code»): их коннекторы принимают только https-ссылку из интернета
+const MCP_TUNNEL = port => `npx cloudflared tunnel --url http://localhost:${port} --http-host-header localhost:${port}`;
+const MCP_CONNECTORS = 'https://claude.ai/customize/connectors';
 function renderMcp() {
   const box = $('#mcpBody');
   if (!box) return;
+  mcpVals = [];
+  const row = (label, hint, val) => { mcpVals.push(val);
+    return `<div class="mcp-row"><div class="mcp-l"><b>${label}</b><span class="hint">${hint}</span></div>
+      <div class="mcp-v"><code>${esc(val)}</code><button class="btn" data-mcp-copy="${mcpVals.length - 1}">📋 Копировать</button></div></div>`; };
   if (!hubLink.local() || !hubLink.key) {
-    box.innerHTML = '<p class="set-p">Ссылку на MCP даёт Freefield на компьютере. Откройте приложение на самом компьютере (или по ссылке с компьютера в домашней сети) — она появится здесь.</p>';
+    box.innerHTML = `
+      <div class="mcp-status">🔴 MCP-сервер — часть Freefield на компьютере, ${pwa.hosted() ? 'а эта страница открыта с сайта' : 'а связи с ним сейчас нет'}</div>
+      <p class="set-p">Через MCP Claude Code запускает генерации в Google Flow, Vids, Dola и Arena на ваших аккаунтах, собирает пакеты сценариев и забирает готовое в галерею. Сервер работает на компьютере вместе с Claude Desktop — ссылку с ключом показывает Freefield, открытый на том компьютере.</p>
+      <div class="cl-sec">💻 Claude Code на компьютере</div>
+      <ol class="steps"><li>Откройте Claude Desktop — Freefield запустится вместе с ним.</li>
+        <li>В браузере компьютера откройте <b>http://127.0.0.1:5180</b> → «MCP»: там готовая команда с вашим ключом.</li>
+        <li>Вставьте её в терминал: <code>claude mcp add --transport http freefield "http://localhost:5180/mcp?k=…"</code></li></ol>
+      <div class="cl-sec">☁️ Claude Code в облаке и приложение Claude на телефоне</div>
+      <ol class="steps"><li>Им нужна https-ссылка из интернета. На компьютере с Freefield запустите туннель (нужен Node.js):</li></ol>
+      ${row('Туннель', 'в терминале компьютера', MCP_TUNNEL(5180))}
+      <ol class="steps" start="2"><li>Туннель покажет адрес <b>https://….trycloudflare.com</b>. На компьютере в Freefield → «MCP» вставьте его — получится ссылка коннектора.</li>
+        <li>Добавьте её: <a href="${MCP_CONNECTORS}" target="_blank" rel="noopener">claude.ai → Настройки → Коннекторы</a> → «Добавить свой коннектор», — и начните новую сессию Claude Code: коннекторы подключаются при старте.</li></ol>
+      <div class="mcp-note">⚠️ Пока туннель запущен, по ссылке с ключом можно запускать генерации на ваших аккаунтах — никому её не отправляйте. Адрес туннеля меняется при каждом запуске.</div>`;
     return;
   }
   const info = hubLink.info || {}, port = info.port || location.port || 5180, k = encodeURIComponent(hubLink.key);
   const local = `http://localhost:${port}/mcp?k=${k}`;
   const lan = (info.lan || []).map(a => `http://${a}:${port}/mcp?k=${k}`);
-  mcpVals = [];
-  const row = (label, hint, val) => { mcpVals.push(val);
-    return `<div class="mcp-row"><div class="mcp-l"><b>${label}</b><span class="hint">${hint}</span></div>
-      <div class="mcp-v"><code>${esc(val)}</code><button class="btn" data-mcp-copy="${mcpVals.length - 1}">📋 Копировать</button></div></div>`; };
+  const tunnel = ls.get('freefield.mcpTunnel', '');
   const status = !hubLink.ok ? '🔴 Компьютер не отвечает — Freefield на компьютере сейчас не запущен'
     : info.mcp ? '🟢 MCP-сервер работает — ссылкой можно пользоваться'
     : '🟡 Ссылка заработает после перезапуска Claude Desktop (сейчас связь держит упрощённый Freefield без MCP)';
@@ -3868,10 +3875,16 @@ function renderMcp() {
     <div class="cl-sec">Готовые команды</div>
     ${row('Claude Code', 'вставьте в терминал', `claude mcp add --transport http freefield "${local}"`)}
     ${row('Cursor и другие', 'в настройки MCP (mcp.json)', JSON.stringify({mcpServers: {freefield: {url: local}}}, null, 2))}
+    <div class="cl-sec">☁️ Claude Code в облаке и приложение Claude на телефоне — через https</div>
+    <p class="set-p">Их коннекторы принимают только https-ссылку из интернета. Туннель даёт её вашему Freefield на время, пока он запущен.</p>
+    ${row('1. Туннель', 'в терминале этого компьютера (нужен Node.js)', MCP_TUNNEL(port))}
+    <div class="mcp-row"><div class="mcp-l"><b>2. Адрес туннеля</b><span class="hint">вставьте https://….trycloudflare.com из терминала</span></div>
+      <div class="key-row"><input class="show" data-mcp-tunnel value="${esc(tunnel)}" placeholder="https://….trycloudflare.com" autocomplete="off" spellcheck="false"></div></div>
+    ${tunnel ? row('3. Ссылка коннектора', `<a href="${MCP_CONNECTORS}" target="_blank" rel="noopener">claude.ai → Настройки → Коннекторы</a> → «Добавить свой коннектор»; потом — новая сессия Claude Code`, `${tunnel}/mcp?k=${k}`) : ''}
     <div class="mcp-note">⚠️ Ссылка секретная: с ней можно запускать генерации на ваших аккаунтах — никому не отправляйте и не публикуйте.<br>
       Claude Desktop на этом компьютере подключён к Freefield сам — ему ссылка не нужна.<br>
       Ссылка работает на этом компьютере и в вашей домашней сети, пока открыт Claude Desktop.<br>
-      В окно «Добавить свой коннектор» (Claude Desktop, claude.ai, приложение Claude на телефоне) она не подойдёт — там пишут «ссылка должна начинаться с https»: к коннекторам подключаются серверы Anthropic из интернета, а до вашего компьютера они не достают.</div>`;
+      Для «Добавить свой коннектор» (claude.ai, приложение Claude на телефоне, Claude Code в облаке) нужна https-ссылка — через туннель выше: серверы Anthropic подключаются из интернета, а до вашего компьютера напрямую не достают. Адрес туннеля меняется при каждом запуске.</div>`;
 }
 
 function closeSheets() {
@@ -4289,10 +4302,19 @@ function bindControls() {
   $('#hubBtn').addEventListener('click', openHub);
   $('#accBtn').addEventListener('click', openAcc);
   $('#mcpBtn').addEventListener('click', openMcp);
+  $('#mcpBody').addEventListener('change', e => {   // адрес туннеля → ссылка коннектора
+    if (!e.target.matches('[data-mcp-tunnel]')) return;
+    const v = e.target.value.trim().replace(/\/+$/, '').replace(/\/mcp.*$/, '');
+    if (v && !/^https:\/\/[\w.-]+(:\d+)?$/.test(v)) return toast('Нужен адрес вида https://….trycloudflare.com', {type: 'err'});
+    ls.set('freefield.mcpTunnel', v);
+    renderMcp();
+  });
   $('#mcpBody').addEventListener('click', async e => {
     const b = e.target.closest('[data-mcp-copy]');
     if (b) toast(await clCopyText(mcpVals[+b.dataset.mcpCopy]) ? 'Скопировано' : 'Не удалось скопировать', {type: 'ok'});
   });
+  $('#scnAcc').addEventListener('click', accMineClick);
+  $('#scnAcc').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-accm-in]')) { e.preventDefault(); $(`[data-accm-save="${e.target.dataset.accmIn}"]`)?.click(); } });
   $('#accSvc').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-acc-hub')) return openHub();
@@ -4800,15 +4822,58 @@ function clPlanText() {
     (st.suffix ? ` Стиль «${esc(st.name)}» добавится ${own ? `ко всем, кроме ${own} со своим стилем` : 'ко всем'}.` : own ? ` Свой стиль — у ${own} ${plur(own, 'сценария', 'сценариев', 'сценариев')}.` : '');
 }
 
+// Без компьютера Freefield не видит, где вы вошли: вход хранит браузер. Пользователь 2026-09-28: «в Профилях не вижу подключённых
+// аккаунтов» — свой список аккаунтов по сервисам (почта или имя, отметка входа), «↗ Войти» открывает сайт; хранится в браузере.
+const accMine = {list: ls.get('freefield.accounts', []), adding: null, save() { ls.set('freefield.accounts', this.list); }};
+function accMineHTML() {
+  const svcs = CLAUDE_SVC.map(c => SERVICES.find(x => x.id === c.id)).filter(Boolean);
+  return `<div class="acc-box"><div class="hint">${isMobile() ? '📱' : '💻'} Компьютер с Freefield сейчас не на связи, поэтому профилей Chrome и баланса не видно — их показывает Freefield на компьютере. Свои аккаунты отметьте здесь: «↗ Войти» откроет сайт, а карточки для сайтов Freefield делает и без компьютера.</div>
+    ${!isMobile() && location.port !== '5180' ? '<div class="acc-foot"><a class="btn small free" href="http://127.0.0.1:5180/">🔗 Открыть Freefield с компьютера</a></div>' : ''}</div>
+    ${svcs.map(x => {
+      const mine = accMine.list.filter(a => a.svc === x.id);
+      return `<div class="acc-box acc-mine"><div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
+        <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">${esc(x.short || x.credits)}${mine.length ? ` · аккаунтов: ${mine.length}` : ''}</span></div>
+        <button class="btn small" data-accm-open="${x.id}">↗ Открыть</button></div>
+        ${mine.map(a => `<div class="acc-row acc-sub"><div class="acc-main"><b>👤 ${esc(a.who)}</b><span class="hint">${a.on ? '🟢 вход выполнен' : '⚪ вход не отмечен'}</span></div>
+          <button class="btn small" data-accm-open="${x.id}" data-accm-who="${a.id}">↗ Войти</button><button class="btn small" data-accm-on="${a.id}">${a.on ? 'Снять' : '✓ Вошёл'}</button><button class="btn small" data-accm-rm="${a.id}" title="Убрать аккаунт">✕</button></div>`).join('')}
+        ${accMine.adding === x.id ? `<div class="key-row acc-add"><input class="show" data-accm-in="${x.id}" placeholder="почта или имя аккаунта" autocomplete="off" spellcheck="false"><button class="btn free small" data-accm-save="${x.id}">Добавить</button></div>`
+          : `<div class="acc-foot"><button class="btn small" data-accm-add="${x.id}">＋ Аккаунт</button></div>`}</div>`;
+    }).join('')}`;
+}
+function accMineClick(e) {
+  const b = e.target.closest('button');
+  if (!b || hubLink.ok) return;
+  const x = b.dataset;
+  if (x.accmOpen) {
+    const svc = SERVICES.find(v => v.id === x.accmOpen), a = accMine.list.find(v => v.id === x.accmWho);
+    // сайты Google (Flow, Vids): с почтой — сразу этим аккаунтом
+    const url = a && /@/.test(a.who) && ['flow', 'vids'].includes(svc.id) ? svc.url + (svc.url.includes('?') ? '&' : '?') + 'authuser=' + encodeURIComponent(a.who) : svc.url;
+    return openSide(url, svc.id);
+  }
+  if (x.accmAdd) { accMine.adding = x.accmAdd; renderScnAcc(); return $(`[data-accm-in="${x.accmAdd}"]`)?.focus(); }
+  if (x.accmSave) {
+    const who = $(`[data-accm-in="${x.accmSave}"]`)?.value.trim();
+    if (!who) return toast('Впишите почту или имя аккаунта', {type: 'err'});
+    accMine.list.push({id: uid(), svc: x.accmSave, who: who.slice(0, 80), on: Date.now()});
+    accMine.save(); markConnected(x.accmSave); accMine.adding = null;
+    return renderScnAcc();
+  }
+  if (x.accmOn) {
+    const a = accMine.list.find(v => v.id === x.accmOn);
+    if (!a) return;
+    a.on = a.on ? null : Date.now();
+    accMine.save(); if (a.on) markConnected(a.svc);
+    return renderScnAcc();
+  }
+  if (x.accmRm) { accMine.list = accMine.list.filter(v => v.id !== x.accmRm); accMine.save(); return renderScnAcc(); }
+}
+
 // Аккаунты в сервисах по профилям Chrome: вход, баланс, «Выйти» / «Войти» (аккаунт выбирает и входит сам пользователь в окне Chrome Freefield)
 const accState = {pending: {}, checking: false, adding: false, busy: {}, choose: {}};   // choose: «site@профиль» → почты аккаунтов Google на выбор
 function scnAccHTML() {
   // открыто не с компьютера (файлом, с GitHub Pages) — профилей не видно; на компьютере ведём на адрес Freefield, где ключ связи уже сохранён
   // на телефоне адрес 127.0.0.1 — сам телефон, а не компьютер: объясняем, что без компьютера этот раздел не нужен (пользователь 2026-09-28)
-  if (!hubLink.ok) return `<div class="acc-box"><div class="hint">${isMobile()
-    ? '📱 Без компьютера этот раздел не нужен: во Flow, Dola и Arena входите сами — на их сайтах в Chrome. Freefield делает карточки с фото и промптом, «Создать» нажимаете на сайте. Профили Chrome, баланс и автозапуск — только с компьютером: Freefield работает в Claude Desktop на ПК, а телефон подключается к нему по QR-коду в той же сети Wi-Fi.'
-    : 'Профили Chrome, баланс Flow, Dola, Arena и кнопки входа видны, когда Freefield открыт с компьютера — по адресу <b>127.0.0.1:5180</b> (пока открыт Claude Desktop с Freefield). На телефоне — по QR-коду (попросите Claude в Claude Desktop: «подключи телефон к Freefield»).'}</div>
-    ${location.port !== '5180' && !isMobile() ? '<div class="acc-foot"><a class="btn small free" href="http://127.0.0.1:5180/">🔗 Открыть Freefield с компьютера</a></div>' : ''}</div>`;
+  if (!hubLink.ok) return accMineHTML();
   const info = hubLink.info || {};
   const act = info.active ?? null;   // null — окно Chrome Freefield закрыто (или открыто несколько профилей)
   const open = info.open || (act ? [act] : []);   // профили, окна которых открыты сейчас
@@ -5621,7 +5686,9 @@ function bindAsset() {
 // и Arena делают звук сами — по тексту промпта, своего аудио они не принимают. Поэтому голос — это точное описание
 // (кто говорит, высота, тембр, подача, темп): одно и то же описание в каждом ролике — и персонаж звучит узнаваемо.
 // Описание уходит в строку «Spoken line» эталона (в обычный промпт — в конец). Голос, взятый одним персонажем, другому не дают.
-// прежние голоса-описания — только чтобы у старых персонажей и сценариев голос остался; выбрать их больше нельзя
+// Голос персонажа — голос, сохранённый во Flow (обязательно), и по желанию точный образец: своя запись или файл (пользователь
+// 2026-09-28: описания без звука и синтезированные образцы — убрать). Прежние голоса-описания — только чтобы у старых
+// персонажей и сценариев голос остался; выбрать их больше нельзя.
 const VOICE_PRESETS = [
   {id: 'm-baritone', g: 'm', name: 'Бархатный баритон', ru: 'мужчина ~40 · тёплый, уверенный, неспешный', en: 'a man in his 40s with a warm, velvety baritone voice, confident and friendly, unhurried pace, clear diction'},
   {id: 'm-bass', g: 'm', name: 'Глубокий бас', ru: 'мужчина ~50 · низкий, раскатистый, спокойный, весомый', en: 'a man in his 50s with a deep, resonant bass voice, calm and authoritative, slow measured pace'},
@@ -5640,26 +5707,13 @@ const VOICE_PRESETS = [
 ];
 // кто говорит: [значок, подпись, как ИИ называет героя в сценарии]
 const VC_G = {m: ['М', 'Мужской', 'the man'], f: ['Ж', 'Женский', 'the woman'], k: ['Д', 'Детский', 'the child']};
-// «🎧 Голоса» — выбор на слух (пользователь 2026-09-28: «бархатный баритон» и прочие описания без звука — убрать, голос должно
-// быть слышно). Образцы в voices/ — нейро-голоса Piper на открытых датасетах (CC0, общественное достояние: можно и в коммерческих
-// роликах). Выбранный голос — и образец (Dola @Audio1, «🎙 Заменить голос»), и его описание en для остальных моделей.
-const VOICE_LIB = [
-  {id: 'lib-denis-en-60', file: 'voices/denis-en-60.mp3', lang: 'en', g: 'm', name: 'Денис · English с акцентом', ru: 'мужчина ~60 · низкий, спокойный, лёгкий русский акцент', en: 'a man in his early 60s with a low, calm, slightly husky voice, speaking English with a light Russian accent, natural pace', credit: 'Piper «denis», датасет CC0'},
-  {id: 'lib-norman-en', file: 'voices/norman-en.mp3', lang: 'en', g: 'm', name: 'Norman · English', ru: 'мужчина ~55 · низкий, спокойный рассказчик', en: 'a man in his 50s with a low, calm, warm narrator voice, native American English, natural pace', credit: 'Piper «norman», LibriVox — общественное достояние'},
-  {id: 'lib-joe-en', file: 'voices/joe-en.mp3', lang: 'en', g: 'm', name: 'Joe · English', ru: 'мужчина ~40 · низкий, ровный, уверенный', en: 'a man in his 40s with a low, steady, confident voice, native American English, natural pace', credit: 'Piper «joe», датасет CC0'},
-  {id: 'lib-bryce-en', file: 'voices/bryce-en.mp3', lang: 'en', g: 'm', name: 'Bryce · English', ru: 'парень ~25 · лёгкий, дружелюбный', en: 'a young man in his mid-20s with a light, friendly, clear voice, native American English, natural pace', credit: 'Piper «bryce», общественное достояние'},
-  {id: 'lib-lj-en', file: 'voices/lj-en.mp3', lang: 'en', g: 'f', name: 'LJ · English', ru: 'женщина ~30 · ясный, спокойный, чёткий', en: 'a woman in her 30s with a clear, calm, pleasant voice, precise diction, native American English, natural pace', credit: 'Piper «ljspeech», LJ Speech — общественное достояние'},
-  {id: 'lib-kristin-en', file: 'voices/kristin-en.mp3', lang: 'en', g: 'f', name: 'Kristin · English', ru: 'женщина ~40 · мягкий, тёплый, чуть низкий', en: 'a woman in her 40s with a soft, warm, slightly low voice, native American English, natural pace', credit: 'Piper «kristin», LibriVox — общественное достояние'},
-  {id: 'lib-denis-ru-60', file: 'voices/denis-ru-60.mp3', lang: 'ru', g: 'm', name: 'Денис · русский ~60', ru: 'мужчина ~60 · низкий, спокойный, с лёгкой хрипотцой', en: 'a man in his early 60s with a low, calm, slightly husky voice, natural pace', credit: 'Piper «denis», датасет CC0'},
-  {id: 'lib-dmitri-ru', file: 'voices/dmitri-ru.mp3', lang: 'ru', g: 'm', name: 'Дмитрий · русский', ru: 'мужчина ~35 · ровный, дикторский', en: 'a man in his mid-30s with a clear, even, announcer-like voice, natural pace', credit: 'Piper «dmitri», датасет CC0'},
-].map(v => ({...v, lib: true}));
 
 // персонажи — отдельной записью в хранилище галереи (развёртки в localStorage не влезут; в галерею запись не попадает — нет status)
 const VC_ID = 'freefield-chars';
 const vc = {
   custom: ls.get('freefield.voices.custom', []),   // свои голоса
   chars: [],                                        // персонажи: {id, name, sheet, voice}
-  all() { return [...VOICE_LIB, ...VOICE_PRESETS, ...this.custom]; },
+  all() { return [...VOICE_PRESETS, ...this.custom]; },
   voice(id) { return id ? this.all().find(v => v.id === id) || null : null; },
   char(id) { return id ? this.chars.find(c => c.id === id) || null : null; },
   owner(voiceId, except) { return this.chars.find(c => c.voice === voiceId && c.id !== except) || null; },   // у какого персонажа этот голос
@@ -5669,6 +5723,10 @@ const vc = {
 async function vcLoad() {
   const rec = await DB.req('readonly', s => s.get(VC_ID)).catch(() => null);
   vc.chars = rec?.chars || [];
+  // голоса-образцы из убранной библиотеки (lib-…) — у таких персонажей голос и образец сбрасываем
+  const lib = vc.chars.filter(c => /^lib-/.test(c.voice || ''));
+  lib.forEach(c => Object.assign(c, {voice: null, sample: null, sampleSec: 0}));
+  if (lib.length) vc.saveChars();
   vcRefresh();
 }
 function vcRefresh() {
@@ -5741,7 +5799,7 @@ function vcBack() {
 const vcThumb = c => c?.sheet ? `<img src="${c.sheet}" alt="">` : '<i class="vc-ph">🧍</i>';
 function vcCharBtn(c, attr, on = false) {
   const v = vc.voice(c.voice);
-  return `<button class="vc-char ${on ? 'on' : ''}" ${attr} title="${esc(v ? v.ru : c.sample ? 'Свой голос' : 'Голос не выбран')}">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(v?.name || (c.sample ? 'свой голос' : 'голос не выбран'))}${c.flow?.name ? ' · Flow' : ''}</small></span></button>`;
+  return `<button class="vc-char ${on ? 'on' : ''}" ${attr} title="${esc(v ? v.ru : c.sample ? 'Свой голос' : 'Голос не выбран')}">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(c.flow?.name ? (c.flow.kind === 'char' ? '@' : '@Voice: ') + c.flow.name : v?.name || 'голос не выбран')}${c.sample ? ' · 🎧 образец' : ''}</small></span></button>`;
 }
 function renderVoices() {
   const body = $('#vcBody');
@@ -5753,22 +5811,10 @@ function renderVoices() {
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
   body.innerHTML = v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
 }
-// голоса библиотеки: плеер у каждого; d — персонаж в редакторе (тогда «Выбрать»), занятые другими — с именем владельца
-function vcLibHTML(d = null) {
-  const lang = d?.lang || 'ru', list = d ? [...VOICE_LIB].sort((a, b) => (b.lang === lang) - (a.lang === lang)) : VOICE_LIB;
-  return `<div class="vc-lib">${list.map(v => {
-    const on = d?.voice === v.id, owner = vc.owner(v.id, d?.id);
-    return `<div class="vc-libv ${on ? 'on' : ''}"><div class="vc-libh"><i class="vc-g g-${v.g}">${VC_G[v.g][0]}</i><span><b>${esc(v.name)}</b><small>${esc(v.ru)}</small></span>
-      ${owner ? `<em>занят · ${esc(owner.name)}</em>` : on ? '<em class="ok">✓ выбран</em>' : d ? `<button class="btn small free" data-vc-lib="${v.id}">Выбрать</button>` : ''}</div>
-      <audio controls preload="none" src="${v.file}"></audio><small class="vc-credit">${esc(v.credit)}</small></div>`;
-  }).join('')}</div>`;
-}
 function vcListHTML() {
-  return `<p class="set-p">Голос персонажа выбирают на слух — послушайте образцы ниже. Выбранный голос звучит одинаково во всех роликах: во Flow — сохранённый голос (@Voice), в Dola — по образцу (@Audio1), а «🎙 Заменить голос» сделает таким голос любого готового видео.</p>
+  return `<p class="set-p">Голос персонажа — голос, сохранённый во Flow: его слушают и выбирают в самом Flow, и он одинаковый во всех роликах (@Voice). По желанию — точный образец (своя запись или файл): по нему Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает таким голос любого готового видео.</p>
     <div class="cl-sec" style="margin-top:0">🎭 Персонажи</div>
-    <div class="vc-chars">${vc.chars.map(c => vcCharBtn(c, `data-vc-edit="${c.id}"`)).join('')}<button class="vc-char add" data-vc-new>＋ Новый персонаж</button></div>
-    <div class="cl-sec">🎧 Голоса <span class="hint">выбрать — в персонаже; свой голос — запись или файл там же</span></div>
-    ${vcLibHTML()}`;
+    <div class="vc-chars">${vc.chars.map(c => vcCharBtn(c, `data-vc-edit="${c.id}"`)).join('')}<button class="vc-char add" data-vc-new>＋ Новый персонаж</button></div>`;
 }
 function vcCharHTML() {
   const d = vcUi.edit, old = vc.char(d.id);
@@ -5790,28 +5836,25 @@ function vcCharHTML() {
       <div class="vc-sheet-row"><button class="btn small" data-vc-img="locs" ${(d.locs || []).length >= CL_MAX ? 'disabled' : ''}>📁 Добавить кадры</button>
         ${wr.locs.length && !(d.locs || []).length ? `<button class="btn small" data-vc-locs-wr>Из «Создания сценария» (${wr.locs.length})</button>` : ''}
         ${(d.locs || []).length ? '<button class="btn small" data-vc-locs-rm>✕ Убрать все</button>' : ''}</div></div>
-    <div class="vc-opt"><span>🎙 Голос — послушайте и выберите (обязательно). У каждого персонажа свой</span>
-      ${vcVoiceNow(d)}${vcLibHTML(d)}
-      <div class="vc-own"><b>Или свой голос</b> — 5–15 с чистой речи одного человека, без музыки
-        <div class="vc-src"><button class="btn small" data-vc-sample>📁 Файл с голосом</button>${recBtn('sample', 'Записать свой голос')}</div>${recPanel('sample')}
-        <div class="vc-url"><input class="vc-in" data-vc-url placeholder="или прямая ссылка на файл .mp3 / .wav / .m4a" inputmode="url"><button class="btn small" data-vc-url-go>Взять</button></div>
-        ${d.sample && !vc.voice(d.voice) ? `<div class="seg" style="margin-top:8px">${Object.entries(VC_G).map(([k, x]) => `<button data-vc-g="${k}" class="${(d.g || 'm') === k ? 'on' : ''}">${x[1]}</button>`).join('')}</div>` : ''}
-        <div class="hint vc-note">Запись: тихая комната, телефон в 20–30 см, обычный голос — 10–15 с.</div></div></div>
-    <div class="vc-opt"><span>Голос во Flow — один и тот же в каждом ролике Flow (обязательно)</span>
+    <div class="vc-opt"><span>🎙 Голос во Flow — один и тот же в каждом ролике (обязательно)</span>
       <div class="seg">${[['voice', '@Voice: голос'], ['char', '@Персонаж']].map(([k, t]) => `<button data-vc-flow-kind="${k}" class="${d.flow.kind === k ? 'on' : ''}">${t}</button>`).join('')}</div>
       <input class="vc-in vc-flow" data-vc-flow maxlength="40" value="${esc(d.flow.name || '')}" placeholder="${d.flow.kind === 'char' ? 'Имя персонажа во Flow — как сохранили' : 'Имя голоса во Flow — по умолчанию имя персонажа'}">
-      <div class="hint vc-note">Во Flow: ${d.flow.kind === 'char' ? 'создайте персонажа с этим лицом и голосом (Add to Character) и сохраните' : 'Add voice → Create new voice — загрузите образец (💾 выше) или подберите похожий голос — и сохраните'} под этим именем. В промпт Flow Freefield впишет «<b data-vc-flow-tag>${d.flow.kind === 'char' ? '@' : '@Voice: '}${esc(d.flow.name || d.name || 'Имя')}</b>».</div></div>
+      <div class="hint vc-note">${d.flow.kind === 'char' ? 'Во Flow создайте персонажа с этим лицом и голосом (Add to Character) и сохраните под этим именем.' : 'Во Flow: Add voice → послушайте голоса Flow и выберите (или Create new voice — со своим образцом) → сохраните под этим именем.'} В промпт Flow Freefield впишет «<b data-vc-flow-tag>${d.flow.kind === 'char' ? '@' : '@Voice: '}${esc(d.flow.name || d.name || 'Имя')}</b>».</div></div>
+    <div class="vc-opt"><span>Кто говорит</span>
+      <div class="seg">${Object.entries(VC_G).map(([k, x]) => `<button data-vc-g="${k}" class="${(d.g || vc.voice(d.voice)?.g || 'm') === k ? 'on' : ''}">${x[1]}</button>`).join('')}</div></div>
+    <div class="vc-opt"><span>🎧 Точный голос — образец 5–15 с чистой речи одного человека, без музыки (необязательно)</span>
+      ${vcVoiceNow(d)}
+      <div class="vc-src"><button class="btn small" data-vc-sample>📁 ${d.sample ? 'Другой файл' : 'Файл с голосом'}</button>${recBtn('sample', d.sample ? 'Записать заново' : 'Записать свой голос')}</div>${recPanel('sample')}
+      <div class="vc-url"><input class="vc-in" data-vc-url placeholder="или прямая ссылка на файл .mp3 / .wav / .m4a" inputmode="url"><button class="btn small" data-vc-url-go>Взять</button></div>
+      <div class="hint vc-note">Образец — ваша запись (тихая комната, телефон в 20–30 см) или файл с хорошим голосом, например скачанный с ElevenLabs. С ним Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает голос готового видео ровно таким.</div></div>
     <div class="vc-foot"><button class="btn free" data-vc-save>${old ? 'Сохранить' : 'Создать персонажа'}</button>
       ${old ? '<button class="btn" data-vc-export title="Файл персонажа — перенести на другое устройство или сохранить копию">📤 Экспорт</button><button class="btn danger" data-vc-del>🗑 Удалить</button>' : ''}<button class="btn" data-vc-back>${vcUi.from === 'write' || vcUi.from === 'chars' ? 'Отмена' : 'Назад'}</button></div>`;
 }
-// выбранный голос персонажа — сверху: из библиотеки (плеер — в его строке), свой образец или прежнее описание
+// образец голоса персонажа (плеер) или прежнее описание — сверху раздела «Точный голос»
 function vcVoiceNow(d) {
   const v = vc.voice(d.voice);
-  const save = d.sample ? `<button class="btn small" data-vc-sample-save title="Сохранить образец файлом — например, чтобы создать голос во Flow">💾</button>` : '';
-  if (v?.lib) return `<div class="vc-now">✓ Голос: <b>${esc(v.name)}</b>${save}<button class="btn small" data-vc-sample-rm title="Убрать голос">✕</button></div>`;
-  if (d.sample) return `<div class="vc-sample"><audio controls src="${d.sample}"></audio><small>${v ? esc(v.name) + ' · ' : 'свой · '}${d.sampleSec || ''} с</small>${save}<button class="btn small" data-vc-sample-rm title="Убрать образец">✕</button></div>`;
-  if (v) return `<div class="hint vc-note">Сейчас голос задан только описанием «${esc(v.name)}» — его не послушать. Выберите голос на слух ниже или запишите свой.</div>`;
-  return '<div class="hint vc-note">Голос не выбран — послушайте и нажмите «Выбрать».</div>';
+  if (d.sample) return `<div class="vc-sample"><audio controls src="${d.sample}"></audio><small>${d.sampleSec || ''} с</small><button class="btn small" data-vc-sample-save title="Сохранить образец файлом — например, чтобы создать с ним голос во Flow">💾</button><button class="btn small" data-vc-sample-rm title="Убрать образец">✕</button></div>`;
+  return v ? `<div class="hint vc-note">Для других сервисов голос пока задан описанием «${esc(v.name)}».</div>` : '';
 }
 function vcPickHTML() {
   const s = cl.scn[vcUi.i];
@@ -5836,12 +5879,11 @@ async function vcSaveChar() {
   const d = vcUi.edit, name = d.name.trim();
   if (!name) { toast('Впишите имя персонажа', {type: 'err'}); return $('#vcBody [data-vc-name]')?.focus(); }
   if (vc.chars.some(c => c.id !== d.id && c.name.trim().toLowerCase() === name.toLowerCase())) return toast(`Персонаж «${name}» уже есть — дайте другое имя`, {type: 'err'});
-  if (!vc.voice(d.voice) && !d.sample) return toast('Выберите голос — послушайте и нажмите «Выбрать», или запишите свой', {type: 'err', ms: 7000});
   const owner = d.voice && vc.owner(d.voice, d.id);
   if (owner) return toast(`Этот голос уже у персонажа «${owner.name}» — у каждого свой`, {type: 'err'});
   const flow = {kind: d.flow?.kind === 'char' ? 'char' : 'voice', name: (d.flow?.name || '').trim().replace(/^@\s*(Voice:\s*)?/i, '') || name};
   const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, about: (d.about || '').trim(), lang: d.lang === 'en' ? 'en' : 'ru', info: d.info || null, locs: (d.locs || []).slice(0, CL_MAX),
-    voice: d.voice || null, g: vc.voice(d.voice)?.g || d.g || 'm', sample: d.sample || null, sampleSec: d.sample ? d.sampleSec : 0, flow}, i = vc.chars.findIndex(x => x.id === c.id);
+    voice: d.voice || null, g: d.g || vc.voice(d.voice)?.g || 'm', sample: d.sample || null, sampleSec: d.sample ? d.sampleSec : 0, flow}, i = vc.chars.findIndex(x => x.id === c.id);
   const oldSheet = i >= 0 ? vc.chars[i].sheet : null;
   if (i >= 0) vc.chars[i] = c; else vc.chars.push(c);
   await vc.saveChars();
@@ -5850,7 +5892,7 @@ async function vcSaveChar() {
   cl.save();
   // «Создание сценария»: персонаж создан оттуда — сразу выбран; у выбранного сменилась развёртка — она и в ячейке
   if (vcUi.from === 'write' || wr.char === c.id) { wrUseChar(c); wr.save(); }
-  toast(i >= 0 ? `Персонаж «${name}» сохранён` : `Персонаж «${name}» создан — голос «${vc.voice(c.voice)?.name || 'свой'}», во Flow — ${flow.kind === 'char' ? '@' : '@Voice: '}${flow.name}`, {type: 'ok', ms: 6000});
+  toast(i >= 0 ? `Персонаж «${name}» сохранён` : `Персонаж «${name}» создан — голос во Flow: ${flow.kind === 'char' ? '@' : '@Voice: '}${flow.name}${c.sample ? ', есть образец' : ''}`, {type: 'ok', ms: 6000});
   if (vcUi.from === 'pick') return vcAssign(vcUi.i, c);
   if (vcUi.from === 'list') { vcUi.view = 'list'; renderVoices(); } else closeSheets();
   vcRefresh();
@@ -5866,11 +5908,8 @@ async function vcDelChar() {
   toast(`Персонаж «${c.name}» удалён`);
   vcBack(); vcRefresh();
 }
-// свой образец (файл, ссылка, запись) вместо голоса из библиотеки
-function vcOwnSample(d, r) {
-  Object.assign(d, {sample: r.data, sampleSec: r.sec});
-  if (vc.voice(d.voice)?.lib) d.voice = null;
-}
+// образец голоса персонажа: файл, ссылка или запись
+const vcOwnSample = (d, r) => Object.assign(d, {sample: r.data, sampleSec: r.sec});
 function bindVoices() {
   const box = $('#voiceSheet');
   box.addEventListener('click', e => {
@@ -5879,14 +5918,6 @@ function bindVoices() {
     const d = vcUi.edit, x = b.dataset;
     if (x.vcEdit) return vcOpenChar(vc.char(x.vcEdit), 'list');
     if (b.hasAttribute('data-vc-new')) return vcOpenChar(null, vcUi.view === 'pick' ? 'pick' : 'list');
-    if (x.vcLib) {   // голос из библиотеки: его образец — «точный голос», описание — для промптов
-      const v = vc.voice(x.vcLib);
-      b.disabled = true; b.textContent = '…';
-      return voiceSampleUrl(new URL(v.file, location.href).href).then(r => {
-        Object.assign(d, {voice: v.id, sample: r.data, sampleSec: r.sec, g: v.g});
-        if (!d.id) d.lang = v.lang;   // новый персонаж с английским голосом — и говорит по-английски
-      }, e => toast('Голос не загрузился: ' + e.message, {type: 'err'})).finally(renderVoices);
-    }
     if (x.vcG) { d.g = x.vcG; return renderVoices(); }
     if (b.hasAttribute('data-vc-sheet') || x.vcImg) {   // развёртка, инфографика или кадры в локациях (их — несколько сразу)
       vcUi.imgFor = x.vcImg || 'sheet';
@@ -5908,7 +5939,7 @@ function bindVoices() {
     if (b.hasAttribute('data-vc-pick-none')) return vcAssign(vcUi.i);
     // точный голос персонажа: образец из файла или по ссылке, голос во Flow
     if (b.hasAttribute('data-vc-sample')) { vcUi.audioFor = 'sample'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
-    if (b.hasAttribute('data-vc-sample-rm')) { d.sample = null; d.sampleSec = 0; if (vc.voice(d.voice)?.lib) d.voice = null; return renderVoices(); }
+    if (b.hasAttribute('data-vc-sample-rm')) { d.sample = null; d.sampleSec = 0; return renderVoices(); }
     if (b.hasAttribute('data-vc-sample-save')) return d.sample && saveFile(dataBlob(d.sample), `голос-${(d.name || 'образец').trim()}.wav`);
     // 🎤 запись с микрофона — образец персонажу или для замены голоса
     if (x.rec) return recStart(x.rec);
@@ -6352,22 +6383,29 @@ async function charImport(file) {
       vc.saveCustom();
     }
     const name = String(pack.name).trim().slice(0, 40), old = vc.chars.find(c => c.name.trim().toLowerCase() === name.toLowerCase());
-    if (!vc.voice(voice) || vc.owner(voice, old?.id)) voice = null;   // занят или неизвестен — голос персонажа остаётся его образцом
+    if (!vc.voice(voice) || vc.owner(voice, old?.id)) voice = null;   // занят или неизвестен — без описания (голос — во Flow и образец)
     const c = {...(old || {}), id: old?.id || 'ch-' + uid(), name, sheet, info, locs: locs.filter(Boolean), about: String(pack.about || '').slice(0, 600),
-      lang: pack.lang === 'en' ? 'en' : 'ru', voice, sample: smp?.data || old?.sample || null, sampleSec: smp?.sec || old?.sampleSec || 0,
+      lang: pack.lang === 'en' ? 'en' : 'ru', voice, sample: 'sample' in pack ? smp?.data || null : old?.sample || null, sampleSec: 'sample' in pack ? smp?.sec || 0 : old?.sampleSec || 0,
       g: ['m', 'f', 'k'].includes(pack.g) ? pack.g : vc.voice(voice)?.g || 'm',
       flow: pack.flow?.name ? {kind: pack.flow.kind === 'char' ? 'char' : 'voice', name: String(pack.flow.name).slice(0, 40)} : old?.flow || {kind: 'voice', name}};
     if (old) vc.chars[vc.chars.indexOf(old)] = c; else vc.chars.push(c);
     await vc.saveChars();
-    // его готовые сценарии → «📜 Готовые сценарии» (такие же уже есть — не дублируем)
+    // свой голос-описание, который больше никому не нужен, — долой
+    if (old?.voice && old.voice !== voice && vc.voice(old.voice)?.custom && !vc.owner(old.voice) && !cl.scn.some(s => s.voice === old.voice)) {
+      vc.custom = vc.custom.filter(v => v.id !== old.voice); vc.saveCustom();
+    }
+    // его готовые сценарии → «📜 Готовые сценарии»; такой же по названию уже есть — обновляется, а не дублируется
     const at = Date.now(), scs = [];
     for (const [i, x] of (pack.scenarios || []).slice(0, SCR_MAX).entries()) {
-      if (!x?.video_prompt || scr.list.some(y => y.char === c.id && y.video_prompt === x.video_prompt)) continue;
-      scs.push({id: 'sc-' + uid(), at: at - i, by: pack.by || 'из файла', char: c.id, charName: c.name, title: String(x.title || 'Сценарий'), angle: String(x.angle || ''),
+      if (!x?.video_prompt) continue;
+      const title = String(x.title || 'Сценарий'), same = scr.list.find(y => y.char === c.id && (y.title === title || y.video_prompt === x.video_prompt));
+      const it = {...(same || {id: 'sc-' + uid(), at: at - i, by: pack.by || 'из файла', char: c.id, charName: c.name}), title, angle: String(x.angle || ''),
         video_prompt: String(x.video_prompt), asset_prompt: String(x.asset_prompt || ''), service: ['flow', 'dola', 'arena', 'vids'].includes(x.service) ? x.service : null,
-        loc: Number.isInteger(x.loc) ? c.locs[x.loc] || null : await img(x.locData)});
+        loc: Number.isInteger(x.loc) ? c.locs[x.loc] || null : await img(x.locData)};
+      if (same) scr.list[scr.list.indexOf(same)] = it;
+      scs.push(it);
     }
-    scr.list = [...scs, ...scr.list].slice(0, SCR_MAX);
+    scr.list = [...scs.filter(x => !scr.list.includes(x)), ...scr.list].slice(0, SCR_MAX);
     scr.save();
     wait.remove();
     setView('create'); setCreateMode('chars'); vcRefresh();
@@ -6411,7 +6449,7 @@ function charCardHTML(c) {
   const tags = [c.info && '📊 инфографика', n && `📍 ${n} ${plur(n, 'кадр', 'кадра', 'кадров')}`, c.sample && `🎧 образец ${c.sampleSec || ''} с`, c.flow?.name && '🎙 Flow'].filter(Boolean);
   const mine = items.filter(it => it.char === c.id).length, scripts = scr.list.filter(x => x.char === c.id).length;
   return `<div class="ch-card ${wr.char === c.id ? 'on' : ''}">
-    <button class="ch-main" data-ch-edit="${c.id}" title="Изменить персонажа">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(v?.name || (c.sample ? 'свой голос' : 'голос не выбран'))}${c.lang === 'en' ? ' · English' : ''}${wr.char === c.id ? ' · выбран в «Сценарии»' : ''}</small>
+    <button class="ch-main" data-ch-edit="${c.id}" title="Изменить персонажа">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(c.flow?.name ? (c.flow.kind === 'char' ? '@' : '@Voice: ') + c.flow.name : v?.name || 'голос не выбран')}${c.lang === 'en' ? ' · English' : ''}${wr.char === c.id ? ' · выбран в «Сценарии»' : ''}</small>
       ${c.about ? `<em>${esc(c.about)}</em>` : ''}${tags.length ? `<i class="ch-tags">${tags.map(t => `<u>${t}</u>`).join('')}</i>` : ''}</span></button>
     <div class="ch-acts"><button class="btn small free" data-ch-video="${c.id}" ${chv.busy ? 'disabled' : ''}>🎬 Видео</button>${c.sample ? `<button class="btn small" data-ch-play="${c.id}" title="Послушать его голос">${chPlay.id === c.id ? '⏸ Голос' : '▶ Голос'}</button>` : ''}<button class="btn small" data-ch-write="${c.id}">✍ Сценарий</button><button class="btn small" data-ch-edit="${c.id}">✎ Изменить</button>
       ${mine ? `<button class="btn small" data-ch-gallery="${c.id}" title="Его фото и видео в галерее">🖼 ${mine}</button>` : ''}
@@ -6422,7 +6460,7 @@ function renderChars() {
   if (!el) return;
   el.innerHTML = `${vc.chars.length ? '' : '<p class="ch-empty">Здесь живут герои ваших роликов. Персонаж из файла (.freefield.json) — кнопка «📥 Импорт персонажа» ниже. Один раз сохраните персонажа — внешность (развёртка), о чём он рассказывает (инфографика), кадры в локациях, характер и голос — и потом выбирайте его в «Создании сценария» одним нажатием.</p>'}
     <div class="ch-list">${vc.chars.map(charCardHTML).join('')}<button class="ch-add" data-ch-new>＋ Новый персонаж</button></div>
-    <div class="vc-foot"><button class="btn" data-ch-import>📥 Импорт персонажа</button><button class="btn" data-ch-scripts>📜 Готовые сценарии${scr.list.length ? ' · ' + scr.list.length : ''}</button><button class="btn" data-ch-voices>🎧 Голоса — послушать</button></div>
+    <div class="vc-foot"><button class="btn" data-ch-import>📥 Импорт персонажа</button><button class="btn" data-ch-scripts>📜 Готовые сценарии${scr.list.length ? ' · ' + scr.list.length : ''}</button></div>
     <p class="hint vc-note">Персонажи хранятся в этом браузере. У каждого свой голос — два персонажа одним голосом не заговорят.</p>`;
 }
 // «🚀 Создать N видео»: ИИ пишет N сценариев по его инфографике, развёртке, кадрам и характеру → сценарии с его голосом
@@ -6459,7 +6497,6 @@ function bindChars() {
     const x = b.dataset;
     if (b.hasAttribute('data-ch-new')) return vcOpenChar(null, 'chars');
     if (x.chEdit) return vcOpenChar(vc.char(x.chEdit), 'chars');
-    if (b.hasAttribute('data-ch-voices')) return openVoices('list');
     if (b.hasAttribute('data-ch-scripts')) return openScripts(x.chScripts || 'all');
     if (x.chPlay) return charPlay(vc.char(x.chPlay));
     if (b.hasAttribute('data-ch-import')) { $('#charFile').value = ''; return $('#charFile').click(); }
@@ -6676,7 +6713,7 @@ function wrUseChar(c) {
   if (c.locs?.length) { wr.locs = [...c.locs]; wr.count = Math.min(CL_MAX, c.locs.length); wrLocsSave(); }
 }
 // что персонаж принёс в «Создание сценария» — для подсказки
-const wrCharTook = c => [c.sheet && 'развёртка', c.info && 'инфографика', c.locs?.length && `${c.locs.length} ${plur(c.locs.length, 'кадр', 'кадра', 'кадров')} в локациях`, (vc.voice(c.voice) ? `голос «${vc.voice(c.voice).name}»` : c.sample && 'свой голос')].filter(Boolean).join(', ');
+const wrCharTook = c => [c.sheet && 'развёртка', c.info && 'инфографика', c.locs?.length && `${c.locs.length} ${plur(c.locs.length, 'кадр', 'кадра', 'кадров')} в локациях`, c.flow?.name && `голос во Flow ${c.flow.kind === 'char' ? '@' : '@Voice: '}${c.flow.name}`].filter(Boolean).join(', ');
 // сменили развёртку в ячейке: у персонажа её не было — теперь это его развёртка; была другая — выбор снимаем (иначе ИИ дал бы герою чужой голос)
 function wrCharCheck() {
   const c = vc.char(wr.char);
@@ -7002,7 +7039,7 @@ function wrCharsHTML() {
   const c = vc.char(wr.char), v = wrVoice();
   return `<div class="block-head" style="margin-top:12px"><span class="lbl">🎙 Герой и голос</span><span class="hint"><button class="wr-link" data-wgo="chars">все персонажи</button></span></div>
     <div class="vc-chars">${vc.chars.map(x => vcCharBtn(x, `data-wchar="${x.id}"`, x === c)).join('')}<button class="vc-char add" data-wchar-new>＋ Персонаж</button></div>
-    <div class="hint vc-note">${c ? `Говорит <b>${esc(c.name)}</b>${v ? `: голос «${esc(v.name)}» ИИ впишет в каждый сценарий, в строку «Spoken line»` : c.sample ? ': свой голос — во Flow его сохранённый голос, в Dola — образец' : ' — выберите ему голос'} · <button class="wr-link" data-wchar-edit="${c.id}">✎ изменить</button>`
+    <div class="hint vc-note">${c ? `Говорит <b>${esc(c.name)}</b>${v ? `: голос «${esc(v.name)}» ИИ впишет в каждый сценарий, в строку «Spoken line»` : c.flow?.name ? `: во Flow — его голос ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}${c.sample ? ', в Dola — образец' : ''}` : ' — выберите ему голос'} · <button class="wr-link" data-wchar-edit="${c.id}">✎ изменить</button>`
       : vc.chars.length ? 'Выберите, кто говорит в роликах: его развёртка встанет в ячейку, а голос ИИ впишет в каждый сценарий. Не выбран — голос придумает ИИ'
       : 'Создайте персонажа — имя, развёртка и голос. Голос ИИ впишет в каждый сценарий, и герой будет звучать одинаково во всех роликах'}</div>`;
 }
