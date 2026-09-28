@@ -815,7 +815,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 .mcp-l{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
 .mcp-l b{font-size:13px}
 .mcp-v{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
-.mcp-v code{flex:1 1 260px;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;font:12px/1.5 var(--mono);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:9px 11px;color:var(--text)}
+.mcp-v code{max-height:240px;overflow:auto;flex:1 1 260px;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;font:12px/1.5 var(--mono);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:9px 11px;color:var(--text)}
 .mcp-v .btn{flex:none}
 .mcp-note{font-size:12.5px;color:var(--text2);background:var(--panel2);border:1px dashed var(--line2);border-radius:14px;padding:11px 13px;margin-top:14px;line-height:1.55}
 .acc-btn{color:var(--text);border-color:var(--line2)}
@@ -3836,6 +3836,21 @@ let mcpVals = [];
 // «должна быть возможность подключить по MCP к Claude Code»): их коннекторы принимают только https-ссылку из интернета
 const MCP_TUNNEL = port => `npx cloudflared tunnel --url http://localhost:${port} --http-host-header localhost:${port}`;
 const MCP_CONNECTORS = 'https://claude.ai/customize/connectors';
+// готовый текст для Claude Code / Cowork на компьютере (пользователь 2026-09-28: «добавь, что написать в Claude Code или Cowork
+// с телефона, чтобы MCP-сервер подключился»): Claude сам берёт ключ, подключает Freefield к Claude Code и поднимает https-туннель
+function mcpPrompt(key, port = 5180) {
+  const k = key ? encodeURIComponent(key) : '<ключ>';
+  return `Подключи MCP-сервер Freefield — это моё приложение для генерации видео и фото (${SITE_URL}). Его сервер работает на этом компьютере вместе с Claude Desktop: http://127.0.0.1:${port}.
+1. ${key ? `Ключ Freefield: ${key}` : `Возьми ключ: GET http://127.0.0.1:${port}/api/local-key — поле key.`} Если сервер не отвечает — открой Claude Desktop (Freefield запускается вместе с ним) и проверь ещё раз.
+2. Подключи Freefield к Claude Code на этом компьютере: claude mcp add --scope user --transport http freefield "http://localhost:${port}/mcp?k=${k}" — и проверь: claude mcp list.
+3. Сделай доступ из интернета — для Claude Code в облаке и приложения Claude на телефоне: запусти в фоне туннель npx cloudflared tunnel --url http://localhost:${port} --http-host-header localhost:${port}, дождись адреса https://….trycloudflare.com и проверь, что отвечает https://….trycloudflare.com/api/hub?k=${k}.
+4. Пришли мне готовую ссылку коннектора https://….trycloudflare.com/mcp?k=${k} — я добавлю её в claude.ai → Настройки → Коннекторы. Ключ никуда больше не отправляй и не публикуй.`;
+}
+// блок «попросите Claude» — сверху окна MCP
+const mcpAskHTML = (row, key, port) => `<div class="cl-sec" style="margin-top:4px">🤖 Проще всего — попросите Claude</div>
+  <p class="set-p">Скопируйте текст и отправьте в Claude Code или Cowork, которые работают на вашем компьютере (с телефона — через приложение Claude). Claude сам ${key ? '' : 'возьмёт ключ, '}подключит Freefield к Claude Code и сделает https-ссылку для облака и телефона — останется добавить её в <a href="${MCP_CONNECTORS}" target="_blank" rel="noopener">Коннекторы</a>.</p>
+  ${row('Текст для Claude', key ? 'в нём ваш ключ — отправляйте только своему Claude' : 'ключ Claude возьмёт сам на компьютере', mcpPrompt(key, port))}
+  <div class="cl-sec">Или вручную</div>`;
 function renderMcp() {
   const box = $('#mcpBody');
   if (!box) return;
@@ -3847,6 +3862,7 @@ function renderMcp() {
     box.innerHTML = `
       <div class="mcp-status">🔴 MCP-сервер — часть Freefield на компьютере, ${pwa.hosted() ? 'а эта страница открыта с сайта' : 'а связи с ним сейчас нет'}</div>
       <p class="set-p">Через MCP Claude Code запускает генерации в Google Flow, Vids, Dola и Arena на ваших аккаунтах, собирает пакеты сценариев и забирает готовое в галерею. Сервер работает на компьютере вместе с Claude Desktop — ссылку с ключом показывает Freefield, открытый на том компьютере.</p>
+      ${mcpAskHTML(row, '', 5180)}
       <div class="cl-sec">💻 Claude Code на компьютере</div>
       <ol class="steps"><li>Откройте Claude Desktop — Freefield запустится вместе с ним.</li>
         <li>В браузере компьютера откройте <b>http://127.0.0.1:5180</b> → «MCP»: там готовая команда с вашим ключом.</li>
@@ -3869,6 +3885,7 @@ function renderMcp() {
   box.innerHTML = `
     <div class="mcp-status">${status}</div>
     <div class="mcp-note">💡 <b>В Claude Desktop ничего добавлять не нужно</b> — Freefield уже подключён к нему сам. Окно «Добавить свой коннектор» (просит ссылку на https) — не для этой ссылки: см. ниже.</div>
+    ${mcpAskHTML(row, hubLink.key, port)}
     <p class="set-p">По этой ссылке к Freefield подключаются Claude Code, Cursor и другие программы с MCP: им доступны те же инструменты, что и Claude, — генерация в Google Flow, Vids, Dola и Arena, пакеты сценариев, галерея.</p>
     ${row('Ссылка на MCP', 'для программ на этом компьютере', local)}
     ${lan.map(u => row('В домашней сети', 'для другого компьютера в том же Wi-Fi', u)).join('')}
