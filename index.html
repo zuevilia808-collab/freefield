@@ -586,6 +586,10 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 /* кнопки профиля — всегда справа, даже когда переносятся под длинное название */
 .acc-prof-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .acc-prof-btns .btn:disabled{opacity:.35;cursor:default}
+.acc-sub{padding-left:40px;flex-wrap:wrap;gap:6px 8px}
+.acc-sub .acc-main{flex:1 1 100%}
+.acc-sub .acc-main b{font-size:12.5px;font-weight:600;overflow-wrap:anywhere}
+.acc-add{margin:8px 0 4px}
 .acc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
 .scn-refs{display:grid;gap:6px;margin-top:8px}
 .scn-refs .btns{display:flex;flex-wrap:wrap;gap:6px}
@@ -3828,20 +3832,37 @@ function openMcp() {
   $('#mcpSheet').classList.remove('hidden');
 }
 let mcpVals = [];
+// https-туннель к Freefield на компьютере — для Claude Code в облаке и приложения Claude на телефоне (пользователь 2026-09-28:
+// «должна быть возможность подключить по MCP к Claude Code»): их коннекторы принимают только https-ссылку из интернета
+const MCP_TUNNEL = port => `npx cloudflared tunnel --url http://localhost:${port} --http-host-header localhost:${port}`;
+const MCP_CONNECTORS = 'https://claude.ai/customize/connectors';
 function renderMcp() {
   const box = $('#mcpBody');
   if (!box) return;
+  mcpVals = [];
+  const row = (label, hint, val) => { mcpVals.push(val);
+    return `<div class="mcp-row"><div class="mcp-l"><b>${label}</b><span class="hint">${hint}</span></div>
+      <div class="mcp-v"><code>${esc(val)}</code><button class="btn" data-mcp-copy="${mcpVals.length - 1}">📋 Копировать</button></div></div>`; };
   if (!hubLink.local() || !hubLink.key) {
-    box.innerHTML = '<p class="set-p">Ссылку на MCP даёт Freefield на компьютере. Откройте приложение на самом компьютере (или по ссылке с компьютера в домашней сети) — она появится здесь.</p>';
+    box.innerHTML = `
+      <div class="mcp-status">🔴 MCP-сервер — часть Freefield на компьютере, ${pwa.hosted() ? 'а эта страница открыта с сайта' : 'а связи с ним сейчас нет'}</div>
+      <p class="set-p">Через MCP Claude Code запускает генерации в Google Flow, Vids, Dola и Arena на ваших аккаунтах, собирает пакеты сценариев и забирает готовое в галерею. Сервер работает на компьютере вместе с Claude Desktop — ссылку с ключом показывает Freefield, открытый на том компьютере.</p>
+      <div class="cl-sec">💻 Claude Code на компьютере</div>
+      <ol class="steps"><li>Откройте Claude Desktop — Freefield запустится вместе с ним.</li>
+        <li>В браузере компьютера откройте <b>http://127.0.0.1:5180</b> → «MCP»: там готовая команда с вашим ключом.</li>
+        <li>Вставьте её в терминал: <code>claude mcp add --transport http freefield "http://localhost:5180/mcp?k=…"</code></li></ol>
+      <div class="cl-sec">☁️ Claude Code в облаке и приложение Claude на телефоне</div>
+      <ol class="steps"><li>Им нужна https-ссылка из интернета. На компьютере с Freefield запустите туннель (нужен Node.js):</li></ol>
+      ${row('Туннель', 'в терминале компьютера', MCP_TUNNEL(5180))}
+      <ol class="steps" start="2"><li>Туннель покажет адрес <b>https://….trycloudflare.com</b>. На компьютере в Freefield → «MCP» вставьте его — получится ссылка коннектора.</li>
+        <li>Добавьте её: <a href="${MCP_CONNECTORS}" target="_blank" rel="noopener">claude.ai → Настройки → Коннекторы</a> → «Добавить свой коннектор», — и начните новую сессию Claude Code: коннекторы подключаются при старте.</li></ol>
+      <div class="mcp-note">⚠️ Пока туннель запущен, по ссылке с ключом можно запускать генерации на ваших аккаунтах — никому её не отправляйте. Адрес туннеля меняется при каждом запуске.</div>`;
     return;
   }
   const info = hubLink.info || {}, port = info.port || location.port || 5180, k = encodeURIComponent(hubLink.key);
   const local = `http://localhost:${port}/mcp?k=${k}`;
   const lan = (info.lan || []).map(a => `http://${a}:${port}/mcp?k=${k}`);
-  mcpVals = [];
-  const row = (label, hint, val) => { mcpVals.push(val);
-    return `<div class="mcp-row"><div class="mcp-l"><b>${label}</b><span class="hint">${hint}</span></div>
-      <div class="mcp-v"><code>${esc(val)}</code><button class="btn" data-mcp-copy="${mcpVals.length - 1}">📋 Копировать</button></div></div>`; };
+  const tunnel = ls.get('freefield.mcpTunnel', '');
   const status = !hubLink.ok ? '🔴 Компьютер не отвечает — Freefield на компьютере сейчас не запущен'
     : info.mcp ? '🟢 MCP-сервер работает — ссылкой можно пользоваться'
     : '🟡 Ссылка заработает после перезапуска Claude Desktop (сейчас связь держит упрощённый Freefield без MCP)';
@@ -3854,10 +3875,16 @@ function renderMcp() {
     <div class="cl-sec">Готовые команды</div>
     ${row('Claude Code', 'вставьте в терминал', `claude mcp add --transport http freefield "${local}"`)}
     ${row('Cursor и другие', 'в настройки MCP (mcp.json)', JSON.stringify({mcpServers: {freefield: {url: local}}}, null, 2))}
+    <div class="cl-sec">☁️ Claude Code в облаке и приложение Claude на телефоне — через https</div>
+    <p class="set-p">Их коннекторы принимают только https-ссылку из интернета. Туннель даёт её вашему Freefield на время, пока он запущен.</p>
+    ${row('1. Туннель', 'в терминале этого компьютера (нужен Node.js)', MCP_TUNNEL(port))}
+    <div class="mcp-row"><div class="mcp-l"><b>2. Адрес туннеля</b><span class="hint">вставьте https://….trycloudflare.com из терминала</span></div>
+      <div class="key-row"><input class="show" data-mcp-tunnel value="${esc(tunnel)}" placeholder="https://….trycloudflare.com" autocomplete="off" spellcheck="false"></div></div>
+    ${tunnel ? row('3. Ссылка коннектора', `<a href="${MCP_CONNECTORS}" target="_blank" rel="noopener">claude.ai → Настройки → Коннекторы</a> → «Добавить свой коннектор»; потом — новая сессия Claude Code`, `${tunnel}/mcp?k=${k}`) : ''}
     <div class="mcp-note">⚠️ Ссылка секретная: с ней можно запускать генерации на ваших аккаунтах — никому не отправляйте и не публикуйте.<br>
       Claude Desktop на этом компьютере подключён к Freefield сам — ему ссылка не нужна.<br>
       Ссылка работает на этом компьютере и в вашей домашней сети, пока открыт Claude Desktop.<br>
-      В окно «Добавить свой коннектор» (Claude Desktop, claude.ai, приложение Claude на телефоне) она не подойдёт — там пишут «ссылка должна начинаться с https»: к коннекторам подключаются серверы Anthropic из интернета, а до вашего компьютера они не достают.</div>`;
+      Для «Добавить свой коннектор» (claude.ai, приложение Claude на телефоне, Claude Code в облаке) нужна https-ссылка — через туннель выше: серверы Anthropic подключаются из интернета, а до вашего компьютера напрямую не достают. Адрес туннеля меняется при каждом запуске.</div>`;
 }
 
 function closeSheets() {
@@ -4275,10 +4302,19 @@ function bindControls() {
   $('#hubBtn').addEventListener('click', openHub);
   $('#accBtn').addEventListener('click', openAcc);
   $('#mcpBtn').addEventListener('click', openMcp);
+  $('#mcpBody').addEventListener('change', e => {   // адрес туннеля → ссылка коннектора
+    if (!e.target.matches('[data-mcp-tunnel]')) return;
+    const v = e.target.value.trim().replace(/\/+$/, '').replace(/\/mcp.*$/, '');
+    if (v && !/^https:\/\/[\w.-]+(:\d+)?$/.test(v)) return toast('Нужен адрес вида https://….trycloudflare.com', {type: 'err'});
+    ls.set('freefield.mcpTunnel', v);
+    renderMcp();
+  });
   $('#mcpBody').addEventListener('click', async e => {
     const b = e.target.closest('[data-mcp-copy]');
     if (b) toast(await clCopyText(mcpVals[+b.dataset.mcpCopy]) ? 'Скопировано' : 'Не удалось скопировать', {type: 'ok'});
   });
+  $('#scnAcc').addEventListener('click', accMineClick);
+  $('#scnAcc').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-accm-in]')) { e.preventDefault(); $(`[data-accm-save="${e.target.dataset.accmIn}"]`)?.click(); } });
   $('#accSvc').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-acc-hub')) return openHub();
@@ -4786,15 +4822,58 @@ function clPlanText() {
     (st.suffix ? ` Стиль «${esc(st.name)}» добавится ${own ? `ко всем, кроме ${own} со своим стилем` : 'ко всем'}.` : own ? ` Свой стиль — у ${own} ${plur(own, 'сценария', 'сценариев', 'сценариев')}.` : '');
 }
 
+// Без компьютера Freefield не видит, где вы вошли: вход хранит браузер. Пользователь 2026-09-28: «в Профилях не вижу подключённых
+// аккаунтов» — свой список аккаунтов по сервисам (почта или имя, отметка входа), «↗ Войти» открывает сайт; хранится в браузере.
+const accMine = {list: ls.get('freefield.accounts', []), adding: null, save() { ls.set('freefield.accounts', this.list); }};
+function accMineHTML() {
+  const svcs = CLAUDE_SVC.map(c => SERVICES.find(x => x.id === c.id)).filter(Boolean);
+  return `<div class="acc-box"><div class="hint">${isMobile() ? '📱' : '💻'} Компьютер с Freefield сейчас не на связи, поэтому профилей Chrome и баланса не видно — их показывает Freefield на компьютере. Свои аккаунты отметьте здесь: «↗ Войти» откроет сайт, а карточки для сайтов Freefield делает и без компьютера.</div>
+    ${!isMobile() && location.port !== '5180' ? '<div class="acc-foot"><a class="btn small free" href="http://127.0.0.1:5180/">🔗 Открыть Freefield с компьютера</a></div>' : ''}</div>
+    ${svcs.map(x => {
+      const mine = accMine.list.filter(a => a.svc === x.id);
+      return `<div class="acc-box acc-mine"><div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
+        <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">${esc(x.short || x.credits)}${mine.length ? ` · аккаунтов: ${mine.length}` : ''}</span></div>
+        <button class="btn small" data-accm-open="${x.id}">↗ Открыть</button></div>
+        ${mine.map(a => `<div class="acc-row acc-sub"><div class="acc-main"><b>👤 ${esc(a.who)}</b><span class="hint">${a.on ? '🟢 вход выполнен' : '⚪ вход не отмечен'}</span></div>
+          <button class="btn small" data-accm-open="${x.id}" data-accm-who="${a.id}">↗ Войти</button><button class="btn small" data-accm-on="${a.id}">${a.on ? 'Снять' : '✓ Вошёл'}</button><button class="btn small" data-accm-rm="${a.id}" title="Убрать аккаунт">✕</button></div>`).join('')}
+        ${accMine.adding === x.id ? `<div class="key-row acc-add"><input class="show" data-accm-in="${x.id}" placeholder="почта или имя аккаунта" autocomplete="off" spellcheck="false"><button class="btn free small" data-accm-save="${x.id}">Добавить</button></div>`
+          : `<div class="acc-foot"><button class="btn small" data-accm-add="${x.id}">＋ Аккаунт</button></div>`}</div>`;
+    }).join('')}`;
+}
+function accMineClick(e) {
+  const b = e.target.closest('button');
+  if (!b || hubLink.ok) return;
+  const x = b.dataset;
+  if (x.accmOpen) {
+    const svc = SERVICES.find(v => v.id === x.accmOpen), a = accMine.list.find(v => v.id === x.accmWho);
+    // сайты Google (Flow, Vids): с почтой — сразу этим аккаунтом
+    const url = a && /@/.test(a.who) && ['flow', 'vids'].includes(svc.id) ? svc.url + (svc.url.includes('?') ? '&' : '?') + 'authuser=' + encodeURIComponent(a.who) : svc.url;
+    return openSide(url, svc.id);
+  }
+  if (x.accmAdd) { accMine.adding = x.accmAdd; renderScnAcc(); return $(`[data-accm-in="${x.accmAdd}"]`)?.focus(); }
+  if (x.accmSave) {
+    const who = $(`[data-accm-in="${x.accmSave}"]`)?.value.trim();
+    if (!who) return toast('Впишите почту или имя аккаунта', {type: 'err'});
+    accMine.list.push({id: uid(), svc: x.accmSave, who: who.slice(0, 80), on: Date.now()});
+    accMine.save(); markConnected(x.accmSave); accMine.adding = null;
+    return renderScnAcc();
+  }
+  if (x.accmOn) {
+    const a = accMine.list.find(v => v.id === x.accmOn);
+    if (!a) return;
+    a.on = a.on ? null : Date.now();
+    accMine.save(); if (a.on) markConnected(a.svc);
+    return renderScnAcc();
+  }
+  if (x.accmRm) { accMine.list = accMine.list.filter(v => v.id !== x.accmRm); accMine.save(); return renderScnAcc(); }
+}
+
 // Аккаунты в сервисах по профилям Chrome: вход, баланс, «Выйти» / «Войти» (аккаунт выбирает и входит сам пользователь в окне Chrome Freefield)
 const accState = {pending: {}, checking: false, adding: false, busy: {}, choose: {}};   // choose: «site@профиль» → почты аккаунтов Google на выбор
 function scnAccHTML() {
   // открыто не с компьютера (файлом, с GitHub Pages) — профилей не видно; на компьютере ведём на адрес Freefield, где ключ связи уже сохранён
   // на телефоне адрес 127.0.0.1 — сам телефон, а не компьютер: объясняем, что без компьютера этот раздел не нужен (пользователь 2026-09-28)
-  if (!hubLink.ok) return `<div class="acc-box"><div class="hint">${isMobile()
-    ? '📱 Без компьютера этот раздел не нужен: во Flow, Dola и Arena входите сами — на их сайтах в Chrome. Freefield делает карточки с фото и промптом, «Создать» нажимаете на сайте. Профили Chrome, баланс и автозапуск — только с компьютером: Freefield работает в Claude Desktop на ПК, а телефон подключается к нему по QR-коду в той же сети Wi-Fi.'
-    : 'Профили Chrome, баланс Flow, Dola, Arena и кнопки входа видны, когда Freefield открыт с компьютера — по адресу <b>127.0.0.1:5180</b> (пока открыт Claude Desktop с Freefield). На телефоне — по QR-коду (попросите Claude в Claude Desktop: «подключи телефон к Freefield»).'}</div>
-    ${location.port !== '5180' && !isMobile() ? '<div class="acc-foot"><a class="btn small free" href="http://127.0.0.1:5180/">🔗 Открыть Freefield с компьютера</a></div>' : ''}</div>`;
+  if (!hubLink.ok) return accMineHTML();
   const info = hubLink.info || {};
   const act = info.active ?? null;   // null — окно Chrome Freefield закрыто (или открыто несколько профилей)
   const open = info.open || (act ? [act] : []);   // профили, окна которых открыты сейчас
