@@ -116,7 +116,7 @@ a{color:var(--free);text-underline-offset:3px}
 .hint{font-size:12px;color:var(--dim);line-height:1.4}
 .hint b{color:var(--text);font-weight:600}
 /* раздел плавно появляется при переключении вкладок */
-.only-write,.only-scn,.only-asset,body[data-cm=one] .panel-scroll > section:not(.only-scn):not(.only-write){animation:secIn .42s var(--ease) both}
+.only-write,.only-scn,.only-asset,.only-chars,body[data-cm=one] .panel-scroll > section:not(.only-scn):not(.only-write){animation:secIn .42s var(--ease) both}
 @keyframes secIn{from{opacity:0;transform:translateY(8px)}}
 
 /* выбор модели */
@@ -352,6 +352,43 @@ body[data-cm=scn] .only-scn,body[data-cm=scn] .panel-scroll > section.keep-scn{d
 .only-write{display:none}
 body[data-cm=write] .panel-scroll > :not(.only-write):not(.keep-write){display:none}
 body[data-cm=write] .only-write{display:block}
+/* «Персонажи»: герои роликов со всем, что к ним нужно */
+.only-chars{display:none}
+body[data-cm=chars] .panel-scroll > :not(.only-chars):not(.keep-chars){display:none}
+body[data-cm=chars] .only-chars{display:block}
+.ch-list{display:grid;gap:10px}
+.ch-card{border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:var(--hl);padding:10px;transition:border-color .2s}
+.ch-card.on{border-color:rgba(212,255,58,.45)}
+.ch-main{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;color:inherit;font:inherit}
+.ch-main>img,.ch-main>.vc-ph{width:92px;height:70px;flex:none;object-fit:contain;border-radius:11px;background:rgba(0,0,0,.35);display:grid;place-items:center;font-style:normal;font-size:26px}
+.ch-main>span{display:grid;gap:3px;min-width:0}
+.ch-main b{font-size:14.5px}
+.ch-main small{font-size:12px;color:var(--muted)}
+.ch-main em{font-style:normal;font-size:12px;color:var(--text2);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ch-tags{display:flex;flex-wrap:wrap;gap:5px;font-style:normal;margin-top:3px}
+.ch-tags u{text-decoration:none;font-size:11px;color:var(--text2);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:99px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px}
+.ch-tags u .ic{width:12px;height:12px}
+.ch-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.ch-acts .btn.small{margin-top:0}
+.ch-video{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
+.ch-video>b{display:block;margin-bottom:8px}
+.ch-video .vc-foot{margin-top:12px}
+.ch-video .wr-note{margin:0}
+.ch-need{margin:0;padding-left:18px;display:grid;gap:5px;color:var(--text2);font-size:12.5px}
+.ch-add{border:1.5px dashed var(--line2);border-radius:16px;padding:16px;color:var(--muted);font-weight:700;font-size:13.5px;transition:border-color .2s,color .2s}
+.ch-add:hover{border-color:rgba(212,255,58,.5);color:var(--text)}
+.ch-empty{font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:12px}
+.vc-locs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.vc-locs:empty{display:none}
+.vc-loc{position:relative}
+.vc-loc img{width:64px;height:84px;object-fit:cover;border-radius:9px;display:block;background:rgba(0,0,0,.35)}
+.vc-loc button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:11px;display:grid;place-items:center}
+.vc-loc i{position:absolute;left:4px;bottom:3px;font:700 10.5px var(--mono);font-style:normal;color:#fff;text-shadow:0 1px 3px #000}
+textarea.vc-in{resize:vertical;min-height:62px}
+.wr-lead{font-size:13px;line-height:1.5;color:var(--text2);margin-bottom:8px}
+.wr-lead b{color:var(--text)}
+.wr-pulse{animation:wrPulse 1.3s ease-in-out infinite}
+@keyframes wrPulse{50%{box-shadow:0 0 0 5px rgba(212,255,58,.25)}}
 .wr-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 /* инструкция «Как сделать ролик» над разделом */
 .wr-howto{margin:0 0 14px;border:1px solid var(--line);border-radius:16px;background:radial-gradient(120% 140% at 0% 0%,rgba(212,255,58,.07),transparent 55%),var(--panel2);padding:11px 13px;box-shadow:var(--hl)}
@@ -622,7 +659,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 .empty h1{font:700 clamp(22px,3vw,32px)/1.15 var(--display);letter-spacing:-.035em;margin-bottom:12px;position:relative}
 .empty h1 span{background:linear-gradient(90deg,#e8ff8f,#d4ff3a 40%,#a6e000);-webkit-background-clip:text;background-clip:text;color:transparent}
 .empty p{color:var(--muted);font-size:14.5px;margin-bottom:24px;position:relative}
-.features{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:left;position:relative}
+.features{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;text-align:left;position:relative}
 .feat{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--card);font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .25s,transform .35s var(--spring),box-shadow .3s;box-shadow:var(--hl);display:grid;gap:6px;align-content:start}
 .feat:hover{border-color:rgba(212,255,58,.55);transform:translateY(-4px);box-shadow:var(--hl),0 18px 36px -20px rgba(212,255,58,.45)}
 .feat:active{transform:scale(.98)}
@@ -1069,12 +1106,14 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <aside class="panel">
     <div class="panel-scroll">
 
-      <div class="seg create-mode keep-scn keep-write" id="createMode">
+      <div class="seg create-mode keep-scn keep-write keep-chars" id="createMode">
         <button data-cm="one" class="on" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Создание ассетов</span></button>
         <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Создание сценария</span></button>
         <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео сервисы</span></button>
+        <button data-cm="chars" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
       </div>
       <section class="only-write" id="writeCreate"></section>
+      <section class="only-chars" id="charsCreate"></section>
       <input type="file" id="writeFile" accept="image/*" hidden>
       <section class="only-scn" id="scnCreate"></section>
       <section class="only-asset" id="assetCreate"></section>
@@ -1203,6 +1242,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
         <button class="feat" data-go="one"><b><svg class="ic"><use href="#i-image"/></svg>1. Ассеты</b><span>Герой по развёртке — в разных локациях, по фото на каждый сценарий.</span></button>
         <button class="feat" data-go="write"><b><svg class="ic"><use href="#i-pen"/></svg>2. Сценарий</b><span>ИИ пишет сценарии по инфографике и кадрам героя в локациях.</span></button>
         <button class="feat" data-go="scn"><b><svg class="ic"><use href="#i-clapper"/></svg>3. Видео</b><span>Сценарии уходят в Google Vids, Flow, Dola и Arena — на бесплатных кредитах.</span></button>
+        <button class="feat" data-go="chars"><b><svg class="ic"><use href="#i-users"/></svg>4. Персонажи</b><span>Ваши герои: внешность, инфографика, кадры, голос — один раз, для всех роликов.</span></button>
       </div>
       <div class="empty-act" id="emptyAct"></div>
     </div>
@@ -3219,7 +3259,7 @@ function visibleItems() {
   const q = $('#search').value.trim().toLowerCase();
   return items.filter(it =>
     (state.filter === 'all' || it.type === state.filter) &&
-    (!q || (it.prompt + ' ' + (it.finalPrompt || '') + ' ' + (it.modelTitle || '')).toLowerCase().includes(q)));
+    (!q || (it.prompt + ' ' + (it.finalPrompt || '') + ' ' + (it.modelTitle || '') + ' ' + (vc.char(it.char)?.name || '')).toLowerCase().includes(q)));
 }
 
 function tierBadge(it) {
@@ -3503,6 +3543,7 @@ async function doAction(act, it, el) {
     case 'save-refs': await saveRefs(it, it.refs || []); break;
     case 'save-voice': { const c = vc.char(it.char); if (c?.sample) await saveFile(dataBlob(c.sample), `голос-${c.name}.wav`); break; }
     case 'revoice': closeLB(); openRevoice(it); break;
+    case 'to-char': closeLB(); openToChar(it); break;
     case 'paste-clip':
       try {
         for (const ci of await navigator.clipboard.read()) {
@@ -3652,6 +3693,7 @@ function showLB() {
       ${it.type === 'image' ? '<button class="primary" data-act="animate">🎬 Оживить в видео</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-scn" title="Сделать сценарий с этим фото: Freefield отправит его в Flow / Arena / Dola">📎 В сценарий</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-asset" title="Взять это фото референсом в «Создание ассетов» — например, развёртку героя">🖼 Референс для ассета</button>' : ''}
+      ${it.type === 'image' && it.blob ? '<button data-act="to-char" title="Сохранить в персонажа: кадр в локации, развёртка или инфографика">🧍 В персонажа</button>' : ''}
       ${it.type === 'video' ? '<button data-act="revoice" title="Сделать голос ровно как в образце персонажа">🎙 Заменить голос</button>' : ''}
       <button data-act="download">⤓ Скачать</button>
       <button data-act="variation">↻ Вариант</button>
@@ -3883,10 +3925,25 @@ function renderVideoOptions() {
 }
 
 function updateGenButton() {
+  if (cl.mode === 'chars') {
+    const n = vc.chars.length, btn = $('#genBtn');
+    btn.classList.remove('paid');
+    btn.disabled = false;
+    $('#genLabel').textContent = '＋ Новый персонаж';
+    $('#genSub').textContent = n ? `${n} ${plur(n, 'персонаж', 'персонажа', 'персонажей')}` : 'первый';
+    $('#etaLine').textContent = 'Персонажи хранятся в этом браузере · выберите героя в «Создании сценария» — всё встанет в ячейки';
+    return;
+  }
   if (cl.mode === 'write') {
     const who = writerNow(), btn = $('#genBtn'), have = who === 'chat' || wr.info && wr.sheet, gap = wrLocGap();
     btn.classList.toggle('paid', who === 'claude');
     btn.disabled = wr.busy;
+    if (wrNeedKey()) {
+      $('#genLabel').textContent = '🔑 Подключить Gemini — бесплатно';
+      $('#genSub').textContent = 'один раз';
+      $('#etaLine').textContent = 'Чтобы ИИ писал сценарии прямо здесь, нужен бесплатный ключ Google — около минуты';
+      return;
+    }
     $('#genLabel').textContent = wr.busy ? '⏳ ИИ пишет сценарии…' : !have ? '✍️ Загрузите инфографику и развёртку'
       : gap > 0 ? `📍 Нужно ещё ${gap} ${plur(gap, 'кадр', 'кадра', 'кадров')} в локациях` : gap < 0 ? `📍 Лишних кадров в локациях: ${-gap}`
       : who === 'chat' ? `📋 Скопировать задание: ${wr.count} ${plur(wr.count, 'сценарий', 'сценария', 'сценариев')}`
@@ -4222,6 +4279,7 @@ function bindControls() {
   bindTok();
   bindWrite();
   bindVoices();
+  bindChars();
   $('#quickSvc').addEventListener('click', e => {
     if (e.target.closest('[data-open-hub]')) return openHub();
     const c = e.target.closest('[data-model]');
@@ -4980,7 +5038,7 @@ async function refToScenario(blob) {
 }
 function setCreateMode(m) {
   const prev = cl.mode;
-  cl.mode = ['scn', 'write'].includes(m) ? m : 'one';
+  cl.mode = ['scn', 'write', 'chars'].includes(m) ? m : 'one';
   if (cl.mode === 'scn' && prev !== 'scn') { const t = scnTrim(cl.scn); if (t.length !== cl.scn.length) { cl.scn = t; cl.sel = null; cl.save(); } }
   ls.set('freefield.create.cm', cl.mode);
   document.body.dataset.cm = cl.mode;
@@ -4988,14 +5046,16 @@ function setCreateMode(m) {
   if (cl.mode !== 'scn') cl.sel = null;
   if (cl.mode === 'scn') { renderScn(); if (hubLink.key && hubLink.local()) hubLink.refresh(); }
   else if (cl.mode === 'write') renderWrite();
+  else if (cl.mode === 'chars') renderChars();
   else setAssetSvc(asset.svc);
   styleSync();
   updateGenButton();
 }
 // большая кнопка внизу в режиме сценариев: отправить на компьютер, а без него — карточки для сайтов сервисов
-async function scnGo() { return (await hubReady()) ? clSend() : scnPhone(); }
+// own — свой список сценариев (кнопка «🎬 Видео» у персонажа): уходит только он, «Видео сервисы» остаются как были
+async function scnGo(own) { return (await hubReady()) ? clSend(own) : scnPhone(own); }
 // большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
-function createGo() { return cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
+function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
 
 /* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
@@ -5596,7 +5656,7 @@ async function vcLoad() {
   vcRefresh();
 }
 function vcRefresh() {
-  if (cl.mode === 'write') renderWrite(); else if (cl.mode === 'scn') renderScn();
+  if (cl.mode === 'write') renderWrite(); else if (cl.mode === 'scn') renderScn(); else if (cl.mode === 'chars') renderChars();
   updateGenButton();
 }
 // голос сценария: у персонажа — его текущий голос (сменили голос персонажу — у сценариев тоже), иначе — голос, выбранный сценарию
@@ -5651,12 +5711,13 @@ function openVoices(view = 'list', o = {}) { Object.assign(vcUi, {view, from: vi
 function vcOpenChar(c, from) {
   // новый персонаж — с развёрткой, которая уже есть и ещё ничья (у сценария или в «Создании сценария»); голос — первый свободный
   const guess = [from === 'pick' && cl.scn[vcUi.i]?.sheet, wr.sheet].find(x => x && !vc.chars.some(y => y.sheet === x)) || null;
-  vcUi.edit = c ? {...c, flow: c.flow ? {...c.flow} : null} : {id: null, name: '', sheet: guess, voice: vc.all().find(v => !vc.owner(v.id))?.id || null, sample: null, sampleSec: 0, flow: null};
+  vcUi.edit = c ? {about: '', info: null, ...c, flow: c.flow ? {...c.flow} : null, locs: [...(c.locs || [])]}
+    : {id: null, name: '', sheet: guess, about: '', info: null, locs: [], voice: vc.all().find(v => !vc.owner(v.id))?.id || null, sample: null, sampleSec: 0, flow: null};
   Object.assign(vcUi, {view: 'char', from});
   vcShow();
 }
 function vcBack() {
-  if (vcUi.from === 'write') return closeSheets();
+  if (vcUi.from === 'write' || vcUi.from === 'chars') return closeSheets();
   vcUi.view = vcUi.from === 'pick' ? 'pick' : 'list';
   renderVoices();
 }
@@ -5676,9 +5737,9 @@ function renderVoices() {
   if (!body) return;
   const v = vcUi.view;
   if (rec.to && rec.view !== v) recCancel(false);
-  $('#vcTitle').textContent = v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
+  $('#vcTitle').textContent = v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
-  body.innerHTML = v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+  body.innerHTML = v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
 }
 function vcListHTML() {
   const tools = v => v.custom ? `<button class="vc-tool" data-vf-edit="${v.id}" title="Изменить голос">✎</button><button class="vc-tool" data-vf-del="${v.id}" title="Удалить голос">🗑</button>` : '';
@@ -5696,6 +5757,17 @@ function vcCharHTML() {
       <button class="btn small" data-vc-sheet>📁 ${d.sheet ? 'Другое фото' : 'Загрузить'}</button>
       ${!d.sheet && wr.sheet ? '<button class="btn small" data-vc-sheet-wr>🧍 Из «Создания сценария»</button>' : ''}
       ${d.sheet ? '<button class="btn small" data-vc-sheet-rm>✕ Убрать</button>' : ''}</div></div>
+    <div class="vc-opt"><span>Кто он — характер, манера речи, словечки (необязательно: ИИ учтёт в каждом сценарии)</span>
+      <textarea class="vc-in" data-vc-about rows="2" maxlength="400" placeholder="Например: ворчливый, но добрый дед-огородник; говорит поговорками, обращается «внучок»">${esc(d.about || '')}</textarea></div>
+    <div class="vc-opt"><span>📊 Инфографика — о чём ролики с ним (необязательно)</span><div class="vc-sheet-row">${d.info ? `<img src="${d.info}" alt="">` : ''}
+      <button class="btn small" data-vc-img="info">📁 ${d.info ? 'Другая' : 'Загрузить'}</button>
+      ${!d.info && wr.info ? '<button class="btn small" data-vc-info-wr>Из «Создания сценария»</button>' : ''}
+      ${d.info ? '<button class="btn small" data-vc-info-rm>✕ Убрать</button>' : ''}</div></div>
+    <div class="vc-opt"><span>📍 Кадры «персонаж в локации» — по одному на сценарий (необязательно)</span>
+      <div class="vc-locs">${(d.locs || []).map((x, i) => `<div class="vc-loc"><img src="${x}" alt=""><i>${i + 1}</i><button data-vc-loc-rm="${i}" title="Убрать кадр">✕</button></div>`).join('')}</div>
+      <div class="vc-sheet-row"><button class="btn small" data-vc-img="locs" ${(d.locs || []).length >= CL_MAX ? 'disabled' : ''}>📁 Добавить кадры</button>
+        ${wr.locs.length && !(d.locs || []).length ? `<button class="btn small" data-vc-locs-wr>Из «Создания сценария» (${wr.locs.length})</button>` : ''}
+        ${(d.locs || []).length ? '<button class="btn small" data-vc-locs-rm>✕ Убрать все</button>' : ''}</div></div>
     <div class="vc-opt"><span>🎧 Точный голос — образец 5–15 с чистой речи одного человека, без музыки (необязательно)</span>
       ${d.sample ? `<div class="vc-sample"><audio controls src="${d.sample}"></audio><small>${d.sampleSec || ''} с</small><button class="btn small" data-vc-sample-save title="Сохранить образец файлом — чтобы загрузить на другом сайте (Dola, ElevenLabs…)">💾</button><button class="btn small" data-vc-sample-rm title="Убрать образец">✕</button></div>` : ''}
       <div class="vc-src"><button class="btn small" data-vc-sample>📁 ${d.sample ? 'Другой файл' : 'Аудио или видео с голосом'}</button>${recBtn('sample', d.sample ? 'Записать заново' : 'Записать свой голос')}</div>${recPanel('sample')}
@@ -5708,7 +5780,7 @@ function vcCharHTML() {
     <div class="vc-opt"><span>Описание голоса — для других моделей и когда нет образца. У каждого персонажа своё: занятые другими выбрать нельзя</span>
       <div class="vc-list">${vc.all().map(v => vcItem(v, {on: d.voice === v.id, owner: vc.owner(v.id, d.id), attr: `data-vc-set="${v.id}"`})).join('')}</div></div>
     <div class="vc-foot"><button class="btn free" data-vc-save>${old ? 'Сохранить' : 'Создать персонажа'}</button><button class="btn" data-vf-new>＋ Свой голос</button>
-      ${old ? '<button class="btn danger" data-vc-del>🗑 Удалить</button>' : ''}<button class="btn" data-vc-back>${vcUi.from === 'write' ? 'Отмена' : 'Назад'}</button></div>`;
+      ${old ? '<button class="btn danger" data-vc-del>🗑 Удалить</button>' : ''}<button class="btn" data-vc-back>${vcUi.from === 'write' || vcUi.from === 'chars' ? 'Отмена' : 'Назад'}</button></div>`;
 }
 function vcFormHTML() {
   const f = vcUi.form;
@@ -5749,7 +5821,8 @@ async function vcSaveChar() {
   const owner = vc.owner(d.voice, d.id);
   if (owner) return toast(`Этот голос уже у персонажа «${owner.name}» — у каждого свой`, {type: 'err'});
   const flow = d.flow?.kind && d.flow.name?.trim() ? {kind: d.flow.kind, name: d.flow.name.trim().replace(/^@\s*(Voice:\s*)?/i, '')} : null;
-  const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, voice: d.voice, sample: d.sample || null, sampleSec: d.sample ? d.sampleSec : 0, flow}, i = vc.chars.findIndex(x => x.id === c.id);
+  const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, about: (d.about || '').trim(), info: d.info || null, locs: (d.locs || []).slice(0, CL_MAX),
+    voice: d.voice, sample: d.sample || null, sampleSec: d.sample ? d.sampleSec : 0, flow}, i = vc.chars.findIndex(x => x.id === c.id);
   const oldSheet = i >= 0 ? vc.chars[i].sheet : null;
   if (i >= 0) vc.chars[i] = c; else vc.chars.push(c);
   await vc.saveChars();
@@ -5809,7 +5882,15 @@ function bindVoices() {
     if (x.vcEdit) return vcOpenChar(vc.char(x.vcEdit), 'list');
     if (b.hasAttribute('data-vc-new')) return vcOpenChar(null, vcUi.view === 'pick' ? 'pick' : 'list');
     if (x.vcSet) { d.voice = x.vcSet; return renderVoices(); }
-    if (b.hasAttribute('data-vc-sheet')) { $('#vcFile').value = ''; return $('#vcFile').click(); }
+    if (b.hasAttribute('data-vc-sheet') || x.vcImg) {   // развёртка, инфографика или кадры в локациях (их — несколько сразу)
+      vcUi.imgFor = x.vcImg || 'sheet';
+      $('#vcFile').multiple = vcUi.imgFor === 'locs'; $('#vcFile').value = ''; return $('#vcFile').click();
+    }
+    if (b.hasAttribute('data-vc-info-wr')) { d.info = wr.info; return renderVoices(); }
+    if (b.hasAttribute('data-vc-info-rm')) { d.info = null; return renderVoices(); }
+    if (b.hasAttribute('data-vc-locs-wr')) { d.locs = wr.locs.slice(0, CL_MAX); return renderVoices(); }
+    if (b.hasAttribute('data-vc-locs-rm')) { d.locs = []; return renderVoices(); }
+    if (x.vcLocRm) { d.locs.splice(+x.vcLocRm, 1); return renderVoices(); }
     if (b.hasAttribute('data-vc-sheet-wr')) { d.sheet = wr.sheet; return renderVoices(); }
     if (b.hasAttribute('data-vc-sheet-rm')) { d.sheet = null; return renderVoices(); }
     if (b.hasAttribute('data-vc-save')) return vcSaveChar();
@@ -5849,6 +5930,9 @@ function bindVoices() {
     }
     if (x.vcFlowKind != null) { d.flow = x.vcFlowKind ? {kind: x.vcFlowKind, name: d.flow?.name || d.name || ''} : null; return renderVoices(); }
     // замена голоса у готового видео
+    if (x.tcChar) { vcUi.tcChar = x.tcChar; return renderVoices(); }
+    if (x.tcAs) { vcUi.tcAs = x.tcAs; return renderVoices(); }
+    if (b.hasAttribute('data-tc-go')) return toCharSave();
     if (x.rvChar) { Object.assign(vcUi, {rvChar: x.rvChar, rvFile: null, rvRec: false}); return renderVoices(); }
     if (b.hasAttribute('data-rv-file')) { vcUi.audioFor = 'rv'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
     if (b.hasAttribute('data-rv-go')) return revoiceGo();
@@ -5863,6 +5947,7 @@ function bindVoices() {
   box.addEventListener('input', e => {
     const t = e.target;
     if (t.matches('[data-vc-name]')) vcUi.edit.name = t.value;
+    else if (t.matches('[data-vc-about]')) vcUi.edit.about = t.value;
     else if (t.matches('[data-vf-name]')) vcUi.form.name = t.value;
     else if (t.matches('[data-vf-extra]')) { vcUi.form.extra = t.value; $('#vcEn').textContent = vfEn(vcUi.form); }
     else if (t.matches('[data-vc-flow]') && vcUi.edit?.flow) vcUi.edit.flow.name = t.value;
@@ -5882,9 +5967,15 @@ function bindVoices() {
   });
   box.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-vc-name]')) { e.preventDefault(); vcSaveChar(); } });
   $('#vcFile').addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file || !vcUi.edit) return;
-    try { vcUi.edit.sheet = await refDataUrl(file); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
+    const files = [...e.target.files].filter(f => f.type.startsWith('image/')), d = vcUi.edit, to = vcUi.imgFor || 'sheet';
+    if (!files.length || !d) return;
+    try {
+      if (to === 'locs') {   // кадры — по порядку, до 10 (больше сценариев за раз не пишется)
+        const room = CL_MAX - d.locs.length;
+        for (const f of files.slice(0, room)) d.locs.push(await refDataUrl(f));
+        if (files.length > room) toast(`Взял ${room} ${plur(room, 'кадр', 'кадра', 'кадров')} — больше ${CL_MAX} не нужно`, {type: 'err'});
+      } else d[to] = await refDataUrl(files[0]);
+    } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
     renderVoices();
   });
 }
@@ -6087,6 +6178,153 @@ async function revoiceUpload(file) {
   if (vcUi.view === 'revoice') renderVoices();
 }
 
+/* ---- фото из галереи → в персонажа: кадр в локации (по умолчанию), развёртка или инфографика ---- */
+// Пользователь 2026-09-28: у каждого персонажа хранятся его ассеты — созданные фото сохраняются прямо в него.
+function openToChar(it) {
+  const last = vc.char(vcUi.tcChar) ? vcUi.tcChar : vc.char(wr.char) ? wr.char : vc.chars[0]?.id || null;
+  Object.assign(vcUi, {view: 'tochar', from: 'tochar', item: it.id, tcChar: last, tcAs: vcUi.tcAs || 'locs'});
+  vcShow();
+}
+function vcToCharHTML() {
+  const it = items.find(x => x.id === vcUi.item), c = vc.char(vcUi.tcChar);
+  if (!it) return '<p class="set-p">Фото не найдено — оно удалено из галереи.</p>';
+  if (!vc.chars.length) return '<p class="set-p">Персонажей пока нет — создайте первого, и фото можно будет сохранить в него.</p><div class="vc-foot"><button class="btn free" data-vc-new>＋ Новый персонаж</button></div>';
+  const full = vcUi.tcAs === 'locs' && (c?.locs?.length || 0) >= CL_MAX;
+  return `<div class="vc-sheet-row"><img src="${urlOf(it.blob)}" alt="" style="width:120px;height:120px;object-fit:cover"></div>
+    <div class="cl-sec">🎭 Кому</div>
+    <div class="vc-chars">${vc.chars.map(x => vcCharBtn(x, `data-tc-char="${x.id}"`, x === c)).join('')}</div>
+    <div class="cl-sec">Как</div>
+    <div class="seg">${[['locs', '📍 Кадр в локации'], ['sheet', '🧍 Развёртка'], ['info', '📊 Инфографика']].map(([k, t]) => `<button data-tc-as="${k}" class="${vcUi.tcAs === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <div class="hint vc-note">${vcUi.tcAs === 'locs' ? `Кадры — по одному на видео: у персонажа сейчас ${c?.locs?.length || 0} из ${CL_MAX}.` : vcUi.tcAs === 'sheet' ? 'Заменит его развёртку — как он выглядит.' : 'Заменит его инфографику — о чём ролики.'}</div>
+    <div class="vc-foot"><button class="btn free" data-tc-go ${c && !full ? '' : 'disabled'}>🧍 Сохранить${c ? ': ' + esc(c.name) : ''}</button></div>`;
+}
+async function toCharSave() {
+  const it = items.find(x => x.id === vcUi.item), c = vc.char(vcUi.tcChar), as = vcUi.tcAs;
+  if (!it?.blob || !c) return;
+  let d;
+  try { d = await refDataUrl(it.blob); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
+  if (as === 'locs') {
+    c.locs ||= [];
+    if (c.locs.length >= CL_MAX) return toast(`${c.name}: уже ${CL_MAX} кадров`, {type: 'err'});
+    c.locs.push(d);
+  } else c[as] = d;
+  it.char = c.id; DB.put(it);   // фото — его: найдётся в галерее по имени
+  await vc.saveChars();
+  closeSheets(); vcRefresh();
+  toast(`${c.name}: ${as === 'locs' ? `кадр в локации №${c.locs.length} сохранён` : as === 'sheet' ? 'развёртка обновлена' : 'инфографика обновлена'}`, {type: 'ok'});
+}
+
+/* ---- «Персонажи» — 4-й раздел «Создать»: герои роликов со всем, что к ним нужно ---- */
+// Пользователь 2026-09-28: отдельный раздел, где хранятся разные персонажи с их инфографикой, голосом и т. д.
+// Персонаж: имя, развёртка, «кто он» (характер — ИИ держит его в сценариях), инфографика, кадры в локациях, голос
+// (описание, образец файлом или записью, голос во Flow). «✍ Сценарий с ним» — всё встаёт в «Создание сценария».
+// «🎬 Видео» у персонажа: open — чей выбор открыт, n — сколько видео; busy/step — идёт конвейер
+const chv = {open: null, n: 0, busy: null, step: ''};
+const charMax = c => Math.min(CL_MAX, c.locs?.length || 0);
+// чего не хватает, чтобы видео пошли сами: [текст, кнопка-исправление]
+function charNeeds(c) {
+  const out = [];
+  if (!c.sheet) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ch-edit="${c.id}">🧍 добавить</button>`]);
+  if (!c.info) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ch-edit="${c.id}">📊 добавить</button>`]);
+  if (!c.locs?.length) out.push(['нет кадров «персонаж в локации» — по одному на видео', `<button class="wr-link" data-ch-edit="${c.id}">📍 добавить</button> · <button class="wr-link" data-ch-asset="${c.id}">🖼 создать в «Ассетах»</button>`]);
+  if (writerNow() === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Создании сценария» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ch-auto>⚡ пусть пишет ИИ здесь</button>']
+    : ['ИИ для сценариев не подключён', '<button class="wr-link" data-ch-gemini>🔑 подключить Gemini — бесплатно</button>']);
+  return out;
+}
+function charVideoHTML(c) {
+  if (chv.busy === c.id) return `<div class="ch-video"><div class="wr-note">⏳ ${esc(chv.step)}</div></div>`;
+  if (chv.open !== c.id) return '';
+  const need = charNeeds(c), max = charMax(c), n = Math.min(chv.n || Math.min(3, max), max) || 1, hub = hubLink.ok;
+  if (need.length) return `<div class="ch-video"><b>Чтобы видео делались сами, не хватает:</b><ul class="ch-need">${need.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>`;
+  return `<div class="ch-video"><b>Сколько видео?</b>
+    <div class="chips">${Array.from({length: max}, (_, i) => `<button class="chip ${i + 1 === n ? 'on' : ''}" data-ch-n="${i + 1}">${i + 1}</button>`).join('')}</div>
+    <div class="hint vc-note">По одному кадру «в локации» на видео — у персонажа ${max} ${plur(max, 'кадр', 'кадра', 'кадров')}${max < CL_MAX ? ' (больше видео — добавьте кадры)' : ''}.
+      Дальше само: ${WRITERS[writerNow()].name} напишет ${n} ${plur(n, 'сценарий', 'сценария', 'сценариев')} по его инфографике и характеру, голос — его;
+      ${hub ? 'компьютер запустит видео в Flow, Dola, Arena — готовые появятся в галерее.' : 'без компьютера — карточки для сайтов: фото, промпт и голос готовы, «Создать» на сайте нажмёте сами.'}</div>
+    <div class="vc-foot"><button class="btn free" data-ch-go="${c.id}">🚀 Создать ${n} ${plur(n, 'видео', 'видео', 'видео')}</button><button class="btn" data-ch-video-x>Отмена</button></div></div>`;
+}
+function charCardHTML(c) {
+  const v = vc.voice(c.voice), n = c.locs?.length || 0;
+  const tags = [c.info && '📊 инфографика', n && `📍 ${n} ${plur(n, 'кадр', 'кадра', 'кадров')}`, c.sample && `🎧 образец ${c.sampleSec || ''} с`, c.flow?.name && '🎙 Flow'].filter(Boolean);
+  const mine = items.filter(it => it.char === c.id).length;
+  return `<div class="ch-card ${wr.char === c.id ? 'on' : ''}">
+    <button class="ch-main" data-ch-edit="${c.id}" title="Изменить персонажа">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(v?.name || 'голос не выбран')}${wr.char === c.id ? ' · выбран в «Сценарии»' : ''}</small>
+      ${c.about ? `<em>${esc(c.about)}</em>` : ''}${tags.length ? `<i class="ch-tags">${tags.map(t => `<u>${t}</u>`).join('')}</i>` : ''}</span></button>
+    <div class="ch-acts"><button class="btn small free" data-ch-video="${c.id}" ${chv.busy ? 'disabled' : ''}>🎬 Видео</button><button class="btn small" data-ch-write="${c.id}">✍ Сценарий</button><button class="btn small" data-ch-edit="${c.id}">✎ Изменить</button>
+      ${mine ? `<button class="btn small" data-ch-gallery="${c.id}" title="Его фото и видео в галерее">🖼 ${mine}</button>` : ''}</div>${charVideoHTML(c)}</div>`;
+}
+function renderChars() {
+  const el = $('#charsCreate');
+  if (!el) return;
+  el.innerHTML = `${vc.chars.length ? '' : '<p class="ch-empty">Здесь живут герои ваших роликов. Один раз сохраните персонажа — внешность (развёртка), о чём он рассказывает (инфографика), кадры в локациях, характер и голос — и потом выбирайте его в «Создании сценария» одним нажатием.</p>'}
+    <div class="ch-list">${vc.chars.map(charCardHTML).join('')}<button class="ch-add" data-ch-new>＋ Новый персонаж</button></div>
+    <div class="vc-foot"><button class="btn" data-ch-voices>🎙 Все голоса</button></div>
+    <p class="hint vc-note">Персонажи хранятся в этом браузере. У каждого свой голос — два персонажа одним голосом не заговорят.</p>`;
+}
+// «🚀 Создать N видео»: ИИ пишет N сценариев по его инфографике, развёртке, кадрам и характеру → сценарии с его голосом
+// уходят на компьютер (видео делаются сами) или, без компьютера, — карточками для сайтов. «Видео сервисы» не трогаем.
+async function charVideo(c, n) {
+  if (!c || chv.busy || !n) return;
+  if (charNeeds(c).length) { chv.open = c.id; return renderChars(); }
+  Object.assign(chv, {busy: c.id, open: null, step: `1/2 · ${WRITERS[writerNow()].name} пишет ${n} ${plur(n, 'сценарий', 'сценария', 'сценариев')}…`});
+  renderChars();
+  try {
+    wrUseChar(c);
+    wr.locs = c.locs.slice(0, n); wr.count = n;
+    wrLocsSave(); wr.save();
+    const before = wr.result?.at;
+    await writeGo();
+    const list = wr.result?.at !== before && wr.result?.char === c.id ? wr.result.scenarios : null;
+    if (!list?.length) throw new Error('сценарии не написаны');
+    const scns = list.slice(0, n).map((s, i) => ({...blankScn(), kind: 'video', prompt: fillBlocks(s.video_prompt), aspect: '9:16', fixed: true,
+      ref: wr.locs[i], sheet: c.sheet, char: c.id, voice: c.voice})).filter(s => s.prompt.trim());
+    chv.step = `2/2 · ${hubLink.ok ? 'отправляю на компьютер' : 'готовлю карточки для сайтов'}…`;
+    renderChars();
+    if (!await scnGo(scns)) throw new Error('видео не отправлены');
+  } catch (e) {
+    if (e.message !== 'сценарии не написаны') toast(`${c.name}: ${e.message}`, {type: 'err'});
+  }
+  chv.busy = null;
+  if (cl.mode === 'chars') renderChars();
+}
+function bindChars() {
+  $('#charsCreate').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const x = b.dataset;
+    if (b.hasAttribute('data-ch-new')) return vcOpenChar(null, 'chars');
+    if (x.chEdit) return vcOpenChar(vc.char(x.chEdit), 'chars');
+    if (b.hasAttribute('data-ch-voices')) return openVoices('list');
+    if (x.chVideo) { Object.assign(chv, {open: chv.open === x.chVideo ? null : x.chVideo, n: 0}); return renderChars(); }
+    if (x.chN) { chv.n = +x.chN; return renderChars(); }
+    if (b.hasAttribute('data-ch-video-x')) { chv.open = null; return renderChars(); }
+    if (x.chGo) return charVideo(vc.char(x.chGo), Math.min(chv.n || 3, charMax(vc.char(x.chGo))));
+    if (b.hasAttribute('data-ch-gemini')) { setCreateMode('write'); return geminiOpen(); }
+    if (b.hasAttribute('data-ch-auto')) { wr.ai = 'auto'; wr.save(); return renderChars(); }
+    if (x.chAsset) {   // кадры в локациях делаются в «Создании ассетов» — с его развёрткой референсом
+      const c = vc.char(x.chAsset);
+      setCreateMode('one');
+      if (asset.svc === 'other') setAssetSvc('flow');
+      if (c?.sheet) assetAddRefs([dataBlob(c.sheet)]);
+      return toast(`Развёртка персонажа «${c?.name || ''}» — референсом. Опишите локацию и создайте фото; готовое — в галерее, оттуда «🧍 В персонажа»`, {type: 'ok', ms: 9000});
+    }
+    if (x.chGallery) {   // его фото и видео: поиск галереи по имени персонажа
+      $('#search').value = vc.char(x.chGallery)?.name || '';
+      state.filter = 'all';
+      setView('gallery'); render();
+      return $('#feed')?.scrollTo({top: 0, behavior: 'smooth'});
+    }
+    if (x.chWrite) {   // в «Создание сценария» с этим героем: развёртка, инфографика, кадры, голос — в ячейки
+      const c = vc.char(x.chWrite);
+      if (!c) return;
+      wrUseChar(c); wr.save();
+      setCreateMode('write');
+      $('.panel-scroll')?.scrollTo({top: 0, behavior: 'smooth'});
+      toast(`Герой — ${c.name}: ${wrCharTook(c) || 'голос не выбран'}. ${c.info ? 'Осталось написать сценарии' : 'Загрузите инфографику — о чём ролик'}`, {type: 'ok', ms: 7000});
+    }
+  });
+}
+
 /* ---- 🎤 Запись голоса с микрофона: образец персонажу («Точный голос») или для «Заменить голос» ---- */
 // Пользователь 2026-09-28: записать свой голос прямо в приложении и взять его референсом. Запись идёт через voiceSample
 // (срез тишины, до 15 с, WAV 24 кГц) — дальше как образец из файла: @Audio1 в карточках Dola, Seed-VC, 💾 на другие сайты.
@@ -6265,7 +6503,12 @@ function wrUseChar(c) {
   wr.char = c.id;
   if (c.sheet) wr.sheet = c.sheet;
   else if (vc.chars.some(x => x.sheet && x.sheet === wr.sheet)) wr.sheet = null;
+  // из «Персонажей»: его инфографика и кадры в локациях встают в ячейки (своих нет — остаются нынешние)
+  if (c.info) wr.info = c.info;
+  if (c.locs?.length) { wr.locs = [...c.locs]; wr.count = Math.min(CL_MAX, c.locs.length); wrLocsSave(); }
 }
+// что персонаж принёс в «Создание сценария» — для подсказки
+const wrCharTook = c => [c.sheet && 'развёртка', c.info && 'инфографика', c.locs?.length && `${c.locs.length} ${plur(c.locs.length, 'кадр', 'кадра', 'кадров')} в локациях`, vc.voice(c.voice) && `голос «${vc.voice(c.voice).name}»`].filter(Boolean).join(', ');
 // сменили развёртку в ячейке: у персонажа её не было — теперь это его развёртка; была другая — выбор снимаем (иначе ИИ дал бы герою чужой голос)
 function wrCharCheck() {
   const c = vc.char(wr.char);
@@ -6306,6 +6549,7 @@ function writeBrief() {
   const ref = (wr.ref || '').trim() || REF_PROMPT, shape = refLabels().map(l => `${l}: …`), labels = refLabels().map(l => l.toLowerCase());
   // голос выбранного персонажа — один и тот же во всех роликах: ИИ вписывает его слово в слово (не впишет — допишем сами, см. withVoice)
   const voice = wrVoice(), hero = voice ? VC_G[voice.g][2] : 'the man', him = {'the man': 'him', 'the woman': 'her'}[hero] || 'the hero';
+  const about = (vc.char(wr.char)?.about || '').trim().replace(/[«»]/g, '"');   // «кто он» из «Персонажей»
   // подсказки — только к тем блокам, что есть в эталоне пользователя
   const guide = [
     ['On-screen text', `the Russian hook text in «» with its timing and place (0–2 s, upper third) and the Russian CTA text in «» for ${mid}–${sec} s, plus font style`],
@@ -6324,7 +6568,8 @@ You receive ${L + 2} images:
 IMAGE 1 — INFOGRAPHIC: the product / topic / offer the reels are about. Read every word on it. Build the scripts on its real facts, numbers and benefits; never invent facts, prices or numbers that are not on it.
 IMAGE 2 — CHARACTER TURNAROUND SHEET: the hero of every reel (front, side and back views, face close-up, clothing, accessories, tattoos). The asset_prompt describes him exactly as drawn — age, build, face, hair and beard, every clothing item with its colour, accessories, distinctive marks. The video_prompt does NOT describe his appearance at all: the video model receives this sheet${L ? " and the scenario's location image" : ''} as references.${many ? `
 IMAGES 3–${L + 2} — CHARACTER IN LOCATION, one per scenario, in order: IMAGE 3 is scenario 1, IMAGE 4 is scenario 2, and so on. The hero is already placed in the scene. Each scenario takes place exactly in its own location (same place, light, props); its image is the first frame of its video.` : L ? `
-IMAGE 3 — CHARACTER IN LOCATION: the hero already placed in the scene. The reel takes place exactly here (same place, light, props); this image is the first frame of the video.` : ''}
+IMAGE 3 — CHARACTER IN LOCATION: the hero already placed in the scene. The reel takes place exactly here (same place, light, props); this image is the first frame of the video.` : ''}${about ? `
+THE HERO'S PERSONALITY (the author's words, in Russian): «${about}». Keep this character, attitude and manner of speech in every scenario — in what he says and how he acts; it never changes his look.` : ''}
 
 Write ${n} different reel scenario${n > 1 ? 's' : ''}, ${sec} seconds each, vertical 9:16, for a Russian-speaking audience. Mandatory structure of every reel:
 1) 0–2 s HOOK: the hero silently looks into the camera or does one short intriguing action; the upper third of the frame stays clean because the hook text is added there in editing. Hook text: Russian, at most 7 words, hits curiosity or pain.
@@ -6376,7 +6621,7 @@ ${fence}
 <текст поста к ролику и хэштеги>
 ${fence}
 
-В Block 2 внешность героя не описывай — её возьмут из фото (развёртка и «персонаж в локации»); в Location — только место.${voice ? ` Голос героя — один и тот же во всех сценариях: строка Spoken line начинается словами "voice — ${voice.en};" — слово в слово, по-английски; другой голос нигде не описывай.` : ''}${many ? ` Приложены ${L} фото героя в разных локациях (после инфографики и развёртки) — по одному на сценарий, по порядку: сценарий 1 — в локации с первого из них, сценарий 2 — со второго и так далее; место действия — ровно как на фото.` : L ? ' Место действия — как на приложенном фото «персонаж в локации».' : ''}${wr.idea.trim() ? `
+В Block 2 внешность героя не описывай — её возьмут из фото (развёртка и «персонаж в локации»); в Location — только место.${about ? ` Характер героя: ${about} — держи его в каждом сценарии.` : ''}${voice ? ` Голос героя — один и тот же во всех сценариях: строка Spoken line начинается словами "voice — ${voice.en};" — слово в слово, по-английски; другой голос нигде не описывай.` : ''}${many ? ` Приложены ${L} фото героя в разных локациях (после инфографики и развёртки) — по одному на сценарий, по порядку: сценарий 1 — в локации с первого из них, сценарий 2 — со второго и так далее; место действия — ровно как на фото.` : L ? ' Место действия — как на приложенном фото «персонаж в локации».' : ''}${wr.idea.trim() ? `
 
 Пожелания: ${wr.idea.trim()}` : ''}`;
   return {sys, user, chat};
@@ -6438,7 +6683,7 @@ async function writeGemini(sys, user) {
     }, 300000);
     if (r.status === 404 || r.status === 429 || r.status >= 500) { last = r.status === 429 ? 'quota' : `Gemini ${r.status}`; continue; }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(r.status === 400 || r.status === 403 ? `Gemini: ${j.error?.message || 'ключ не подошёл'}` : `Gemini ${r.status}`);
+    if (!r.ok) throw new Error(GEMINI_GEO.test(j.error?.message) ? GEMINI_GEO_MSG : r.status === 400 || r.status === 403 ? `Gemini: ${j.error?.message || 'ключ не подошёл'}` : `Gemini ${r.status}`);
     const text = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
     if (text) return {text, by: `Gemini (${model.replace(/^gemini-/, '').replace('-latest', '')})`};
     last = 'Gemini вернул пустой ответ';
@@ -6447,6 +6692,7 @@ async function writeGemini(sys, user) {
 }
 async function writeGo() {
   if (wr.busy) return;
+  if (wrNeedKey()) return geminiOpen();
   // кадры «персонаж в локации» обязательны при любом ИИ: сколько сценариев, столько кадров (пользователь 2026-09-27)
   const pics = writerNow() === 'chat' ? [] : ['info', 'sheet'].filter(k => !wr[k]), gap = wrLocGap();
   const miss = gap ? [...pics, 'loc'] : pics;
@@ -6485,15 +6731,18 @@ async function writeGo() {
   $('#writeOut')?.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
+// Google не даёт Gemini API в части стран — это не ошибка ключа
+const GEMINI_GEO = /location is not supported|not (available|supported) in your (country|region)/i;
+const GEMINI_GEO_MSG = 'Google не пускает к Gemini из вашей страны — включите VPN и попробуйте ещё раз, или выберите «ИИ в чате»';
 async function saveGeminiKey(k) {
   k = (k || '').trim();
   if (!k) { wallet.gemini = ''; ls.del('freefield.gemini'); renderWallet(); renderWriteAi(); return toast('Ключ Gemini удалён'); }
   try {
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {headers: {'x-goog-api-key': k}});
-    if (!r.ok) throw new Error();
-    wallet.gemini = k; ls.set('freefield.gemini', k); renderWallet(); renderWriteAi(); updateGenButton();
-    toast('Gemini подключён — пишет сценарии и переводит промпты бесплатно ✨', {type: 'ok'});
-  } catch { toast('Ключ Gemini не подошёл — проверьте, что скопировали его целиком', {type: 'err'}); }
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error?.message || '');
+    wallet.gemini = k; ls.set('freefield.gemini', k); wr.keyWait = false; renderWallet(); renderWriteAi(); updateGenButton();
+    toast('Gemini подключён — теперь сценарии пишутся прямо здесь, бесплатно ✨', {type: 'ok'});
+  } catch (e) { toast(GEMINI_GEO.test(e.message) ? GEMINI_GEO_MSG : 'Ключ Gemini не подошёл — проверьте, что скопировали его целиком', {type: 'err', ms: 9000}); }
 }
 async function saveAnthropicKey(k) {
   k = (k || '').trim();
@@ -6554,7 +6803,7 @@ function renderWrite() {
 // «Создание сценария» → кто говорит: выбран персонаж — его развёртка в ячейке, его голос ИИ впишет в каждый сценарий
 function wrCharsHTML() {
   const c = vc.char(wr.char), v = wrVoice();
-  return `<div class="block-head" style="margin-top:12px"><span class="lbl">🎙 Герой и голос</span><span class="hint"><button class="wr-link" data-wvoices>все персонажи и голоса</button></span></div>
+  return `<div class="block-head" style="margin-top:12px"><span class="lbl">🎙 Герой и голос</span><span class="hint"><button class="wr-link" data-wgo="chars">все персонажи</button></span></div>
     <div class="vc-chars">${vc.chars.map(x => vcCharBtn(x, `data-wchar="${x.id}"`, x === c)).join('')}<button class="vc-char add" data-wchar-new>＋ Персонаж</button></div>
     <div class="hint vc-note">${c ? `Говорит <b>${esc(c.name)}</b>${v ? `: голос «${esc(v.name)}» ИИ впишет в каждый сценарий, в строку «Spoken line»` : ' — выберите ему голос'} · <button class="wr-link" data-wchar-edit="${c.id}">✎ изменить</button>`
       : vc.chars.length ? 'Выберите, кто говорит в роликах: его развёртка встанет в ячейку, а голос ИИ впишет в каждый сценарий. Не выбран — голос придумает ИИ'
@@ -6576,6 +6825,12 @@ function renderWriteAi() {
   const tile = id => { const w = WRITERS[id], [c, t] = writerState(id);
     return `<button class="wr-ai ${wr.ai === id ? 'on' : ''}" data-wai="${id}"><b><span class="mc-ico" style="background:${w.color}">${esc(w.ico)}</span>${w.name}</b>${w.what}<i class="${c}">${t}</i></button>`; };
   const keyRow = (id, ph) => `<div class="key-row"><input data-wkey-in="${id}" type="text" placeholder="${ph}" autocomplete="off" spellcheck="false"><button class="btn free" data-wkey-save="${id}">Сохранить</button></div>`;
+  // Gemini без ключа: взять бесплатный ключ в AI Studio и вставить из буфера одной кнопкой — дальше сценарии пишутся здесь
+  const gemSetup = lead => `${lead}<ol class="steps">
+      <li><button class="btn small free" data-wkey-open>🔑 Открыть Google AI Studio</button> и войдите своим Google-аккаунтом</li>
+      <li>Нажмите «Create API key» и скопируйте ключ — он начинается с <code>AIza</code></li>
+      <li>Вернитесь сюда: <button class="btn small ${wr.keyWait ? 'free wr-pulse' : ''}" data-wkey-paste>📋 Вставить ключ</button> — или вставьте его в поле:</li></ol>
+    ${keyRow('gemini', 'AIza…')}<div class="hint" style="margin-top:6px">Бесплатно, в пределах дневных лимитов Google. Ключ хранится только в этом браузере и уходит только в Google.</div>`;
   const setup = {
     claude: `${CLAUDE_MODELS.length ? `<select data-wmodel aria-label="Модель Claude">${CLAUDE_MODELS.map(([v, t]) => `<option value="${v}" ${wr.claudeModel === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
       ${wallet.anthropic ? `✓ Ключ Anthropic сохранён в этом браузере. Оплата — с вашего счёта Anthropic за каждый сценарий. <button class="btn small danger" data-wkey-del="claude">Удалить ключ</button>`
@@ -6583,17 +6838,39 @@ function renderWriteAi() {
           <li>В «Billing» пополните баланс (от $5) — этого хватит на много сценариев.</li><li>«Create Key» → скопируйте ключ (начинается с <code>sk-ant-</code>) и вставьте сюда.</li></ol>
         ${keyRow('claude', 'sk-ant-…')}<div class="hint" style="margin-top:6px">Ключ хранится только в этом браузере и уходит только в Anthropic.</div>`}`,
     gemini: wallet.gemini ? `✓ Ключ Gemini сохранён. Сначала пишет Gemini Pro, когда его бесплатный лимит кончится — Gemini Flash. <button class="btn small danger" data-wkey-del="gemini">Удалить ключ</button>`
-      : `<ol class="steps"><li>Откройте <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> и войдите своим Google-аккаунтом.</li>
-          <li>Нажмите «Create API key» и скопируйте ключ.</li><li>Вставьте его сюда — бесплатно, в пределах дневных лимитов Google.</li></ol>
-        ${keyRow('gemini', 'AIza…')}`,
+      : gemSetup(''),
     chat: 'Задание скопируется в буфер вместе с вашим эталонным промптом. Вставьте его в чат с Gemini, Claude или ChatGPT и приложите картинки — инфографику, развёртку и кадры «персонаж в локации» по порядку (сценарий 1 — первый кадр…). ИИ ответит по вашей структуре: название, Block 1. Photo, Block 2. Video prompt, Block 3. Post caption — каждый блок с кнопкой «копировать».',
   };
   el.innerHTML = `
     <div class="block-head" style="margin-top:14px"><span class="lbl">Кто пишет сценарий</span><span class="hint">${wr.ai === 'auto' ? 'сейчас: ' + WRITERS[who].name : ''}</span></div>
     <div class="wr-ais"><button class="wr-ai auto ${wr.ai === 'auto' ? 'on' : ''}" data-wai="auto"><b>⚡ Авто</b>Лучший из доступных: Claude → Gemini → ИИ в чате</button>
       ${Object.keys(WRITERS).map(tile).join('')}</div>
-    <div class="wr-setup">${setup[who]}</div>`;
+    <div class="wr-setup" id="wrSetup">${wrNeedKey() ? gemSetup('<div class="wr-lead">✨ <b>Чтобы ИИ писал сценарии прямо здесь, не выходя из приложения</b> — подключите Gemini: бесплатно, один раз, около минуты.</div>') +
+      '<div class="hint" style="margin-top:6px">Без ключа — выберите «ИИ в чате»: задание скопируется, и вставите его в чат с ИИ.</div>' : setup[who]}</div>`;
 }
+// «Авто», а ключей нет — не уходим в чат, а предлагаем подключить бесплатный Gemini (пользователь 2026-09-28: писать сценарий в приложении)
+const wrNeedKey = () => wr.ai === 'auto' && writerNow() === 'chat';
+const GEMINI_KEY_URL = 'https://aistudio.google.com/apikey';
+function geminiOpen() {
+  wr.keyWait = true;
+  openSide(GEMINI_KEY_URL, 'aistudio');
+  renderWriteAi();
+  toast('В Google AI Studio: «Create API key» → скопируйте ключ, вернитесь и нажмите «📋 Вставить ключ»', {type: 'ok', ms: 10000});
+}
+async function geminiPaste() {
+  let t = '';
+  try { t = await navigator.clipboard.readText(); } catch {}
+  const k = (String(t).match(/AIza[0-9A-Za-z_-]{30,}/) || [])[0];
+  if (k) return saveGeminiKey(k);
+  $('#writeCreate [data-wkey-in="gemini"]')?.focus();
+  toast(t ? 'В буфере не ключ Gemini — скопируйте в AI Studio ключ, он начинается с AIza' : 'Не получилось прочитать буфер — вставьте ключ в поле: долгое нажатие → «Вставить»', {type: 'err', ms: 8000});
+}
+// вернулись из AI Studio — подсвечиваем «📋 Вставить ключ»
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !wr.keyWait || wallet.gemini || cl.mode !== 'write') return;
+  renderWriteAi();
+  $('#writeCreate [data-wkey-paste]')?.scrollIntoView({behavior: 'smooth', block: 'center'});
+});
 function writeOutHTML() {
   const r = wr.result;
   if (!r) return '';
@@ -6679,7 +6956,7 @@ function bindWrite() {
       const on = wr.char !== c.id;
       if (on) wrUseChar(c); else wr.char = null;
       wr.save(); renderWrite(); updateGenButton();
-      return on && toast(`Говорит ${c.name}: голос «${vc.voice(c.voice)?.name || 'не выбран'}»${c.sheet ? ', развёртка — в ячейке' : ' — загрузите его развёртку в ячейку'}`, {type: 'ok'});
+      return on && toast(`Говорит ${c.name}: ${wrCharTook(c) || 'голос не выбран'}${c.sheet ? '' : ' — загрузите его развёртку в ячейку'}`, {type: 'ok', ms: 6000});
     }
     if (b.hasAttribute('data-wchar-new')) { vcUi.i = null; return vcOpenChar(null, 'write'); }
     if (b.dataset.wcharEdit) return vcOpenChar(vc.char(b.dataset.wcharEdit), 'write');
@@ -6695,6 +6972,8 @@ function bindWrite() {
     if (b.dataset.wcount) { wr.count = +b.dataset.wcount; wr.save(); renderWrite(); return updateGenButton(); }
     if (b.dataset.wsec) { cl.seconds = +b.dataset.wsec; cl.save(); return renderWrite(); }
     if (b.dataset.wkeySave) { const v = box.querySelector(`[data-wkey-in="${b.dataset.wkeySave}"]`)?.value; return b.dataset.wkeySave === 'claude' ? saveAnthropicKey(v) : saveGeminiKey(v); }
+    if (b.hasAttribute('data-wkey-open')) return geminiOpen();
+    if (b.hasAttribute('data-wkey-paste')) return geminiPaste();
     if (b.dataset.wkeyDel) return b.dataset.wkeyDel === 'claude' ? saveAnthropicKey('') : saveGeminiKey('');
     const list = wr.result?.scenarios || [];
     const pick = v => v === 'all' ? list : [list[+v]].filter(Boolean);
@@ -6763,9 +7042,10 @@ async function clTasks(list, phone = false) {
     prompt: composePrompt(voicePrompt(withCamera(s.prompt, camera), voice, char, site, phone), style ?? state.style, s.kind)}));
 }
 
-async function clSend() {
-  const list = cl.ready();
+async function clSend(own) {
+  const list = own || cl.ready();
   if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
+  let ok = false;
   cl.sending = true;
   updateGenButton();
   try {
@@ -6773,16 +7053,20 @@ async function clSend() {
     const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: out})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
-    cl.scn = [scnLike(cl.scn.at(-1))];   // дальше — один пустой сценарий с теми же настройками
-    cl.sel = null;
-    cl.save();
-    styleSync();
+    if (!own) {
+      cl.scn = [scnLike(cl.scn.at(-1))];   // дальше — один пустой сценарий с теми же настройками
+      cl.sel = null;
+      cl.save();
+      styleSync();
+    }
     toast(`Отправлено на компьютер: ${out.length} ${plur(out.length, 'сценарий', 'сценария', 'сценариев')}. Готовые файлы сами появятся в галерее`, {type: 'ok', ms: 6000});
+    ok = true;
   } catch (e) { toast('Не удалось отправить: ' + e.message, {type: 'err'}); }
   cl.sending = false;
   renderScn();
   updateGenButton();
   hubLink.refresh();
+  return ok;
 }
 
 // Без компьютера (версия с GitHub, APK, другая сеть): у Flow, Vids, Dola и Arena нет публичного API, а до компьютера,
@@ -6815,9 +7099,10 @@ function phoneCards(tasks) {
 }
 
 // «Видео сервисы» без компьютера: сервис и модель — по тому же плану, что у компьютера
-async function scnPhone() {
-  const list = cl.ready();
+async function scnPhone(own) {
+  const list = own || cl.ready();
   if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
+  let ok = false;
   cl.sending = true;
   updateGenButton();
   try {
@@ -6825,14 +7110,18 @@ async function scnPhone() {
     // Flow и Vids берут оба фото («ингредиенты»), Dola и Arena — только первое
     phoneCards(out.map(({image, sheet, ...t}, i) => ({...t, service: plan[i].site, model: plan[i].model,
       images: [image, sheet].filter(Boolean).slice(0, ['flow', 'vids'].includes(plan[i].site) ? 2 : 1)})));
-    cl.scn = [scnLike(cl.scn.at(-1))];   // дальше — один пустой сценарий с теми же настройками
-    cl.sel = null;
-    cl.save();
-    styleSync();
+    if (!own) {
+      cl.scn = [scnLike(cl.scn.at(-1))];   // дальше — один пустой сценарий с теми же настройками
+      cl.sel = null;
+      cl.save();
+      styleSync();
+    }
+    ok = true;
   } catch (e) { toast('Не удалось подготовить: ' + e.message, {type: 'err'}); }
   cl.sending = false;
   renderScn();
   updateGenButton();
+  return ok;
 }
 
 function bindClaude() {
@@ -6861,7 +7150,7 @@ function bindClaude() {
       cl.save(); plan();
     });
   });
-  scnBox.addEventListener('keydown', e => { if (e.target.matches('[data-prompt]') && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); scnGo(); } });
+  scnBox.addEventListener('keydown', e => { if (e.target.matches('[data-prompt]') && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); scnGo(); } });   // без аргумента — все сценарии раздела
   scnBox.addEventListener('change', e => {
     if (e.target.matches('[data-sm]')) {
       const [site, model] = e.target.value.split(':');
