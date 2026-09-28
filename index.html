@@ -278,6 +278,18 @@ button.vc-item:not(:disabled):hover{border-color:var(--line3)}
 .vc-url .vc-in{padding:7px 11px}
 .vc-url .btn.small{margin-top:0;flex:none}
 .vc-flow{margin-top:8px}
+.vc-src{display:flex;gap:8px;flex-wrap:wrap}
+.rec-box{margin-top:10px;border:1px solid rgba(255,93,98,.35);border-radius:14px;padding:12px;background:rgba(255,93,98,.06)}
+.rec-top{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2)}
+.rec-top b{font:700 18px var(--mono);color:var(--text)}
+.rec-top b.ok{color:var(--free)}
+.rec-dot{width:12px;height:12px;border-radius:50%;background:var(--danger);flex:none;animation:recDot 1s ease-in-out infinite}
+@keyframes recDot{50%{opacity:.25}}
+.rec-lvl{height:6px;border-radius:3px;background:rgba(0,0,0,.35);margin-top:10px;overflow:hidden}
+.rec-lvl i{display:block;height:100%;width:0;background:var(--free);border-radius:3px;transition:width .08s linear}
+.rec-text{margin-top:10px;font-size:14px;line-height:1.55;color:var(--text)}
+.rec-text small{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.rec-box .vc-foot{margin-top:12px}
 .vc-manual{margin-top:16px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--panel2)}
 .vc-manual summary{cursor:pointer;font-weight:600;font-size:12.5px}
 .vc-manual ol{margin-top:8px}
@@ -1425,7 +1437,7 @@ const ICON_OF = {
   '👤': 'user', '🧑‍💻': 'users', '📍': ['pin', 'c-lime'], '🧍': 'sheet', '🔌': 'plug', '💻': 'laptop', '🎲': 'dice', '⛔': ['ban', 'c-danger'], '📊': 'chart',
   '✅': ['check-circle', 'c-ok'], '❌': ['x-circle', 'c-danger'], '⏱': 'timer', '🎉': ['party', 'c-lime'], '📂': 'folder', '📁': 'folder', '📥': 'inbox',
   '🗑': 'trash', '🔗': 'link', '↪': 'reroute', '🪟': 'window', '✳': 'asterisk', '⚙': 'settings', '🤗': 'smile', '💎': 'gem', '♾': 'infinity', '🐢': 'clock',
-  '🗓': 'calendar', '📷': 'camera', '🔊': 'volume', '🎙': 'mic', '🎭': 'users', '⭐': ['star', 'c-lime'], '▶': 'play', '⏸': 'pause', '💡': ['bulb', 'c-warn'], '🚀': 'rocket', '↔': 'arrows-h',
+  '🗓': 'calendar', '📷': 'camera', '🔊': 'volume', '🎙': 'mic', '🎤': 'mic', '🎭': 'users', '⭐': ['star', 'c-lime'], '▶': 'play', '⏸': 'pause', '💡': ['bulb', 'c-warn'], '🚀': 'rocket', '↔': 'arrows-h',
   '🤖': 'bot', '💬': 'chat', '📐': 'ruler', '⬆': 'share', '📦': 'package', '✕': 'x', '＋': 'plus', '✓': 'check', '⤓': 'download', '✦': 'sparkle', '▦': 'grid',
 };
 const ICON_SRC = '(' + Object.keys(ICON_OF).sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?';
@@ -3797,6 +3809,7 @@ function renderMcp() {
 }
 
 function closeSheets() {
+  if (rec.to) recCancel(false);
   const cam = !$('#camSheet').classList.contains('hidden');
   $$('.sheet').forEach(s => s.classList.add('hidden'));
   if (cam) CamPreview.mount($('#motionGrid'));   // превью снова рисуются в панели
@@ -4708,7 +4721,10 @@ function clPlanText() {
 const accState = {pending: {}, checking: false, adding: false, busy: {}, choose: {}};   // choose: «site@профиль» → почты аккаунтов Google на выбор
 function scnAccHTML() {
   // открыто не с компьютера (файлом, с GitHub Pages) — профилей не видно; на компьютере ведём на адрес Freefield, где ключ связи уже сохранён
-  if (!hubLink.ok) return `<div class="acc-box"><div class="hint">Профили Chrome, баланс Flow, Dola, Arena и кнопки входа видны, когда Freefield открыт с компьютера — по адресу <b>127.0.0.1:5180</b>. На телефоне — по QR-коду (попросите Claude: «подключи телефон к Freefield»).</div>
+  // на телефоне адрес 127.0.0.1 — сам телефон, а не компьютер: объясняем, что без компьютера этот раздел не нужен (пользователь 2026-09-28)
+  if (!hubLink.ok) return `<div class="acc-box"><div class="hint">${isMobile()
+    ? '📱 Без компьютера этот раздел не нужен: во Flow, Dola и Arena входите сами — на их сайтах в Chrome. Freefield делает карточки с фото и промптом, «Создать» нажимаете на сайте. Профили Chrome, баланс и автозапуск — только с компьютером: Freefield работает в Claude Desktop на ПК, а телефон подключается к нему по QR-коду в той же сети Wi-Fi.'
+    : 'Профили Chrome, баланс Flow, Dola, Arena и кнопки входа видны, когда Freefield открыт с компьютера — по адресу <b>127.0.0.1:5180</b> (пока открыт Claude Desktop с Freefield). На телефоне — по QR-коду (попросите Claude в Claude Desktop: «подключи телефон к Freefield»).'}</div>
     ${location.port !== '5180' && !isMobile() ? '<div class="acc-foot"><a class="btn small free" href="http://127.0.0.1:5180/">🔗 Открыть Freefield с компьютера</a></div>' : ''}</div>`;
   const info = hubLink.info || {};
   const act = info.active ?? null;   // null — окно Chrome Freefield закрыто (или открыто несколько профилей)
@@ -5659,6 +5675,7 @@ function renderVoices() {
   const body = $('#vcBody');
   if (!body) return;
   const v = vcUi.view;
+  if (rec.to && rec.view !== v) recCancel(false);
   $('#vcTitle').textContent = v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
   body.innerHTML = v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
@@ -5680,10 +5697,10 @@ function vcCharHTML() {
       ${!d.sheet && wr.sheet ? '<button class="btn small" data-vc-sheet-wr>🧍 Из «Создания сценария»</button>' : ''}
       ${d.sheet ? '<button class="btn small" data-vc-sheet-rm>✕ Убрать</button>' : ''}</div></div>
     <div class="vc-opt"><span>🎧 Точный голос — образец 5–15 с чистой речи одного человека, без музыки (необязательно)</span>
-      ${d.sample ? `<div class="vc-sample"><audio controls src="${d.sample}"></audio><small>${d.sampleSec || ''} с</small><button class="btn small" data-vc-sample-rm title="Убрать образец">✕</button></div>` : ''}
-      <button class="btn small" data-vc-sample>📁 ${d.sample ? 'Другой файл' : 'Аудио или видео с голосом'}</button>
+      ${d.sample ? `<div class="vc-sample"><audio controls src="${d.sample}"></audio><small>${d.sampleSec || ''} с</small><button class="btn small" data-vc-sample-save title="Сохранить образец файлом — чтобы загрузить на другом сайте (Dola, ElevenLabs…)">💾</button><button class="btn small" data-vc-sample-rm title="Убрать образец">✕</button></div>` : ''}
+      <div class="vc-src"><button class="btn small" data-vc-sample>📁 ${d.sample ? 'Другой файл' : 'Аудио или видео с голосом'}</button>${recBtn('sample', d.sample ? 'Записать заново' : 'Записать свой голос')}</div>${recPanel('sample')}
       <div class="vc-url"><input class="vc-in" data-vc-url placeholder="или прямая ссылка на файл .mp3 / .wav / .m4a" inputmode="url"><button class="btn small" data-vc-url-go>Взять</button></div>
-      <div class="hint vc-note">С образцом: у готового видео кнопка «🎙 Заменить голос» сделает голос ровно таким; в карточках для Dola образец уйдёт аудио-референсом (@Audio1).</div></div>
+      <div class="hint vc-note">Запись: тихая комната, телефон в 20–30 см, обычный голос — 10–15 с. С образцом: у готового видео кнопка «🎙 Заменить голос» сделает голос ровно таким; в карточках для Dola образец уйдёт аудио-референсом (@Audio1).</div></div>
     <div class="vc-opt"><span>Голос во Flow — один и тот же в каждом ролике Flow (необязательно)</span>
       <div class="seg">${[['', 'Нет'], ['voice', '@Voice: голос'], ['char', '@Персонаж']].map(([k, t]) => `<button data-vc-flow-kind="${k}" class="${(d.flow?.kind || '') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
       ${d.flow?.kind ? `<input class="vc-in vc-flow" data-vc-flow maxlength="40" value="${esc(d.flow.name || '')}" placeholder="${d.flow.kind === 'char' ? 'Имя персонажа во Flow — как сохранили' : 'Имя голоса во Flow — например, свой голос «Дед Иван»'}">
@@ -5818,6 +5835,11 @@ function bindVoices() {
     // точный голос персонажа: образец из файла или по ссылке, голос во Flow
     if (b.hasAttribute('data-vc-sample')) { vcUi.audioFor = 'sample'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
     if (b.hasAttribute('data-vc-sample-rm')) { d.sample = null; d.sampleSec = 0; return renderVoices(); }
+    if (b.hasAttribute('data-vc-sample-save')) return d.sample && saveFile(dataBlob(d.sample), `голос-${(d.name || 'образец').trim()}.wav`);
+    // 🎤 запись с микрофона — образец персонажу или для замены голоса
+    if (x.rec) return recStart(x.rec);
+    if (b.hasAttribute('data-rec-stop')) return recStop();
+    if (b.hasAttribute('data-rec-cancel')) return recCancel();
     if (b.hasAttribute('data-vc-url-go')) {
       const url = $('#vcBody [data-vc-url]')?.value.trim();
       if (!url) return toast('Вставьте ссылку на аудиофайл', {type: 'err'});
@@ -5827,7 +5849,7 @@ function bindVoices() {
     }
     if (x.vcFlowKind != null) { d.flow = x.vcFlowKind ? {kind: x.vcFlowKind, name: d.flow?.name || d.name || ''} : null; return renderVoices(); }
     // замена голоса у готового видео
-    if (x.rvChar) { Object.assign(vcUi, {rvChar: x.rvChar, rvFile: null}); return renderVoices(); }
+    if (x.rvChar) { Object.assign(vcUi, {rvChar: x.rvChar, rvFile: null, rvRec: false}); return renderVoices(); }
     if (b.hasAttribute('data-rv-file')) { vcUi.audioFor = 'rv'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
     if (b.hasAttribute('data-rv-go')) return revoiceGo();
     if (b.hasAttribute('data-rv-upload')) { vcUi.audioFor = 'rv-upload'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
@@ -5852,7 +5874,7 @@ function bindVoices() {
     if (to === 'rv-upload') return revoiceUpload(file);
     try {
       const r = await voiceSample(file);
-      if (to === 'rv') vcUi.rvFile = r.data;
+      if (to === 'rv') Object.assign(vcUi, {rvFile: r.data, rvRec: false});
       else if (vcUi.edit) Object.assign(vcUi.edit, {sample: r.data, sampleSec: r.sec});
       toast(`Образец голоса: ${r.sec} с`, {type: 'ok'});
     } catch (err) { toast('Не получилось: ' + err.message, {type: 'err', ms: 8000}); }
@@ -6003,12 +6025,12 @@ async function revoiceSave(it, audio, who) {
 // окно «🎙 Заменить голос» (то же окно, что у персонажей: вид revoice)
 function openRevoice(it) {
   const withSample = vc.chars.filter(c => c.sample);
-  Object.assign(vcUi, {view: 'revoice', from: 'revoice', item: it.id, rvChar: vc.char(it.char)?.sample ? it.char : withSample[0]?.id || null, rvFile: null, rvNote: ''});
+  Object.assign(vcUi, {view: 'revoice', from: 'revoice', item: it.id, rvChar: vc.char(it.char)?.sample ? it.char : withSample[0]?.id || null, rvFile: null, rvRec: false, rvNote: ''});
   vcShow();
 }
 const rvItem = () => items.find(x => x.id === vcUi.item);
 const rvSample = () => vcUi.rvFile || vc.char(vcUi.rvChar)?.sample || null;
-const rvWho = () => vcUi.rvFile ? 'образец из файла' : vc.char(vcUi.rvChar)?.name || '';
+const rvWho = () => vcUi.rvFile ? (vcUi.rvRec ? 'моя запись' : 'образец из файла') : vc.char(vcUi.rvChar)?.name || '';
 function vcRevoiceHTML() {
   const it = rvItem(), smp = rvSample();
   if (!it) return '<p class="set-p">Ролик не найден — он удалён из галереи.</p>';
@@ -6016,8 +6038,9 @@ function vcRevoiceHTML() {
   return `<p class="set-p">Слова, интонации и движения губ останутся — голос станет как в образце. Фоновые звуки и музыка ролика при замене пропадут, останется голос.</p>
     <div class="cl-sec" style="margin-top:0">🎭 Чей голос</div>
     <div class="vc-chars">${chars.map(c => vcCharBtn(c, `data-rv-char="${c.id}"`, !vcUi.rvFile && vcUi.rvChar === c.id)).join('')}
-      <button class="vc-char add ${vcUi.rvFile ? 'on' : ''}" data-rv-file>📁 ${vcUi.rvFile ? 'Образец из файла ✓' : 'Другой файл'}</button></div>
-    ${chars.length ? '' : '<p class="hint vc-note">Образец голоса можно сохранить у персонажа (🎙 → персонаж → «Точный голос») — тогда он будет здесь всегда.</p>'}
+      <button class="vc-char add ${vcUi.rvFile && !vcUi.rvRec ? 'on' : ''}" data-rv-file>📁 ${vcUi.rvFile && !vcUi.rvRec ? 'Образец из файла ✓' : 'Другой файл'}</button>
+      <button class="vc-char add ${vcUi.rvRec ? 'on' : ''}" data-rec="rv" ${rec.to ? 'disabled' : ''}>🎤 ${vcUi.rvRec ? 'Моя запись ✓' : 'Записать голос'}</button></div>${recPanel('rv')}
+    ${chars.length ? '' : '<p class="hint vc-note">Образец голоса можно сохранить у персонажа (🎙 → персонаж → «Точный голос»: файлом или записью с микрофона) — тогда он будет здесь всегда.</p>'}
     ${smp ? `<div class="vc-sample"><audio controls src="${smp}"></audio></div>` : ''}
     <div class="vc-foot"><button class="btn free" data-rv-go ${smp && !vcUi.busy ? '' : 'disabled'}>✨ Заменить голос — бесплатно</button></div>
     <div class="hint vc-note" id="rvNote">${vcUi.busy ? '⏳ ' + esc(vcUi.rvNote) : 'Seed-VC на Hugging Face, в пределах бесплатного лимита GPU (с токеном Hugging Face в «Лимитах» — больше). Ролик на 10 с — около минуты. Новый ролик появится в галерее рядом с исходным.'}</div>
@@ -6062,6 +6085,103 @@ async function revoiceUpload(file) {
   } catch (e) { toast('Не получилось: ' + e.message, {type: 'err', ms: 8000}); }
   vcUi.busy = false; vcUi.rvNote = '';
   if (vcUi.view === 'revoice') renderVoices();
+}
+
+/* ---- 🎤 Запись голоса с микрофона: образец персонажу («Точный голос») или для «Заменить голос» ---- */
+// Пользователь 2026-09-28: записать свой голос прямо в приложении и взять его референсом. Запись идёт через voiceSample
+// (срез тишины, до 15 с, WAV 24 кГц) — дальше как образец из файла: @Audio1 в карточках Dola, Seed-VC, 💾 на другие сайты.
+const REC_MAX = 20;   // секунд — дальше стоп сам; в образец уйдут первые 15 с речи
+const REC_TEXT = 'Привет! Сегодня я расскажу вам одну короткую историю. Знаете, что в ней самое удивительное? Всё оказалось намного проще, чем я думал. Сначала было непонятно, потом интересно, а в конце — просто смешно. Давайте разберёмся вместе!';
+const rec = {id: 0, to: null, view: null, stream: null, mr: null, src: null, parts: [], t0: 0, timer: 0, peak: 0, busy: false};
+const recSec = () => rec.t0 ? Math.floor((performance.now() - rec.t0) / 1000) : 0;
+const recClock = t => `0:${String(t).padStart(2, '0')}`;
+const recBtn = (to, label) => `<button class="btn small" data-rec="${to}" ${rec.to ? 'disabled' : ''}>🎤 ${label}</button>`;
+function recPanel(to) {
+  if (rec.to !== to) return '';
+  if (!rec.mr) return '<div class="rec-box"><div class="rec-top">⏳ Разрешите доступ к микрофону…</div></div>';
+  if (rec.busy) return '<div class="rec-box"><div class="rec-top">⏳ Готовлю образец…</div></div>';
+  const t = recSec();
+  return `<div class="rec-box"><div class="rec-top"><i class="rec-dot"></i><b id="recTime" class="${t >= 10 ? 'ok' : ''}">${recClock(t)}</b><span>нужно 10–15 с · стоп сам на ${recClock(REC_MAX)}</span></div>
+    <div class="rec-lvl"><i id="recLvl"></i></div>
+    <p class="rec-text"><small>Прочитайте вслух — своим обычным голосом, с интонацией:</small>${REC_TEXT}</p>
+    <div class="vc-foot"><button class="btn free" data-rec-stop>⏹ Готово</button><button class="btn" data-rec-cancel>✕ Отмена</button></div></div>`;
+}
+async function recStart(to) {
+  if (rec.to) return;
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder)
+    return toast(window.isSecureContext ? 'Этот браузер не умеет записывать звук — запишите диктофоном и загрузите файлом (📁)'
+      : 'Микрофон браузер даёт только сайтам на https — откройте Freefield с GitHub (zuevilia808-collab.github.io/freefield) или запишите диктофоном и загрузите файлом', {type: 'err', ms: 10000});
+  const id = ++rec.id;
+  Object.assign(rec, {to, view: vcUi.view, parts: [], peak: 0, busy: false});
+  renderVoices();
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}}); }
+  catch (e) {
+    if (rec.id !== id) return;
+    recCancel();
+    return toast(e.name === 'NotAllowedError' ? (native.on() ? 'У приложения нет доступа к микрофону — запишите в Chrome или диктофоном и загрузите файлом' : 'Нет доступа к микрофону — разрешите его сайту: значок слева от адреса → «Микрофон»')
+      : e.name === 'NotFoundError' ? 'Микрофон не найден' : 'Микрофон недоступен: ' + e.message, {type: 'err', ms: 9000});
+  }
+  if (rec.id !== id) return stream.getTracks().forEach(t => t.stop());   // окно закрыли, пока спрашивали разрешение
+  const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm'].find(t => MediaRecorder.isTypeSupported?.(t));
+  let mr;
+  try { mr = new MediaRecorder(stream, type ? {mimeType: type} : {}); }
+  catch (e) { stream.getTracks().forEach(t => t.stop()); recCancel(); return toast('Запись не запускается: ' + e.message, {type: 'err'}); }
+  // уровень громкости — чтобы видно было, что микрофон слышит (в тишину через нулевую громкость: Safari иначе не считает)
+  const ctx = actx(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(), mute = ctx.createGain();
+  ctx.resume?.().catch(() => {});
+  an.fftSize = 1024; mute.gain.value = 0;
+  src.connect(an); an.connect(mute); mute.connect(ctx.destination);
+  mr.ondataavailable = e => { if (e.data.size) rec.parts.push(e.data); };
+  mr.onstop = () => recDone(id, new Blob(rec.parts, {type: mr.mimeType || type || 'audio/webm'}));
+  Object.assign(rec, {stream, mr, src, t0: performance.now()});
+  mr.start(250);
+  renderVoices();
+  const buf = new Float32Array(an.fftSize);
+  rec.timer = setInterval(() => {
+    if (rec.id !== id || rec.busy) return;
+    an.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (const x of buf) sum += x * x;
+    const rms = Math.sqrt(sum / buf.length), t = recSec(), lvl = $('#recLvl'), tm = $('#recTime');
+    rec.peak = Math.max(rec.peak, rms);
+    if (lvl) lvl.style.width = Math.min(100, rms * 600) + '%';
+    if (tm) { tm.textContent = recClock(t); tm.classList.toggle('ok', t >= 10); }
+    if (t >= REC_MAX) recStop();
+  }, 80);
+}
+function recStop() {
+  if (!rec.mr || rec.busy) return;
+  rec.busy = true;
+  clearInterval(rec.timer);
+  if (rec.mr.state !== 'inactive') rec.mr.stop();
+  renderVoices();
+}
+// сброс записи; запоздалые ответы (разрешение микрофона, остановка записи) по старому id игнорируются
+function recCancel(rerender = true) {
+  rec.id++;
+  clearInterval(rec.timer);
+  try { if (rec.mr && rec.mr.state !== 'inactive') rec.mr.stop(); } catch {}
+  rec.stream?.getTracks().forEach(t => t.stop());
+  try { rec.src?.disconnect(); } catch {}
+  Object.assign(rec, {to: null, view: null, stream: null, mr: null, src: null, parts: [], t0: 0, busy: false});
+  if (rerender) renderVoices();
+}
+async function recDone(id, blob) {
+  if (rec.id !== id) return;
+  const to = rec.to, quiet = rec.peak < 0.01;
+  rec.stream?.getTracks().forEach(t => t.stop());   // микрофон отпускаем сразу — значок записи в браузере гаснет
+  try {
+    const r = await voiceSample(blob);
+    if (rec.id !== id) return;
+    if (to === 'rv') Object.assign(vcUi, {rvFile: r.data, rvRec: true});
+    else if (vcUi.edit) Object.assign(vcUi.edit, {sample: r.data, sampleSec: r.sec});
+    toast(`Записано: образец голоса ${r.sec} с${to === 'rv' ? '' : ' — сохраните персонажа'}`, {type: 'ok'});
+  } catch (e) {
+    if (rec.id !== id) return;
+    toast('Запись не подошла: ' + (quiet ? 'очень тихо — говорите громче или ближе к микрофону' : e.message), {type: 'err', ms: 8000});
+  }
+  recCancel();
 }
 
 /* ---- «Создание сценария»: ИИ пишет сценарии рилсов по инфографике (о чём ролик) и развёртке героя (как он выглядит) ---- */
