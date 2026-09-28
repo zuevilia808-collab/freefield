@@ -2549,7 +2549,7 @@ async function timedFetch(url, opts, ms = 40000) {
 
 const LLM = [
   {name: 'Gemini', ok: () => !!wallet.gemini, async run(sys, text) {
-    for (const model of ['gemini-flash-latest', 'gemini-2.5-flash']) {
+    for (const model of (await geminiModels('flash')).slice(0, 3)) {
       const r = await timedFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini},
         body: JSON.stringify({systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [{text}]}],
@@ -7155,8 +7155,10 @@ async function writeClaude(sys, user) {
 async function writeGemini(sys, user) {
   const part = d => { const x = b64(d); return {inline_data: {mime_type: x.mime, data: x.data}}; };
   let last = '';
-  // сначала Pro (пишет лучше), кончился бесплатный лимит Pro — Flash
-  for (const model of ['gemini-pro-latest', 'gemini-2.5-pro', 'gemini-flash-latest', 'gemini-2.5-flash']) {
+  const tried = [];
+  // сначала Pro (пишет лучше), кончился бесплатный лимит Pro — Flash; модели — те, что есть у ключа
+  for (const model of await geminiModels('pro')) {
+    tried.push(model);
     const r = await timedFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini},
       body: JSON.stringify({systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [
@@ -7171,7 +7173,8 @@ async function writeGemini(sys, user) {
     if (text) return {text, by: `Gemini (${model.replace(/^gemini-/, '').replace('-latest', '')})`};
     last = 'Gemini вернул пустой ответ';
   }
-  throw new Error(last === 'quota' ? 'у Gemini закончился бесплатный лимит — попробуйте позже или выберите другой ИИ' : last);
+  throw new Error(last === 'quota' ? 'у Gemini закончился бесплатный лимит — попробуйте позже или выберите другой ИИ'
+    : last === 'Gemini 404' ? `у ключа Gemini не нашлось модели для текста (пробовал: ${tried.join(', ')}) — создайте ключ в AI Studio заново` : last);
 }
 async function writeGo() {
   if (wr.busy) return;
@@ -7229,6 +7232,27 @@ const GEMINI_GEO_MSG = 'Google не пускает к Gemini из вашей с�
 // ключи Gemini: новые (с мая 2026) — «AQ.…», прежние — «AIza…» (Google их отключает с сентября 2026); ключ — только в заголовке
 const GEMINI_KEY_RE = /\bAQ\.[A-Za-z0-9._-]{20,}|AIza[0-9A-Za-z_-]{30,}/;
 const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models';
+// Модели Gemini — те, что есть у этого ключа: Google переименовывает и списывает модели (пользователь 2026-09-28: «Gemini 404» —
+// зашитых gemini-pro-latest / gemini-2.5-* у ключа не оказалось). Список спрашиваем у Google; не ответил — запасные имена.
+const GEMINI_FALLBACK = ['gemini-pro-latest', 'gemini-flash-latest', 'gemini-3.5-pro', 'gemini-3.5-flash', 'gemini-3-pro', 'gemini-3-flash', 'gemini-2.5-pro', 'gemini-2.5-flash'];
+const geminiList = {key: null, names: null};
+async function geminiModels(prefer = 'pro', key = wallet.gemini) {
+  if (geminiList.key !== key || !geminiList.names) {
+    let names = [];
+    try {
+      const r = await timedFetch(GEMINI_API + '?pageSize=1000', {headers: {'x-goog-api-key': key}}, 20000);
+      if (r.ok) names = ((await r.json()).models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => String(m.name).replace(/^models\//, ''));
+    } catch { /* нет связи — запасные имена */ }
+    Object.assign(geminiList, {key, names: names.length ? names : null});
+  }
+  // только текстовые модели Gemini: без озвучки, картинок, эмбеддингов, «живых» и узких
+  const list = (geminiList.names || GEMINI_FALLBACK).filter(n => /^gemini-/.test(n) && !/tts|image|embed|audio|live|native|robotics|computer|learnlm|aqa|nano/i.test(n));
+  const ver = n => /latest/.test(n) ? 99 : parseFloat((n.match(/^gemini-(\d+(?:\.\d+)?)/) || [0, 0])[1]) || 0;
+  const tier = n => /lite/.test(n) ? 0 : /pro/.test(n) ? (prefer === 'pro' ? 2 : 1) : /flash/.test(n) ? (prefer === 'pro' ? 1 : 2) : 0;
+  const score = n => tier(n) * 1000 + ver(n) * 10 - (/preview|exp/.test(n) ? 5 : 0) - (/-\d{3}$|\d{2}-\d{2}$/.test(n) ? 1 : 0);
+  return [...new Set(list)].sort((a, b) => score(b) - score(a)).slice(0, 6);
+}
 // отказ Google → понятная причина (пользователь 2026-09-28: «ключ не подошёл», хотя скопирован верно — причину не было видно)
 async function geminiWhy(r) {
   const e = (await r.json().catch(() => ({}))).error || {}, m = e.message || '';
@@ -7251,12 +7275,14 @@ async function saveGeminiKey(k) {
     let r = await call(GEMINI_API + '?pageSize=1');
     if (r.status === 401 || r.status === 403) {
       // список моделей не пустил по доступу — проверяем тем, чем пишем: крошечный запрос к Gemini Flash
-      const r2 = await call(GEMINI_API + '/gemini-flash-latest:generateContent', {method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({contents: [{role: 'user', parts: [{text: 'hi'}]}], generationConfig: {maxOutputTokens: 1}})});
-      if (r2.status !== 404) r = r2;
+      for (const m of GEMINI_FALLBACK.filter(n => /flash/.test(n))) {
+        const r2 = await call(`${GEMINI_API}/${m}:generateContent`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({contents: [{role: 'user', parts: [{text: 'hi'}]}], generationConfig: {maxOutputTokens: 1}})});
+        if (r2.status !== 404) { r = r2; break; }
+      }
     }
     if (!r.ok && r.status !== 429) throw await geminiWhy(r);
-    wallet.gemini = k; ls.set('freefield.gemini', k); wr.keyWait = false; renderWallet(); renderWriteAi(); updateGenButton();
+    wallet.gemini = k; ls.set('freefield.gemini', k); wr.keyWait = false; geminiList.names = null; renderWallet(); renderWriteAi(); updateGenButton();
     toast(r.ok ? 'Gemini подключён — теперь сценарии пишутся прямо здесь, бесплатно ✨' : 'Ключ Gemini сохранён. Сейчас у Gemini кончился бесплатный лимит — сценарии пойдут, когда он обновится', {type: 'ok', ms: 8000});
   } catch (e) {
     toast(e.status ? e.message : 'Нет связи с Google — проверьте интернет, VPN или блокировщик рекламы и нажмите ещё раз', {type: 'err', ms: 14000});
