@@ -370,6 +370,12 @@ body[data-cm=chars] .only-chars{display:block}
 .ch-tags u .ic{width:12px;height:12px}
 .ch-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .ch-acts .btn.small{margin-top:0}
+.scr-f{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.scr-card .scn-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.scr-card .scn-head img{width:38px;height:50px;object-fit:cover;border-radius:8px;border:1px solid var(--line2);flex:none}
+.scr-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
+.scr-card details summary{cursor:pointer;font-size:12px;color:var(--text2);margin-top:6px}
+.cl-sec .wr-link{margin-left:auto;font-weight:600}
 .ch-video{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
 .ch-video>b{display:block;margin-bottom:8px}
 .ch-video .vc-foot{margin-top:12px}
@@ -1389,7 +1395,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
           <li>Вставьте его сюда.</li>
         </ol>
         <div class="key-row">
-          <input id="geminiInput" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false">
+          <input id="geminiInput" type="text" placeholder="AQ.… или AIza…" autocomplete="off" spellcheck="false">
           <button class="btn" data-eye="geminiInput" title="Показать/скрыть">👁</button>
           <button class="btn free" id="geminiSave">Сохранить</button>
         </div>
@@ -5737,9 +5743,9 @@ function renderVoices() {
   if (!body) return;
   const v = vcUi.view;
   if (rec.to && rec.view !== v) recCancel(false);
-  $('#vcTitle').textContent = v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
+  $('#vcTitle').textContent = v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'voice' ? (vcUi.form?.id ? 'Свой голос' : 'Новый голос') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
-  body.innerHTML = v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+  body.innerHTML = v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'voice' ? vcFormHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
 }
 function vcListHTML() {
   const tools = v => v.custom ? `<button class="vc-tool" data-vf-edit="${v.id}" title="Изменить голос">✎</button><button class="vc-tool" data-vf-del="${v.id}" title="Удалить голос">🗑</button>` : '';
@@ -5930,6 +5936,12 @@ function bindVoices() {
     }
     if (x.vcFlowKind != null) { d.flow = x.vcFlowKind ? {kind: x.vcFlowKind, name: d.flow?.name || d.name || ''} : null; return renderVoices(); }
     // замена голоса у готового видео
+    if (x.scrF) { vcUi.scrF = x.scrF; return renderVoices(); }
+    if (x.scrCopy) return scrCopy(x.scrCopy);
+    if (x.scrScn) return scrToScn(x.scrScn);
+    if (x.scrDel) return scrDel(x.scrDel);
+    if (b.hasAttribute('data-scr-copy-all')) return scrCopy('all');
+    if (b.hasAttribute('data-scr-file')) return scrFile();
     if (x.tcChar) { vcUi.tcChar = x.tcChar; return renderVoices(); }
     if (x.tcAs) { vcUi.tcAs = x.tcAs; return renderVoices(); }
     if (b.hasAttribute('data-tc-go')) return toCharSave();
@@ -6214,6 +6226,80 @@ async function toCharSave() {
   toast(`${c.name}: ${as === 'locs' ? `кадр в локации №${c.locs.length} сохранён` : as === 'sheet' ? 'развёртка обновлена' : 'инфографика обновлена'}`, {type: 'ok'});
 }
 
+/* ---- «📜 Готовые сценарии»: всё, что написал ИИ, — забрать в любой момент ---- */
+// Пользователь 2026-09-28: «должно быть место, где можно забрать готовые сценарии». Каждый написанный сценарий
+// (из «Создания сценария» и по «🎬 Видео» у персонажа) сохраняется с персонажем, датой и своим кадром в локации.
+const SCR_ID = 'freefield-scripts', SCR_MAX = 100;
+const scr = {list: [], save() { return DB.put({id: SCR_ID, list: this.list}).catch(() => {}); }};
+async function scrLoad() {
+  const rec = await DB.req('readonly', s => s.get(SCR_ID)).catch(() => null);
+  scr.list = rec?.list || [];
+  if (cl.mode === 'chars') renderChars();
+}
+function scrAdd(list, by) {
+  const c = vc.char(wr.char), at = Date.now();
+  scr.list.unshift(...list.map((s, i) => ({id: 'sc-' + uid(), at, by, char: c?.id || null, charName: c?.name || '', title: s.title, angle: s.angle,
+    video_prompt: s.video_prompt, asset_prompt: s.asset_prompt, loc: wr.locs[i] || null})));
+  scr.list = scr.list.slice(0, SCR_MAX);
+  scr.save();
+}
+const scrWho = x => vc.char(x.char)?.name || x.charName || '';
+function scrShown() {
+  const f = vcUi.scrF || 'all';
+  return scr.list.filter(x => f === 'all' || (f === 'none' ? !x.char : x.char === f));
+}
+function openScripts(f = 'all') { Object.assign(vcUi, {view: 'scripts', from: 'scripts', scrF: f}); vcShow(); }
+function scrHTML() {
+  if (!scr.list.length) return '<p class="set-p">Здесь будут все сценарии, которые напишет ИИ, — из «Создания сценария» и по кнопке «🎬 Видео» у персонажа. Забрать их можно в любой момент: скопировать, сохранить файлом или отправить в видео сервисы.</p>';
+  const f = vcUi.scrF || 'all', count = k => scr.list.filter(x => k === 'none' ? !x.char : x.char === k).length;
+  const chips = [['all', `Все · ${scr.list.length}`], ...vc.chars.filter(c => count(c.id)).map(c => [c.id, `${c.name} · ${count(c.id)}`]),
+    ...(count('none') ? [['none', `Без персонажа · ${count('none')}`]] : [])];
+  const list = scrShown(), when = t => new Date(t).toLocaleString('ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+  return `<div class="scr-f chips">${chips.map(([k, t]) => `<button class="chip ${f === k ? 'on' : ''}" data-scr-f="${k}">${esc(t)}</button>`).join('')}</div>
+    <div class="cl-row" style="margin-bottom:10px"><button class="btn small" data-scr-copy-all>📋 Скопировать все (${list.length})</button><button class="btn small" data-scr-file>💾 Файлом .txt</button></div>
+    ${list.map(x => `<div class="wr-card scr-card">
+      <div class="scn-head">${x.loc ? `<img src="${x.loc}" alt="">` : ''}<span><b>${esc(x.title)}</b>${x.angle ? ` <span class="wr-tag">${esc(x.angle)}</span>` : ''}
+        <div class="scr-meta">${[scrWho(x) && '🎭 ' + esc(scrWho(x)), when(x.at), x.by && esc(x.by)].filter(Boolean).join(' · ')}</div></span></div>
+      <details><summary>Показать сценарий</summary><div class="wr-blocks">${blocksHTML(x.video_prompt)}</div>
+        ${x.asset_prompt ? `<div class="scr-meta">Промпт ассета: ${esc(x.asset_prompt)}</div>` : ''}</details>
+      <div class="cl-row"><button class="btn small" data-scr-copy="${x.id}">📋 Копировать</button><button class="btn small" data-scr-scn="${x.id}">🎬 В видео сервисы</button><button class="btn small danger" data-scr-del="${x.id}" title="Удалить сценарий">🗑</button></div>
+    </div>`).join('') || '<p class="set-p">Здесь пока пусто.</p>'}`;
+}
+const scrText = x => `${x.title}${x.angle ? ` (${x.angle})` : ''}${scrWho(x) ? ` — ${scrWho(x)}` : ''}\n\n${fillBlocks(x.video_prompt)}`;
+async function scrCopy(id) {
+  const list = id === 'all' ? scrShown() : scr.list.filter(x => x.id === id);
+  if (!list.length) return;
+  const t = list.map((x, i) => (list.length > 1 ? `Сценарий ${i + 1}. ` : '') + scrText(x)).join('\n\n———\n\n');
+  toast(await clCopyText(t) ? (list.length > 1 ? `Скопировано сценариев: ${list.length}` : 'Сценарий скопирован — по блокам, как эталон') : 'Не удалось скопировать', {type: 'ok'});
+}
+function scrFile() {
+  const list = scrShown();
+  if (!list.length) return;
+  const f = vcUi.scrF || 'all', who = f === 'all' ? 'все' : f === 'none' ? 'без-персонажа' : vc.char(f)?.name || 'персонаж';
+  saveFile(new Blob([list.map((x, i) => `Сценарий ${i + 1}. ${scrText(x)}${x.asset_prompt ? `\n\nПромпт ассета: ${x.asset_prompt}` : ''}`).join('\n\n———\n\n')], {type: 'text/plain;charset=utf-8'}),
+    `сценарии-${who}-${new Date().toISOString().slice(0, 10)}.txt`);
+}
+// сценарий из архива — в «Видео сервисы»: с его кадром в локации, развёрткой и голосом персонажа
+function scrToScn(id) {
+  const x = scr.list.find(y => y.id === id), c = vc.char(x?.char);
+  if (!x) return;
+  const scn = {...blankScn(), kind: 'video', prompt: fillBlocks(x.video_prompt), aspect: '9:16', fixed: true, ...(x.loc && {ref: x.loc}),
+    ...(c?.sheet && {sheet: c.sheet}), ...(c && {char: c.id, voice: c.voice})};
+  const empty = cl.scn.findIndex(scnEmpty);
+  if (empty >= 0) cl.scn[empty] = scn; else if (cl.scn.length < CL_MAX) cl.scn.push(scn);
+  else return toast(`Уже ${CL_MAX} сценариев в «Видео сервисах» — уберите лишний`, {type: 'err'});
+  cl.save();
+  closeSheets(); setView('create'); setCreateMode('scn');
+  toast(`«${x.title}» — в «Видео сервисах»${x.loc ? ', с его кадром в локации' : ''}`, {type: 'ok'});
+}
+function scrDel(id) {
+  const i = scr.list.findIndex(x => x.id === id);
+  if (i < 0) return;
+  const [x] = scr.list.splice(i, 1);
+  scr.save(); renderVoices();
+  toast(`Сценарий «${x.title}» удалён`, {action: 'Вернуть', onAction: () => { scr.list.splice(i, 0, x); scr.save(); if (vcUi.view === 'scripts') renderVoices(); }});
+}
+
 /* ---- «Персонажи» — 4-й раздел «Создать»: герои роликов со всем, что к ним нужно ---- */
 // Пользователь 2026-09-28: отдельный раздел, где хранятся разные персонажи с их инфографикой, голосом и т. д.
 // Персонаж: имя, развёртка, «кто он» (характер — ИИ держит его в сценариях), инфографика, кадры в локациях, голос
@@ -6246,19 +6332,20 @@ function charVideoHTML(c) {
 function charCardHTML(c) {
   const v = vc.voice(c.voice), n = c.locs?.length || 0;
   const tags = [c.info && '📊 инфографика', n && `📍 ${n} ${plur(n, 'кадр', 'кадра', 'кадров')}`, c.sample && `🎧 образец ${c.sampleSec || ''} с`, c.flow?.name && '🎙 Flow'].filter(Boolean);
-  const mine = items.filter(it => it.char === c.id).length;
+  const mine = items.filter(it => it.char === c.id).length, scripts = scr.list.filter(x => x.char === c.id).length;
   return `<div class="ch-card ${wr.char === c.id ? 'on' : ''}">
     <button class="ch-main" data-ch-edit="${c.id}" title="Изменить персонажа">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(v?.name || 'голос не выбран')}${wr.char === c.id ? ' · выбран в «Сценарии»' : ''}</small>
       ${c.about ? `<em>${esc(c.about)}</em>` : ''}${tags.length ? `<i class="ch-tags">${tags.map(t => `<u>${t}</u>`).join('')}</i>` : ''}</span></button>
     <div class="ch-acts"><button class="btn small free" data-ch-video="${c.id}" ${chv.busy ? 'disabled' : ''}>🎬 Видео</button><button class="btn small" data-ch-write="${c.id}">✍ Сценарий</button><button class="btn small" data-ch-edit="${c.id}">✎ Изменить</button>
-      ${mine ? `<button class="btn small" data-ch-gallery="${c.id}" title="Его фото и видео в галерее">🖼 ${mine}</button>` : ''}</div>${charVideoHTML(c)}</div>`;
+      ${mine ? `<button class="btn small" data-ch-gallery="${c.id}" title="Его фото и видео в галерее">🖼 ${mine}</button>` : ''}
+      ${scripts ? `<button class="btn small" data-ch-scripts="${c.id}" title="Готовые сценарии с ним">📜 ${scripts}</button>` : ''}</div>${charVideoHTML(c)}</div>`;
 }
 function renderChars() {
   const el = $('#charsCreate');
   if (!el) return;
   el.innerHTML = `${vc.chars.length ? '' : '<p class="ch-empty">Здесь живут герои ваших роликов. Один раз сохраните персонажа — внешность (развёртка), о чём он рассказывает (инфографика), кадры в локациях, характер и голос — и потом выбирайте его в «Создании сценария» одним нажатием.</p>'}
     <div class="ch-list">${vc.chars.map(charCardHTML).join('')}<button class="ch-add" data-ch-new>＋ Новый персонаж</button></div>
-    <div class="vc-foot"><button class="btn" data-ch-voices>🎙 Все голоса</button></div>
+    <div class="vc-foot"><button class="btn" data-ch-scripts>📜 Готовые сценарии${scr.list.length ? ' · ' + scr.list.length : ''}</button><button class="btn" data-ch-voices>🎙 Все голоса</button></div>
     <p class="hint vc-note">Персонажи хранятся в этом браузере. У каждого свой голос — два персонажа одним голосом не заговорят.</p>`;
 }
 // «🚀 Создать N видео»: ИИ пишет N сценариев по его инфографике, развёртке, кадрам и характеру → сценарии с его голосом
@@ -6295,6 +6382,7 @@ function bindChars() {
     if (b.hasAttribute('data-ch-new')) return vcOpenChar(null, 'chars');
     if (x.chEdit) return vcOpenChar(vc.char(x.chEdit), 'chars');
     if (b.hasAttribute('data-ch-voices')) return openVoices('list');
+    if (b.hasAttribute('data-ch-scripts')) return openScripts(x.chScripts || 'all');
     if (x.chVideo) { Object.assign(chv, {open: chv.open === x.chVideo ? null : x.chVideo, n: 0}); return renderChars(); }
     if (x.chN) { chv.n = +x.chN; return renderChars(); }
     if (b.hasAttribute('data-ch-video-x')) { chv.open = null; return renderChars(); }
@@ -6682,8 +6770,8 @@ async function writeGemini(sys, user) {
         generationConfig: {temperature: 1, maxOutputTokens: 16384, responseMimeType: 'application/json'}}),
     }, 300000);
     if (r.status === 404 || r.status === 429 || r.status >= 500) { last = r.status === 429 ? 'quota' : `Gemini ${r.status}`; continue; }
+    if (!r.ok) throw await geminiWhy(r);
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(GEMINI_GEO.test(j.error?.message) ? GEMINI_GEO_MSG : r.status === 400 || r.status === 403 ? `Gemini: ${j.error?.message || 'ключ не подошёл'}` : `Gemini ${r.status}`);
     const text = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
     if (text) return {text, by: `Gemini (${model.replace(/^gemini-/, '').replace('-latest', '')})`};
     last = 'Gemini вернул пустой ответ';
@@ -6723,7 +6811,8 @@ async function writeGo() {
     const list = parseScenarios(r.text, r.code), voice = wrVoice();
     if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
     wr.result = list ? {scenarios: list, by: r.by, at: Date.now(), char: wr.char} : {raw: r.text, by: r.by, at: Date.now()};
-    toast(list ? `Готово: ${list.length} ${plur(list.length, 'сценарий', 'сценария', 'сценариев')} — ниже` : 'ИИ ответил не по формату — его текст ниже', {type: list ? 'ok' : 'err', ms: 6000});
+    if (list) scrAdd(list, r.by);
+    toast(list ? `Готово: ${list.length} ${plur(list.length, 'сценарий', 'сценария', 'сценариев')} — ниже и в «📜 Готовых сценариях»` : 'ИИ ответил не по формату — его текст ниже', {type: list ? 'ok' : 'err', ms: 6000});
   } catch (e) { toast('Сценарий не написан: ' + e.message, {type: 'err', ms: 9000}); }
   wr.busy = false; wr.note = '';
   wr.save();
@@ -6734,15 +6823,41 @@ async function writeGo() {
 // Google не даёт Gemini API в части стран — это не ошибка ключа
 const GEMINI_GEO = /location is not supported|not (available|supported) in your (country|region)/i;
 const GEMINI_GEO_MSG = 'Google не пускает к Gemini из вашей страны — включите VPN и попробуйте ещё раз, или выберите «ИИ в чате»';
+// ключи Gemini: новые (с мая 2026) — «AQ.…», прежние — «AIza…» (Google их отключает с сентября 2026); ключ — только в заголовке
+const GEMINI_KEY_RE = /\bAQ\.[A-Za-z0-9._-]{20,}|AIza[0-9A-Za-z_-]{30,}/;
+const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models';
+// отказ Google → понятная причина (пользователь 2026-09-28: «ключ не подошёл», хотя скопирован верно — причину не было видно)
+async function geminiWhy(r) {
+  const e = (await r.json().catch(() => ({}))).error || {}, m = e.message || '';
+  const reason = (e.details || []).map(d => d.reason).find(Boolean) || e.status || '';
+  const why = GEMINI_GEO.test(m) ? GEMINI_GEO_MSG
+    : reason === 'API_KEY_INVALID' ? 'Google: ключ неверный — скопируйте его заново кнопкой копирования в AI Studio, целиком'
+    : reason === 'ACCESS_TOKEN_TYPE_UNSUPPORTED' || r.status === 401 ? 'Google не принимает этот ключ. У части аккаунтов новые ключи «AQ.…» сейчас не работают — это ошибка на стороне Google. Попробуйте ключ из другого Google-аккаунта, а пока — «ИИ в чате»'
+    : reason === 'SERVICE_DISABLED' || /has not been used|is disabled/i.test(m) ? 'В проекте этого ключа выключен Gemini API — в AI Studio создайте ключ заново: «Create API key» → в новом проекте'
+    : reason === 'API_KEY_HTTP_REFERRER_BLOCKED' || /referer|referrer/i.test(m) ? 'У ключа стоит ограничение по сайтам — создайте в AI Studio новый ключ без ограничений'
+    : r.status === 429 ? 'у Gemini закончился бесплатный лимит — попробуйте позже'
+    : `Google ответил ${r.status}${m ? ': ' + m.slice(0, 160) : ''}`;
+  return Object.assign(new Error(why), {status: r.status, reason});
+}
 async function saveGeminiKey(k) {
   k = (k || '').trim();
   if (!k) { wallet.gemini = ''; ls.del('freefield.gemini'); renderWallet(); renderWriteAi(); return toast('Ключ Gemini удалён'); }
+  k = (k.match(GEMINI_KEY_RE) || [k.replace(/\s+/g, '')])[0];   // вставили с лишним текстом или пробелами — берём сам ключ
+  const call = (url, o = {}) => timedFetch(url, {...o, headers: {...o.headers, 'x-goog-api-key': k}}, 20000);
   try {
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {headers: {'x-goog-api-key': k}});
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error?.message || '');
+    let r = await call(GEMINI_API + '?pageSize=1');
+    if (r.status === 401 || r.status === 403) {
+      // список моделей не пустил по доступу — проверяем тем, чем пишем: крошечный запрос к Gemini Flash
+      const r2 = await call(GEMINI_API + '/gemini-flash-latest:generateContent', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({contents: [{role: 'user', parts: [{text: 'hi'}]}], generationConfig: {maxOutputTokens: 1}})});
+      if (r2.status !== 404) r = r2;
+    }
+    if (!r.ok && r.status !== 429) throw await geminiWhy(r);
     wallet.gemini = k; ls.set('freefield.gemini', k); wr.keyWait = false; renderWallet(); renderWriteAi(); updateGenButton();
-    toast('Gemini подключён — теперь сценарии пишутся прямо здесь, бесплатно ✨', {type: 'ok'});
-  } catch (e) { toast(GEMINI_GEO.test(e.message) ? GEMINI_GEO_MSG : 'Ключ Gemini не подошёл — проверьте, что скопировали его целиком', {type: 'err', ms: 9000}); }
+    toast(r.ok ? 'Gemini подключён — теперь сценарии пишутся прямо здесь, бесплатно ✨' : 'Ключ Gemini сохранён. Сейчас у Gemini кончился бесплатный лимит — сценарии пойдут, когда он обновится', {type: 'ok', ms: 8000});
+  } catch (e) {
+    toast(e.status ? e.message : 'Нет связи с Google — проверьте интернет, VPN или блокировщик рекламы и нажмите ещё раз', {type: 'err', ms: 14000});
+  }
 }
 async function saveAnthropicKey(k) {
   k = (k || '').trim();
@@ -6828,9 +6943,9 @@ function renderWriteAi() {
   // Gemini без ключа: взять бесплатный ключ в AI Studio и вставить из буфера одной кнопкой — дальше сценарии пишутся здесь
   const gemSetup = lead => `${lead}<ol class="steps">
       <li><button class="btn small free" data-wkey-open>🔑 Открыть Google AI Studio</button> и войдите своим Google-аккаунтом</li>
-      <li>Нажмите «Create API key» и скопируйте ключ — он начинается с <code>AIza</code></li>
+      <li>Нажмите «Create API key» и скопируйте ключ — он начинается с <code>AQ.</code> (старые — с <code>AIza</code>)</li>
       <li>Вернитесь сюда: <button class="btn small ${wr.keyWait ? 'free wr-pulse' : ''}" data-wkey-paste>📋 Вставить ключ</button> — или вставьте его в поле:</li></ol>
-    ${keyRow('gemini', 'AIza…')}<div class="hint" style="margin-top:6px">Бесплатно, в пределах дневных лимитов Google. Ключ хранится только в этом браузере и уходит только в Google.</div>`;
+    ${keyRow('gemini', 'AQ.… или AIza…')}<div class="hint" style="margin-top:6px">Бесплатно, в пределах дневных лимитов Google. Ключ хранится только в этом браузере и уходит только в Google.</div>`;
   const setup = {
     claude: `${CLAUDE_MODELS.length ? `<select data-wmodel aria-label="Модель Claude">${CLAUDE_MODELS.map(([v, t]) => `<option value="${v}" ${wr.claudeModel === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
       ${wallet.anthropic ? `✓ Ключ Anthropic сохранён в этом браузере. Оплата — с вашего счёта Anthropic за каждый сценарий. <button class="btn small danger" data-wkey-del="claude">Удалить ключ</button>`
@@ -6860,10 +6975,10 @@ function geminiOpen() {
 async function geminiPaste() {
   let t = '';
   try { t = await navigator.clipboard.readText(); } catch {}
-  const k = (String(t).match(/AIza[0-9A-Za-z_-]{30,}/) || [])[0];
+  const k = (String(t).match(GEMINI_KEY_RE) || [])[0];
   if (k) return saveGeminiKey(k);
   $('#writeCreate [data-wkey-in="gemini"]')?.focus();
-  toast(t ? 'В буфере не ключ Gemini — скопируйте в AI Studio ключ, он начинается с AIza' : 'Не получилось прочитать буфер — вставьте ключ в поле: долгое нажатие → «Вставить»', {type: 'err', ms: 8000});
+  toast(t ? 'В буфере не ключ Gemini — скопируйте в AI Studio ключ, он начинается с AQ. или AIza' : 'Не получилось прочитать буфер — вставьте ключ в поле: долгое нажатие → «Вставить»', {type: 'err', ms: 8000});
 }
 // вернулись из AI Studio — подсвечиваем «📋 Вставить ключ»
 document.addEventListener('visibilitychange', () => {
@@ -6877,7 +6992,7 @@ function writeOutHTML() {
   const by = `<span class="hint">написал ${esc(r.by || 'ИИ')}</span>`;
   if (!r.scenarios) return `<div class="cl-sec">Ответ ИИ ${by}</div><div class="wr-card"><pre class="wr-raw">${esc(r.raw)}</pre>
     <div class="cl-row"><button class="btn small" data-wcopy-raw>📋 Копировать</button><button class="btn small" data-wclear>✕ Убрать</button></div></div>`;
-  return `<div class="cl-sec">Сценарии ${by}</div>` + r.scenarios.map((s, i) => `
+  return `<div class="cl-sec">Сценарии ${by}<button class="wr-link" data-scripts>📜 все готовые</button></div>` + r.scenarios.map((s, i) => `
     <div class="wr-card" data-wi="${i}">
       <div class="scn-head">${wr.locs[i] ? `<img class="wr-card-loc" src="${wr.locs[i]}" alt="" title="Кадр ${i + 1} — «персонаж в локации» этого сценария">` : ''}<b>${i + 1}. ${esc(s.title)}</b>${s.angle ? `<span class="wr-tag">${esc(s.angle)}</span>` : ''}</div>
       <div class="wr-blocks">${s.video_prompt ? blocksHTML(s.video_prompt) : '<div>ИИ не заполнил эталонный промпт — напишите сценарий заново</div>'}</div>
@@ -6961,6 +7076,7 @@ function bindWrite() {
     if (b.hasAttribute('data-wchar-new')) { vcUi.i = null; return vcOpenChar(null, 'write'); }
     if (b.dataset.wcharEdit) return vcOpenChar(vc.char(b.dataset.wcharEdit), 'write');
     if (b.hasAttribute('data-wvoices')) return openVoices('list');
+    if (b.hasAttribute('data-scripts')) return openScripts();
     if (b.dataset.wlocRm) {   // кадр локации убран — с возможностью вернуть на то же место
       const i = +b.dataset.wlocRm, [src] = wr.locs.splice(i, 1);
       wrLocsSave(); renderWrite(); updateGenButton();
@@ -7382,6 +7498,7 @@ function drawQR(box, text) {
     items = ((await DB.all()) || []).filter(i => (i.status === 'done' && i.blob) || i.status === 'external').sort((a, b) => b.createdAt - a.createdAt);
     wrLocsLoad();
     vcLoad();
+    scrLoad();
   } catch {
     toast('Браузер не даёт сохранять галерею — работы пропадут после закрытия вкладки', {type: 'err', ms: 8000});
   }
