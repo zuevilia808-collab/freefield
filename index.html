@@ -378,6 +378,27 @@ body[data-cm=chars] .only-chars{display:block}
 .scr-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
 .scr-card details summary{cursor:pointer;font-size:12px;color:var(--text2);margin-top:6px}
 .cl-sec .wr-link{margin-left:auto;font-weight:600}
+.ser-line{display:block;width:100%;text-align:left;margin-top:8px;padding:8px 10px;border-radius:11px;font-size:12px;color:var(--text2);background:rgba(212,255,58,.07);border:1px solid rgba(212,255,58,.22);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ser-line.done{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.3)}
+.ser-line.error{background:rgba(255,93,98,.08);border-color:rgba(255,93,98,.3)}
+.ser-seg button{white-space:normal;line-height:1.25;padding:8px 6px;min-width:0}
+.ser-cost{font-size:12.5px;line-height:1.5;color:var(--text2);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-top:14px}
+.ser-head{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.ser-head b{font-size:15px}
+.ser-head span{font-size:12px;color:var(--muted)}
+.ser-steps{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-bottom:6px}
+.ser-steps span{padding:3px 9px;border-radius:99px;border:1px solid var(--line)}
+.ser-steps span.ok{color:var(--free);border-color:rgba(212,255,58,.3)}
+.ser-steps span.now{color:var(--text);border-color:var(--line3);background:var(--panel3)}
+.ser-steps i{font-style:normal}
+.ser-rows{display:grid;gap:8px;margin-top:10px}
+.ser-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;padding:8px;background:var(--panel2)}
+.ser-row.skip{opacity:.45}
+.ser-row>img,.ser-ph{width:42px;height:74px;flex:none;object-fit:cover;border-radius:8px;background:rgba(0,0,0,.35);display:grid;place-items:center;font-style:normal}
+.ser-main{flex:1;min-width:0;display:grid;gap:3px}
+.ser-main b{font-size:13px}
+.ser-main small{font-size:11.5px;color:var(--muted);line-height:1.4}
+.ser-row .btn.small{margin-top:0;flex:none}
 .ch-video{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
 .ch-video>b{display:block;margin-bottom:8px}
 .ch-video .vc-foot{margin-top:12px}
@@ -2982,6 +3003,7 @@ async function attachExternal(it, file, quiet = false) {   // quiet — неск
   if (d) [it.w, it.h] = d;
   DB.put(it);
   render();
+  if (ser.jobs.some(serLive)) serTick();   // карточка серии — следующий шаг начнётся сам
   if (!quiet) toast(`${it.type === 'video' ? 'Видео' : 'Картинка'} из ${(allModels().find(x => x.id === it.model) || {}).site || 'Google'} добавлено в галерею 🎉`, {type: 'ok'});
 }
 
@@ -5809,7 +5831,7 @@ function vcOpenChar(c, from) {
   vcShow();
 }
 function vcBack() {
-  if (vcUi.from === 'write' || vcUi.from === 'chars') return closeSheets();
+  if (vcUi.from === 'write' || vcUi.from === 'chars' || vcUi.from === 'series') return closeSheets();
   vcUi.view = vcUi.from === 'pick' ? 'pick' : 'list';
   renderVoices();
 }
@@ -5824,9 +5846,9 @@ function renderVoices() {
   const v = vcUi.view;
   if (rec.to && rec.view !== v) recCancel(false);
   $$('#vcBody audio').forEach(a => a.pause());
-  $('#vcTitle').textContent = v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
+  $('#vcTitle').textContent = v === 'series' ? `Серия роликов · ${vc.char(vcUi.serChar)?.name || ''}` : v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
-  body.innerHTML = v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+  body.innerHTML = v === 'series' ? serHTML() : v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
 }
 function vcListHTML() {
   return `<p class="set-p">Голос персонажа — голос, сохранённый во Flow: его слушают и выбирают в самом Flow, и он одинаковый во всех роликах (@Voice). По желанию — точный образец (своя запись или файл): по нему Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает таким голос любого готового видео.</p>
@@ -5971,6 +5993,7 @@ function bindVoices() {
     }
     if (x.vcFlowKind) { d.flow.kind = x.vcFlowKind; return renderVoices(); }
     // замена голоса у готового видео
+    if (vcUi.view === 'series' && Object.keys(x).some(k => k.startsWith('ser'))) return serClick(b);
     if (x.scrF) { vcUi.scrF = x.scrF; return renderVoices(); }
     if (x.scrCopy) return scrCopy(x.scrCopy);
     if (x.scrScn) return scrToScn(x.scrScn);
@@ -6001,6 +6024,7 @@ function bindVoices() {
       const tag = $('#vcBody [data-vc-flow-tag]'); if (tag) tag.textContent = (d.flow.kind === 'char' ? '@' : '@Voice: ') + (d.flow.name || d.name || 'Имя');
     }
     else if (t.matches('[data-vc-about]')) vcUi.edit.about = t.value;
+    else if (t.matches('[data-ser-idea]')) vcUi.serSet.idea = t.value;
     else if (t.matches('[data-vc-flow]') && vcUi.edit) {
       Object.assign(vcUi.edit, {flowAuto: false}); vcUi.edit.flow.name = t.value;
       const tag = $('#vcBody [data-vc-flow-tag]'); if (tag) tag.textContent = (vcUi.edit.flow.kind === 'char' ? '@' : '@Voice: ') + (t.value || vcUi.edit.name || 'Имя');
@@ -6280,10 +6304,11 @@ async function scrLoad() {
 }
 function scrAdd(list, by) {
   const c = vc.char(wr.char), at = Date.now();
-  scr.list.unshift(...list.map((s, i) => ({id: 'sc-' + uid(), at, by, char: c?.id || null, charName: c?.name || '', title: s.title, angle: s.angle,
-    video_prompt: s.video_prompt, asset_prompt: s.asset_prompt, loc: wr.locs[i] || null})));
-  scr.list = scr.list.slice(0, SCR_MAX);
+  const add = list.map((s, i) => ({id: 'sc-' + uid(), at, by, char: c?.id || null, charName: c?.name || '', title: s.title, angle: s.angle,
+    video_prompt: s.video_prompt, asset_prompt: s.asset_prompt, caption: s.caption || '', loc: wr.locs[i] || null}));
+  scr.list = [...add, ...scr.list].slice(0, SCR_MAX);
   scr.save();
+  return add;
 }
 const scrWho = x => vc.char(x.char)?.name || x.charName || '';
 function scrShown() {
@@ -6303,11 +6328,11 @@ function scrHTML() {
       <div class="scn-head">${x.loc ? `<img src="${x.loc}" alt="">` : ''}<span><b>${esc(x.title)}</b>${x.angle ? ` <span class="wr-tag">${esc(x.angle)}</span>` : ''}
         <div class="scr-meta">${[scrWho(x) && '🎭 ' + esc(scrWho(x)), when(x.at), x.by && esc(x.by), x.sent && '🎬 видео уже заказано'].filter(Boolean).join(' · ')}</div></span></div>
       <details><summary>Показать сценарий</summary><div class="wr-blocks">${blocksHTML(x.video_prompt)}</div>
-        ${x.asset_prompt ? `<div class="scr-meta">Промпт ассета: ${esc(x.asset_prompt)}</div>` : ''}</details>
+        ${x.caption ? `<div class="scr-meta">✍ Подпись к посту: ${esc(x.caption)}</div>` : ''}${x.asset_prompt ? `<div class="scr-meta">Промпт ассета: ${esc(x.asset_prompt)}</div>` : ''}</details>
       <div class="cl-row"><button class="btn small" data-scr-copy="${x.id}">📋 Копировать</button><button class="btn small" data-scr-scn="${x.id}">🎬 В видео сервисы</button><button class="btn small danger" data-scr-del="${x.id}" title="Удалить сценарий">🗑</button></div>
     </div>`).join('') || '<p class="set-p">Здесь пока пусто.</p>'}`;
 }
-const scrText = x => `${x.title}${x.angle ? ` (${x.angle})` : ''}${scrWho(x) ? ` — ${scrWho(x)}` : ''}\n\n${fillBlocks(x.video_prompt)}`;
+const scrText = x => `${x.title}${x.angle ? ` (${x.angle})` : ''}${scrWho(x) ? ` — ${scrWho(x)}` : ''}\n\n${fillBlocks(x.video_prompt)}${x.caption ? `\n\nПодпись к посту: ${x.caption}` : ''}`;
 async function scrCopy(id) {
   const list = id === 'all' ? scrShown() : scr.list.filter(x => x.id === id);
   if (!list.length) return;
@@ -6436,31 +6461,295 @@ async function charImport(file) {
 // Пользователь 2026-09-28: отдельный раздел, где хранятся разные персонажи с их инфографикой, голосом и т. д.
 // Персонаж: имя, развёртка, «кто он» (характер — ИИ держит его в сценариях), инфографика, кадры в локациях, голос
 // (описание, образец файлом или записью, голос во Flow). «✍ Сценарий с ним» — всё встаёт в «Создание сценария».
-// «🎬 Видео» у персонажа: open — чей выбор открыт, n — сколько видео; busy/step — идёт конвейер
-const chv = {open: null, n: 0, busy: null, step: ''};
-const charMax = c => Math.min(CL_MAX, c.locs?.length || 0);
-// чего не хватает, чтобы видео пошли сами: [текст, кнопка-исправление]
-function charNeeds(c) {
+// чего не хватает, чтобы серия шла сама: [текст, кнопка-исправление]; кадры нужны только для «Мои кадры»
+function charNeeds(c, mineFrames = 0) {
   const out = [];
-  if (!c.sheet) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ch-edit="${c.id}">🧍 добавить</button>`]);
-  if (!c.info) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ch-edit="${c.id}">📊 добавить</button>`]);
-  if (!c.locs?.length) out.push(['нет кадров «персонаж в локации» — по одному на видео', `<button class="wr-link" data-ch-edit="${c.id}">📍 добавить</button> · <button class="wr-link" data-ch-asset="${c.id}">🖼 создать в «Ассетах»</button>`]);
-  if (writerNow() === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Создании сценария» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ch-auto>⚡ пусть пишет ИИ здесь</button>']
-    : ['ИИ для сценариев не подключён', '<button class="wr-link" data-ch-gemini>🔑 подключить Gemini — бесплатно</button>']);
+  if (!c.sheet) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ser-fix>🧍 добавить</button>`]);
+  if (!c.info) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ser-fix>📊 добавить</button>`]);
+  if (mineFrames > (c.locs?.length || 0)) out.push([`кадров «в локации» у персонажа ${c.locs?.length || 0}, а видео — ${mineFrames}`, '<button class="wr-link" data-ser-frames="new">🖼 пусть Flow сделает новые</button>']);
+  if (writerNow() === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Создании сценария» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']
+    : ['ИИ для сценариев не подключён', '<button class="wr-link" data-ser-gemini>🔑 подключить Gemini — бесплатно</button>']);
   return out;
 }
-function charVideoHTML(c) {
-  if (chv.busy === c.id) return `<div class="ch-video"><div class="wr-note">⏳ ${esc(chv.step)}</div></div>`;
-  if (chv.open !== c.id) return '';
-  const need = charNeeds(c), max = charMax(c), n = Math.min(chv.n || Math.min(3, max), max) || 1, hub = hubLink.ok;
-  if (need.length) return `<div class="ch-video"><b>Чтобы видео делались сами, не хватает:</b><ul class="ch-need">${need.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>`;
-  return `<div class="ch-video"><b>Сколько видео?</b>
-    <div class="chips">${Array.from({length: max}, (_, i) => `<button class="chip ${i + 1 === n ? 'on' : ''}" data-ch-n="${i + 1}">${i + 1}</button>`).join('')}</div>
-    <div class="hint vc-note">По одному кадру «в локации» на видео — у персонажа ${max} ${plur(max, 'кадр', 'кадра', 'кадров')}${max < CL_MAX ? ' (больше видео — добавьте кадры)' : ''}.
-      Дальше само: ${WRITERS[writerNow()].name} напишет ${n} ${plur(n, 'сценарий', 'сценария', 'сценариев')} по его инфографике и характеру, голос — его;
-      ${hub ? 'компьютер запустит видео в Flow, Dola, Arena — готовые появятся в галерее.' : 'без компьютера — карточки для сайтов: фото, промпт и голос готовы, «Создать» на сайте нажмёте сами.'}</div>
-    <div class="vc-foot"><button class="btn free" data-ch-go="${c.id}">🚀 Создать ${n} ${plur(n, 'видео', 'видео', 'видео')}</button><button class="btn" data-ch-video-x>Отмена</button></div></div>`;
+
+/* ---- «🚀 Серия роликов»: одна кнопка у персонажа — сценарии → кадры → видео ---- */
+// Пользователь 2026-09-28: «у персонажа кнопка — создать N видео (1–10), и дальше скрипт сам: ассеты, сценарии, видео».
+// Дирижёр: ИИ пишет N сценариев (с подписью к посту) по инфографике, развёртке и характеру → кадры «герой в локации» во Flow
+// (Nano Banana 2, без кредитов) по промптам ассетов → первый вариант — первый кадр видео → видео с его голосом. С компьютером
+// всё идёт само (ждём пачки компьютера); без него — карточки для сайтов: «Создать» нажимает пользователь, а следующий шаг
+// начинается сам, как только результат загружен в карточку. Состояние — в базе: закрытая вкладка серию не теряет.
+const SER_ID = 'freefield-series', FFLATE = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js';
+const ser = {jobs: [], busy: false, timer: 0, writing: new Set(), save() { return DB.put({id: SER_ID, jobs: this.jobs}).catch(() => {}); }};
+const SER_STAGE = {write: '✍ ИИ пишет сценарии', frames: '🖼 Кадры во Flow', video: '🎬 Видео', done: '✅ Серия готова', error: '⚠ Серия остановлена'};
+const serLive = j => j && !['done', 'error'].includes(j.stage);
+const serOf = id => ser.jobs.filter(j => j.char === id).sort((a, b) => b.at - a.at)[0] || null;
+async function serLoad() {
+  const r = await DB.req('readonly', s => s.get(SER_ID)).catch(() => null);
+  ser.jobs = r?.jobs || [];
+  serKick();
 }
+function serKick() {
+  clearInterval(ser.timer);
+  if (ser.jobs.some(j => serLive(j) && !j.paused)) ser.timer = setInterval(serTick, 4000);
+  serTick();
+}
+function serShow() {   // перерисовать экран серии и карточку персонажа
+  if (vcUi.view === 'series' && !$('#voiceSheet').classList.contains('hidden') && !vcUi.serNew) renderVoices();
+  if (cl.mode === 'chars') renderChars();
+}
+function serNote(j, note) { if (note != null) j.note = note; ser.save(); serShow(); }
+function serFail(j, msg) {
+  Object.assign(j, {stage: 'error', note: msg});
+  ser.save(); serShow();
+  toast(`Серия «${vc.char(j.char)?.name || ''}»: ${msg}`, {type: 'err', ms: 9000});
+}
+async function serTick() {
+  if (ser.busy) return;
+  ser.busy = true;
+  try { for (const j of ser.jobs.filter(j => serLive(j) && !j.paused)) await serStep(j); }
+  catch (e) { console.warn('серия', e); }
+  ser.busy = false;
+  if (!ser.jobs.some(j => serLive(j) && !j.paused)) clearInterval(ser.timer);
+}
+async function serStep(j) {
+  const c = vc.char(j.char);
+  if (!c) return serFail(j, 'персонаж удалён');
+  if (j.hub && (j.sentFrames || j.sentVideos)) await hubLink.refresh();   // пачки компьютера — свежие
+  if (j.stage === 'write') return serWrite(j, c);
+  if (j.stage === 'frames') return j.sentFrames ? serFramesWait(j, c) : serFramesSend(j, c);
+  if (j.stage === 'video') return j.sentVideos ? serVideoWait(j) : serVideoSend(j, c);
+}
+// 1. сценарии: ячейки «Создания сценария» на время — материалы персонажа (без кадров: кадры сделает Flow по сценариям)
+async function serWrite(j, c) {
+  if (ser.writing.has(j.id)) return;
+  ser.writing.add(j.id);
+  const keep = {char: wr.char, info: wr.info, sheet: wr.sheet, locs: wr.locs, count: wr.count, idea: wr.idea};
+  Object.assign(wr, {char: c.id, info: c.info, sheet: c.sheet, locs: j.frames === 'mine' ? c.locs.slice(0, j.n) : [], count: j.n, idea: j.idea || ''});
+  serNote(j, `${WRITERS[writerNow()].name} пишет ${j.n} ${plur(j.n, 'сценарий', 'сценария', 'сценариев')}…`);
+  try {
+    const {r, list} = await writeRun();
+    if (!list?.length) throw new Error('ИИ ответил не по формату — нажмите «↻ Повторить»');
+    const add = scrAdd(list.slice(0, j.n), r.by);
+    j.rows = add.map((x, i) => ({scr: x.id, title: x.title, angle: x.angle, video_prompt: x.video_prompt, asset_prompt: x.asset_prompt, caption: x.caption,
+      frame: j.frames === 'mine' ? c.locs[i] || null : null, alt: []}));
+    Object.assign(j, {stage: j.frames === 'mine' ? 'video' : 'frames', by: r.by});
+    serNote(j, '');
+  } catch (e) { serFail(j, 'сценарии не написаны: ' + e.message); }
+  finally { Object.assign(wr, keep); ser.writing.delete(j.id); }
+}
+// 2. кадры «герой в локации» во Flow — по промпту ассета, с развёрткой героя; вертикально, как видео
+const serFrameTask = (r, c, hub) => ({prompt: String(r.asset_prompt || r.title).replace(/vertical 3:4/gi, 'vertical 9:16'), kind: 'image', service: 'flow', model: 'nano-banana-2',
+  aspect_ratio: '9:16', count: hub ? 2 : 1, images: [c.sheet]});
+async function serFramesSend(j, c) {
+  const rows = j.rows.filter(r => !r.frame && !r.skip);
+  j.hub = await hubReady();
+  if (j.hub) {
+    const tasks = rows.map(r => serFrameTask(r, c, true));
+    try {
+      const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
+      const js = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(js.error || `компьютер ответил ${res.status}`);
+    } catch (e) { return serFail(j, 'кадры не отправлены: ' + e.message); }
+    rows.forEach((r, i) => Object.assign(r, {fprompt: tasks[i].prompt, fidx: i, err: null}));
+    j.fsent = rows.length;
+    j.sentFrames = Date.now();
+    serNote(j, 'Компьютер делает кадры во Flow…');
+    hubLink.refresh();
+  } else {
+    const cards = phoneCards(rows.map(r => serFrameTask(r, c, false)));
+    rows.forEach((r, i) => Object.assign(r, {card: cards[i]?.id, err: null}));
+    j.sentFrames = Date.now();
+    serNote(j, 'Карточки кадров — в галерее: создайте фото во Flow и загрузите в карточку, дальше серия пойдёт сама');
+  }
+}
+// пункт пачки компьютера: по промпту, а не нашёлся — по порядку в пачке того же размера
+function serHubItem(since, prompt, idx, size, kind) {
+  const fresh = hubLink.batches.filter(b => b.created >= since - 60000);
+  for (const b of fresh) { const it = prompt && b.items.find(x => x.prompt === prompt); if (it) return it; }
+  const b = fresh.find(b => b.items.length === size && b.items.every(x => (x.kind || kind) === kind));
+  return b?.items[idx] || null;
+}
+async function serFramesWait(j, c) {
+  for (const r of j.rows.filter(r => !r.frame && !r.skip && !r.err)) {
+    if (j.hub) {
+      const it = serHubItem(j.sentFrames, r.fprompt, r.fidx, j.fsent, 'image');
+      if (it?.status === 'error') { r.err = it.message || 'Flow не сделал кадр'; continue; }
+      if (it?.status !== 'done' || !it.files?.length) continue;
+      const imgs = [];
+      for (const f of it.files.filter(f => !f.mime || f.mime.startsWith('image/'))) {
+        try { imgs.push(await refDataUrl(await (await fetch(hubLink.url(f.url))).blob())); } catch { /* следующий файл */ }
+      }
+      if (imgs.length) Object.assign(r, {frame: imgs[0], alt: imgs.slice(1)});
+    } else {
+      const it = items.find(x => x.id === r.card);
+      if (!it) r.err = 'карточку кадра удалили';
+      else if (it.status === 'done' && it.blob) r.frame = await refDataUrl(it.blob);
+    }
+  }
+  const rows = j.rows.filter(r => !r.skip), ready = rows.filter(r => r.frame).length, left = rows.filter(r => !r.frame && !r.err).length;
+  if (left) return serNote(j, `Кадры: ${ready} из ${rows.length}${j.hub ? ' — компьютер делает во Flow' : ' — загрузите результат в карточки в галерее'}`);
+  if (!ready) return serFail(j, 'ни одного кадра — проверьте Flow и нажмите «↻ Повторить»');
+  // кадры — и персонажу, пока есть место: пригодятся для новых роликов
+  const room = CL_MAX - (c.locs?.length || 0);
+  if (room > 0) { c.locs = [...(c.locs || []), ...rows.filter(r => r.frame).map(r => r.frame).filter(f => !(c.locs || []).includes(f)).slice(0, room)]; await vc.saveChars(); }
+  j.stage = 'video';
+  serNote(j, rows.some(r => r.err) ? 'Часть кадров не вышла — видео будут по остальным' : '');
+}
+// 3. видео: кадр + развёртка + голос персонажа; «Видео сервисы» пользователя не трогаем
+async function serVideoSend(j, c) {
+  const rows = j.rows.filter(r => r.frame && !r.skip);
+  if (!rows.length) return serFail(j, 'нет ни одного сценария с кадром');
+  j.hub = await hubReady();
+  const res = await scnGo(rows.map(r => ({...blankScn(), kind: 'video', prompt: fillBlocks(r.video_prompt), aspect: '9:16', fixed: true, service: j.service === 'auto' ? 'auto' : 'flow',
+    ref: r.frame, sheet: c.sheet, char: c.id, voice: c.voice})));
+  if (!res) return serFail(j, 'видео не отправлены');
+  rows.forEach((r, i) => Object.assign(r, {vidx: i, vcard: Array.isArray(res) ? res[i]?.id : null, vstate: 'queued'}));
+  rows.forEach(r => { const x = scr.list.find(y => y.id === r.scr); if (x) x.sent = Date.now(); });
+  scr.save();
+  Object.assign(j, {vsent: rows.length, sentVideos: Date.now()});
+  serNote(j, j.hub ? 'Компьютер делает видео…' : 'Карточки видео — в галерее: «Создать» на сайте и загрузите результат в карточку');
+}
+async function serVideoWait(j) {
+  const rows = j.rows.filter(r => r.frame && !r.skip && r.vidx != null);
+  for (const r of rows) {
+    if (j.hub) {
+      const it = serHubItem(j.sentVideos, null, r.vidx, j.vsent, 'video');
+      if (!it) continue;
+      r.vstate = it.status === 'done' ? 'done' : it.status === 'error' ? 'error' : 'queued';
+      if (it.status === 'error') r.verr = it.message || 'ошибка';
+      if (it.status === 'done') r.vfiles = (it.files || []).filter(f => !f.mime || f.mime.startsWith('video/')).map(f => f.url);
+    } else {
+      const it = items.find(x => x.id === r.vcard);
+      r.vstate = !it ? 'error' : it.status === 'done' && it.blob ? 'done' : 'queued';
+      if (!it) r.verr = 'карточку видео удалили';
+    }
+  }
+  const done = rows.filter(r => r.vstate === 'done').length, left = rows.filter(r => r.vstate === 'queued').length;
+  if (left) return serNote(j, `Видео: ${done} из ${rows.length}`);
+  Object.assign(j, {stage: 'done', doneAt: Date.now()});
+  serNote(j, `${done} из ${rows.length} видео готовы`);
+  toast(`Серия «${vc.char(j.char)?.name || ''}» готова: ${done} ${plur(done, 'видео', 'видео', 'видео')} — «📦 Скачать всё» у персонажа`, {type: 'ok', ms: 9000});
+}
+// «📦 Скачать всё»: видео и подписи к постам — одним архивом (видео уже сжаты — кладём как есть)
+async function serZip(j, btn) {
+  const c = vc.char(j.char), slug = t => String(t || '').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 40) || 'ролик';
+  btn.disabled = true; btn.textContent = '⏳ Собираю…';
+  try {
+    const {zipSync, strToU8} = await import(FFLATE);
+    const files = {};
+    let n = 0;
+    for (const [i, r] of j.rows.entries()) {
+      if (r.skip) continue;
+      const base = `${String(i + 1).padStart(2, '0')} ${slug(r.title)}`;
+      let blob = r.vcard ? items.find(x => x.id === r.vcard)?.blob || null : null;
+      if (!blob && r.vfiles?.length) blob = await fetch(hubLink.url(r.vfiles[0])).then(x => x.ok ? x.blob() : null).catch(() => null);
+      if (blob) { files[`${base}.mp4`] = [new Uint8Array(await blob.arrayBuffer()), {level: 0}]; n++; }
+      files[`${base}.txt`] = strToU8(`${r.title}${r.angle ? ` (${r.angle})` : ''}\n\n${r.caption || ''}\n\n———\n${fillBlocks(r.video_prompt)}\n`);
+    }
+    await saveFile(new Blob([zipSync(files)], {type: 'application/zip'}), `серия ${slug(c?.name)} ${new Date().toISOString().slice(0, 10)}.zip`);
+    if (!n) toast('Видео в архиве нет — только подписи: готовые видео ещё не в галерее', {type: 'err'});
+  } catch (e) { toast('Архив не собрался: ' + e.message, {type: 'err'}); }
+  btn.disabled = false; btn.textContent = '📦 Скачать всё';
+}
+// окно серии: настройки новой серии или ход последней
+function openSeries(id, fresh = false) {
+  const c = vc.char(id);
+  if (!c) return;
+  vcUi.serSet ||= {n: 5, frames: 'new', service: 'flow', idea: ''};
+  Object.assign(vcUi, {view: 'series', from: 'series', serChar: id, serNew: fresh || !serOf(id)});
+  vcShow();
+}
+function serHTML() {
+  const c = vc.char(vcUi.serChar);
+  if (!c) return '<p class="set-p">Персонаж не найден.</p>';
+  const j = !vcUi.serNew && serOf(c.id);
+  return j ? serJobHTML(j, c) : serSetupHTML(c);
+}
+function serSetupHTML(c) {
+  const o = vcUi.serSet, hub = hubLink.ok, mine = c.locs?.length || 0, need = charNeeds(c, o.frames === 'mine' ? o.n : 0);
+  const m = scnModel('video', 'flow', scnDefault('video', 'flow')), per = m?.[4] || 20, total = o.n * per, acc = Math.ceil(total / 50), left = hubLink.info?.flowLeft;
+  return `<p class="set-p">Нажали — и дальше само: ${WRITERS[writerNow()]?.name || 'ИИ'} напишет сценарии (с подписью к посту), Flow сделает кадры «${esc(c.name)} в локации», по ним — видео с его голосом. ${hub
+      ? '🟢 Компьютер подключён — всё пойдёт само, готовое появится в галерее.'
+      : '📱 Без компьютера — полуавтомат: на каждый шаг — карточки в галерее, «Создать» на сайте нажимаете вы; следующий шаг начнётся сам, как только результат загружен в карточку.'}</p>
+    <div class="vc-opt"><span>Сколько видео</span><div class="chips">${Array.from({length: CL_MAX}, (_, i) => `<button class="chip ${o.n === i + 1 ? 'on' : ''}" data-ser-n="${i + 1}">${i + 1}</button>`).join('')}</div></div>
+    <div class="vc-opt"><span>Кадры «в локации» — первый кадр каждого видео</span>
+      <div class="seg ser-seg"><button data-ser-frames="new" class="${o.frames === 'new' ? 'on' : ''}">🖼 Новые — Flow, без кредитов</button><button data-ser-frames="mine" class="${o.frames === 'mine' ? 'on' : ''}">📍 Мои кадры (${mine})</button></div></div>
+    <div class="vc-opt"><span>Где делать видео</span>
+      <div class="seg ser-seg"><button data-ser-svc="flow" class="${o.service === 'flow' ? 'on' : ''}">Google Flow</button><button data-ser-svc="auto" class="${o.service === 'auto' ? 'on' : ''}">Авто — Flow · Dola · Arena</button></div></div>
+    <div class="vc-opt"><span>Пожелания к роликам (необязательно)</span><textarea class="vc-in" data-ser-idea rows="2" maxlength="400" placeholder="Например: про первые шаги в программировании, с юмором, без рекламы">${esc(o.idea)}</textarea></div>
+    <div class="ser-cost">💳 ${o.service === 'flow'
+      ? `Flow: ${o.n} × ${per} = <b>${total}</b> ${plur(total, 'кредит', 'кредита', 'кредитов')} — на сегодня ${acc} ${plur(acc, 'аккаунт', 'аккаунта', 'аккаунтов')} Google (по 50 в день)${left != null ? `; сейчас во Flow осталось <b>${left}</b>` : ''}.`
+      : 'Авто: видео разойдутся по Flow, Dola и Arena — кредитов Flow уйдёт меньше.'} ${o.frames === 'new' ? 'Кадры Nano Banana 2 — без кредитов.' : ''}${c.flow?.name ? ` Голос во Flow — ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}: он должен быть сохранён в каждом аккаунте Flow, где пойдут видео.` : ''}</div>
+    ${need.length ? `<div class="ch-video"><b>Чтобы серия пошла, не хватает:</b><ul class="ch-need">${need.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>` : ''}
+    <div class="vc-foot"><button class="btn free" data-ser-go ${need.length ? 'disabled' : ''}>▶ Запустить: ${o.n} ${plur(o.n, 'видео', 'видео', 'видео')}</button>${serOf(c.id) ? '<button class="btn" data-ser-last>Последняя серия</button>' : ''}<button class="btn" data-vc-back>Отмена</button></div>`;
+}
+function serJobHTML(j, c) {
+  const live = serLive(j), sent = !!j.sentVideos, st = s => s === 'done' ? '✓' : s === 'error' ? '⚠' : '⏳';
+  const steps = ['write', ...(j.frames === 'new' ? ['frames'] : []), 'video', 'done'], cur = steps.indexOf(j.stage);
+  const rows = (j.rows || []).map((r, i) => {
+    const f = r.frame ? 'done' : r.err ? 'error' : 'wait', v = r.skip ? '' : r.vstate || (sent ? 'queued' : '');
+    return `<div class="ser-row ${r.skip ? 'skip' : ''}">${r.frame ? `<img src="${r.frame}" alt="">` : '<i class="ser-ph">🖼</i>'}
+      <div class="ser-main"><b>${i + 1}. ${esc(r.title)}</b>${r.angle ? ` <span class="wr-tag">${esc(r.angle)}</span>` : ''}
+        <small>✍ сценарий ✓ · 🖼 кадр ${f === 'done' ? '✓' : f === 'error' ? '⚠ ' + esc(r.err) : '⏳'} · 🎬 видео ${r.skip ? '— пропущено' : v ? st(v) + (r.verr ? ' ' + esc(r.verr) : '') : '—'}</small></div>
+      ${!sent && !r.skip ? `${r.alt?.length ? `<button class="btn small" data-ser-alt="${i}" title="Взять другой вариант кадра">🔄 Кадр</button>` : ''}<button class="btn small" data-ser-skip="${i}" title="Не делать видео по этому сценарию">✕</button>` : ''}</div>`;
+  }).join('');
+  return `<div class="ser-head"><b>${SER_STAGE[j.stage]}${j.paused ? ' · ⏸ пауза' : ''}</b><span>${j.n} ${plur(j.n, 'видео', 'видео', 'видео')} · ${j.hub ? '💻 с компьютера' : '📱 карточки'} · ${new Date(j.at).toLocaleString('ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}</span></div>
+    <div class="ser-steps">${steps.map((s, i) => `<span class="${i < cur || j.stage === 'done' ? 'ok' : i === cur ? 'now' : ''}">${SER_STAGE[s].split(' ')[0]} ${['Сценарии', 'Кадры', 'Видео', 'Готово'][['write', 'frames', 'video', 'done'].indexOf(s)]}</span>`).join('<i>→</i>')}</div>
+    ${j.note ? `<div class="wr-note">${live && !j.paused ? '⏳ ' : ''}${esc(j.note)}</div>` : ''}
+    <div class="ser-rows">${rows || (live ? '<p class="hint">Сценарии появятся здесь, как только ИИ их напишет.</p>' : '')}</div>
+    <div class="vc-foot">
+      ${j.stage === 'done' ? '<button class="btn free" data-ser-zip>📦 Скачать всё</button><button class="btn" data-ser-caps>📋 Подписи к постам</button>' : ''}
+      ${j.stage === 'error' ? '<button class="btn free" data-ser-retry>↻ Повторить</button>' : ''}
+      ${live ? `<button class="btn" data-ser-pause>${j.paused ? '▶ Продолжить' : '⏸ Пауза'}</button>` : ''}
+      ${live && !j.hub && j.sentFrames ? '<button class="btn" data-ser-gallery>🖼 Карточки в галерее</button>' : ''}
+      ${!live ? '<button class="btn" data-ser-new>＋ Новая серия</button>' : ''}
+      <button class="btn danger" data-ser-del>${live ? '🗑 Отменить серию' : '🗑 Убрать'}</button></div>`;
+}
+function serStart(c) {
+  const o = vcUi.serSet;
+  if (charNeeds(c, o.frames === 'mine' ? o.n : 0).length) return renderVoices();
+  const j = {id: 'ser-' + uid(), char: c.id, n: o.n, frames: o.frames, service: o.service, idea: o.idea.trim(), at: Date.now(), stage: 'write', rows: [], note: ''};
+  ser.jobs = [j, ...ser.jobs.filter(x => x.char !== c.id || serLive(x))].slice(0, 20);
+  ser.save();
+  vcUi.serNew = false;
+  renderVoices();
+  serKick();
+}
+// кнопки окна серии
+function serClick(b) {
+  const x = b.dataset, c = vc.char(vcUi.serChar), o = vcUi.serSet, j = c && serOf(c.id);
+  if (x.serN) { o.n = +x.serN; return renderVoices(); }
+  if (x.serFrames) { o.frames = x.serFrames; return renderVoices(); }
+  if (x.serSvc) { o.service = x.serSvc; return renderVoices(); }
+  if (b.hasAttribute('data-ser-go')) return serStart(c);
+  if (b.hasAttribute('data-ser-last')) { vcUi.serNew = false; return renderVoices(); }
+  if (b.hasAttribute('data-ser-new')) { vcUi.serNew = true; return renderVoices(); }
+  if (b.hasAttribute('data-ser-fix')) return vcOpenChar(c, 'chars');
+  if (b.hasAttribute('data-ser-auto')) { wr.ai = 'auto'; wr.save(); return renderVoices(); }
+  if (b.hasAttribute('data-ser-gemini')) { closeSheets(); setCreateMode('write'); return geminiOpen(); }
+  if (b.hasAttribute('data-ser-gallery')) { closeSheets(); setView('gallery'); return render(); }
+  if (!j) return;
+  if (b.hasAttribute('data-ser-pause')) { j.paused = !j.paused; ser.save(); renderVoices(); return serKick(); }
+  if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
+    const miss = j.rows?.filter(r => !r.frame && !r.skip);
+    Object.assign(j, !j.rows?.length ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
+    (j.rows || []).forEach(r => { r.err = null; if (!j.sentVideos) Object.assign(r, {vstate: null, verr: null}); });
+    ser.save(); renderVoices(); return serKick();
+  }
+  if (b.hasAttribute('data-ser-del')) {
+    if (serLive(j) && !confirm('Отменить серию? Уже созданное останется в галерее')) return;
+    ser.jobs = ser.jobs.filter(y => y !== j); ser.save();
+    vcUi.serNew = true; renderVoices(); return renderChars();
+  }
+  if (x.serAlt) { const r = j.rows[+x.serAlt]; if (r?.alt?.length) { r.alt.push(r.frame); r.frame = r.alt.shift(); ser.save(); } return renderVoices(); }
+  if (x.serSkip) { const r = j.rows[+x.serSkip]; if (r) { r.skip = true; ser.save(); } renderVoices(); return serKick(); }
+  if (b.hasAttribute('data-ser-zip')) return serZip(j, b);
+  if (b.hasAttribute('data-ser-caps')) {
+    const t = j.rows.filter(r => !r.skip).map((r, i) => `${i + 1}. ${r.title}\n${r.caption || ''}`).join('\n\n');
+    return clCopyText(t).then(ok => toast(ok ? 'Подписи к постам скопированы' : 'Не удалось скопировать', {type: ok ? 'ok' : 'err'}));
+  }
+}
+
 function charCardHTML(c) {
   const v = vc.voice(c.voice), n = c.locs?.length || 0;
   const tags = [c.info && '📊 инфографика', n && `📍 ${n} ${plur(n, 'кадр', 'кадра', 'кадров')}`, c.sample && `🎧 образец ${c.sampleSec || ''} с`, c.flow?.name && '🎙 Flow'].filter(Boolean);
@@ -6468,9 +6757,16 @@ function charCardHTML(c) {
   return `<div class="ch-card ${wr.char === c.id ? 'on' : ''}">
     <button class="ch-main" data-ch-edit="${c.id}" title="Изменить персонажа">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>🎙 ${esc(c.flow?.name ? (c.flow.kind === 'char' ? '@' : '@Voice: ') + c.flow.name : v?.name || 'голос не выбран')}${c.lang === 'en' ? ' · English' : ''}${wr.char === c.id ? ' · выбран в «Сценарии»' : ''}</small>
       ${c.about ? `<em>${esc(c.about)}</em>` : ''}${tags.length ? `<i class="ch-tags">${tags.map(t => `<u>${t}</u>`).join('')}</i>` : ''}</span></button>
-    <div class="ch-acts"><button class="btn small free" data-ch-video="${c.id}" ${chv.busy ? 'disabled' : ''}>🎬 Видео</button>${c.sample ? `<button class="btn small" data-ch-play="${c.id}" title="Послушать его голос">${chPlay.id === c.id ? '⏸ Голос' : '▶ Голос'}</button>` : ''}<button class="btn small" data-ch-write="${c.id}">✍ Сценарий</button><button class="btn small" data-ch-edit="${c.id}">✎ Изменить</button>
+    ${serCardHTML(c)}
+    <div class="ch-acts"><button class="btn small free" data-ch-series="${c.id}">🚀 Серия роликов</button>${c.sample ? `<button class="btn small" data-ch-play="${c.id}" title="Послушать его голос">${chPlay.id === c.id ? '⏸ Голос' : '▶ Голос'}</button>` : ''}<button class="btn small" data-ch-write="${c.id}">✍ Сценарий</button><button class="btn small" data-ch-edit="${c.id}">✎ Изменить</button>
       ${mine ? `<button class="btn small" data-ch-gallery="${c.id}" title="Его фото и видео в галерее">🖼 ${mine}</button>` : ''}
-      ${scripts ? `<button class="btn small" data-ch-scripts="${c.id}" title="Готовые сценарии с ним">📜 ${scripts}</button>` : ''}</div>${charVideoHTML(c)}</div>`;
+      ${scripts ? `<button class="btn small" data-ch-scripts="${c.id}" title="Готовые сценарии с ним">📜 ${scripts}</button>` : ''}</div></div>`;
+}
+// строка серии в карточке персонажа: идёт — этап и ход, готова — кнопка к ней
+function serCardHTML(c) {
+  const j = serOf(c.id);
+  if (!j || (j.stage === 'done' && Date.now() - (j.doneAt || 0) > 7 * 864e5)) return '';
+  return `<button class="ser-line ${j.stage}" data-ch-series="${c.id}">🚀 ${SER_STAGE[j.stage]}${j.paused ? ' · ⏸' : ''}${j.note ? ` — ${esc(j.note)}` : ''}</button>`;
 }
 function renderChars() {
   const el = $('#charsCreate');
@@ -6479,32 +6775,6 @@ function renderChars() {
     <div class="ch-list">${vc.chars.map(charCardHTML).join('')}<button class="ch-add" data-ch-new>＋ Новый персонаж</button></div>
     <div class="vc-foot"><button class="btn" data-ch-import>📥 Импорт персонажа</button><button class="btn" data-ch-scripts>📜 Готовые сценарии${scr.list.length ? ' · ' + scr.list.length : ''}</button></div>
     <p class="hint vc-note">Персонажи хранятся в этом браузере. У каждого свой голос — два персонажа одним голосом не заговорят.</p>`;
-}
-// «🚀 Создать N видео»: ИИ пишет N сценариев по его инфографике, развёртке, кадрам и характеру → сценарии с его голосом
-// уходят на компьютер (видео делаются сами) или, без компьютера, — карточками для сайтов. «Видео сервисы» не трогаем.
-async function charVideo(c, n) {
-  if (!c || chv.busy || !n) return;
-  if (charNeeds(c).length) { chv.open = c.id; return renderChars(); }
-  Object.assign(chv, {busy: c.id, open: null, step: `1/2 · ${WRITERS[writerNow()].name} пишет ${n} ${plur(n, 'сценарий', 'сценария', 'сценариев')}…`});
-  renderChars();
-  try {
-    wrUseChar(c);
-    wr.locs = c.locs.slice(0, n); wr.count = n;
-    wrLocsSave(); wr.save();
-    const before = wr.result?.at;
-    await writeGo();
-    const list = wr.result?.at !== before && wr.result?.char === c.id ? wr.result.scenarios : null;
-    if (!list?.length) throw new Error('сценарии не написаны');
-    const scns = list.slice(0, n).map((s, i) => ({...blankScn(), kind: 'video', prompt: fillBlocks(s.video_prompt), aspect: '9:16', fixed: true,
-      ref: wr.locs[i], sheet: c.sheet, char: c.id, voice: c.voice})).filter(s => s.prompt.trim());
-    chv.step = `2/2 · ${hubLink.ok ? 'отправляю на компьютер' : 'готовлю карточки для сайтов'}…`;
-    renderChars();
-    if (!await scnGo(scns)) throw new Error('видео не отправлены');
-  } catch (e) {
-    if (e.message !== 'сценарии не написаны') toast(`${c.name}: ${e.message}`, {type: 'err'});
-  }
-  chv.busy = null;
-  if (cl.mode === 'chars') renderChars();
 }
 function bindChars() {
   $('#charFile').addEventListener('change', e => charImport(e.target.files[0]));
@@ -6517,19 +6787,7 @@ function bindChars() {
     if (b.hasAttribute('data-ch-scripts')) return openScripts(x.chScripts || 'all');
     if (x.chPlay) return charPlay(vc.char(x.chPlay));
     if (b.hasAttribute('data-ch-import')) { $('#charFile').value = ''; return $('#charFile').click(); }
-    if (x.chVideo) { Object.assign(chv, {open: chv.open === x.chVideo ? null : x.chVideo, n: 0}); return renderChars(); }
-    if (x.chN) { chv.n = +x.chN; return renderChars(); }
-    if (b.hasAttribute('data-ch-video-x')) { chv.open = null; return renderChars(); }
-    if (x.chGo) return charVideo(vc.char(x.chGo), Math.min(chv.n || 3, charMax(vc.char(x.chGo))));
-    if (b.hasAttribute('data-ch-gemini')) { setCreateMode('write'); return geminiOpen(); }
-    if (b.hasAttribute('data-ch-auto')) { wr.ai = 'auto'; wr.save(); return renderChars(); }
-    if (x.chAsset) {   // кадры в локациях делаются в «Создании ассетов» — с его развёрткой референсом
-      const c = vc.char(x.chAsset);
-      setCreateMode('one');
-      if (asset.svc === 'other') setAssetSvc('flow');
-      if (c?.sheet) assetAddRefs([dataBlob(c.sheet)]);
-      return toast(`Развёртка персонажа «${c?.name || ''}» — референсом. Опишите локацию и создайте фото; готовое — в галерее, оттуда «🧍 В персонажа»`, {type: 'ok', ms: 9000});
-    }
+    if (x.chSeries) return openSeries(x.chSeries);
     if (x.chGallery) {   // его фото и видео: поиск галереи по имени персонажа
       $('#search').value = vc.char(x.chGallery)?.name || '';
       state.filter = 'all';
@@ -6815,10 +7073,11 @@ ${template}
 For every scenario return:
 • title — a short Russian name; angle — the Russian name of the approach (боль, миф…);
 • video_prompt — the scenario itself: the filled reference prompt (lines separated by \\n inside the JSON string, no markdown);
+• caption — the post text for this reel in ${lang}: 1–3 short catchy sentences and 5–8 relevant hashtags;
 • asset_prompt — English, 60–110 words, for the Nano Banana image model that gets the turnaround sheet as a reference: "Photorealistic vertical 3:4 portrait of the same [exact hero description from the sheet] …" + the scenario's location${L ? ' as on its location image' : ''} + the pose of the first frame + lighting + "documentary photography, natural body posture, high detail, vertical composition, no text, no watermark".
 
 Answer with ONLY one JSON object inside a single \`\`\`json code block — no text before or after it:
-{"scenarios":[{"title":"…","angle":"…","video_prompt":"${shape.join('\\n')}","asset_prompt":"…"}]}`;
+{"scenarios":[{"title":"…","angle":"…","video_prompt":"${shape.join('\\n')}","caption":"…","asset_prompt":"…"}]}`;
   const user = `Первая картинка — инфографика, вторая — развёртка героя${many ? `, дальше — ${L} ${plur(L, 'кадр', 'кадра', 'кадров')} героя в разных локациях: по одному на сценарий, по порядку` : L ? ', третья — герой в локации' : ''}.\nСценариев: ${n}, длина каждого: ${sec} секунд.\nПожелания автора: ${wr.idea.trim() || 'нет — выбери самые сильные углы для этой темы и аудитории'}`;
   // для чата с любым ИИ (Gemini, Claude, ChatGPT): просьба написать N сценариев и структура ответа автора (пользователь 2026-09-27):
   // «N. Название» → Block 1. Photo (промпт ассета) → Block 2. Video prompt (эталон, только заполненный) → Block 3. Post caption;
@@ -6865,7 +7124,7 @@ function parseScenarios(raw, code = '') {
         if (!Array.isArray(list) || !list.length) continue;
         return list.map(o => ({title: str(o.title) || 'Сценарий', angle: str(o.angle), location: str(o.location), hook: str(o.hook), cta: str(o.cta),
           beats: (Array.isArray(o.beats) ? o.beats : []).map(b => ({time: str(b.time), action: str(b.action), speech: str(b.speech)})),
-          asset_prompt: str(o.asset_prompt), video_prompt: fillBlocks(str(o.video_prompt))}));
+          asset_prompt: str(o.asset_prompt), caption: str(o.caption), video_prompt: fillBlocks(str(o.video_prompt))}));
       } catch { /* следующий вариант */ }
     }
   }
@@ -6943,9 +7202,7 @@ async function writeGo() {
   wr.busy = true; wr.note = `${WRITERS[who].name} читает картинки и пишет сценарии…`;
   renderWriteNote(); updateGenButton();
   try {
-    const r = who === 'claude' ? await writeClaude(sys, user) : await writeGemini(sys, user);
-    const list = parseScenarios(r.text, r.code), voice = wrVoice();
-    if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
+    const {r, list} = await writeRun();
     wr.result = list ? {scenarios: list, by: r.by, at: Date.now(), char: wr.char} : {raw: r.text, by: r.by, at: Date.now()};
     if (list) scrAdd(list, r.by);
     toast(list ? `Готово: ${list.length} ${plur(list.length, 'сценарий', 'сценария', 'сценариев')} — ниже и в «📜 Готовых сценариях»` : 'ИИ ответил не по формату — его текст ниже', {type: list ? 'ok' : 'err', ms: 6000});
@@ -6954,6 +7211,16 @@ async function writeGo() {
   wr.save();
   renderWrite(); updateGenButton();
   $('#writeOut')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// сам ИИ-сценарист: задание из нынешних ячеек «Создания сценария» → Claude или Gemini → сценарии с голосом героя
+async function writeRun() {
+  const who = writerNow(), {sys, user} = writeBrief();
+  if (who === 'chat') throw new Error('ИИ для сценариев не подключён — подключите бесплатный Gemini в «Создании сценария»');
+  const r = who === 'claude' ? await writeClaude(sys, user) : await writeGemini(sys, user);
+  const list = parseScenarios(r.text, r.code), voice = wrVoice();
+  if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
+  return {r, list};
 }
 
 // Google не даёт Gemini API в части стран — это не ошибка ключа
@@ -7327,6 +7594,7 @@ async function clSend(own) {
 // готовый файл загружается в карточку. Задания — те же, что ушли бы на компьютер (/api/batch).
 function phoneCards(tasks) {
   // newItem кладёт карточку в начало — идём с конца, чтобы первая была сверху
+  const made = [];
   tasks.map((t, i) => [t, i]).reverse().forEach(([t, i]) => {
     const site = t.service, kind = t.kind;
     const m = EXT_MODELS.find(x => x.service === site && x.kind === kind) || EXT_MODELS.find(x => x.service === site);
@@ -7341,13 +7609,14 @@ function phoneCards(tasks) {
       ...(t.char && {char: t.char}),
       phone: {site, engine: sm ? sm[2] : m.engine, info: sm ? sm[3] : '', count: t.count > 1 ? t.count : 0, n: i + 1, of: tasks.length}});
     DB.put(it);
+    made[i] = it;
   });
   render();
   if (isMobile()) setView('gallery');
   requestAnimationFrame(() => $('#feed').scrollTo({top: 0, behavior: 'smooth'}));   // карточки — вверху галереи
   const n = tasks.length;
   toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
-  return true;
+  return made;
 }
 
 // «Видео сервисы» без компьютера: сервис и модель — по тому же плану, что у компьютера
@@ -7360,7 +7629,7 @@ async function scnPhone(own) {
   try {
     const plan = clPlan(list), out = await clTasks(list, true);
     // Flow и Vids берут оба фото («ингредиенты»), Dola и Arena — только первое
-    phoneCards(out.map(({image, sheet, ...t}, i) => ({...t, service: plan[i].site, model: plan[i].model,
+    ok = phoneCards(out.map(({image, sheet, ...t}, i) => ({...t, service: plan[i].site, model: plan[i].model,
       images: [image, sheet].filter(Boolean).slice(0, ['flow', 'vids'].includes(plan[i].site) ? 2 : 1)})));
     if (!own) {
       cl.scn = [scnLike(cl.scn.at(-1))];   // дальше — один пустой сценарий с теми же настройками
@@ -7368,8 +7637,7 @@ async function scnPhone(own) {
       cl.save();
       styleSync();
     }
-    ok = true;
-  } catch (e) { toast('Не удалось подготовить: ' + e.message, {type: 'err'}); }
+  } catch (e) { ok = false; toast('Не удалось подготовить: ' + e.message, {type: 'err'}); }
   cl.sending = false;
   renderScn();
   updateGenButton();
@@ -7633,7 +7901,7 @@ function drawQR(box, text) {
     await DB.open();
     items = ((await DB.all()) || []).filter(i => (i.status === 'done' && i.blob) || i.status === 'external').sort((a, b) => b.createdAt - a.createdAt);
     wrLocsLoad();
-    vcLoad();
+    vcLoad().then(serLoad);
     scrLoad();
   } catch {
     toast('Браузер не даёт сохранять галерею — работы пропадут после закрытия вкладки', {type: 'err', ms: 8000});
