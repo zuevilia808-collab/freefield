@@ -3459,9 +3459,9 @@ function autopilotHTML() {
     ${pwa.mobile() ? '<div class="mcp-note">📱 На телефоне расширения не работают — поставьте Автопилот в Chrome на компьютере и откройте Freefield там.</div>' : ''}
     <div class="cl-sec">Как поставить — один раз, 2 минуты</div>
     <ol class="steps">
-      <li><a class="btn small free" href="${AUTOPILOT_ZIP}" download>⤓ Скачать Автопилот (.zip)</a> и распакуйте архив — появится папка «freefield-autopilot».</li>
+      <li><a class="btn small free" href="${AUTOPILOT_ZIP}" download>⤓ Скачать Автопилот (.zip)</a> и распакуйте архив: на Windows — правой кнопкой по файлу → <b>«Извлечь все»</b> (просто открыть zip мало). Появится папка «freefield-autopilot».</li>
       <li>В Chrome откройте адрес <b>chrome://extensions</b> (скопируйте его в адресную строку) и включите справа вверху <b>«Режим разработчика»</b>.</li>
-      <li>Нажмите <b>«Загрузить распакованное расширение»</b> и выберите папку «freefield-autopilot».</li>
+      <li>Нажмите <b>«Загрузить распакованное расширение»</b> и выберите папку «freefield-autopilot» — ту, где сразу лежит файл <b>manifest.json</b>. Chrome пишет «Файл манифеста отсутствует» — значит, выбрана не та папка: зайдите на уровень глубже или выше, туда, где виден manifest.json.</li>
       <li>Войдите в <b>Google Flow</b> в этом Chrome (один раз) и обновите страницу Freefield — здесь загорится 🟢.</li></ol>
     <div class="cl-sec">Как работает</div>
     <ol class="steps"><li>У карточки Flow — кнопка <b>«🤖 Автопилот»</b>, над карточками — «🤖 Все карточки Flow»; в «🚀 Серии роликов» — само.</li>
