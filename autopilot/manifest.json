@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Freefield Автопилот",
+  "version": "0.1.0",
+  "description": "Сам делает карточки Freefield в Google Flow: открывает Flow, прикладывает фото, вставляет промпт, нажимает «Создать» и возвращает результат.",
+  "icons": {"48": "icon-48.png", "128": "icon-128.png"},
+  "action": {"default_title": "Freefield Автопилот", "default_icon": {"48": "icon-48.png", "128": "icon-128.png"}},
+  "background": {"service_worker": "bg.js"},
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["https://labs.google/*", "https://flow.google.com/*", "https://*.googleusercontent.com/*", "https://storage.googleapis.com/*"],
+  "content_scripts": [
+    {"matches": ["https://zuevilia808-collab.github.io/*", "http://localhost/*", "http://127.0.0.1/*"], "js": ["bridge.js"], "run_at": "document_start"},
+    {"matches": ["https://labs.google/*"], "js": ["flow.js"], "run_at": "document_idle"}
+  ]
+}
