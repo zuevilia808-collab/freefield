@@ -642,6 +642,16 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .acc-prof:first-child{margin-top:0}
 .acc-prof{flex-wrap:wrap;gap:6px}
 /* кнопки профиля — всегда справа, даже когда переносятся под длинное название */
+/* «Персонаж в локации»: два обязательных места — развёртка и инфографика */
+.asset-slots{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.asset-slot{position:relative;display:grid;gap:4px;justify-items:start;align-content:start;padding:10px;border:1px dashed var(--line);border-radius:14px;background:var(--card)}
+.asset-slot.has{border-style:solid}
+.asset-slot.miss{border-color:#ff5a5a;border-style:solid}
+.asset-slot img{width:100%;height:90px;object-fit:cover;border-radius:10px}
+.asset-slot>span{font-size:26px;line-height:1}
+.asset-slot small{color:var(--muted);font-size:11px}
+.asset-slot-rm{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;cursor:pointer}
+.asset-chars{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%}
 .acc-prof-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .acc-prof-btns .btn:disabled{opacity:.35;cursor:default}
 .acc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
@@ -4082,7 +4092,8 @@ function updateGenButton() {
     $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
     $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайте';
     $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
-      (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
+      (asset.kind === 'loc' ? (asset.refs[0] && asset.info ? ' · развёртка и инфографика ✓' : ` · нужна ${!asset.refs[0] && !asset.info ? 'развёртка и инфографика' : !asset.info ? 'инфографика' : 'развёртка'}`)
+        : asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
     return;
   }
   $('#genBtn').disabled = false;
@@ -5235,17 +5246,25 @@ const ASSET_KINDS = {
     hint: 'Есть фото героя — добавьте его референсом, развёртка будет по нему. Нет — опишите героя вместо [ПОЛЯ]',
     prompt: 'Character turnaround sheet of [CHARACTER: age, face, hair, clothing]: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.',
     promptRef: 'Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.'},
-  loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке · 3:4 ×4', aspect: '3:4', count: 4, many: 'Кадры героя в локациях',
-    ask: 'Сколько кадров «персонаж в локации» нужно?', note: 'Один кадр на сценарий: 5 сценариев — 5 кадров. У каждого — своё место и действие, герой — по развёртке.',
-    hint: 'Нужна развёртка героя — добавьте её референсом. В промпте вместо [ПОЛЕЙ] — что делает герой и где',
-    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. [ACTION] in [LOCATION]. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'},
+  // Пользователь 2026-09-29: обязательны развёртка И инфографика; что делает герой и где — не вписывать: модель сама выбирает
+  // обстановку по теме инфографики, у каждого кадра — своя (LOC_SCENES)
+  loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке и инфографике · 3:4 ×4', aspect: '3:4', count: 4, many: 'Кадры героя в локациях',
+    ask: 'Сколько кадров «персонаж в локации» нужно?', note: 'Один кадр на сценарий: 5 сценариев — 5 кадров. Место и действие вписывать не нужно — их подберут по инфографике, у каждого кадра своё; герой — по развёртке.',
+    hint: 'Нужны развёртка героя и инфографика. Место и действие подберутся сами — по теме инфографики',
+    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. The reference infographic shows what the video is about: read it only to understand the topic, then choose yourself a real-life setting, props and an action for the character that clearly fit this topic. Never show the infographic itself, its text, icons or charts in the image. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'},
 };
+// у каждого кадра «персонаж в локации» — своя сцена по теме инфографики (кадры одного запуска не повторяются)
+const LOC_SCENES = ['the key moment of the topic: he is doing the main action it is about', 'a close-up moment with a prop, tool or product from the topic',
+  'an everyday home setting connected to the topic', 'an outdoor setting connected to the topic', 'a workplace, workshop or shop typical for the topic',
+  'he explains something to the camera in a place typical for the topic', 'a moment of success or result that the topic promises',
+  'a common problem or mistake from the topic, shown in a real situation', 'a calm evening or morning scene connected to the topic', 'a lively scene with the atmosphere of the topic'];
 const asset = {
   svc: ls.get('freefield.asset.svc', 'flow'),   // flow | dola | arena | other (прежние модели: FLUX, платные…)
   model: ls.get('freefield.asset.model', {flow: 'nano-banana-2', dola: 'seedream-5-pro'}),
   aspect: ls.get('freefield.asset.aspect', '3:4'),
   count: ls.get('freefield.asset.count', 4),
-  refs: [],   // data URL фото-референсов (только в этой вкладке)
+  refs: [],   // data URL фото-референсов (только в этой вкладке); у «Персонажа в локации» первое — развёртка героя
+  info: null,   // инфографика для «Персонажа в локации» — по ней подбирается место и действие
   kind: null,   // выбранная кнопка «Что создаём» (ASSET_KINDS) или null — свой промпт
   n: 1, items: [],   // сколько картинок и у каждой — поля промпта и своё фото ({vals, ref})
   pickFor: null,   // куда пойдут фото из окна выбора: общие референсы, фото героев развёрток или одной картинки
@@ -5263,7 +5282,18 @@ function setAssetSvc(svc) {
   renderAsset();
   updateLabels();
 }
+function assetLocHTML() {
+  const slot = (key, ico, name, img) => `<div class="asset-slot ${img ? 'has' : 'need'}" data-aslot-box="${key}">${img ? `<img src="${img}" alt="">` : `<span>${ico}</span>`}
+    <b>${name}</b><small>${img ? 'есть' : 'обязательно'}</small>
+    <button class="btn small" data-aslot="${key}">${img ? 'Другая' : '＋ Добавить'}</button>${img ? `<button class="asset-slot-rm" data-aslot-rm="${key}" title="Убрать">✕</button>` : ''}</div>`;
+  const chars = vc.chars.filter(c => c.sheet && c.info);
+  return `<div class="asset-slots">${slot('sheet', '🧍', 'Развёртка героя', asset.refs[0])}${slot('info', '📊', 'Инфографика', asset.info)}</div>
+    ${asset.refs.slice(1).map((r, i) => `<div class="asset-ref"><img src="${r}" alt=""><button data-aref-rm="${i + 1}" title="Убрать фото">✕</button></div>`).join('')}
+    ${chars.length ? `<div class="asset-chars"><span class="hint">Взять у персонажа:</span>${chars.map(c => `<button class="btn small" data-aslot-char="${c.id}">🎭 ${esc(c.name)}</button>`).join('')}</div>` : ''}
+    <span class="hint">${asset.refs[0] && asset.info ? 'Место и действие вписывать не нужно: модель прочитает инфографику и сама подберёт обстановку по её теме — у каждого кадра свою. Герой — точно по развёртке.' : 'Нужны обе картинки: по развёртке — внешность героя, по инфографике — где он и что делает.'}</span>`;
+}
 function assetRefsHTML() {
+  if (asset.kind === 'loc') return assetLocHTML();
   const note = !asset.refs.length ? (ASSET_KINDS[asset.kind]?.hint || 'Фото героя (например, полная развёртка персонажа) или сцены — перетащите сюда, вставьте Ctrl+V или нажмите «Добавить референс»')
     : asset.svc === 'flow' ? `Flow возьмёт ${asset.n > 1 ? 'эти фото для каждой картинки' : 'все фото'} как «ингредиенты»: внешность героя сохранится, а сцена будет по промпту`
     : `${SITE_SHORT[asset.svc]} возьмёт ${asset.refs.length > 1 ? 'только первое фото' : 'это фото'} и сделает картинку по нему`;
@@ -5294,7 +5324,7 @@ const assetItemPrompt = it => assetItemBase(it).replace(FIELD_RE, (a, key, off, 
   if (!v) return a;
   if (/(^|[.!?]s+)$/.test(str.slice(0, off))) v = v[0].toUpperCase() + v.slice(1);   // в начале предложения — с большой буквы
   return v;
-});
+}) + (asset.kind === 'loc' ? ` Scene idea for this shot: ${LOC_SCENES[Math.max(0, asset.items.indexOf(it)) % LOC_SCENES.length]}.` : '');
 const assetItemFields = it => assetFields(assetItemBase(it));
 // сколько аккаунтов возьмётся сразу: во Flow 4 генерации на аккаунт, в Dola и Arena — 2
 const assetCap = () => ({flow: 4, dola: 2, arena: 2})[asset.svc] || 4;
@@ -5308,7 +5338,7 @@ function assetItemsHTML() {
     return `<div class="asset-item"><b class="n">${i + 1}</b>
       <button class="asset-item-ph ${it.ref ? 'has' : ''}" data-ai-ph="${i}" title="${it.ref ? 'Убрать фото этой картинки' : 'Своё фото для этой картинки (например, герой для развёртки)'}">${it.ref ? `<img src="${it.ref}" alt="">` : ic('plus')}</button>
       <div class="asset-item-f">${f.length ? f.map(key => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${esc(FIELD_RU[key] || key)}" aria-label="${esc(FIELD_RU[key] || key)}" enterkeyhint="next" autocomplete="off">`).join('')
-        : `<span class="hint">${it.ref ? 'по этому фото — промпт общий' : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div>
+        : `<span class="hint">${asset.kind === 'loc' ? 'место и действие — по инфографике, у этого кадра своё' : it.ref ? 'по этому фото — промпт общий' : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div>
       ${asset.n > 1 ? `<button class="asset-item-rm" data-ai-rm="${i}" title="Убрать эту картинку" aria-label="Убрать картинку ${i + 1}">✕</button>` : ''}</div>`;
   }).join('');
   return `<div class="block-head asset-items-head" style="margin-top:14px"><span class="lbl">${K.many} · ${asset.n}</span>
@@ -5333,9 +5363,13 @@ function setAssetKind(k) {
   asset.aspect = K.aspect;
   if (K.count) asset.count = K.count;
   asset.save();
-  // «Персонаж в локации» — по развёртке: берём её из «Создания сценария», если она там уже есть
-  asset.tookSheet = k === 'loc' && !asset.refs.length && !!wr.sheet;
-  if (asset.tookSheet) asset.refs.push(wr.sheet);
+  // «Персонаж в локации» — по развёртке и инфографике: берём их из «Создания сценария» (или у его персонажа), если там уже есть
+  asset.tookSheet = false;
+  if (k === 'loc') {
+    const c = vc.char(wr.char), sheet = wr.sheet || c?.sheet, info = wr.info || c?.info;
+    if (!asset.refs.length && sheet) { asset.refs.push(sheet); asset.tookSheet = true; }
+    if (!asset.info && info) { asset.info = info; asset.tookSheet = true; }
+  }
   const text = k === 'sheet' && asset.refs.length ? K.promptRef : K.prompt;
   const cur = $('#prompt').value.trim();
   const mine = cur && !Object.values(ASSET_KINDS).some(x => x.prompt === cur || x.promptRef === cur);
@@ -5563,11 +5597,15 @@ function setAssetCount(n) {
   closeSheets();
   renderAsset();
   updateGenButton();
-  // «Персонаж в локации» с готовой развёрткой — фото выбирать не нужно
-  if (asset.kind === 'loc' && asset.refs.length) {
-    if (asset.tookSheet) toast('Развёртку героя взял из «Создания сценария». Впишите у каждой картинки, что делает герой и где', {type: 'ok', ms: 6000});
+  // «Персонаж в локации»: обе картинки есть — выбирать ничего не нужно; нет — окно выбора той, которой не хватает
+  if (asset.kind === 'loc') {
+    const need = !asset.refs[0] ? 'sheet' : !asset.info ? 'info' : null, took = asset.tookSheet;
     asset.tookSheet = false;
-    return;
+    if (!need) return toast(`${took ? 'Развёртку и инфографику взял из «Создания сценария». ' : ''}Место и действие подберутся по инфографике — жмите «Создать»`, {type: 'ok', ms: 6000});
+    asset.pickFor = need;
+    toast(need === 'sheet' ? 'Выберите фото развёртки героя' : 'Выберите инфографику — по ней подберутся место и действие', {ms: 6000});
+    $('#assetFile').value = '';
+    return $('#assetFile').click();
   }
   // сразу — окно выбора фото (нажатие на число — жест пользователя, браузер откроет окно)
   asset.pickFor = asset.kind === 'sheet' ? 'items' : 'common';
@@ -5606,6 +5644,17 @@ function renderAsset() {
 async function assetAddRefs(files, to) {
   const list = [...files].filter(f => f && f.type?.startsWith('image/'));
   if (!list.length) return;
+  // «Персонаж в локации»: фото без адреса (вставка, перетаскивание) — в пустое место: сначала развёртка, потом инфографика
+  if (asset.kind === 'loc' && (to == null || to === 'common')) to = !asset.refs[0] ? 'sheet' : !asset.info ? 'info' : 'common';
+  if (to === 'sheet' || to === 'info') {
+    let d;
+    try { d = await refDataUrl(list[0]); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
+    if (to === 'sheet') asset.refs[0] = d; else asset.info = d;
+    renderAsset(); updateGenButton();
+    if (to === 'sheet' && !asset.info) return toast('Развёртка есть. Теперь инфографика — по ней подберутся место и действие', {ms: 9000,
+      action: '📊 Выбрать', onAction: () => { asset.pickFor = 'info'; $('#assetFile').value = ''; $('#assetFile').click(); }});
+    return toast(to === 'sheet' ? 'Развёртка героя добавлена' : 'Инфографика добавлена — место и действие подберутся по ней', {type: 'ok'});
+  }
   if (typeof to === 'number' && asset.items[to]) {
     try { asset.items[to].ref = await refDataUrl(list[0]); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
     renderAsset(); updateGenButton();
@@ -5668,9 +5717,16 @@ async function assetGo() {
   const prompts = items ? items.map(assetItemPrompt) : [raw];
   // шаблон с незаполненными [ПОЛЯМИ]
   if (prompts.some(p => /\[[A-Z][A-Z ]*[\]:]/.test(p))) return nudge('Впишите своё вместо [ПОЛЕЙ] в промпте: тема, герой, место…');
-  if (asset.kind === 'loc' && !asset.refs.length && !list.every(it => it.ref)) { toast('Для «Персонажа в локации» нужна развёртка героя — нажмите «Добавить референс»', {type: 'err', ms: 6000}); return; }
-  // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow)
-  const imgsOf = it => [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
+  if (asset.kind === 'loc' && (!asset.refs[0] && !list.every(it => it.ref) || !asset.info)) {
+    const need = !asset.info ? 'info' : 'sheet';
+    $(`#assetCreate [data-aslot-box="${need}"]`)?.classList.add('miss');
+    return toast(need === 'info' ? 'Для «Персонажа в локации» нужна инфографика — по ней подберутся место и действие' : 'Для «Персонажа в локации» нужна развёртка героя',
+      {type: 'err', ms: 8000, action: need === 'info' ? '📊 Выбрать инфографику' : '🧍 Выбрать развёртку', onAction: () => { asset.pickFor = need; $('#assetFile').value = ''; $('#assetFile').click(); }});
+  }
+  // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow);
+  // у «Персонажа в локации» последней всегда идёт инфографика
+  const imgsOf = it => asset.kind === 'loc' ? [...[...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS - 1), asset.info]
+    : [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
   const tasks = (list || [null]).map((it, i) => assetTask(composePrompt(prompts[i], state.style, 'image'), imgsOf(it)));
   // без компьютера — карточки для сайтов: «Создать» во Flow, Dola или Arena пользователь нажимает сам
   if (!(await hubReady())) return phoneCards(tasks);
@@ -5710,6 +5766,16 @@ function bindAsset() {
       asset.pickFor = i; $('#assetFile').value = ''; return $('#assetFile').click();
     }
     if (b.hasAttribute('data-aref-add')) { asset.pickFor = 'common'; $('#assetFile').value = ''; return $('#assetFile').click(); }
+    // «Персонаж в локации»: места «Развёртка» и «Инфографика», «Взять у персонажа»
+    if (b.dataset.aslot) { asset.pickFor = b.dataset.aslot; $('#assetFile').value = ''; return $('#assetFile').click(); }
+    if (b.dataset.aslotRm) { if (b.dataset.aslotRm === 'info') asset.info = null; else asset.refs.splice(0, 1); renderAsset(); return updateGenButton(); }
+    if (b.dataset.aslotChar) {
+      const c = vc.char(b.dataset.aslotChar);
+      if (!c) return;
+      asset.refs[0] = c.sheet; asset.info = c.info;
+      renderAsset(); updateGenButton();
+      return toast(`${c.name}: развёртка и инфографика на месте — жмите «Создать»`, {type: 'ok'});
+    }
     if (b.dataset.arefRm) { asset.refs.splice(+b.dataset.arefRm, 1); renderAsset(); return updateGenButton(); }
     if (b.hasAttribute('data-import-all')) return hubLink.importAll(b);
   };
