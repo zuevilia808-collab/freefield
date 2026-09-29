@@ -5043,6 +5043,13 @@ function accMineClick(e) {
   const x = b.dataset;
   if (x.accmOpen) {
     const svc = SERVICES.find(v => v.id === x.accmOpen), a = accMine.list.find(v => v.id === x.accmWho);
+    // Flow с расширением: «Войти» — вкладка Flow входит именно этим аккаунтом (почта — без выбора; иначе — выбор аккаунта Google).
+    // Вход во Flow общий для профиля Chrome — в разных аккаунтах сразу работает только Freefield на компьютере (свой профиль на аккаунт)
+    if (a && svc.id === 'flow' && autopilot.on && !apOld()) {
+      const email = /@/.test(a.who) ? a.who : '';
+      autopilot.send({type: 'acct-add', email});
+      return toast(`Google Flow откроется в соседней вкладке и войдёт ${email ? 'аккаунтом ' + email : '— выберите аккаунт «' + a.who + '»'}. Чтобы аккаунты работали одновременно, каждый в своём окне, — откройте Claude Desktop: Freefield на компьютере даст каждому аккаунту свой профиль Chrome`, {type: 'ok', ms: 12000});
+    }
     // сайты Google (Flow, Vids): с почтой — сразу этим аккаунтом
     const url = a && /@/.test(a.who) && ['flow', 'vids'].includes(svc.id) ? svc.url + (svc.url.includes('?') ? '&' : '?') + 'authuser=' + encodeURIComponent(a.who) : svc.url;
     return openSide(url, svc.id);
@@ -5077,9 +5084,7 @@ function scnAccHTML() {
   const act = info.active ?? null;   // null — окно Chrome Freefield закрыто (или открыто несколько профилей)
   const open = info.open || (act ? [act] : []);   // профили, окна которых открыты сейчас
   const isOpen = pr => open.includes(pr.id);
-  // открытые сейчас профили — первыми, чтобы их кнопки «Закрыть» были сразу видны
-  const profs = (info.profiles?.length ? info.profiles : [{...info, id: 1, name: 'Профиль 1'}])
-    .slice().sort((a, b) => isOpen(b) - isOpen(a));
+  const profs = info.profiles?.length ? info.profiles : [{...info, id: 1, name: 'Профиль 1'}];   // порядок постоянный — аккаунты не прыгают
   const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'только что' : m < 60 ? `${m} мин назад` : `${Math.round(m / 60)} ч назад`; };
   const row = (pr, id) => {
     const x = SERVICES.find(v => v.id === id), lg = pr.login?.[id], key = `${id}@${pr.id}`, p = accState.pending[key], out = pr.siteOut || {};
@@ -5094,30 +5099,34 @@ function scnAccHTML() {
     const st = busy ? '⏳ Вхожу через Google…' : choose ? '👤 Какой аккаунт Google взять?' : p === 'out' ? '🔑 Вышли — войдите другим аккаунтом' : p === 'in' ? '⏳ Войдите в окне Chrome, потом нажмите «Я вошёл»'
       : inn === true ? '🟢 вход выполнен' : inn === false ? '🔴 не вошли' : 'вход ещё не проверялся';
     const use = pr.usage?.[id] ? `<span class="hint">📊 ${esc(pr.usage[id])}</span>` : '';
-    // Dola и Arena входят через Google сами; Flow — выбор аккаунта Google в окне Chrome
-    const auto = id !== 'flow' && id !== 'vids';   // Flow и Vids — выбор аккаунта Google в окне Chrome
-    const btn = busy ? '<button class="btn small" disabled>⏳</button>'
+    // Dola и Arena входят через Google сами; Flow и Vids — выбор аккаунта Google в окне Chrome
+    const auto = id !== 'flow' && id !== 'vids';
+    // «↗ Войти» — окно Chrome ЭТОГО профиля: у каждого профиля свой аккаунт Google (пользователь 2026-09-29: «каждая кнопка
+    // войти должна открывать Chrome с новым аккаунтом действительно, а не вкладку в том же аккаунте»). Не вошли — окно входа в нём
+    const go = busy ? '<button class="btn small" disabled>⏳</button>'
       : p === 'in' ? `<button class="btn small free" data-acc-check="${id}" data-p="${pr.id}">✅ Я вошёл</button>`
-      : p === 'out' || inn === false ? `<button class="btn small" data-acc-in="${id}" data-p="${pr.id}" title="${auto ? 'Freefield сам нажмёт «Продолжить с Google» и выберет аккаунт Google этого профиля Chrome. Пароли не вводит.' : 'Откроется выбор аккаунта Google в окне Chrome Freefield'}">🔑 ${auto ? 'Войти через Google' : 'Войти'}</button>`
-      : `<button class="btn small" data-acc-out="${id}" data-p="${pr.id}" title="Выйти, чтобы войти другим аккаунтом (например, когда кредиты кончились)">👤 Выйти из аккаунта</button>`;
+      : p === 'out' || inn === false ? `<button class="btn small" data-acc-in="${id}" data-p="${pr.id}" title="${auto ? 'Freefield сам нажмёт «Продолжить с Google» и выберет аккаунт Google этого профиля Chrome. Пароли не вводит.' : 'Окно Chrome этого профиля — выберите в нём аккаунт Google'}">↗ Войти</button>`
+      : `<button class="btn small" data-acc-open="${pr.id}" ${accState.opening ? 'disabled' : ''} title="Окно Chrome профиля «${esc(pr.name)}» — со своим аккаунтом Google: ${esc(x.name)}, и рядом остальные сервисы">${accState.opening === pr.id ? '⏳' : '↗'} Войти</button>`;
+    const off = inn === true && p !== 'out' && !busy ? `<button class="btn small" data-acc-out="${id}" data-p="${pr.id}" title="Выйти из ${esc(x.name)} в этом профиле — чтобы войти другим аккаунтом (например, когда кредиты кончились)">Снять</button>` : '';
+    const close = `<button class="btn small" data-acc-close="${pr.id}" ${isOpen(pr) ? '' : 'disabled'} title="${isOpen(pr) ? 'Закрыть окно Chrome этого профиля' : 'Окно этого профиля сейчас не открыто'}">✕</button>`;
     const pick = choose ? `<div class="acc-pick">${choose.map(m => `<button class="btn small" data-acc-as="${id}" data-p="${pr.id}" data-email="${esc(m)}">👤 ${esc(m)}</button>`).join('')}</div>` : '';
-    return `<div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
-      <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">${st} · ${bal}</span>${use}${pick}</div>${btn}</div>`;
+    const who = pr.email || lg?.email || pr.name;
+    return `<div class="acc-row acc-sub"><div class="acc-main"><b>👤 ${esc(who)}</b><span class="hint">${isOpen(pr) ? '🪟 окно открыто · ' : ''}${st} · ${bal}</span>${use}${pick}</div>${go}${off}${close}</div>`;
   };
-  // «Открыть» — окно этого профиля рядом с остальными: Flow, Dola, Arena и окна входа; «Закрыть» — окно этого профиля
-  const btns = pr => `<span class="acc-prof-btns">
-      <button class="btn small" data-acc-open="${pr.id}" ${accState.opening ? 'disabled' : ''} title="Окно Chrome этого профиля — рядом с уже открытыми: Flow, Dola и Arena вкладками, и где вход не выполнен — окно входа">${accState.opening === pr.id ? '⏳ Открываю…' : '↪ Открыть этот профиль'}</button>
-      <button class="btn small" data-acc-close="${pr.id}" ${isOpen(pr) ? '' : 'disabled'} title="${isOpen(pr) ? 'Закрыть окно Chrome этого профиля' : 'Этот профиль сейчас не открыт'}">✕ Закрыть этот профиль</button></span>`;
-  const head = pr => `<div class="acc-prof"><span>🧑‍💻 Профиль Chrome «${esc(pr.name)}»${isOpen(pr) ? ' · открыт сейчас' : ''}</span>${btns(pr)}</div>`;
-  const body = profs.map(pr => (profs.length > 1 ? head(pr) : '') + ['flow', 'dola', 'arena', 'vids'].map(id => row(pr, id)).join('')).join('');
-  const openOne = profs.length > 1 ? '' : btns(profs[0]);
-  // несколько окон профилей сразу: входить можно, а генерации ждут, пока не останется один профиль
+  // как и без компьютера: сервис → его аккаунты (каждый — свой профиль Chrome со своим аккаунтом Google) → «↗ Войти», «＋ Аккаунт»
+  const svcs = CLAUDE_SVC.map(c => SERVICES.find(x => x.id === c.id)).filter(Boolean);
+  // несколько окон профилей сразу: Freefield генерирует во всех — каждое задание в окне своего профиля
   const multi = info.multi ? `<div class="cl-conn">🪟 Открыты окна профилей: ${open.length}. Freefield генерирует во всех сразу — каждое задание в окне своего профиля. Где открыто окно входа — войдите и нажмите «✅ Я вошёл».${info.unknown ? ` Ещё ${info.unknown === 1 ? 'одно окно' : info.unknown + ' окна'} Chrome — профиль Freefield не узнал (в окне нет пустой вкладки): откройте в нём новую вкладку.` : ''}</div>` : '';
-  return `<div class="acc-box">${multi}${body}<div class="acc-foot">${openOne}
-    <button class="btn small" data-acc-new ${accState.adding ? 'disabled' : ''} title="Новый профиль Google Chrome в отдельном окне (рядом с открытыми): Flow, Dola и Arena с окнами входа — входите другим аккаунтом, кредитов станет больше">${accState.adding ? '⏳ Открываю…' : '＋ Добавить профиль для входа'}</button>
-    ${profs.length > 1 ? `<button class="btn small" data-acc-all ${accState.opening ? 'disabled' : ''} title="Окна всех профилей Chrome сразу: в каждом Flow, Dola, Arena и окна входа, где вход не выполнен">${accState.opening === 'all' ? '⏳ Открываю профили…' : '🪟 Открыть все профили'}</button>
-    <button class="btn small" data-acc-close-all ${open.length && !accState.opening ? '' : 'disabled'} title="${open.length ? 'Закрыть окна Chrome всех профилей' : 'Окна профилей сейчас не открыты'}">✕ Закрыть все профили</button>` : ''}
-    <button class="btn small" data-acc-refresh ${accState.checking ? 'disabled' : ''}>${accState.checking ? '⏳ Проверяю…' : '↻ Проверить баланс'}</button></div></div>`;
+  const add = `<button class="btn small" data-acc-new ${accState.adding ? 'disabled' : ''} title="Новый профиль Google Chrome в отдельном окне: Flow, Dola, Arena и Vids с окнами входа — войдите в нём другим аккаунтом Google, кредитов станет больше">${accState.adding ? '⏳ Открываю…' : '＋ Аккаунт'}</button>`;
+  return `<div class="acc-box"><div class="hint">💻 Freefield на компьютере: у каждого аккаунта — свой профиль Chrome со своим входом в Google. «↗ Войти» открывает окно именно этого аккаунта; генерация идёт во всех сразу.</div>${multi}
+    <div class="acc-foot">${profs.length > 1 ? `<button class="btn small" data-acc-all ${accState.opening ? 'disabled' : ''} title="Окна всех профилей Chrome сразу: в каждом Flow, Dola, Arena, Vids и окна входа, где вход не выполнен">${accState.opening === 'all' ? '⏳ Открываю…' : '🪟 Открыть все аккаунты'}</button>
+      <button class="btn small" data-acc-close-all ${open.length && !accState.opening ? '' : 'disabled'} title="${open.length ? 'Закрыть окна Chrome всех профилей' : 'Окна профилей сейчас не открыты'}">✕ Закрыть все</button>` : ''}
+      <button class="btn small" data-acc-refresh ${accState.checking ? 'disabled' : ''}>${accState.checking ? '⏳ Проверяю…' : '↻ Проверить баланс'}</button></div></div>
+    ${svcs.map(x => `<div class="acc-box acc-mine"><div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
+        <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">${esc(x.short || x.credits)} · аккаунтов: ${profs.length}</span></div>
+        <button class="btn small" data-acc-all ${accState.opening ? 'disabled' : ''} title="Окна всех аккаунтов (профилей Chrome) сразу">↗ Открыть</button></div>
+      ${profs.map(pr => row(pr, x.id)).join('')}
+      <div class="acc-foot">${add}</div></div>`).join('')}`;
 }
 async function accAction(kind, site, btn, p = 1, email = null) {
   if (btn) btn.disabled = true;

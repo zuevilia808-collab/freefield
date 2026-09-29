@@ -102,7 +102,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       }
       if (m.type === 'acct-add') {   // войти во Flow ещё одним аккаунтом: вкладка Flow откроет выбор аккаунта Google
         const tab = await flowTab(true);
-        await set({addAcct: true});
+        await set({addAcct: m.email || true});   // почта — войти именно им, иначе — выбор аккаунта Google
         chrome.tabs.sendMessage(tab.id, {type: 'signin'}).catch(() => {});   // вкладка ещё грузится — flow.js увидит addAcct сам
       }
       if (m.type === 'acct-del' || m.type === 'acct-reset') await serial(async () => {
