@@ -3,6 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>
+/* Freefield с компьютера: страницу отдаёт программа Freefield (порт 5180) — из своей папки, а там копия бывает старой
+   (пользователь 2026-09-29: «при „Открыть Freefield с компьютера“ — старая версия без персонажей; нужна всегда новейшая»).
+   Поэтому такая копия сразу берёт новейшую версию с GitHub и запускается уже она — на том же адресе, с той же связью
+   с программой и тем же хранилищем. Нет интернета — работает эта копия. */
+(function () {
+  var port = +location.port;
+  if (location.protocol !== 'http:' || port < 5180 || port > 5189 || window.__ffLatest) return;
+  var q = new URLSearchParams(location.search);
+  if (q.has('ff-local')) { q.delete('ff-local'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); return; }
+  window.__ffLatest = true;
+  // остаток старой копии браузер дочитает как скрытый текст — её код не запустится, а страница нормально догрузится
+  document.write('<plaintext style="display:none">');
+  var done = false, local = function () {   // новейшую не получили — открыть эту копию как есть
+    if (done) return; done = true;
+    q.set('ff-local', '1'); location.replace(location.pathname + '?' + q + location.hash);
+  };
+  setTimeout(local, 10000);
+  fetch('https://zuevilia808-collab.github.io/freefield/index.html?t=' + Date.now(), {cache: 'no-store'})
+    .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+    .then(function (html) {
+      if (done || !/<title>Freefield/.test(html)) return local();
+      done = true;
+      var go = function () {   // разметка новейшей версии вместо старой и её скрипты — по порядку
+        var d = new DOMParser().parseFromString(html, 'text/html');
+        document.documentElement.replaceChildren(document.importNode(d.head, true), document.importNode(d.body, true));
+        [].forEach.call(document.querySelectorAll('script'), function (old) {
+          var sc = document.createElement('script');
+          [].forEach.call(old.attributes, function (x) { sc.setAttribute(x.name, x.value); });
+          sc.textContent = old.textContent;
+          old.replaceWith(sc);
+        });
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+    }).catch(local);
+})();
+</script>
 <meta name="theme-color" content="#0a0a0c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
