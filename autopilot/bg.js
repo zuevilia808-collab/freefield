@@ -52,6 +52,24 @@ async function accOf(email) {
   if (!a && email) list.push(a = {email, day: today(), spent: 0, out: false});
   return {list, a};
 }
+// ---- Мост к Freefield на компьютере: программа рядом с Claude Desktop (http://127.0.0.1:5180) открывает профили Chrome
+// и делает всё в Flow, Dola, Arena и Vids. Сайт Freefield с GitHub браузер к ней не пускает — ходим за него.
+const HUB_PORTS = [5180, 5181, 5182];
+let hubPort = 0;
+const b64 = buf => { let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000)); return btoa(s); };
+async function hub(m) {
+  const path = String(m.path || '');
+  if (!/^\/api\//.test(path)) return {error: 'не тот адрес'};
+  for (const port of hubPort ? [hubPort, ...HUB_PORTS.filter(p => p !== hubPort)] : HUB_PORTS) {
+    let r;
+    try { r = await fetch(`http://127.0.0.1:${port}${path}`, {method: m.method || 'GET', headers: m.headers || {}, body: m.body ?? undefined}); }
+    catch { continue; }   // на этом порту никого
+    hubPort = port;
+    return {status: r.status, type: r.headers.get('content-type') || '', body: b64(new Uint8Array(await r.arrayBuffer()))};
+  }
+  hubPort = 0;
+  return {error: 'Freefield на компьютере не запущен — откройте Claude Desktop'};
+}
 async function toApp(msg) {
   const id = await get('appTab');
   if (id) chrome.tabs.sendMessage(id, {to: 'app', msg}).catch(() => {});
@@ -60,6 +78,7 @@ async function toApp(msg) {
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
   (async () => {
     if (m.from === 'app') {
+      if (m.type === 'hub') return reply(await hub(m));
       await set({appTab: sender.tab.id});
       if (m.type === 'tasks') {
         const add = await serial(async () => {
@@ -121,9 +140,8 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (m.type === 'fetch') {   // файл, который странице Flow не отдали (другой домен) — забираем с правами расширения
         try {
           const r = await fetch(m.url, {credentials: 'include'});
-          const b = await r.blob(), buf = new Uint8Array(await b.arrayBuffer());
-          let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-          return reply({ok: true, mime: b.type, data: btoa(s)});
+          const b = await r.blob();
+          return reply({ok: true, mime: b.type, data: b64(new Uint8Array(await b.arrayBuffer()))});
         } catch (e) { return reply({ok: false, error: String(e.message || e)}); }
       }
       if (m.type === 'done') await serial(async () => set({queue: ((await get('queue')) || []).filter(x => x.id !== m.id)}));

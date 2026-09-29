@@ -3389,8 +3389,17 @@ async function saveRefs(it, list) {
 // Сайт не может нажимать кнопки на чужом сайте, поэтому это делает расширение (папка autopilot/): открывает Flow, прикладывает
 // фото, вставляет промпт, выбирает формат и модель, нажимает «Создать», ждёт и возвращает файлы в карточку. Только компьютер.
 const AUTOPILOT_ZIP = 'autopilot/freefield-autopilot.zip';
-const autopilot = {on: false, version: '', accounts: [], me: '', send(msg) { window.postMessage({ff: 'app', ...msg}, '*'); }};
-const AP_VER = '0.2.0';   // версия в autopilot/manifest.json: у кого старее — просим обновить папку расширения
+const autopilot = {on: false, version: '', accounts: [], me: '', wait: {},
+  send(msg) { window.postMessage({ff: 'app', ...msg}, '*'); },
+  call(msg, ms = 120000) {   // запрос с ответом (мост к Freefield на компьютере)
+    const rid = uid();
+    return new Promise((res, rej) => {
+      const t = setTimeout(() => { delete this.wait[rid]; rej(new TypeError('расширение Freefield не ответило')); }, ms);
+      this.wait[rid] = v => { clearTimeout(t); delete this.wait[rid]; res(v); };
+      this.send({...msg, rid});
+    });
+  }};
+const AP_VER = '0.3.0';   // версия в autopilot/manifest.json: у кого старее — просим обновить папку расширения
 const apOld = () => autopilot.on && autopilot.version.split('.').map(Number).reduce((d, n, i) => d || n - (AP_VER.split('.').map(Number)[i] || 0), 0) < 0;
 const apCan = it => it?.status === 'external' && it.phone?.site === 'flow';
 // кредиты Flow за карточку: цена модели × варианты (картинки Nano Banana 2 — без кредитов). По ней Автопилот выбирает аккаунт
@@ -3399,9 +3408,10 @@ const apOn = () => autopilot.on && !pwa.mobile();
 window.addEventListener('message', async e => {
   if (e.source !== window || e.data?.ff !== 'autopilot') return;
   const m = e.data;
+  if (m.type === 'reply') return autopilot.wait[m.rid]?.(m.res);
   if (m.type === 'hello') {
     const was = autopilot.on; Object.assign(autopilot, {on: true, version: m.version});
-    if (!was) { render(); updateGenButton(); if (cl.mode === 'chars') renderChars(); autopilot.send({type: 'status'}); }
+    if (!was) { render(); updateGenButton(); if (cl.mode === 'chars') renderChars(); autopilot.send({type: 'status'}); hubLink.viaExt(); }
     return;
   }
   if (m.type === 'accounts') {   // аккаунты Google, которые Автопилот знает во Flow, и сколько в них кредитов сегодня
@@ -3465,7 +3475,7 @@ function openAutopilot() { Object.assign(vcUi, {view: 'autopilot', from: 'autopi
 // Аккаунты Google во Flow (пользователь 2026-09-29: «три вкладки в одном аккаунте, а не в трёх»). Вход во Flow общий для профиля
 // Chrome — во всех вкладках один аккаунт; поэтому Автопилот берёт аккаунты по очереди и сам входит следующим, когда кредиты кончились.
 function apAccountsHTML() {
-  if (apOld()) return `<div class="mcp-note">⬆ Есть новая версия Автопилота (${AP_VER}): он сам переключает аккаунты Google, когда кредиты кончились. Скачайте архив ниже заново, распакуйте его в ту же папку «freefield-autopilot» с заменой файлов и нажмите ⟳ у Автопилота на странице chrome://extensions.</div>`;
+  if (apOld()) return `<div class="mcp-note">⬆ Есть новая версия расширения (${AP_VER}): связывает этот сайт с Freefield на компьютере (профили Chrome, Flow, Dola, Arena, Vids) и сам переключает аккаунты Google, когда кредиты кончились. Скачайте архив ниже заново, распакуйте его в ту же папку «freefield-autopilot» с заменой файлов и нажмите ⟳ у Автопилота на странице chrome://extensions.</div>`;
   const list = autopilot.accounts || [], day = 50;
   const left = a => a.out ? 0 : Math.max(0, day - (a.spent || 0));
   const rows = list.map(a => `<div class="acc-prof"><span>${a.email === autopilot.me ? '🟢' : '👤'} ${esc(a.email)} — ${a.out ? 'кредиты на сегодня кончились' : `сегодня ещё ~${left(a)} из ${day} кредитов`}${a.email === autopilot.me ? ' · сейчас во Flow' : ''}</span>
@@ -3478,10 +3488,13 @@ function apAccountsHTML() {
     <p class="hint">Чтобы входить без пароля, аккаунт должен быть добавлен в Google в этом Chrome (при первом входе Google спросит пароль — это делаете вы, Автопилот пароли не вводит).</p>`;
 }
 function autopilotHTML() {
-  return `<div class="mcp-status">${autopilot.on ? `🟢 Автопилот установлен (версия ${esc(autopilot.version)}) — карточки Google Flow делаются сами` : '⚪ Автопилот не установлен в этом браузере'}</div>
-    <p class="set-p">Расширение для Chrome на компьютере. Само открывает Google Flow, прикладывает фото, вставляет промпт, выбирает формат и модель (Nano Banana, Omni, Veo), нажимает «Создать», ждёт и возвращает готовое в карточку — «🚀 Серия роликов» с ним идёт до конца сама. Кредиты тратятся ваши, как если бы нажимали вы.</p>
+  const pc = hubLink.ok && hubLink.bridged();
+  return `<div class="mcp-status">${pc ? `🟢 Расширение Freefield (${esc(autopilot.version)}) связало сайт с Freefield на компьютере — профили Chrome, Flow, Dola, Arena и Vids работают отсюда, генерация идёт во всех профилях сразу`
+      : autopilot.on ? `🟢 Автопилот установлен (версия ${esc(autopilot.version)}) — карточки Google Flow делаются сами${hubLink.bridged() ? '. Freefield на компьютере сейчас не отвечает — откройте Claude Desktop, и работа пойдёт через него, во всех профилях Chrome' : ''}` : '⚪ Автопилот не установлен в этом браузере'}</div>
+    <p class="set-p"><b>Главное:</b> расширение связывает этот сайт с Freefield на компьютере (программа запускается вместе с Claude Desktop). Тогда всё делает она, как раньше: открывает профили Chrome — в каждом свой аккаунт Google, заходит во Flow, Dola, Arena и Vids, делает фото и видео во всех профилях сразу и возвращает готовое в галерею. Без неё расширение умеет само только Google Flow, в одной вкладке.</p>
+    <p class="set-p">Само открывает Google Flow, прикладывает фото, вставляет промпт, выбирает формат и модель (Nano Banana, Omni, Veo), нажимает «Создать», ждёт и возвращает готовое в карточку — «🚀 Серия роликов» с ним идёт до конца сама. Кредиты тратятся ваши, как если бы нажимали вы.</p>
     ${pwa.mobile() ? '<div class="mcp-note">📱 На телефоне расширения не работают — поставьте Автопилот в Chrome на компьютере и откройте Freefield там.</div>' : ''}
-    ${autopilot.on ? apAccountsHTML() : ''}
+    ${autopilot.on && !pc ? apAccountsHTML() : ''}
     <div class="cl-sec">Как поставить — один раз, 2 минуты</div>
     <ol class="steps">
       <li><a class="btn small free" href="${AUTOPILOT_ZIP}" download>⤓ Скачать Автопилот (.zip)</a> и распакуйте архив: на Windows — правой кнопкой по файлу → <b>«Извлечь все»</b> (просто открыть zip мало). Появится папка «freefield-autopilot».</li>
@@ -4241,7 +4254,7 @@ async function videoViaHub(m, raw, motion) {
   const prompt = [await asIs(raw), motion?.prompt].filter(Boolean).join(', ') || 'subtle natural motion, static camera';
   if (!(await hubReady())) return phoneCards([{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]);
   try {
-    const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
+    const res = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({scenarios: [{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]})});
     const j = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(j.error || `компьютер ответил ${res.status}`);
@@ -4750,13 +4763,20 @@ const hubLink = {
   since: ls.get('freefield.hubSince', 0),
   imported: ls.get('freefield.claude.imported', {}),
   url(p) { return p + (p.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(this.key); },
-  local: () => location.protocol === 'http:',   // приложение открыто с компьютера, а не с GitHub Pages / из APK
-  // открыто на самом компьютере (localhost / 127.0.0.1 — для браузера это разные сайты со своим хранилищем):
+  // сайт с GitHub на компьютере, где стоит расширение Freefield: к Freefield на компьютере — через расширение (см. hubFetch)
+  bridged: () => location.protocol !== 'http:' && autopilot.on && !apOld() && !pwa.mobile(),
+  local: () => location.protocol === 'http:' || hubLink.bridged(),   // есть путь к компьютеру: открыто с него или через расширение
+  // открыто на самом компьютере (localhost / 127.0.0.1 — для браузера это разные сайты со своим хранилищем; или сайт с мостом):
   // ключ связи Freefield отдаёт такой странице сам — без QR-кода
-  onPc: () => location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname),
+  onPc: () => location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || hubLink.bridged(),
+  // расширение отозвалось — подключаемся к Freefield на компьютере через него
+  viaExt() {
+    if (this.ok || !this.bridged()) return;
+    (this.key ? Promise.resolve(true) : this.localKey()).then(ok => ok && this.refresh());
+  },
   async localKey() {
     try {
-      const r = await fetch('/api/local-key');
+      const r = await hubFetch('/api/local-key');
       const k = r.ok && (await r.json()).key;
       if (!k) return false;
       this.key = k; ls.set('freefield.hubKey', k);
@@ -4784,7 +4804,7 @@ const hubLink = {
   async load() {
     clearTimeout(this.timer);
     try {
-      const h = await fetch(this.url('/api/hub'));
+      const h = await hubFetch(this.url('/api/hub'));
       this.denied = h.status === 403;
       // ключ устарел, а страница открыта на самом компьютере — берём новый сам
       if (this.denied && this.onPc() && !this.keyRetried) { this.keyRetried = true; if (await this.localKey()) return this.load(); }
@@ -4798,7 +4818,7 @@ const hubLink = {
           this.appToldVer = v;
           toast('Вышла новая версия Freefield', {type: 'ok', ms: 120000, action: '↻ Обновить', onAction: () => location.reload()});
         }
-        const b = await fetch(this.url('/api/batches'));
+        const b = await hubFetch(this.url('/api/batches'));
         if (b.ok) { this.batches = await b.json(); await this.importDone(); }
       }
     } catch { this.ok = false; }
@@ -4816,7 +4836,7 @@ const hubLink = {
   // один файл с компьютера → в галерею (каждый файл один раз: помним по имени)
   async importFile(url, name, meta, got) {
     if (this.imported[name]) return false;
-    const r = await fetch(this.url(url));
+    const r = await hubFetch(this.url(url));
     if (!r.ok) return false;
     const blob = await r.blob();
     const kind = (meta.mime || blob.type).startsWith('video/') ? 'video' : 'image';
@@ -4861,10 +4881,10 @@ const hubLink = {
       // сначала компьютер проходит по сайтам (Flow…) и забирает то, чего ещё нет в Freefield
       btn.textContent = '🔄 Проверяю сервисы…';
       try {
-        const s = await (await fetch(this.url('/api/sync'), {method: 'POST'})).json();
+        const s = await (await hubFetch(this.url('/api/sync'), {method: 'POST'})).json();
         if (s.errors?.length) toast('Не со всех сервисов: ' + s.errors.join('; '), {type: 'err', ms: 8000});
       } catch { /* компьютер без синхронизации — забираем то, что уже есть */ }
-      const list = await (await fetch(this.url('/api/outputs'))).json();
+      const list = await (await hubFetch(this.url('/api/outputs'))).json();
       const todo = list.filter(f => !this.imported[f.name]);
       if (!todo.length) toast('В галерее уже всё, что есть на компьютере за 2 дня', {type: 'ok'});
       for (const [i, f] of todo.entries()) {
@@ -4997,8 +5017,15 @@ function clPlanText() {
 const accMine = {list: ls.get('freefield.accounts', []), adding: null, save() { ls.set('freefield.accounts', this.list); }};
 function accMineHTML() {
   const svcs = CLAUDE_SVC.map(c => SERVICES.find(x => x.id === c.id)).filter(Boolean);
-  return `<div class="acc-box"><div class="hint">${isMobile() ? '📱' : '💻'} Компьютер с Freefield сейчас не на связи, поэтому профилей Chrome и баланса не видно — их показывает Freefield на компьютере. Свои аккаунты отметьте здесь: «↗ Войти» откроет сайт, а карточки для сайтов Freefield делает и без компьютера.</div>
-    ${!isMobile() && location.port !== '5180' ? '<div class="acc-foot"><a class="btn small free" href="http://127.0.0.1:5180/">🔗 Открыть Freefield с компьютера</a></div>' : ''}</div>
+  // на компьютере профили Chrome (6–7 аккаунтов, в каждом Flow, Dola, Arena, Vids) открывает Freefield на компьютере;
+  // сайт с GitHub видит его через расширение Freefield — подсказываем, чего не хватает
+  const pc = !isMobile() && !pwa.mobile(), why = !pc ? '' : hubLink.bridged()
+    ? '💻 Freefield на компьютере не отвечает. Откройте Claude Desktop — Freefield запустится вместе с ним, и здесь появятся профили Chrome: в каждом свой аккаунт Google, Flow, Dola, Arena и Vids.'
+    : autopilot.on ? '💻 Обновите расширение Freefield — новая версия связывает этот сайт с Freefield на компьютере (профили Chrome, генерация во всех сразу).'
+    : location.protocol === 'http:' ? '' : '💻 Сайт не видит Freefield на компьютере — браузер не пускает сайт к программам на компьютере. Поставьте расширение Freefield (2 минуты): через него здесь появятся профили Chrome, и генерация пойдёт во всех сразу.';
+  return `<div class="acc-box"><div class="hint">${why || `${isMobile() ? '📱' : '💻'} Компьютер с Freefield сейчас не на связи, поэтому профилей Chrome и баланса не видно — их показывает Freefield на компьютере. Свои аккаунты отметьте здесь: «↗ Войти» откроет сайт, а карточки для сайтов Freefield делает и без компьютера.`}</div>
+    ${pc && !hubLink.bridged() && location.protocol !== 'http:' ? `<div class="acc-foot"><button class="btn small free" data-acc-ext>🧩 ${autopilot.on ? 'Обновить' : 'Поставить'} расширение Freefield</button></div>` : ''}
+    ${hubLink.bridged() ? '<div class="acc-foot"><button class="btn small" data-acc-retry>↻ Проверить связь</button></div>' : ''}</div>
     ${svcs.map(x => {
       const mine = accMine.list.filter(a => a.svc === x.id);
       return `<div class="acc-box acc-mine"><div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
@@ -5020,6 +5047,8 @@ function accMineClick(e) {
     const url = a && /@/.test(a.who) && ['flow', 'vids'].includes(svc.id) ? svc.url + (svc.url.includes('?') ? '&' : '?') + 'authuser=' + encodeURIComponent(a.who) : svc.url;
     return openSide(url, svc.id);
   }
+  if (b.hasAttribute('data-acc-ext')) { closeSheets(); return openAutopilot(); }
+  if (b.hasAttribute('data-acc-retry')) { b.disabled = true; b.textContent = '⏳ Проверяю…'; return (hubLink.key ? hubLink.refresh() : hubLink.localKey().then(ok => ok && hubLink.refresh())).then(() => { renderScnAcc(); if (!hubLink.ok) toast('Freefield на компьютере не отвечает — откройте Claude Desktop', {type: 'err'}); }); }
   if (x.accmAdd) { accMine.adding = x.accmAdd; renderScnAcc(); return $(`[data-accm-in="${x.accmAdd}"]`)?.focus(); }
   if (x.accmSave) {
     const who = $(`[data-accm-in="${x.accmSave}"]`)?.value.trim();
@@ -5092,7 +5121,7 @@ function scnAccHTML() {
 }
 async function accAction(kind, site, btn, p = 1, email = null) {
   if (btn) btn.disabled = true;
-  const post = async u => { const r = await fetch(hubLink.url(u), {method: 'POST'}); return {r, j: await r.json().catch(() => ({}))}; };
+  const post = async u => { const r = await hubFetch(hubLink.url(u), {method: 'POST'}); return {r, j: await r.json().catch(() => ({}))}; };
   try {
     if (kind === 'refresh' || kind === 'check') {
       accState.checking = true; renderScnAcc();
@@ -5182,7 +5211,7 @@ async function clSwitchAccount(id, btn) {
   }
   btn.disabled = true;
   try {
-    const r = await fetch(hubLink.url(`/api/account?site=${id}`), {method: 'POST'});
+    const r = await hubFetch(hubLink.url(`/api/account?site=${id}`), {method: 'POST'});
     const j = await r.json().catch(() => ({}));
     toast(j.message || `компьютер ответил ${r.status}`, {type: j.ok ? 'ok' : 'err', ms: 9000});
   } catch (e) { toast('Компьютер не отвечает: ' + e.message, {type: 'err'}); }
@@ -5620,7 +5649,7 @@ function renderTok() {
 async function runTok() {
   TOK.busy = true; renderTok();
   try {
-    const r = await fetch(hubLink.url('/api/balance?sites=' + TOK.sites.join(',')), {method: 'POST'});
+    const r = await hubFetch(hubLink.url('/api/balance?sites=' + TOK.sites.join(',')), {method: 'POST'});
     const j = await r.json().catch(() => ({}));
     if (r.status === 404) throw new Error('на компьютере старая версия Freefield — перезапустите Claude Desktop');
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
@@ -5779,7 +5808,7 @@ async function assetGo() {
   updateGenButton();
   try {
     // промпты уходят как написаны (без авто-улучшения); компьютер раскладывает их по аккаунтам: во Flow — до 4 на аккаунт сразу
-    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
+    const r = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
     const by = {};
@@ -6697,7 +6726,7 @@ async function serFramesSend(j, c) {
   if (j.hub) {
     const tasks = rows.map(r => serFrameTask(r, c, true));
     try {
-      const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
+      const res = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
       const js = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(js.error || `компьютер ответил ${res.status}`);
     } catch (e) { return serFail(j, 'кадры не отправлены: ' + e.message); }
@@ -6729,7 +6758,7 @@ async function serFramesWait(j, c) {
       if (it?.status !== 'done' || !it.files?.length) continue;
       const imgs = [];
       for (const f of it.files.filter(f => !f.mime || f.mime.startsWith('image/'))) {
-        try { imgs.push(await refDataUrl(await (await fetch(hubLink.url(f.url))).blob())); } catch { /* следующий файл */ }
+        try { imgs.push(await refDataUrl(await (await hubFetch(hubLink.url(f.url))).blob())); } catch { /* следующий файл */ }
       }
       if (imgs.length) Object.assign(r, {frame: imgs[0], alt: imgs.slice(1)});
     } else {
@@ -6795,7 +6824,7 @@ async function serZip(j, btn) {
       if (r.skip) continue;
       const base = `${String(i + 1).padStart(2, '0')} ${slug(r.title)}`;
       let blob = r.vcard ? items.find(x => x.id === r.vcard)?.blob || null : null;
-      if (!blob && r.vfiles?.length) blob = await fetch(hubLink.url(r.vfiles[0])).then(x => x.ok ? x.blob() : null).catch(() => null);
+      if (!blob && r.vfiles?.length) blob = await hubFetch(hubLink.url(r.vfiles[0])).then(x => x.ok ? x.blob() : null).catch(() => null);
       if (blob) { files[`${base}.mp4`] = [new Uint8Array(await blob.arrayBuffer()), {level: 0}]; n++; }
       files[`${base}.txt`] = strToU8(`${r.title}${r.angle ? ` (${r.angle})` : ''}\n\n${r.caption || ''}\n\n———\n${fillBlocks(r.video_prompt)}\n`);
     }
@@ -7646,7 +7675,7 @@ async function writeAssets(list) {
   if (!list.length) return toast('У сценария нет промпта для ассета', {type: 'err'});
   if (!(await hubReady())) return phoneCards(list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: wr.sheet ? [wr.sheet] : undefined})));
   try {
-    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
+    const r = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({scenarios: list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: [wr.sheet]}))})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
@@ -7801,7 +7830,7 @@ async function clSend(own) {
   updateGenButton();
   try {
     const out = await clTasks(list);
-    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: out})});
+    const r = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: out})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
     if (!own) {
@@ -8083,6 +8112,16 @@ function renderInstall() {
 // Перед отправкой на компьютер: ответа от него ещё не было (страница только открылась, компьютер занят генерациями) —
 // спрашиваем ещё раз и ждём, а не сразу «компьютер не подключён». Версия с GitHub / из APK до компьютера не достаёт вовсе —
 // тогда задания становятся карточками для сайтов (phoneCards)
+// Запрос к Freefield на компьютере. Страница открыта с самого компьютера (http://localhost:5180) — напрямую. Сайт с GitHub —
+// через расширение: https-сайт браузер к программе на компьютере не пускает, а расширению можно (пользователь 2026-09-29:
+// «открыть сайт с компьютера — и всё как раньше: профили Chrome, в каждом Flow, Dola, Arena, Vids, фото и видео»)
+async function hubFetch(url, opts = {}) {
+  if (!hubLink.bridged()) return fetch(url, opts);
+  const r = await autopilot.call({type: 'hub', path: url, method: opts.method || 'GET', headers: opts.headers || {}, body: typeof opts.body === 'string' ? opts.body : null}, 600000);
+  if (!r || r.error) throw new TypeError(r?.error || 'Freefield на компьютере не отвечает');
+  const bin = r.body ? Uint8Array.from(atob(r.body), c => c.charCodeAt(0)) : null;
+  return new Response([204, 205, 304].includes(r.status) ? null : bin, {status: r.status, headers: {'Content-Type': r.type || 'application/octet-stream'}});
+}
 async function hubReady() {
   if (hubLink.ok) return true;
   if (!hubLink.local()) return false;
