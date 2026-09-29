@@ -375,7 +375,10 @@
     const {mine = true} = await chrome.runtime.sendMessage({from: 'flow', type: 'claim'}).catch(() => ({}));
     if (!mine || state.busy) return;
     const {queue = [], addAcct} = await chrome.storage.local.get(['queue', 'addAcct']);
-    if (addAcct) { await chrome.storage.local.remove('addAcct'); if (await signIn('')) return; }   // «➕ Добавить аккаунт» во Freefield
+    if (addAcct) {   // «➕ Добавить аккаунт» или «↗ Войти» у аккаунта во Freefield
+      await chrome.storage.local.remove('addAcct');
+      if (typeof addAcct !== 'string' || low(addAcct) !== await whoami()) { if (await signIn(typeof addAcct === 'string' ? addAcct : '')) return; }
+    }
     const todo = queue.filter(t => !state.skip.has(t.id));
     if (!onFlow()) { if (todo.length) location.href = FLOW; else setTimeout(next, 3000); return; }   // после входа — не на странице Flow
     state.total = Math.max(state.total, state.done + todo.length);
