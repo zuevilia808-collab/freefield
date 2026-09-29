@@ -378,10 +378,6 @@ body[data-cm=chars] .only-chars{display:block}
 .scr-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
 .scr-card details summary{cursor:pointer;font-size:12px;color:var(--text2);margin-top:6px}
 .cl-sec .wr-link{margin-left:auto;font-weight:600}
-.ap-row{margin:8px 0 2px}
-.ap-row .primary{width:100%}
-.ap-hint{font-size:12px;color:var(--text2);background:rgba(212,255,58,.06);border:1px solid rgba(212,255,58,.2);border-radius:10px;padding:7px 10px;margin:8px 0 2px}
-.ap-all{grid-column:1/-1}
 .ser-line{display:block;width:100%;text-align:left;margin-top:8px;padding:8px 10px;border-radius:11px;font-size:12px;color:var(--text2);background:rgba(212,255,58,.07);border:1px solid rgba(212,255,58,.22);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ser-line.done{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.3)}
 .ser-line.error{background:rgba(255,93,98,.08);border-color:rgba(255,93,98,.3)}
@@ -611,10 +607,6 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 /* кнопки профиля — всегда справа, даже когда переносятся под длинное название */
 .acc-prof-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .acc-prof-btns .btn:disabled{opacity:.35;cursor:default}
-.acc-sub{padding-left:40px;flex-wrap:wrap;gap:6px 8px}
-.acc-sub .acc-main{flex:1 1 100%}
-.acc-sub .acc-main b{font-size:12.5px;font-weight:600;overflow-wrap:anywhere}
-.acc-add{margin:8px 0 4px}
 .acc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
 .scn-refs{display:grid;gap:6px;margin-top:8px}
 .scn-refs .btns{display:flex;flex-wrap:wrap;gap:6px}
@@ -3320,20 +3312,10 @@ function phoneCardHTML(it, m) {
   const ch = video && vc.char(it.char), smp = ch?.sample && ['flow', 'dola'].includes(p.site);
   const voiceStep = !video || !ch ? '' : p.site === 'flow' && ch.flow?.name ? `<li>Голос: в промпте уже стоит ${ch.flow.kind === 'char' ? '@' + esc(ch.flow.name) : '@Voice: ' + esc(ch.flow.name)} — Flow возьмёт ваш сохранённый ${ch.flow.kind === 'char' ? 'персонаж' : 'голос'}</li>`
     : smp ? `<li>Голос: сохраните образец (🎧 ниже) и приложите его на сайте ${p.site === 'dola' ? 'аудио-референсом — в промпте он @Audio1' : 'как образец голоса (voice reference)'}</li>` : '';
-  const ap = apCan(it) && !pwa.mobile();
-  if (ap && it.statusText) return `<div class="card ext" data-id="${it.id}">
-    <div class="ext-head"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
-      <div><b>${p.of > 1 ? `${p.n}/${p.of} · ` : ''}${esc(site)} · ${video ? 'видео' : 'фото'}</b><div class="hint">${esc(set)}</div></div></div>
-    <div class="ext-wait"><div class="spin"></div><span data-ap-status>${esc(it.statusText)}</span></div>
-    <div class="ext-prompt">${esc(it.finalPrompt)}</div>
-    <div class="ext-actions"><button data-act="ap-stop">✕ Остановить автопилот</button><button data-act="import">📥 Загрузить файл</button></div>
-  </div>`;
   return `<div class="card ext" data-id="${it.id}">
     <button class="ext-del" data-act="delete" title="Удалить">✕</button>
     <div class="ext-head"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
       <div><b>${p.of > 1 ? `${p.n}/${p.of} · ` : ''}${esc(site)} · ${video ? 'видео' : 'фото'}</b><div class="hint">${esc(set)}${p.info ? ' · ' + esc(p.info) : ''}</div></div></div>
-    ${ap ? (autopilot.on ? '<div class="ext-actions ap-row"><button data-act="ap-run" class="primary">🤖 Автопилот — сделать во Flow само</button></div>'
-      : '<div class="ap-hint">🤖 <button class="wr-link" data-act="ap-install">Поставьте Автопилот</button> — Flow будет делаться сам, без копирования и кнопок</div>') : ''}
     <ol class="ext-steps">
       ${refs.length ? `<li>Сохраните фото (💾 ниже) — на сайте приложите ${refs.length > 1 ? 'их' : 'его'} к запросу</li>` : ''}
       ${voiceStep}
@@ -3382,130 +3364,6 @@ async function saveRefs(it, list) {
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
   toast(files.length > 1 ? `Фото сохранены (${files.length}) — в «Загрузках»` : 'Фото сохранено — в «Загрузках»', {type: 'ok'});
-}
-
-/* ---- «🤖 Автопилот»: расширение Chrome «Freefield Автопилот» делает карточки Google Flow само ---- */
-// Пользователь 2026-09-28: «чтобы мне не надо было самому копировать и открывать Flow, выбирать Nano Banana — пусть само».
-// Сайт не может нажимать кнопки на чужом сайте, поэтому это делает расширение (папка autopilot/): открывает Flow, прикладывает
-// фото, вставляет промпт, выбирает формат и модель, нажимает «Создать», ждёт и возвращает файлы в карточку. Только компьютер.
-const AUTOPILOT_ZIP = 'autopilot/freefield-autopilot.zip';
-const autopilot = {on: false, version: '', accounts: [], me: '', wait: {},
-  send(msg) { window.postMessage({ff: 'app', ...msg}, '*'); },
-  call(msg, ms = 120000) {   // запрос с ответом (мост к Freefield на компьютере)
-    const rid = uid();
-    return new Promise((res, rej) => {
-      const t = setTimeout(() => { delete this.wait[rid]; rej(new TypeError('расширение Freefield не ответило')); }, ms);
-      this.wait[rid] = v => { clearTimeout(t); delete this.wait[rid]; res(v); };
-      this.send({...msg, rid});
-    });
-  }};
-const AP_VER = '0.3.0';   // версия в autopilot/manifest.json: у кого старее — просим обновить папку расширения
-const apOld = () => autopilot.on && autopilot.version.split('.').map(Number).reduce((d, n, i) => d || n - (AP_VER.split('.').map(Number)[i] || 0), 0) < 0;
-const apCan = it => it?.status === 'external' && it.phone?.site === 'flow';
-// кредиты Flow за карточку: цена модели × варианты (картинки Nano Banana 2 — без кредитов). По ней Автопилот выбирает аккаунт
-const apCost = it => (SCN_MODELS[it.type]?.find(m => m[0] === 'flow' && m[2] === it.phone?.engine)?.[4] || 0) * (it.phone?.count || 1);
-const apOn = () => autopilot.on && !pwa.mobile();
-window.addEventListener('message', async e => {
-  if (e.source !== window || e.data?.ff !== 'autopilot') return;
-  const m = e.data;
-  if (m.type === 'reply') return autopilot.wait[m.rid]?.(m.res);
-  if (m.type === 'hello') {
-    const was = autopilot.on; Object.assign(autopilot, {on: true, version: m.version});
-    if (!was) { render(); updateGenButton(); if (cl.mode === 'chars') renderChars(); autopilot.send({type: 'status'}); hubLink.viaExt(); }
-    return;
-  }
-  if (m.type === 'accounts') {   // аккаунты Google, которые Автопилот знает во Flow, и сколько в них кредитов сегодня
-    Object.assign(autopilot, {accounts: m.list || [], me: m.me || ''});
-    if (vcUi.view === 'autopilot' && !$('#voiceSheet').classList.contains('hidden')) renderVoices();
-    return;
-  }
-  if (m.type === 'queue') {   // после перезагрузки: карточки «🤖», которых нет в очереди расширения, — снова обычные
-    const lost = items.filter(x => apCan(x) && x.statusText?.startsWith('🤖') && !m.ids.includes(x.id));
-    lost.forEach(x => { x.statusText = ''; DB.put(x); });
-    if (lost.length) render();
-    return;
-  }
-  const it = items.find(x => x.id === m.id);
-  if (!it || it.status !== 'external') return;
-  if (m.type === 'progress') {
-    it.statusText = '🤖 ' + m.text;
-    const el = document.querySelector(`.card[data-id="${it.id}"] [data-ap-status]`);
-    if (el) el.textContent = it.statusText; else render();
-  }
-  if (m.type === 'result') {
-    const want = it.type === 'video' ? 'video/' : 'image/';
-    const files = (m.files || []).map((f, k) => {
-      const bin = Uint8Array.from(atob(f.data), c => c.charCodeAt(0)), type = (f.mime || '').startsWith(want) ? f.mime : want + (it.type === 'video' ? 'mp4' : 'png');
-      return new File([bin], `flow-${it.id}-${k + 1}.${type.split('/')[1]}`, {type});
-    });
-    if (!files.length) { it.statusText = ''; DB.put(it); render(); return toast('Автопилот: Flow не отдал файл — скачайте результат сами', {type: 'err'}); }
-    it.statusText = '';
-    for (const f of files.slice(1)) {   // лишние варианты — рядом в галерее
-      const extra = newItem({...pick(it), status: 'done', statusText: '', blob: f, importedAt: Date.now()});
-      delete extra.phone;
-      await DB.put(extra);
-    }
-    await attachExternal(it, files[0], true);
-    toast(`🤖 Готово во Flow: ${it.type === 'video' ? 'видео' : 'картинка'}${files.length > 1 ? ` и ещё ${files.length - 1}` : ''} — в галерее`, {type: 'ok'});
-  }
-  if (m.type === 'error') {
-    it.statusText = ''; DB.put(it); render();
-    toast(`🤖 Автопилот: ${m.message}. Карточку можно сделать вручную или «🤖» ещё раз`, {type: 'err', ms: 10000});
-  }
-});
-// карточки Flow — автопилоту (остальные сайты он пока не умеет)
-function autopilotRun(list) {
-  const todo = [].concat(list).filter(apCan);
-  if (!todo.length) return toast('Автопилот делает карточки Google Flow — таких здесь нет', {type: 'err'});
-  if (!autopilot.on) return openAutopilot();
-  todo.forEach(it => { it.statusText = '🤖 в очереди — открываю Google Flow'; DB.put(it); });
-  autopilot.send({type: 'tasks', tasks: todo.map(it => ({id: it.id, kind: it.type, prompt: it.finalPrompt, engine: it.phone.engine || '', aspect: it.aspect,
-    count: it.phone.count || 1, images: it.refs || [], credits: apCost(it)}))});
-  render();
-  const rest = [].concat(list).filter(it => it?.status === 'external' && !apCan(it)).length;
-  toast(`🤖 Автопилот: ${todo.length} ${plur(todo.length, 'карточка', 'карточки', 'карточек')} — Google Flow откроется в соседней вкладке, дальше само` +
-    (rest ? `. Ещё ${rest} — для других сайтов, они в галерее: «Создать» там нажмёте сами` : ''), {type: 'ok', ms: 8000});
-}
-function autopilotStop(it) {
-  autopilot.send({type: 'cancel', ids: [it.id]});
-  it.statusText = ''; DB.put(it); render();
-}
-// окно «Автопилот»: что умеет и как поставить
-function openAutopilot() { Object.assign(vcUi, {view: 'autopilot', from: 'autopilot'}); vcShow(); }
-// Аккаунты Google во Flow (пользователь 2026-09-29: «три вкладки в одном аккаунте, а не в трёх»). Вход во Flow общий для профиля
-// Chrome — во всех вкладках один аккаунт; поэтому Автопилот берёт аккаунты по очереди и сам входит следующим, когда кредиты кончились.
-function apAccountsHTML() {
-  if (apOld()) return `<div class="mcp-note">⬆ Есть новая версия расширения (${AP_VER}): связывает этот сайт с Freefield на компьютере (профили Chrome, Flow, Dola, Arena, Vids) и сам переключает аккаунты Google, когда кредиты кончились. Скачайте архив ниже заново, распакуйте его в ту же папку «freefield-autopilot» с заменой файлов и нажмите ⟳ у Автопилота на странице chrome://extensions.</div>`;
-  const list = autopilot.accounts || [], day = 50;
-  const left = a => a.out ? 0 : Math.max(0, day - (a.spent || 0));
-  const rows = list.map(a => `<div class="acc-prof"><span>${a.email === autopilot.me ? '🟢' : '👤'} ${esc(a.email)} — ${a.out ? 'кредиты на сегодня кончились' : `сегодня ещё ~${left(a)} из ${day} кредитов`}${a.email === autopilot.me ? ' · сейчас во Flow' : ''}</span>
-    <span>${a.out || a.spent ? `<button class="btn small" data-ap-acct-reset="${esc(a.email)}" title="Если кредиты на самом деле есть (Flow пополнил или считали не всё) — Автопилот снова возьмёт этот аккаунт">↺ Кредиты есть</button>` : ''}<button class="btn small" data-ap-acct-del="${esc(a.email)}" title="Автопилот не будет входить этим аккаунтом">✕</button></span></div>`).join('');
-  const total = list.reduce((s, a) => s + left(a), 0);
-  return `<div class="cl-sec">Аккаунты Google во Flow${list.length ? ` · сегодня ещё ~${total} кредитов` : ''}</div>
-    <p class="set-p">Во всех вкладках одного Chrome Flow открыт <b>одним</b> аккаунтом — так устроен вход Google, поэтому Автопилот берёт аккаунты по очереди, в одной вкладке: в аккаунте кончились 50 кредитов на сегодня — он сам выходит и входит следующим, без пароля. Аккаунт попадает в список, как только им вошли во Flow.</p>
-    ${rows || '<p class="hint">Пока ни одного — войдите во Flow, и аккаунт появится здесь.</p>'}
-    <div class="vc-foot" style="justify-content:flex-start"><button class="btn small" data-ap-acct-add title="Во вкладке Flow откроется выбор аккаунта Google — выберите или добавьте другой">➕ Добавить аккаунт</button></div>
-    <p class="hint">Чтобы входить без пароля, аккаунт должен быть добавлен в Google в этом Chrome (при первом входе Google спросит пароль — это делаете вы, Автопилот пароли не вводит).</p>`;
-}
-function autopilotHTML() {
-  const pc = hubLink.ok && hubLink.bridged();
-  return `<div class="mcp-status">${pc ? `🟢 Расширение Freefield (${esc(autopilot.version)}) связало сайт с Freefield на компьютере — профили Chrome, Flow, Dola, Arena и Vids работают отсюда, генерация идёт во всех профилях сразу`
-      : autopilot.on ? `🟢 Автопилот установлен (версия ${esc(autopilot.version)}) — карточки Google Flow делаются сами${hubLink.bridged() ? '. Freefield на компьютере сейчас не отвечает — откройте Claude Desktop, и работа пойдёт через него, во всех профилях Chrome' : ''}` : '⚪ Автопилот не установлен в этом браузере'}</div>
-    <p class="set-p"><b>Главное:</b> расширение связывает этот сайт с Freefield на компьютере (программа запускается вместе с Claude Desktop). Тогда всё делает она, как раньше: открывает профили Chrome — в каждом свой аккаунт Google, заходит во Flow, Dola, Arena и Vids, делает фото и видео во всех профилях сразу и возвращает готовое в галерею. Без неё расширение умеет само только Google Flow, в одной вкладке.</p>
-    <p class="set-p">Само открывает Google Flow, прикладывает фото, вставляет промпт, выбирает формат и модель (Nano Banana, Omni, Veo), нажимает «Создать», ждёт и возвращает готовое в карточку — «🚀 Серия роликов» с ним идёт до конца сама. Кредиты тратятся ваши, как если бы нажимали вы.</p>
-    ${pwa.mobile() ? '<div class="mcp-note">📱 На телефоне расширения не работают — поставьте Автопилот в Chrome на компьютере и откройте Freefield там.</div>' : ''}
-    ${autopilot.on && !pc ? apAccountsHTML() : ''}
-    <div class="cl-sec">Как поставить — один раз, 2 минуты</div>
-    <ol class="steps">
-      <li><a class="btn small free" href="${AUTOPILOT_ZIP}" download>⤓ Скачать Автопилот (.zip)</a> и распакуйте архив: на Windows — правой кнопкой по файлу → <b>«Извлечь все»</b> (просто открыть zip мало). Появится папка «freefield-autopilot».</li>
-      <li>В Chrome откройте адрес <b>chrome://extensions</b> (скопируйте его в адресную строку) и включите справа вверху <b>«Режим разработчика»</b>.</li>
-      <li>Нажмите <b>«Загрузить распакованное расширение»</b> и выберите папку «freefield-autopilot» — ту, где сразу лежит файл <b>manifest.json</b>. Chrome пишет «Файл манифеста отсутствует» — значит, выбрана не та папка: зайдите на уровень глубже или выше, туда, где виден manifest.json.</li>
-      <li>Войдите в <b>Google Flow</b> в этом Chrome (один раз) и обновите страницу Freefield — здесь загорится 🟢.</li></ol>
-    <div class="cl-sec">Как работает</div>
-    <ol class="steps"><li>У карточки Flow — кнопка <b>«🤖 Автопилот»</b>, над карточками — «🤖 Все карточки Flow»; в «🚀 Серии роликов» — само.</li>
-      <li>Flow открывается в соседней вкладке, в углу — панель Автопилота: что он делает сейчас.</li>
-      <li>Не нашёл кнопку (Google иногда меняет Flow) — панель попросит сделать этот шаг самому и продолжит. Нажмите там <b>«📋 Отчёт для Claude»</b> и пришлите мне — доработаю.</li></ol>
-    <div class="vc-foot"><button class="btn" data-vc-back>Закрыть</button></div>`;
 }
 
 function externalCardHTML(it) {
@@ -3603,8 +3461,7 @@ function render() {
   const grid = $('#grid');
   const all = visibleItems();
   const ext = all.filter(i => i.status === 'external'), list = all.filter(i => i.status !== 'external');
-  const apWait = ext.filter(i => apCan(i) && !i.statusText);
-  $('#extStrip').innerHTML = (apOn() && apWait.length > 1 ? `<div class="ap-all"><button class="btn free" data-ap-all>🤖 Все карточки Flow — автопилотом (${apWait.length})</button></div>` : '') + ext.map(externalCardHTML).join('');
+  $('#extStrip').innerHTML = ext.map(externalCardHTML).join('');
   $('#empty').classList.toggle('hidden', items.length > 0);
   if (!items.length) renderEmpty();
   const cols = lastCols = colCount();
@@ -3673,9 +3530,6 @@ function pick(it) {
 }
 
 async function doAction(act, it, el) {
-  if (act === 'ap-run') return autopilotRun(it);
-  if (act === 'ap-stop') return autopilotStop(it);
-  if (act === 'ap-install') return openAutopilot();
   switch (act) {
     case 'download': {
       if (native.on()) {
@@ -4178,8 +4032,8 @@ function updateGenButton() {
     btn.classList.remove('paid');
     btn.disabled = cl.sending;
     $('#genLabel').textContent = cl.sending ? (hubLink.ok ? '⏳ Отправляю…' : '⏳ Готовлю…') : `${hubLink.ok ? '🚀 Запустить' : '📱 Подготовить'} ${n ? n + ' ' + plur(n, 'сценарий', 'сценария', 'сценариев') : 'сценарии'}`;
-    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : apOn() ? 'Flow — автопилотом' : 'вручную на сайтах';
-    $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : apOn() ? '🤖 Без компьютера: Google Flow сделает Автопилот в соседней вкладке, другие сайты — вручную' : 'Без компьютера: подготовлю фото и промпты — «Создать» на сайтах нажмёте сами';
+    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайтах';
+    $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : 'Без компьютера: подготовлю фото и промпты — «Создать» на сайтах нажмёте сами';
     return;
   }
   if (asset.svc !== 'other') {
@@ -4188,10 +4042,9 @@ function updateGenButton() {
     btn.disabled = asset.sending;
     const n = asset.kind ? asset.n : 1;   // несколько картинок со своими промптами — «Создать 10 картинок · Google Flow ×4»
     $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
-    const ap = !hubLink.ok && apOn() && asset.svc === 'flow';
-    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : ap ? 'автопилотом' : 'вручную на сайте';
+    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайте';
     $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
-      (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ap ? ' · 🤖 Автопилот сделает во Flow сам' : ' · без компьютера — «Создать» на сайте нажмёте сами');
+      (asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
     return;
   }
   $('#genBtn').disabled = false;
@@ -4254,7 +4107,7 @@ async function videoViaHub(m, raw, motion) {
   const prompt = [await asIs(raw), motion?.prompt].filter(Boolean).join(', ') || 'subtle natural motion, static camera';
   if (!(await hubReady())) return phoneCards([{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]);
   try {
-    const res = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
+    const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({scenarios: [{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]})});
     const j = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(j.error || `компьютер ответил ${res.status}`);
@@ -4495,8 +4348,6 @@ function bindControls() {
     const b = e.target.closest('[data-mcp-copy]');
     if (b) toast(await clCopyText(mcpVals[+b.dataset.mcpCopy]) ? 'Скопировано' : 'Не удалось скопировать', {type: 'ok'});
   });
-  $('#scnAcc').addEventListener('click', accMineClick);
-  $('#scnAcc').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-accm-in]')) { e.preventDefault(); $(`[data-accm-save="${e.target.dataset.accmIn}"]`)?.click(); } });
   $('#accSvc').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-acc-hub')) return openHub();
@@ -4609,7 +4460,6 @@ function bindControls() {
     if (it) attachExternal(it, [...e.dataTransfer.files].find(f => /^(image|video)\//.test(f.type)));
   });
   $('#extStrip').addEventListener('click', e => {
-    if (e.target.closest('[data-ap-all]')) return autopilotRun(items.filter(i => apCan(i) && !i.statusText));
     const card = e.target.closest('.card'); const act = e.target.closest('[data-act]');
     const it = card && items.find(i => i.id === card.dataset.id);
     if (it && act) doAction(act.dataset.act, it, act);
@@ -4763,20 +4613,13 @@ const hubLink = {
   since: ls.get('freefield.hubSince', 0),
   imported: ls.get('freefield.claude.imported', {}),
   url(p) { return p + (p.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(this.key); },
-  // сайт с GitHub на компьютере, где стоит расширение Freefield: к Freefield на компьютере — через расширение (см. hubFetch)
-  bridged: () => location.protocol !== 'http:' && autopilot.on && !apOld() && !pwa.mobile(),
-  local: () => location.protocol === 'http:' || hubLink.bridged(),   // есть путь к компьютеру: открыто с него или через расширение
-  // открыто на самом компьютере (localhost / 127.0.0.1 — для браузера это разные сайты со своим хранилищем; или сайт с мостом):
+  local: () => location.protocol === 'http:',   // приложение открыто с компьютера, а не с GitHub Pages / из APK
+  // открыто на самом компьютере (localhost / 127.0.0.1 — для браузера это разные сайты со своим хранилищем):
   // ключ связи Freefield отдаёт такой странице сам — без QR-кода
-  onPc: () => location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || hubLink.bridged(),
-  // расширение отозвалось — подключаемся к Freefield на компьютере через него
-  viaExt() {
-    if (this.ok || !this.bridged()) return;
-    (this.key ? Promise.resolve(true) : this.localKey()).then(ok => ok && this.refresh());
-  },
+  onPc: () => location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname),
   async localKey() {
     try {
-      const r = await hubFetch('/api/local-key');
+      const r = await fetch('/api/local-key');
       const k = r.ok && (await r.json()).key;
       if (!k) return false;
       this.key = k; ls.set('freefield.hubKey', k);
@@ -4804,7 +4647,7 @@ const hubLink = {
   async load() {
     clearTimeout(this.timer);
     try {
-      const h = await hubFetch(this.url('/api/hub'));
+      const h = await fetch(this.url('/api/hub'));
       this.denied = h.status === 403;
       // ключ устарел, а страница открыта на самом компьютере — берём новый сам
       if (this.denied && this.onPc() && !this.keyRetried) { this.keyRetried = true; if (await this.localKey()) return this.load(); }
@@ -4818,7 +4661,7 @@ const hubLink = {
           this.appToldVer = v;
           toast('Вышла новая версия Freefield', {type: 'ok', ms: 120000, action: '↻ Обновить', onAction: () => location.reload()});
         }
-        const b = await hubFetch(this.url('/api/batches'));
+        const b = await fetch(this.url('/api/batches'));
         if (b.ok) { this.batches = await b.json(); await this.importDone(); }
       }
     } catch { this.ok = false; }
@@ -4836,7 +4679,7 @@ const hubLink = {
   // один файл с компьютера → в галерею (каждый файл один раз: помним по имени)
   async importFile(url, name, meta, got) {
     if (this.imported[name]) return false;
-    const r = await hubFetch(this.url(url));
+    const r = await fetch(this.url(url));
     if (!r.ok) return false;
     const blob = await r.blob();
     const kind = (meta.mime || blob.type).startsWith('video/') ? 'video' : 'image';
@@ -4881,10 +4724,10 @@ const hubLink = {
       // сначала компьютер проходит по сайтам (Flow…) и забирает то, чего ещё нет в Freefield
       btn.textContent = '🔄 Проверяю сервисы…';
       try {
-        const s = await (await hubFetch(this.url('/api/sync'), {method: 'POST'})).json();
+        const s = await (await fetch(this.url('/api/sync'), {method: 'POST'})).json();
         if (s.errors?.length) toast('Не со всех сервисов: ' + s.errors.join('; '), {type: 'err', ms: 8000});
       } catch { /* компьютер без синхронизации — забираем то, что уже есть */ }
-      const list = await (await hubFetch(this.url('/api/outputs'))).json();
+      const list = await (await fetch(this.url('/api/outputs'))).json();
       const todo = list.filter(f => !this.imported[f.name]);
       if (!todo.length) toast('В галерее уже всё, что есть на компьютере за 2 дня', {type: 'ok'});
       for (const [i, f] of todo.entries()) {
@@ -5012,79 +4855,22 @@ function clPlanText() {
     (st.suffix ? ` Стиль «${esc(st.name)}» добавится ${own ? `ко всем, кроме ${own} со своим стилем` : 'ко всем'}.` : own ? ` Свой стиль — у ${own} ${plur(own, 'сценария', 'сценариев', 'сценариев')}.` : '');
 }
 
-// Без компьютера Freefield не видит, где вы вошли: вход хранит браузер. Пользователь 2026-09-28: «в Профилях не вижу подключённых
-// аккаунтов» — свой список аккаунтов по сервисам (почта или имя, отметка входа), «↗ Войти» открывает сайт; хранится в браузере.
-const accMine = {list: ls.get('freefield.accounts', []), adding: null, save() { ls.set('freefield.accounts', this.list); }};
-function accMineHTML() {
-  const svcs = CLAUDE_SVC.map(c => SERVICES.find(x => x.id === c.id)).filter(Boolean);
-  // на компьютере профили Chrome (6–7 аккаунтов, в каждом Flow, Dola, Arena, Vids) открывает Freefield на компьютере;
-  // сайт с GitHub видит его через расширение Freefield — подсказываем, чего не хватает
-  const pc = !isMobile() && !pwa.mobile(), why = !pc ? '' : hubLink.bridged()
-    ? '💻 Freefield на компьютере не отвечает. Откройте Claude Desktop — Freefield запустится вместе с ним, и здесь появятся профили Chrome: в каждом свой аккаунт Google, Flow, Dola, Arena и Vids.'
-    : autopilot.on ? '💻 Обновите расширение Freefield — новая версия связывает этот сайт с Freefield на компьютере (профили Chrome, генерация во всех сразу).'
-    : location.protocol === 'http:' ? '' : '💻 Сайт не видит Freefield на компьютере — браузер не пускает сайт к программам на компьютере. Поставьте расширение Freefield (2 минуты): через него здесь появятся профили Chrome, и генерация пойдёт во всех сразу.';
-  return `<div class="acc-box"><div class="hint">${why || `${isMobile() ? '📱' : '💻'} Компьютер с Freefield сейчас не на связи, поэтому профилей Chrome и баланса не видно — их показывает Freefield на компьютере. Свои аккаунты отметьте здесь: «↗ Войти» откроет сайт, а карточки для сайтов Freefield делает и без компьютера.`}</div>
-    ${pc && !hubLink.bridged() && location.protocol !== 'http:' ? `<div class="acc-foot"><button class="btn small free" data-acc-ext>🧩 ${autopilot.on ? 'Обновить' : 'Поставить'} расширение Freefield</button></div>` : ''}
-    ${hubLink.bridged() ? '<div class="acc-foot"><button class="btn small" data-acc-retry>↻ Проверить связь</button></div>' : ''}</div>
-    ${svcs.map(x => {
-      const mine = accMine.list.filter(a => a.svc === x.id);
-      return `<div class="acc-box acc-mine"><div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
-        <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">${esc(x.short || x.credits)}${mine.length ? ` · аккаунтов: ${mine.length}` : ''}</span></div>
-        <button class="btn small" data-accm-open="${x.id}">↗ Открыть</button></div>
-        ${mine.map(a => `<div class="acc-row acc-sub"><div class="acc-main"><b>👤 ${esc(a.who)}</b><span class="hint">${a.on ? '🟢 вход выполнен' : '⚪ вход не отмечен'}</span></div>
-          <button class="btn small" data-accm-open="${x.id}" data-accm-who="${a.id}">↗ Войти</button><button class="btn small" data-accm-on="${a.id}">${a.on ? 'Снять' : '✓ Вошёл'}</button><button class="btn small" data-accm-rm="${a.id}" title="Убрать аккаунт">✕</button></div>`).join('')}
-        ${accMine.adding === x.id ? `<div class="key-row acc-add"><input class="show" data-accm-in="${x.id}" placeholder="почта или имя аккаунта" autocomplete="off" spellcheck="false"><button class="btn free small" data-accm-save="${x.id}">Добавить</button></div>`
-          : `<div class="acc-foot"><button class="btn small" data-accm-add="${x.id}">＋ Аккаунт</button></div>`}</div>`;
-    }).join('')}`;
-}
-function accMineClick(e) {
-  const b = e.target.closest('button');
-  if (!b || hubLink.ok) return;
-  const x = b.dataset;
-  if (x.accmOpen) {
-    const svc = SERVICES.find(v => v.id === x.accmOpen), a = accMine.list.find(v => v.id === x.accmWho);
-    // Flow с расширением: «Войти» — вкладка Flow входит именно этим аккаунтом (почта — без выбора; иначе — выбор аккаунта Google).
-    // Вход во Flow общий для профиля Chrome — в разных аккаунтах сразу работает только Freefield на компьютере (свой профиль на аккаунт)
-    if (a && svc.id === 'flow' && autopilot.on && !apOld()) {
-      const email = /@/.test(a.who) ? a.who : '';
-      autopilot.send({type: 'acct-add', email});
-      return toast(`Google Flow откроется в соседней вкладке и войдёт ${email ? 'аккаунтом ' + email : '— выберите аккаунт «' + a.who + '»'}. Чтобы аккаунты работали одновременно, каждый в своём окне, — откройте Claude Desktop: Freefield на компьютере даст каждому аккаунту свой профиль Chrome`, {type: 'ok', ms: 12000});
-    }
-    // сайты Google (Flow, Vids): с почтой — сразу этим аккаунтом
-    const url = a && /@/.test(a.who) && ['flow', 'vids'].includes(svc.id) ? svc.url + (svc.url.includes('?') ? '&' : '?') + 'authuser=' + encodeURIComponent(a.who) : svc.url;
-    return openSide(url, svc.id);
-  }
-  if (b.hasAttribute('data-acc-ext')) { closeSheets(); return openAutopilot(); }
-  if (b.hasAttribute('data-acc-retry')) { b.disabled = true; b.textContent = '⏳ Проверяю…'; return (hubLink.key ? hubLink.refresh() : hubLink.localKey().then(ok => ok && hubLink.refresh())).then(() => { renderScnAcc(); if (!hubLink.ok) toast('Freefield на компьютере не отвечает — откройте Claude Desktop', {type: 'err'}); }); }
-  if (x.accmAdd) { accMine.adding = x.accmAdd; renderScnAcc(); return $(`[data-accm-in="${x.accmAdd}"]`)?.focus(); }
-  if (x.accmSave) {
-    const who = $(`[data-accm-in="${x.accmSave}"]`)?.value.trim();
-    if (!who) return toast('Впишите почту или имя аккаунта', {type: 'err'});
-    accMine.list.push({id: uid(), svc: x.accmSave, who: who.slice(0, 80), on: Date.now()});
-    accMine.save(); markConnected(x.accmSave); accMine.adding = null;
-    return renderScnAcc();
-  }
-  if (x.accmOn) {
-    const a = accMine.list.find(v => v.id === x.accmOn);
-    if (!a) return;
-    a.on = a.on ? null : Date.now();
-    accMine.save(); if (a.on) markConnected(a.svc);
-    return renderScnAcc();
-  }
-  if (x.accmRm) { accMine.list = accMine.list.filter(v => v.id !== x.accmRm); accMine.save(); return renderScnAcc(); }
-}
-
 // Аккаунты в сервисах по профилям Chrome: вход, баланс, «Выйти» / «Войти» (аккаунт выбирает и входит сам пользователь в окне Chrome Freefield)
 const accState = {pending: {}, checking: false, adding: false, busy: {}, choose: {}};   // choose: «site@профиль» → почты аккаунтов Google на выбор
 function scnAccHTML() {
   // открыто не с компьютера (файлом, с GitHub Pages) — профилей не видно; на компьютере ведём на адрес Freefield, где ключ связи уже сохранён
   // на телефоне адрес 127.0.0.1 — сам телефон, а не компьютер: объясняем, что без компьютера этот раздел не нужен (пользователь 2026-09-28)
-  if (!hubLink.ok) return accMineHTML();
+  if (!hubLink.ok) return `<div class="acc-box"><div class="hint">${isMobile()
+    ? '📱 Без компьютера этот раздел не нужен: во Flow, Dola и Arena входите сами — на их сайтах в Chrome. Freefield делает карточки с фото и промптом, «Создать» нажимаете на сайте. Профили Chrome, баланс и автозапуск — только с компьютером: Freefield работает в Claude Desktop на ПК, а телефон подключается к нему по QR-коду в той же сети Wi-Fi.'
+    : 'Профили Chrome, баланс Flow, Dola, Arena и кнопки входа видны, когда Freefield открыт с компьютера — по адресу <b>127.0.0.1:5180</b> (пока открыт Claude Desktop с Freefield). На телефоне — по QR-коду (попросите Claude в Claude Desktop: «подключи телефон к Freefield»).'}</div>
+    ${location.port !== '5180' && !isMobile() ? '<div class="acc-foot"><a class="btn small free" href="http://127.0.0.1:5180/">🔗 Открыть Freefield с компьютера</a></div>' : ''}</div>`;
   const info = hubLink.info || {};
   const act = info.active ?? null;   // null — окно Chrome Freefield закрыто (или открыто несколько профилей)
   const open = info.open || (act ? [act] : []);   // профили, окна которых открыты сейчас
   const isOpen = pr => open.includes(pr.id);
-  const profs = info.profiles?.length ? info.profiles : [{...info, id: 1, name: 'Профиль 1'}];   // порядок постоянный — аккаунты не прыгают
+  // открытые сейчас профили — первыми, чтобы их кнопки «Закрыть» были сразу видны
+  const profs = (info.profiles?.length ? info.profiles : [{...info, id: 1, name: 'Профиль 1'}])
+    .slice().sort((a, b) => isOpen(b) - isOpen(a));
   const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'только что' : m < 60 ? `${m} мин назад` : `${Math.round(m / 60)} ч назад`; };
   const row = (pr, id) => {
     const x = SERVICES.find(v => v.id === id), lg = pr.login?.[id], key = `${id}@${pr.id}`, p = accState.pending[key], out = pr.siteOut || {};
@@ -5099,38 +4885,34 @@ function scnAccHTML() {
     const st = busy ? '⏳ Вхожу через Google…' : choose ? '👤 Какой аккаунт Google взять?' : p === 'out' ? '🔑 Вышли — войдите другим аккаунтом' : p === 'in' ? '⏳ Войдите в окне Chrome, потом нажмите «Я вошёл»'
       : inn === true ? '🟢 вход выполнен' : inn === false ? '🔴 не вошли' : 'вход ещё не проверялся';
     const use = pr.usage?.[id] ? `<span class="hint">📊 ${esc(pr.usage[id])}</span>` : '';
-    // Dola и Arena входят через Google сами; Flow и Vids — выбор аккаунта Google в окне Chrome
-    const auto = id !== 'flow' && id !== 'vids';
-    // «↗ Войти» — окно Chrome ЭТОГО профиля: у каждого профиля свой аккаунт Google (пользователь 2026-09-29: «каждая кнопка
-    // войти должна открывать Chrome с новым аккаунтом действительно, а не вкладку в том же аккаунте»). Не вошли — окно входа в нём
-    const go = busy ? '<button class="btn small" disabled>⏳</button>'
+    // Dola и Arena входят через Google сами; Flow — выбор аккаунта Google в окне Chrome
+    const auto = id !== 'flow' && id !== 'vids';   // Flow и Vids — выбор аккаунта Google в окне Chrome
+    const btn = busy ? '<button class="btn small" disabled>⏳</button>'
       : p === 'in' ? `<button class="btn small free" data-acc-check="${id}" data-p="${pr.id}">✅ Я вошёл</button>`
-      : p === 'out' || inn === false ? `<button class="btn small" data-acc-in="${id}" data-p="${pr.id}" title="${auto ? 'Freefield сам нажмёт «Продолжить с Google» и выберет аккаунт Google этого профиля Chrome. Пароли не вводит.' : 'Окно Chrome этого профиля — выберите в нём аккаунт Google'}">↗ Войти</button>`
-      : `<button class="btn small" data-acc-open="${pr.id}" ${accState.opening ? 'disabled' : ''} title="Окно Chrome профиля «${esc(pr.name)}» — со своим аккаунтом Google: ${esc(x.name)}, и рядом остальные сервисы">${accState.opening === pr.id ? '⏳' : '↗'} Войти</button>`;
-    const off = inn === true && p !== 'out' && !busy ? `<button class="btn small" data-acc-out="${id}" data-p="${pr.id}" title="Выйти из ${esc(x.name)} в этом профиле — чтобы войти другим аккаунтом (например, когда кредиты кончились)">Снять</button>` : '';
-    const close = `<button class="btn small" data-acc-close="${pr.id}" ${isOpen(pr) ? '' : 'disabled'} title="${isOpen(pr) ? 'Закрыть окно Chrome этого профиля' : 'Окно этого профиля сейчас не открыто'}">✕</button>`;
+      : p === 'out' || inn === false ? `<button class="btn small" data-acc-in="${id}" data-p="${pr.id}" title="${auto ? 'Freefield сам нажмёт «Продолжить с Google» и выберет аккаунт Google этого профиля Chrome. Пароли не вводит.' : 'Откроется выбор аккаунта Google в окне Chrome Freefield'}">🔑 ${auto ? 'Войти через Google' : 'Войти'}</button>`
+      : `<button class="btn small" data-acc-out="${id}" data-p="${pr.id}" title="Выйти, чтобы войти другим аккаунтом (например, когда кредиты кончились)">👤 Выйти из аккаунта</button>`;
     const pick = choose ? `<div class="acc-pick">${choose.map(m => `<button class="btn small" data-acc-as="${id}" data-p="${pr.id}" data-email="${esc(m)}">👤 ${esc(m)}</button>`).join('')}</div>` : '';
-    const who = pr.email || lg?.email || pr.name;
-    return `<div class="acc-row acc-sub"><div class="acc-main"><b>👤 ${esc(who)}</b><span class="hint">${isOpen(pr) ? '🪟 окно открыто · ' : ''}${st} · ${bal}</span>${use}${pick}</div>${go}${off}${close}</div>`;
+    return `<div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
+      <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">${st} · ${bal}</span>${use}${pick}</div>${btn}</div>`;
   };
-  // как и без компьютера: сервис → его аккаунты (каждый — свой профиль Chrome со своим аккаунтом Google) → «↗ Войти», «＋ Аккаунт»
-  const svcs = CLAUDE_SVC.map(c => SERVICES.find(x => x.id === c.id)).filter(Boolean);
-  // несколько окон профилей сразу: Freefield генерирует во всех — каждое задание в окне своего профиля
+  // «Открыть» — окно этого профиля рядом с остальными: Flow, Dola, Arena и окна входа; «Закрыть» — окно этого профиля
+  const btns = pr => `<span class="acc-prof-btns">
+      <button class="btn small" data-acc-open="${pr.id}" ${accState.opening ? 'disabled' : ''} title="Окно Chrome этого профиля — рядом с уже открытыми: Flow, Dola и Arena вкладками, и где вход не выполнен — окно входа">${accState.opening === pr.id ? '⏳ Открываю…' : '↪ Открыть этот профиль'}</button>
+      <button class="btn small" data-acc-close="${pr.id}" ${isOpen(pr) ? '' : 'disabled'} title="${isOpen(pr) ? 'Закрыть окно Chrome этого профиля' : 'Этот профиль сейчас не открыт'}">✕ Закрыть этот профиль</button></span>`;
+  const head = pr => `<div class="acc-prof"><span>🧑‍💻 Профиль Chrome «${esc(pr.name)}»${isOpen(pr) ? ' · открыт сейчас' : ''}</span>${btns(pr)}</div>`;
+  const body = profs.map(pr => (profs.length > 1 ? head(pr) : '') + ['flow', 'dola', 'arena', 'vids'].map(id => row(pr, id)).join('')).join('');
+  const openOne = profs.length > 1 ? '' : btns(profs[0]);
+  // несколько окон профилей сразу: входить можно, а генерации ждут, пока не останется один профиль
   const multi = info.multi ? `<div class="cl-conn">🪟 Открыты окна профилей: ${open.length}. Freefield генерирует во всех сразу — каждое задание в окне своего профиля. Где открыто окно входа — войдите и нажмите «✅ Я вошёл».${info.unknown ? ` Ещё ${info.unknown === 1 ? 'одно окно' : info.unknown + ' окна'} Chrome — профиль Freefield не узнал (в окне нет пустой вкладки): откройте в нём новую вкладку.` : ''}</div>` : '';
-  const add = `<button class="btn small" data-acc-new ${accState.adding ? 'disabled' : ''} title="Новый профиль Google Chrome в отдельном окне: Flow, Dola, Arena и Vids с окнами входа — войдите в нём другим аккаунтом Google, кредитов станет больше">${accState.adding ? '⏳ Открываю…' : '＋ Аккаунт'}</button>`;
-  return `<div class="acc-box"><div class="hint">💻 Freefield на компьютере: у каждого аккаунта — свой профиль Chrome со своим входом в Google. «↗ Войти» открывает окно именно этого аккаунта; генерация идёт во всех сразу.</div>${multi}
-    <div class="acc-foot">${profs.length > 1 ? `<button class="btn small" data-acc-all ${accState.opening ? 'disabled' : ''} title="Окна всех профилей Chrome сразу: в каждом Flow, Dola, Arena, Vids и окна входа, где вход не выполнен">${accState.opening === 'all' ? '⏳ Открываю…' : '🪟 Открыть все аккаунты'}</button>
-      <button class="btn small" data-acc-close-all ${open.length && !accState.opening ? '' : 'disabled'} title="${open.length ? 'Закрыть окна Chrome всех профилей' : 'Окна профилей сейчас не открыты'}">✕ Закрыть все</button>` : ''}
-      <button class="btn small" data-acc-refresh ${accState.checking ? 'disabled' : ''}>${accState.checking ? '⏳ Проверяю…' : '↻ Проверить баланс'}</button></div></div>
-    ${svcs.map(x => `<div class="acc-box acc-mine"><div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
-        <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">${esc(x.short || x.credits)} · аккаунтов: ${profs.length}</span></div>
-        <button class="btn small" data-acc-all ${accState.opening ? 'disabled' : ''} title="Окна всех аккаунтов (профилей Chrome) сразу">↗ Открыть</button></div>
-      ${profs.map(pr => row(pr, x.id)).join('')}
-      <div class="acc-foot">${add}</div></div>`).join('')}`;
+  return `<div class="acc-box">${multi}${body}<div class="acc-foot">${openOne}
+    <button class="btn small" data-acc-new ${accState.adding ? 'disabled' : ''} title="Новый профиль Google Chrome в отдельном окне (рядом с открытыми): Flow, Dola и Arena с окнами входа — входите другим аккаунтом, кредитов станет больше">${accState.adding ? '⏳ Открываю…' : '＋ Добавить профиль для входа'}</button>
+    ${profs.length > 1 ? `<button class="btn small" data-acc-all ${accState.opening ? 'disabled' : ''} title="Окна всех профилей Chrome сразу: в каждом Flow, Dola, Arena и окна входа, где вход не выполнен">${accState.opening === 'all' ? '⏳ Открываю профили…' : '🪟 Открыть все профили'}</button>
+    <button class="btn small" data-acc-close-all ${open.length && !accState.opening ? '' : 'disabled'} title="${open.length ? 'Закрыть окна Chrome всех профилей' : 'Окна профилей сейчас не открыты'}">✕ Закрыть все профили</button>` : ''}
+    <button class="btn small" data-acc-refresh ${accState.checking ? 'disabled' : ''}>${accState.checking ? '⏳ Проверяю…' : '↻ Проверить баланс'}</button></div></div>`;
 }
 async function accAction(kind, site, btn, p = 1, email = null) {
   if (btn) btn.disabled = true;
-  const post = async u => { const r = await hubFetch(hubLink.url(u), {method: 'POST'}); return {r, j: await r.json().catch(() => ({}))}; };
+  const post = async u => { const r = await fetch(hubLink.url(u), {method: 'POST'}); return {r, j: await r.json().catch(() => ({}))}; };
   try {
     if (kind === 'refresh' || kind === 'check') {
       accState.checking = true; renderScnAcc();
@@ -5220,7 +5002,7 @@ async function clSwitchAccount(id, btn) {
   }
   btn.disabled = true;
   try {
-    const r = await hubFetch(hubLink.url(`/api/account?site=${id}`), {method: 'POST'});
+    const r = await fetch(hubLink.url(`/api/account?site=${id}`), {method: 'POST'});
     const j = await r.json().catch(() => ({}));
     toast(j.message || `компьютер ответил ${r.status}`, {type: j.ok ? 'ok' : 'err', ms: 9000});
   } catch (e) { toast('Компьютер не отвечает: ' + e.message, {type: 'err'}); }
@@ -5658,7 +5440,7 @@ function renderTok() {
 async function runTok() {
   TOK.busy = true; renderTok();
   try {
-    const r = await hubFetch(hubLink.url('/api/balance?sites=' + TOK.sites.join(',')), {method: 'POST'});
+    const r = await fetch(hubLink.url('/api/balance?sites=' + TOK.sites.join(',')), {method: 'POST'});
     const j = await r.json().catch(() => ({}));
     if (r.status === 404) throw new Error('на компьютере старая версия Freefield — перезапустите Claude Desktop');
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
@@ -5817,7 +5599,7 @@ async function assetGo() {
   updateGenButton();
   try {
     // промпты уходят как написаны (без авто-улучшения); компьютер раскладывает их по аккаунтам: во Flow — до 4 на аккаунт сразу
-    const r = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
+    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
     const by = {};
@@ -6000,7 +5782,7 @@ function vcOpenChar(c, from) {
   vcShow();
 }
 function vcBack() {
-  if (['write', 'chars', 'series', 'autopilot'].includes(vcUi.from)) return closeSheets();
+  if (vcUi.from === 'write' || vcUi.from === 'chars' || vcUi.from === 'series') return closeSheets();
   vcUi.view = vcUi.from === 'pick' ? 'pick' : 'list';
   renderVoices();
 }
@@ -6015,9 +5797,9 @@ function renderVoices() {
   const v = vcUi.view;
   if (rec.to && rec.view !== v) recCancel(false);
   $$('#vcBody audio').forEach(a => a.pause());
-  $('#vcTitle').textContent = v === 'autopilot' ? 'Автопилот для Google Flow' : v === 'series' ? `Серия роликов · ${vc.char(vcUi.serChar)?.name || ''}` : v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
+  $('#vcTitle').textContent = v === 'series' ? `Серия роликов · ${vc.char(vcUi.serChar)?.name || ''}` : v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
-  body.innerHTML = v === 'autopilot' ? autopilotHTML() : v === 'series' ? serHTML() : v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+  body.innerHTML = v === 'series' ? serHTML() : v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
 }
 function vcListHTML() {
   return `<p class="set-p">Голос персонажа — голос, сохранённый во Flow: его слушают и выбирают в самом Flow, и он одинаковый во всех роликах (@Voice). По желанию — точный образец (своя запись или файл): по нему Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает таким голос любого готового видео.</p>
@@ -6163,9 +5945,6 @@ function bindVoices() {
     if (x.vcFlowKind) { d.flow.kind = x.vcFlowKind; return renderVoices(); }
     // замена голоса у готового видео
     if (vcUi.view === 'series' && Object.keys(x).some(k => k.startsWith('ser'))) return serClick(b);
-    if (b.hasAttribute('data-ap-acct-add')) { autopilot.send({type: 'acct-add'}); return toast('Во вкладке Google Flow откроется выбор аккаунта Google — выберите другой аккаунт, и он появится здесь', {type: 'ok', ms: 8000}); }
-    if (x.apAcctDel) return autopilot.send({type: 'acct-del', email: x.apAcctDel});
-    if (x.apAcctReset) return autopilot.send({type: 'acct-reset', email: x.apAcctReset});
     if (x.scrF) { vcUi.scrF = x.scrF; return renderVoices(); }
     if (x.scrCopy) return scrCopy(x.scrCopy);
     if (x.scrScn) return scrToScn(x.scrScn);
@@ -6735,7 +6514,7 @@ async function serFramesSend(j, c) {
   if (j.hub) {
     const tasks = rows.map(r => serFrameTask(r, c, true));
     try {
-      const res = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
+      const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
       const js = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(js.error || `компьютер ответил ${res.status}`);
     } catch (e) { return serFail(j, 'кадры не отправлены: ' + e.message); }
@@ -6748,8 +6527,7 @@ async function serFramesSend(j, c) {
     const cards = phoneCards(rows.map(r => serFrameTask(r, c, false)));
     rows.forEach((r, i) => Object.assign(r, {card: cards[i]?.id, err: null}));
     j.sentFrames = Date.now();
-    const ap = apOn() && cards.some(x => x?.statusText);
-    serNote(j, ap ? '🤖 Автопилот делает кадры во Flow — в соседней вкладке' : 'Карточки кадров — в галерее: создайте фото во Flow и загрузите в карточку, дальше серия пойдёт сама');
+    serNote(j, 'Карточки кадров — в галерее: создайте фото во Flow и загрузите в карточку, дальше серия пойдёт сама');
   }
 }
 // пункт пачки компьютера: по промпту, а не нашёлся — по порядку в пачке того же размера
@@ -6767,7 +6545,7 @@ async function serFramesWait(j, c) {
       if (it?.status !== 'done' || !it.files?.length) continue;
       const imgs = [];
       for (const f of it.files.filter(f => !f.mime || f.mime.startsWith('image/'))) {
-        try { imgs.push(await refDataUrl(await (await hubFetch(hubLink.url(f.url))).blob())); } catch { /* следующий файл */ }
+        try { imgs.push(await refDataUrl(await (await fetch(hubLink.url(f.url))).blob())); } catch { /* следующий файл */ }
       }
       if (imgs.length) Object.assign(r, {frame: imgs[0], alt: imgs.slice(1)});
     } else {
@@ -6797,8 +6575,7 @@ async function serVideoSend(j, c) {
   rows.forEach(r => { const x = scr.list.find(y => y.id === r.scr); if (x) x.sent = Date.now(); });
   scr.save();
   Object.assign(j, {vsent: rows.length, sentVideos: Date.now()});
-  const ap = !j.hub && Array.isArray(res) && apOn() && res.some(x => apCan(x) && x.statusText);
-  serNote(j, j.hub ? 'Компьютер делает видео…' : ap ? '🤖 Автопилот делает видео во Flow — в соседней вкладке' : 'Карточки видео — в галерее: «Создать» на сайте и загрузите результат в карточку');
+  serNote(j, j.hub ? 'Компьютер делает видео…' : 'Карточки видео — в галерее: «Создать» на сайте и загрузите результат в карточку');
 }
 async function serVideoWait(j) {
   const rows = j.rows.filter(r => r.frame && !r.skip && r.vidx != null);
@@ -6833,7 +6610,7 @@ async function serZip(j, btn) {
       if (r.skip) continue;
       const base = `${String(i + 1).padStart(2, '0')} ${slug(r.title)}`;
       let blob = r.vcard ? items.find(x => x.id === r.vcard)?.blob || null : null;
-      if (!blob && r.vfiles?.length) blob = await hubFetch(hubLink.url(r.vfiles[0])).then(x => x.ok ? x.blob() : null).catch(() => null);
+      if (!blob && r.vfiles?.length) blob = await fetch(hubLink.url(r.vfiles[0])).then(x => x.ok ? x.blob() : null).catch(() => null);
       if (blob) { files[`${base}.mp4`] = [new Uint8Array(await blob.arrayBuffer()), {level: 0}]; n++; }
       files[`${base}.txt`] = strToU8(`${r.title}${r.angle ? ` (${r.angle})` : ''}\n\n${r.caption || ''}\n\n———\n${fillBlocks(r.video_prompt)}\n`);
     }
@@ -6861,8 +6638,7 @@ function serSetupHTML(c) {
   const m = scnModel('video', 'flow', scnDefault('video', 'flow')), per = m?.[4] || 20, total = o.n * per, acc = Math.ceil(total / 50), left = hubLink.info?.flowLeft;
   return `<p class="set-p">Нажали — и дальше само: ${WRITERS[writerNow()]?.name || 'ИИ'} напишет сценарии (с подписью к посту), Flow сделает кадры «${esc(c.name)} в локации», по ним — видео с его голосом. ${hub
       ? '🟢 Компьютер подключён — всё пойдёт само, готовое появится в галерее.'
-      : apOn() ? '🤖 Автопилот установлен — Flow сделает кадры и видео сам в соседней вкладке, готовое вернётся в галерею.'
-      : `📱 Без компьютера — полуавтомат: на каждый шаг — карточки в галерее, «Создать» на сайте нажимаете вы; следующий шаг начнётся сам, как только результат загружен в карточку.${pwa.mobile() ? '' : ' <button class="wr-link" data-ser-ap>🤖 Поставьте Автопилот</button> — и Flow будет делаться сам.'}`}</p>
+      : '📱 Без компьютера — полуавтомат: на каждый шаг — карточки в галерее, «Создать» на сайте нажимаете вы; следующий шаг начнётся сам, как только результат загружен в карточку.'}</p>
     <div class="vc-opt"><span>Сколько видео</span><div class="chips">${Array.from({length: CL_MAX}, (_, i) => `<button class="chip ${o.n === i + 1 ? 'on' : ''}" data-ser-n="${i + 1}">${i + 1}</button>`).join('')}</div></div>
     <div class="vc-opt"><span>Кадры «в локации» — первый кадр каждого видео</span>
       <div class="seg ser-seg"><button data-ser-frames="new" class="${o.frames === 'new' ? 'on' : ''}">🖼 Новые — Flow, без кредитов</button><button data-ser-frames="mine" class="${o.frames === 'mine' ? 'on' : ''}">📍 Мои кадры (${mine})</button></div></div>
@@ -6871,8 +6647,7 @@ function serSetupHTML(c) {
     <div class="vc-opt"><span>Пожелания к роликам (необязательно)</span><textarea class="vc-in" data-ser-idea rows="2" maxlength="400" placeholder="Например: про первые шаги в программировании, с юмором, без рекламы">${esc(o.idea)}</textarea></div>
     <div class="ser-cost">💳 ${o.service === 'flow'
       ? `Flow: ${o.n} × ${per} = <b>${total}</b> ${plur(total, 'кредит', 'кредита', 'кредитов')} — на сегодня ${acc} ${plur(acc, 'аккаунт', 'аккаунта', 'аккаунтов')} Google (по 50 в день)${left != null ? `; сейчас во Flow осталось <b>${left}</b>` : ''}.`
-      : 'Авто: видео разойдутся по Flow, Dola и Arena — кредитов Flow уйдёт меньше.'} ${o.frames === 'new' ? 'Кадры Nano Banana 2 — без кредитов.' : ''}${!hub && apOn() && o.service === 'flow' && acc > 1
-      ? ` 🤖 Автопилот сам переключит аккаунты, когда в одном кончатся кредиты${autopilot.accounts.length < acc ? ` — знает ${autopilot.accounts.length} из ${acc} нужных: <button class="wr-link" data-ser-ap>👤 добавить аккаунты</button>` : ''}.` : ''}${c.flow?.name ? ` Голос во Flow — ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}: он должен быть сохранён в каждом аккаунте Flow, где пойдут видео.` : ''}</div>
+      : 'Авто: видео разойдутся по Flow, Dola и Arena — кредитов Flow уйдёт меньше.'} ${o.frames === 'new' ? 'Кадры Nano Banana 2 — без кредитов.' : ''}${c.flow?.name ? ` Голос во Flow — ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}: он должен быть сохранён в каждом аккаунте Flow, где пойдут видео.` : ''}</div>
     ${need.length ? `<div class="ch-video"><b>Чтобы серия пошла, не хватает:</b><ul class="ch-need">${need.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>` : ''}
     <div class="vc-foot"><button class="btn free" data-ser-go ${need.length ? 'disabled' : ''}>▶ Запустить: ${o.n} ${plur(o.n, 'видео', 'видео', 'видео')}</button>${serOf(c.id) ? '<button class="btn" data-ser-last>Последняя серия</button>' : ''}<button class="btn" data-vc-back>Отмена</button></div>`;
 }
@@ -6924,7 +6699,6 @@ function serClick(b) {
   if (b.hasAttribute('data-ser-auto')) { wr.ai = 'auto'; wr.save(); return renderVoices(); }
   if (b.hasAttribute('data-ser-gemini')) { closeSheets(); setCreateMode('write'); return geminiOpen(); }
   if (b.hasAttribute('data-ser-gallery')) { closeSheets(); setView('gallery'); return render(); }
-  if (b.hasAttribute('data-ser-ap')) return openAutopilot();
   if (!j) return;
   if (b.hasAttribute('data-ser-pause')) { j.paused = !j.paused; ser.save(); renderVoices(); return serKick(); }
   if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
@@ -7684,7 +7458,7 @@ async function writeAssets(list) {
   if (!list.length) return toast('У сценария нет промпта для ассета', {type: 'err'});
   if (!(await hubReady())) return phoneCards(list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: wr.sheet ? [wr.sheet] : undefined})));
   try {
-    const r = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
+    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({scenarios: list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: [wr.sheet]}))})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
@@ -7839,7 +7613,7 @@ async function clSend(own) {
   updateGenButton();
   try {
     const out = await clTasks(list);
-    const r = await hubFetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: out})});
+    const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: out})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
     if (!own) {
@@ -7885,8 +7659,7 @@ function phoneCards(tasks) {
   if (isMobile()) setView('gallery');
   requestAnimationFrame(() => $('#feed').scrollTo({top: 0, behavior: 'smooth'}));   // карточки — вверху галереи
   const n = tasks.length;
-  if (apOn() && made.some(apCan)) autopilotRun(made);   // стоит Автопилот — карточки Flow он делает сам, без нажатий
-  else toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
+  toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
   return made;
 }
 
@@ -8121,16 +7894,6 @@ function renderInstall() {
 // Перед отправкой на компьютер: ответа от него ещё не было (страница только открылась, компьютер занят генерациями) —
 // спрашиваем ещё раз и ждём, а не сразу «компьютер не подключён». Версия с GitHub / из APK до компьютера не достаёт вовсе —
 // тогда задания становятся карточками для сайтов (phoneCards)
-// Запрос к Freefield на компьютере. Страница открыта с самого компьютера (http://localhost:5180) — напрямую. Сайт с GitHub —
-// через расширение: https-сайт браузер к программе на компьютере не пускает, а расширению можно (пользователь 2026-09-29:
-// «открыть сайт с компьютера — и всё как раньше: профили Chrome, в каждом Flow, Dola, Arena, Vids, фото и видео»)
-async function hubFetch(url, opts = {}) {
-  if (!hubLink.bridged()) return fetch(url, opts);
-  const r = await autopilot.call({type: 'hub', path: url, method: opts.method || 'GET', headers: opts.headers || {}, body: typeof opts.body === 'string' ? opts.body : null}, 600000);
-  if (!r || r.error) throw new TypeError(r?.error || 'Freefield на компьютере не отвечает');
-  const bin = r.body ? Uint8Array.from(atob(r.body), c => c.charCodeAt(0)) : null;
-  return new Response([204, 205, 304].includes(r.status) ? null : bin, {status: r.status, headers: {'Content-Type': r.type || 'application/octet-stream'}});
-}
 async function hubReady() {
   if (hubLink.ok) return true;
   if (!hubLink.local()) return false;
@@ -8189,7 +7952,6 @@ function drawQR(box, text) {
   }
   render();
   hubLink.init();
-  autopilot.send({type: 'ping'});   // расширение ответит «hello» — уже после загрузки галереи, чтобы сверить карточки с его очередью
 })();
 </script>
 </body>
