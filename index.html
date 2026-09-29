@@ -4676,6 +4676,13 @@ const hubLink = {
     clearTimeout(this.timer);
     Object.assign(this, {base: '', direct: false, ok: false});
     this.pcUp = await fetch(HUB_PC + '/', {mode: 'no-cors'}).then(() => true, () => false);   // запущена ли вообще (ответ не читаем)
+    // Chrome пускает https-сайт к программам на компьютере только с разрешения «Доступ к локальной сети» — без него запрос
+    // падает так же, как будто программы нет (пользователь 2026-09-29: «через папку всё работает, а с GitHub — „не запущена“»)
+    this.lna = null;
+    for (const name of ['loopback-network', 'local-network-access', 'local-network']) {
+      const st = await navigator.permissions?.query({name}).then(p => p.state, () => null);
+      if (st) { this.lna = st; break; }
+    }
     return false;
   },
   async localKey() {
@@ -4921,7 +4928,9 @@ function accPcHTML() {
   const up = hubLink.pcUp, find = `<button class="btn small free" data-acc-find ${up === null ? 'disabled' : ''}>${up === null ? '⏳ Ищу…' : '↻ Проверить ещё раз'}</button>`;
   const text = up === null ? '⏳ Ищу программу Freefield на этом компьютере — профили Chrome показывает она…'
     : up ? '🟡 Программа Freefield на компьютере запущена, но показывать профили сайту с GitHub не даёт. Откройте Freefield с компьютера — там профили Chrome, вход в Flow, Dola, Arena, Vids и генерация во всех профилях.'
-    : '🔴 Профили Chrome открывает <b>программа Freefield на этом компьютере</b> — сайт сам этого не умеет, браузер не даёт. Программа сейчас не отвечает: она не запущена или не установлена. Запустите её и нажмите «Проверить ещё раз» — профили появятся здесь. Chrome спросит про доступ к приложениям на этом устройстве — нажмите «Разрешить».';
+    : `🔴 Сайт не достучался до программы Freefield на этом компьютере — профили Chrome показывает она.${hubLink.lna === 'denied' ? ' <b>Chrome запретил этому сайту доступ к программам на компьютере.</b>' : ''}
+      <br>• Через папку Freefield (адрес 127.0.0.1:5180) всё работает — значит, Chrome не пускает сюда сайт: значок слева от адреса → «Настройки сайтов» → <b>«Доступ к локальной сети»</b> → «Разрешить», обновите страницу и нажмите «Проверить ещё раз».
+      <br>• И там не открывается — программа не запущена: откройте Claude Desktop (или запустите Freefield из папки).`;
   return `<div class="acc-box"><div class="hint">${text}</div><div class="acc-foot">${find}${up ? `<a class="btn small" href="${HUB_PC}/">🔗 Открыть Freefield с компьютера</a>` : ''}</div></div>`;
 }
 // Аккаунты в сервисах по профилям Chrome: вход, баланс, «Выйти» / «Войти» (аккаунт выбирает и входит сам пользователь в окне Chrome Freefield)
