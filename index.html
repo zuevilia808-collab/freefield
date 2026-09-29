@@ -3838,6 +3838,7 @@ function openHub() {
 function openAcc() {
   renderScnAcc();
   if (hubLink.key && hubLink.local()) hubLink.refresh();
+  else if (!hubLink.ok && hubLink.pcSite() && hubLink.pcUp === null) hubLink.tryDirect().then(() => renderScnAcc());   // сайт с GitHub — ищем программу
   $$('.sheet').forEach(x => x.classList.add('hidden'));
   $('#accSheet').classList.remove('hidden');
 }
@@ -4348,6 +4349,13 @@ function bindControls() {
     const b = e.target.closest('[data-mcp-copy]');
     if (b) toast(await clCopyText(mcpVals[+b.dataset.mcpCopy]) ? 'Скопировано' : 'Не удалось скопировать', {type: 'ok'});
   });
+  $('#scnAcc').addEventListener('click', async e => {   // «↻ Проверить ещё раз» — искать программу Freefield на компьютере
+    const b = e.target.closest('[data-acc-find]');
+    if (!b) return;
+    hubLink.pcUp = null; renderScnAcc();
+    await hubLink.tryDirect(); renderScnAcc();
+    toast(hubLink.ok ? 'Freefield на компьютере найден — профили Chrome здесь' : hubLink.pcUp ? 'Программа запущена, но сайт к себе не пускает — откройте Freefield с компьютера' : 'Программа Freefield на компьютере не запущена', {type: hubLink.ok ? 'ok' : 'err', ms: 7000});
+  });
   $('#accSvc').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-acc-hub')) return openHub();
@@ -4608,18 +4616,34 @@ const cl = {
 };
 
 // Связь с компьютером: сервер Freefield на ПК отдаёт это приложение по Wi-Fi; в ссылке из QR-кода — секретный ключ
+const HUB_PC = 'http://127.0.0.1:5180';   // программа Freefield на компьютере (запускается ярлыком или вместе с Claude Desktop)
 const hubLink = {
   key: null, ok: false, denied: false, info: null, batches: [], timer: null,
   since: ls.get('freefield.hubSince', 0),
   imported: ls.get('freefield.claude.imported', {}),
-  url(p) { return p + (p.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(this.key); },
-  local: () => location.protocol === 'http:',   // приложение открыто с компьютера, а не с GitHub Pages / из APK
+  // base — адрес программы Freefield на этом компьютере, когда сайт открыт с GitHub (иначе — тот же сайт, путь относительный)
+  base: '', direct: false, pcUp: null,
+  url(p) { return this.base + p + (p.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(this.key); },
+  local: () => location.protocol === 'http:' || hubLink.direct,   // есть путь к компьютеру: открыто с него или сайт достучался сам
   // открыто на самом компьютере (localhost / 127.0.0.1 — для браузера это разные сайты со своим хранилищем):
   // ключ связи Freefield отдаёт такой странице сам — без QR-кода
-  onPc: () => location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname),
+  onPc: () => location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || hubLink.direct,
+  pcSite: () => location.protocol === 'https:' && !pwa.mobile() && !isMobile(),   // сайт с GitHub на компьютере
+  // Сайт с GitHub на компьютере — сразу к программе Freefield на нём (пользователь 2026-09-29: «в Профилях с сайта должны быть
+  // профили, а не кнопка, которая ведёт на ошибку»). Программа пустила — профили здесь же; не пустила или не запущена — pcUp скажет
+  async tryDirect() {
+    if (!this.pcSite()) return false;
+    Object.assign(this, {base: HUB_PC, direct: true});
+    if (await this.localKey() || this.key) await this.refresh();
+    if (this.ok) { this.pcUp = true; return true; }
+    clearTimeout(this.timer);
+    Object.assign(this, {base: '', direct: false, ok: false});
+    this.pcUp = await fetch(HUB_PC + '/', {mode: 'no-cors'}).then(() => true, () => false);   // запущена ли вообще (ответ не читаем)
+    return false;
+  },
   async localKey() {
     try {
-      const r = await fetch('/api/local-key');
+      const r = await fetch(this.base + '/api/local-key');
       const k = r.ok && (await r.json()).key;
       if (!k) return false;
       this.key = k; ls.set('freefield.hubKey', k);
@@ -4855,11 +4879,20 @@ function clPlanText() {
     (st.suffix ? ` Стиль «${esc(st.name)}» добавится ${own ? `ко всем, кроме ${own} со своим стилем` : 'ко всем'}.` : own ? ` Свой стиль — у ${own} ${plur(own, 'сценария', 'сценариев', 'сценариев')}.` : '');
 }
 
+// Сайт с GitHub на компьютере, а профилей нет: программа Freefield не запущена — или запущена, но сайт к себе не пускает
+function accPcHTML() {
+  const up = hubLink.pcUp, find = `<button class="btn small free" data-acc-find ${up === null ? 'disabled' : ''}>${up === null ? '⏳ Ищу…' : '↻ Проверить ещё раз'}</button>`;
+  const text = up === null ? '⏳ Ищу программу Freefield на этом компьютере — профили Chrome показывает она…'
+    : up ? '🟡 Программа Freefield на компьютере запущена, но показывать профили сайту с GitHub не даёт. Откройте Freefield с компьютера — там профили Chrome, вход в Flow, Dola, Arena, Vids и генерация во всех профилях.'
+    : '🔴 Профили Chrome открывает <b>программа Freefield на этом компьютере</b> — сайт сам этого не умеет, браузер не даёт. Программа сейчас не отвечает: она не запущена или не установлена. Запустите её и нажмите «Проверить ещё раз» — профили появятся здесь. Chrome спросит про доступ к приложениям на этом устройстве — нажмите «Разрешить».';
+  return `<div class="acc-box"><div class="hint">${text}</div><div class="acc-foot">${find}${up ? `<a class="btn small" href="${HUB_PC}/">🔗 Открыть Freefield с компьютера</a>` : ''}</div></div>`;
+}
 // Аккаунты в сервисах по профилям Chrome: вход, баланс, «Выйти» / «Войти» (аккаунт выбирает и входит сам пользователь в окне Chrome Freefield)
 const accState = {pending: {}, checking: false, adding: false, busy: {}, choose: {}};   // choose: «site@профиль» → почты аккаунтов Google на выбор
 function scnAccHTML() {
   // открыто не с компьютера (файлом, с GitHub Pages) — профилей не видно; на компьютере ведём на адрес Freefield, где ключ связи уже сохранён
   // на телефоне адрес 127.0.0.1 — сам телефон, а не компьютер: объясняем, что без компьютера этот раздел не нужен (пользователь 2026-09-28)
+  if (!hubLink.ok && hubLink.pcSite()) return accPcHTML();
   if (!hubLink.ok) return `<div class="acc-box"><div class="hint">${isMobile()
     ? '📱 Без компьютера этот раздел не нужен: во Flow, Dola и Arena входите сами — на их сайтах в Chrome. Freefield делает карточки с фото и промптом, «Создать» нажимаете на сайте. Профили Chrome, баланс и автозапуск — только с компьютером: Freefield работает в Claude Desktop на ПК, а телефон подключается к нему по QR-коду в той же сети Wi-Fi.'
     : 'Профили Chrome, баланс Flow, Dola, Arena и кнопки входа видны, когда Freefield открыт с компьютера — по адресу <b>127.0.0.1:5180</b> (пока открыт Claude Desktop с Freefield). На телефоне — по QR-коду (попросите Claude в Claude Desktop: «подключи телефон к Freefield»).'}</div>
@@ -7896,6 +7929,7 @@ function renderInstall() {
 // тогда задания становятся карточками для сайтов (phoneCards)
 async function hubReady() {
   if (hubLink.ok) return true;
+  if (!hubLink.local() && hubLink.pcSite() && hubLink.pcUp === null) return hubLink.tryDirect();   // сайт с GitHub — программа на этом компьютере
   if (!hubLink.local()) return false;
   if (!hubLink.key && !(hubLink.onPc() && await hubLink.localKey())) return false;
   await hubLink.refresh();
