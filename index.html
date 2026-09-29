@@ -6573,8 +6573,11 @@ function charNeeds(c, mineFrames = 0) {
   if (!c.sheet) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ser-fix>🧍 добавить</button>`]);
   if (!c.info) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ser-fix>📊 добавить</button>`]);
   if (mineFrames > (c.locs?.length || 0)) out.push([`кадров «в локации» у персонажа ${c.locs?.length || 0}, а видео — ${mineFrames}`, '<button class="wr-link" data-ser-frames="new">🖼 пусть Flow сделает новые</button>']);
-  if (writerNow() === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Создании сценария» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']
-    : ['ИИ для сценариев не подключён', '<button class="wr-link" data-ser-gemini>🔑 подключить Gemini — бесплатно</button>']);
+  const who = writerNow(), gem = '<button class="wr-link" data-ser-gemini>🔑 подключить Gemini — бесплатно</button>';
+  if (who === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Создании сценария» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']
+    : ['ИИ для сценариев не подключён', gem]);
+  else if (who === 'gemini' && !wallet.gemini || who === 'claude' && !wallet.anthropic)   // выбран ИИ, а ключ удалён
+    out.push([`выбран ${WRITERS[who].name}, но его ключа нет`, wallet.gemini || wallet.anthropic ? '<button class="wr-link" data-ser-auto>⚡ взять ИИ с ключом</button>' : gem]);
   return out;
 }
 
@@ -6605,7 +6608,7 @@ function serShow() {   // перерисовать экран серии и ка
 }
 function serNote(j, note) { if (note != null) j.note = note; ser.save(); serShow(); }
 function serFail(j, msg) {
-  Object.assign(j, {stage: 'error', note: msg});
+  Object.assign(j, {failed: j.stage, stage: 'error', note: msg});   // failed — на каком шаге остановилась: «↻ Повторить» продолжит с него
   ser.save(); serShow();
   toast(`Серия «${vc.char(j.char)?.name || ''}»: ${msg}`, {type: 'err', ms: 9000});
 }
@@ -6625,21 +6628,29 @@ async function serStep(j) {
   if (j.stage === 'frames') return j.sentFrames ? serFramesWait(j, c) : serFramesSend(j, c);
   if (j.stage === 'video') return j.sentVideos ? serVideoWait(j) : serVideoSend(j, c);
 }
-// 1. сценарии: ячейки «Создания сценария» на время — материалы персонажа (без кадров: кадры сделает Flow по сценариям)
+// 1. сценарии: ячейки «Создания сценария» на время — материалы персонажа (без кадров: кадры сделает Flow по сценариям).
+// Пишем частями, не больше SER_CHUNK за раз, и дописываем недостающие: длинный ответ ИИ обрывался — и «↻ Повторить»
+// снова давал «сценарии не написаны» (пользователь 2026-09-29). Написанное остаётся в серии.
+const SER_CHUNK = 5;
 async function serWrite(j, c) {
   if (ser.writing.has(j.id)) return;
   ser.writing.add(j.id);
+  j.rows ||= [];
+  const have = j.rows.length, k = Math.min(SER_CHUNK, j.n - have);
   const keep = {char: wr.char, info: wr.info, sheet: wr.sheet, locs: wr.locs, count: wr.count, idea: wr.idea};
-  Object.assign(wr, {char: c.id, info: c.info, sheet: c.sheet, locs: j.frames === 'mine' ? c.locs.slice(0, j.n) : [], count: j.n, idea: j.idea || ''});
-  serNote(j, `${WRITERS[writerNow()].name} пишет ${j.n} ${plur(j.n, 'сценарий', 'сценария', 'сценариев')}…`);
+  const was = have ? `\nУже написаны — придумай другие углы и темы, не повторяй их: ${j.rows.map(r => `«${r.title}»${r.angle ? ` (${r.angle})` : ''}`).join(', ')}` : '';
+  Object.assign(wr, {char: c.id, info: c.info, sheet: c.sheet, locs: j.frames === 'mine' ? c.locs.slice(have, have + k) : [], count: k, idea: (j.idea || '') + was});
+  serNote(j, `${WRITERS[writerNow()].name} пишет ${have ? 'ещё ' : ''}${k} ${plur(k, 'сценарий', 'сценария', 'сценариев')}${have ? ` (готово ${have} из ${j.n})` : ''}…`);
   try {
     const {r, list} = await writeRun();
-    if (!list?.length) throw new Error('ИИ ответил не по формату — нажмите «↻ Повторить»');
-    const add = scrAdd(list.slice(0, j.n), r.by);
-    j.rows = add.map((x, i) => ({scr: x.id, title: x.title, angle: x.angle, video_prompt: x.video_prompt, asset_prompt: x.asset_prompt, caption: x.caption,
-      frame: j.frames === 'mine' ? c.locs[i] || null : null, alt: []}));
-    Object.assign(j, {stage: j.frames === 'mine' ? 'video' : 'frames', by: r.by});
-    serNote(j, '');
+    // не по формату или оборвался — у ИИ каждый раз другой ответ: повторяем сами, как при перегрузке
+    if (!list?.length) throw Object.assign(new Error(r.cut ? 'ответ ИИ оборвался на полуслове' : 'ИИ ответил не по формату'), {transient: true});
+    const add = scrAdd(list.slice(0, k), r.by);
+    j.rows.push(...add.map((x, i) => ({scr: x.id, title: x.title, angle: x.angle, video_prompt: x.video_prompt, asset_prompt: x.asset_prompt, caption: x.caption,
+      frame: j.frames === 'mine' ? c.locs[have + i] || null : null, alt: []})));
+    Object.assign(j, {by: r.by, tries: 0, retryAt: 0});
+    if (j.rows.length >= j.n) j.stage = j.frames === 'mine' ? 'video' : 'frames';
+    serNote(j, j.rows.length < j.n ? `Готово ${j.rows.length} из ${j.n} — пишу остальные…` : '');
   } catch (e) {
     if (e.transient && (j.tries || 0) < 5) {
       j.tries = (j.tries || 0) + 1;
@@ -6798,8 +6809,10 @@ function serSetupHTML(c) {
     ${need.length ? `<div class="ch-video"><b>Чтобы серия пошла, не хватает:</b><ul class="ch-need">${need.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>` : ''}
     <div class="vc-foot"><button class="btn free" data-ser-go ${need.length ? 'disabled' : ''}>▶ Запустить: ${o.n} ${plur(o.n, 'видео', 'видео', 'видео')}</button>${serOf(c.id) ? '<button class="btn" data-ser-last>Последняя серия</button>' : ''}<button class="btn" data-vc-back>Отмена</button></div>`;
 }
+// серия остановилась на сценариях, а у персонажа или ИИ чего-то не хватает — «↻ Повторить» без этого бесполезен
+const serBlock = (j, c) => j.stage === 'error' && (j.failed === 'write' || !j.rows?.length) ? charNeeds(c) : [];
 function serJobHTML(j, c) {
-  const live = serLive(j), sent = !!j.sentVideos, st = s => s === 'done' ? '✓' : s === 'error' ? '⚠' : '⏳';
+  const live = serLive(j), sent = !!j.sentVideos, st = s => s === 'done' ? '✓' : s === 'error' ? '⚠' : '⏳', block = serBlock(j, c);
   const steps = ['write', ...(j.frames === 'new' ? ['frames'] : []), 'video', 'done'], cur = steps.indexOf(j.stage);
   const rows = (j.rows || []).map((r, i) => {
     const f = r.frame ? 'done' : r.err ? 'error' : 'wait', v = r.skip ? '' : r.vstate || (sent ? 'queued' : '');
@@ -6811,10 +6824,11 @@ function serJobHTML(j, c) {
   return `<div class="ser-head"><b>${SER_STAGE[j.stage]}${j.paused ? ' · ⏸ пауза' : ''}</b><span>${j.n} ${plur(j.n, 'видео', 'видео', 'видео')} · ${j.hub ? '💻 с компьютера' : '📱 карточки'} · ${new Date(j.at).toLocaleString('ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}</span></div>
     <div class="ser-steps">${steps.map((s, i) => `<span class="${i < cur || j.stage === 'done' ? 'ok' : i === cur ? 'now' : ''}">${SER_STAGE[s].split(' ')[0]} ${['Сценарии', 'Кадры', 'Видео', 'Готово'][['write', 'frames', 'video', 'done'].indexOf(s)]}</span>`).join('<i>→</i>')}</div>
     ${j.note ? `<div class="wr-note">${live && !j.paused ? '⏳ ' : ''}${esc(j.note)}</div>` : ''}
+    ${block.length ? `<div class="ch-video"><b>Повтор даст ту же ошибку — сначала:</b><ul class="ch-need">${block.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>` : ''}
     <div class="ser-rows">${rows || (live ? '<p class="hint">Сценарии появятся здесь, как только ИИ их напишет.</p>' : '')}</div>
     <div class="vc-foot">
       ${j.stage === 'done' ? '<button class="btn free" data-ser-zip>📦 Скачать всё</button><button class="btn" data-ser-caps>📋 Подписи к постам</button>' : ''}
-      ${j.stage === 'error' ? '<button class="btn free" data-ser-retry>↻ Повторить</button>' : ''}
+      ${j.stage === 'error' ? `<button class="btn free" data-ser-retry ${block.length ? 'disabled' : ''}>↻ Повторить</button>` : ''}
       ${live ? `<button class="btn" data-ser-pause>${j.paused ? '▶ Продолжить' : '⏸ Пауза'}</button>` : ''}
       ${live && !j.hub && j.sentFrames ? '<button class="btn" data-ser-gallery>🖼 Карточки в галерее</button>' : ''}
       ${!live ? '<button class="btn" data-ser-new>＋ Новая серия</button>' : ''}
@@ -6847,8 +6861,9 @@ function serClick(b) {
   if (!j) return;
   if (b.hasAttribute('data-ser-pause')) { j.paused = !j.paused; ser.save(); renderVoices(); return serKick(); }
   if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
+    if (serBlock(j, c).length) return renderVoices();
     const miss = j.rows?.filter(r => !r.frame && !r.skip);
-    Object.assign(j, {tries: 0, retryAt: 0}, !j.rows?.length ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
+    Object.assign(j, {tries: 0, retryAt: 0}, !j.rows?.length || j.failed === 'write' && j.rows.length < j.n ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
     (j.rows || []).forEach(r => { r.err = null; if (!j.sentVideos) Object.assign(r, {vstate: null, verr: null}); });
     ser.save(); renderVoices(); return serKick();
   }
@@ -7230,6 +7245,9 @@ ${fence}
 function parseScenarios(raw, code = '') {
   const tries = [code, (String(raw).match(/```(?:json)?\s*([\s\S]*?)```/) || [])[1], raw].filter(Boolean);
   const str = v => typeof v === 'string' ? v.trim() : v == null ? '' : String(v);
+  const out = list => list.map(o => ({title: str(o.title) || 'Сценарий', angle: str(o.angle), location: str(o.location), hook: str(o.hook), cta: str(o.cta),
+    beats: (Array.isArray(o.beats) ? o.beats : []).map(b => ({time: str(b.time), action: str(b.action), speech: str(b.speech)})),
+    asset_prompt: str(o.asset_prompt), caption: str(o.caption), video_prompt: fillBlocks(str(o.video_prompt))}));
   for (const t of tries) {
     const a = t.indexOf('{'), b = t.lastIndexOf('}');
     if (a < 0 || b <= a) continue;
@@ -7237,14 +7255,32 @@ function parseScenarios(raw, code = '') {
     for (const x of [s, s.replace(/,\s*([}\]])/g, '$1')]) {
       try {
         const j = JSON.parse(x), list = Array.isArray(j) ? j : j.scenarios;
-        if (!Array.isArray(list) || !list.length) continue;
-        return list.map(o => ({title: str(o.title) || 'Сценарий', angle: str(o.angle), location: str(o.location), hook: str(o.hook), cta: str(o.cta),
-          beats: (Array.isArray(o.beats) ? o.beats : []).map(b => ({time: str(b.time), action: str(b.action), speech: str(b.speech)})),
-          asset_prompt: str(o.asset_prompt), caption: str(o.caption), video_prompt: fillBlocks(str(o.video_prompt))}));
+        if (Array.isArray(list) && list.length) return out(list);
       } catch { /* следующий вариант */ }
     }
   }
+  // ответ оборвался (упёрся в лимит длины) — берём сценарии, дописанные целиком
+  for (const t of tries) {
+    const list = jsonWhole(t).filter(o => o && typeof o === 'object' && o.video_prompt);
+    if (list.length) return out(list);
+  }
   return null;
+}
+// целые объекты из массива «scenarios» (или из массива в начале текста), даже если сам текст оборван
+function jsonWhole(t) {
+  const m = /"scenarios"\s*:\s*\[/.exec(t) || /^\s*\[/.exec(t);
+  if (!m) return [];
+  const list = [];
+  let depth = 0, from = -1, str = false, bs = false;
+  for (let i = m.index + m[0].length; i < t.length; i++) {
+    const ch = t[i];
+    if (str) { if (bs) bs = false; else if (ch === '\\') bs = true; else if (ch === '"') str = false; continue; }
+    if (ch === '"') str = true;
+    else if (ch === '{') { if (!depth++) from = i; }
+    else if (ch === '}') { if (depth && !--depth) try { list.push(JSON.parse(t.slice(from, i + 1))); } catch { /* битый — пропускаем */ } }
+    else if (ch === ']' && !depth) break;
+  }
+  return list;
 }
 
 const b64 = d => { const m = /^data:(image\/[\w+]+);base64,(.+)$/.exec(d || ''); if (!m) throw new Error('картинка не прочиталась — загрузите её снова'); return {mime: m[1], data: m[2]}; };
@@ -7266,38 +7302,51 @@ async function writeClaude(sys, user) {
       : r.status === 429 ? 'Anthropic: слишком много запросов — подождите минуту'
       : r.status >= 500 ? 'Anthropic сейчас перегружен — попробуйте ещё раз через минуту' : `Anthropic ${r.status}: ${m}`);
   }
-  return {text: (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n'), by: 'Claude ' + (CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1].split(' — ')[0] || wr.claudeModel)};
+  return {text: (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n'), cut: j.stop_reason === 'max_tokens', by: 'Claude ' + (CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1].split(' — ')[0] || wr.claudeModel)};
 }
 async function writeGemini(sys, user) {
   const part = d => { const x = b64(d); return {inline_data: {mime_type: x.mime, data: x.data}}; };
-  const body = JSON.stringify({systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [
+  const req = {systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [
     {text: 'IMAGE 1 — INFOGRAPHIC:'}, part(wr.info), {text: 'IMAGE 2 — CHARACTER TURNAROUND SHEET:'}, part(wr.sheet),
     ...wr.locs.slice(0, wr.count).flatMap((d, i) => [{text: `IMAGE ${i + 3} — CHARACTER IN LOCATION (scenario ${i + 1}):`}, part(d)]), {text: user}]}],
-    generationConfig: {temperature: 1, maxOutputTokens: 16384, responseMimeType: 'application/json'}});
-  let last = '';
-  const tried = [];
+    generationConfig: {temperature: 1, responseMimeType: 'application/json'}};
+  const tried = [], fails = [];   // что ответила каждая модель: busy, quota, 404, cut, block:…, или текст ошибки Google
   // сразу Flash (пользователь 2026-09-28: «пусть сразу будет Flash, не Pro» — Pro часто перегружен, 503); модели — те, что есть у ключа.
-  // Перегрузка (500/503) — два повтора с паузой, потом следующая модель; нет модели (404) или лимит (429) — сразу следующая
+  // Перегрузка (500/503) — два повтора с паузой, потом следующая модель; нет модели (404), лимит (429), ошибка модели (400) — сразу следующая
   for (const model of await geminiModels('flash')) {
     tried.push(model);
+    // сколько модель может написать: «размышления» Gemini тратят тот же лимит, и 5–10 сценариев обрывались на полуслове
+    // (пользователь 2026-09-29: в серии «↻ Повторить» — снова «сценарии не написаны»)
+    req.generationConfig.maxOutputTokens = Math.min(geminiList.out[model] || 16384, 65536);
+    const body = JSON.stringify(req);
     let r;
     for (const pause of [2000, 6000, 0]) {
       r = await timedFetch(`${GEMINI_API}/${model}:generateContent`, {method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini}, body}, 300000);
       if (r.status < 500 || !pause) break;
       await new Promise(res => setTimeout(res, pause));
     }
-    if (r.status === 404 || r.status === 429 || r.status >= 500) { last = r.status === 429 ? 'quota' : r.status >= 500 ? 'busy' : 'Gemini 404'; continue; }
-    if (!r.ok) throw await geminiWhy(r);
-    const j = await r.json().catch(() => ({}));
-    const text = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
-    if (text) return {text, by: `Gemini (${model.replace(/^gemini-/, '').replace('-latest', '')})`};
-    last = 'Gemini вернул пустой ответ';
+    if (r.status === 404 || r.status === 429 || r.status >= 500) { fails.push(r.status === 429 ? 'quota' : r.status >= 500 ? 'busy' : '404'); continue; }
+    if (!r.ok) {
+      const e = await geminiWhy(r);
+      if (r.status === 400 && e.reason !== 'API_KEY_INVALID' && e.message !== GEMINI_GEO_MSG) { fails.push(e.message); continue; }   // не про ключ — пробуем другую модель
+      throw e;
+    }
+    const j = await r.json().catch(() => ({})), c = j.candidates?.[0];
+    const text = (c?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
+    const cut = c?.finishReason === 'MAX_TOKENS';
+    if (text) return {text, cut, by: `Gemini (${model.replace(/^gemini-/, '').replace('-latest', '')})`};
+    fails.push(cut ? 'cut' : 'block:' + (j.promptFeedback?.blockReason || c?.finishReason || '—'));
   }
-  // перегрузка и лимит — временные: «Серия роликов» сама повторит позже
-  if (last === 'busy' || last === 'quota') throw Object.assign(new Error(last === 'busy'
+  // одна модель занята, другая «не найдена» — это перегрузка, а не плохой ключ: серия повторит сама
+  const had = k => fails.find(f => f === k || f.startsWith(k + ':'));
+  if (had('busy') || had('quota') || had('cut')) throw Object.assign(new Error(had('busy')
     ? 'Gemini сейчас перегружен (ошибка 503) — у Google не хватает мощности, попробуйте через несколько минут'
-    : 'у Gemini закончился бесплатный лимит — попробуйте позже или выберите другой ИИ'), {transient: true});
-  throw new Error(last === 'Gemini 404' ? `у ключа Gemini не нашлось модели для текста (пробовал: ${tried.join(', ')}) — создайте ключ в AI Studio заново` : last);
+    : had('quota') ? 'у Gemini закончился бесплатный лимит — попробуйте позже или выберите другой ИИ'
+    : 'ответ Gemini оборвался на полуслове — попробуйте ещё раз'), {transient: true});
+  const block = had('block');
+  if (block) throw new Error(`Gemini не стал отвечать (причина Google: ${block.slice(6)}) — обычно из-за картинок: попробуйте другую инфографику или развёртку`);
+  const other = fails.find(f => f !== '404');
+  throw new Error(other || `у ключа Gemini не нашлось модели для текста (пробовал: ${tried.join(', ')}) — создайте ключ в AI Studio заново`);
 }
 async function writeGo() {
   if (wr.busy) return;
@@ -7331,7 +7380,8 @@ async function writeGo() {
     const {r, list} = await writeRun();
     wr.result = list ? {scenarios: list, by: r.by, at: Date.now(), char: wr.char} : {raw: r.text, by: r.by, at: Date.now()};
     if (list) scrAdd(list, r.by);
-    toast(list ? `Готово: ${list.length} ${plur(list.length, 'сценарий', 'сценария', 'сценариев')} — ниже и в «📜 Готовых сценариях»` : 'ИИ ответил не по формату — его текст ниже', {type: list ? 'ok' : 'err', ms: 6000});
+    toast(list ? `Готово: ${list.length} ${plur(list.length, 'сценарий', 'сценария', 'сценариев')}${r.cut && list.length < wr.count ? ` из ${wr.count} — ответ ИИ оборвался, остальные напишите ещё раз` : ''} — ниже и в «📜 Готовых сценариях»`
+      : r.cut ? 'Ответ ИИ оборвался на полуслове — нажмите «Написать» ещё раз или возьмите меньше сценариев' : 'ИИ ответил не по формату — его текст ниже', {type: list ? 'ok' : 'err', ms: 8000});
   } catch (e) { toast('Сценарий не написан: ' + e.message, {type: 'err', ms: 9000}); }
   wr.busy = false; wr.note = '';
   wr.save();
@@ -7343,6 +7393,7 @@ async function writeGo() {
 async function writeRun() {
   const who = writerNow(), {sys, user} = writeBrief();
   if (who === 'chat') throw new Error('ИИ для сценариев не подключён — подключите бесплатный Gemini в «Создании сценария»');
+  if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) throw new Error(`нет ключа ${WRITERS[who].name} — вставьте его в «Создании сценария»`);
   const r = who === 'claude' ? await writeClaude(sys, user) : await writeGemini(sys, user);
   const list = parseScenarios(r.text, r.code), voice = wrVoice();
   if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
@@ -7358,16 +7409,19 @@ const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Модели Gemini — те, что есть у этого ключа: Google переименовывает и списывает модели (пользователь 2026-09-28: «Gemini 404» —
 // зашитых gemini-pro-latest / gemini-2.5-* у ключа не оказалось). Список спрашиваем у Google; не ответил — запасные имена.
 const GEMINI_FALLBACK = ['gemini-pro-latest', 'gemini-flash-latest', 'gemini-3.5-pro', 'gemini-3.5-flash', 'gemini-3-pro', 'gemini-3-flash', 'gemini-2.5-pro', 'gemini-2.5-flash'];
-const geminiList = {key: null, names: null};
+const geminiList = {key: null, names: null, out: {}};   // out — сколько токенов модель может написать (из списка Google)
 async function geminiModels(prefer = 'pro', key = wallet.gemini) {
   if (geminiList.key !== key || !geminiList.names) {
-    let names = [];
+    let names = [], out = {};
     try {
       const r = await timedFetch(GEMINI_API + '?pageSize=1000', {headers: {'x-goog-api-key': key}}, 20000);
-      if (r.ok) names = ((await r.json()).models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map(m => String(m.name).replace(/^models\//, ''));
+      if (r.ok) for (const m of ((await r.json()).models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))) {
+        const n = String(m.name).replace(/^models\//, '');
+        names.push(n);
+        if (m.outputTokenLimit) out[n] = m.outputTokenLimit;
+      }
     } catch { /* нет связи — запасные имена */ }
-    Object.assign(geminiList, {key, names: names.length ? names : null});
+    Object.assign(geminiList, {key, names: names.length ? names : null, out});
   }
   // только текстовые модели Gemini: без озвучки, картинок, эмбеддингов, «живых» и узких
   const list = (geminiList.names || GEMINI_FALLBACK).filter(n => /^gemini-/.test(n) && !/tts|image|embed|audio|live|native|robotics|computer|learnlm|aqa|nano/i.test(n));
