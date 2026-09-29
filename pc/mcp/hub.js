@@ -1,0 +1,134 @@
+// Связь с телефоном по домашнему Wi-Fi — напрямую с компьютером, без посредников в интернете.
+// Телефон открывает Freefield с этого компьютера по ссылке из QR-кода (в ссылке — секретный ключ) и отправляет
+// сценарии; компьютер генерирует их через Flow / Arena / Dola и отдаёт готовые файлы обратно в галерею телефона.
+// Без ключа сервер отдаёт только само приложение (его файлы и так публичны на GitHub Pages).
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import crypto from 'node:crypto';
+
+const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
+  '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webp': 'image/webp', '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg', '.mp4': 'video/mp4', '.webm': 'video/webm', '.apk': 'application/vnd.android.package-archive'};
+
+// Адреса компьютера в домашней сети (сначала обычные домашние 192.168.x.x)
+export function lanAddresses() {
+  const all = Object.values(os.networkInterfaces()).flat().filter(n => n && n.family === 'IPv4' && !n.internal).map(n => n.address);
+  const rank = a => a.startsWith('192.168.') ? 0 : a.startsWith('10.') ? 1 : /^172\.(1[6-9]|2\d|3[01])\./.test(a) ? 2 : 3;
+  return all.filter(a => rank(a) < 3).sort((a, b) => rank(a) - rank(b));
+}
+
+// Сайт Freefield на GitHub Pages (там хранятся персонажи и галерея пользователя) — ему можно к программе с этого же компьютера:
+// «Профили» на сайте показывают профили Chrome, генерация идёт отсюда (пользователь 2026-09-29: «в Профилях на сайте должны быть профили»).
+// Остальным сайтам — нет: браузер не отдаст им ответ без этих заголовков.
+const SITE = 'https://zuevilia808-collab.github.io';
+const siteCors = req => req.headers.origin === SITE ? {'Access-Control-Allow-Origin': SITE, 'Vary': 'Origin', 'Access-Control-Allow-Private-Network': 'true',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Freefield-Key', 'Access-Control-Max-Age': '600'} : {};
+
+const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+
+// key — строка или функция (ключ можно сменить на ходу); api: {hello(), submit(scenarios) → {id}, list() → batches, filePath(batchId, n, j) → путь или null}
+export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => {}}) {
+  const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, 'http://x');
+    const cors = url.pathname.startsWith('/api/') ? siteCors(req) : {};
+    const send = (code, body, type = 'application/json; charset=utf-8') => {
+      res.writeHead(code, {'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...cors});
+      res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+    };
+    try {
+      // MCP-сервер Freefield по ссылке: http://<компьютер>:5180/mcp?k=<ключ> (ключ — тот же, что у приложения)
+      if (url.pathname === '/mcp') {
+        const auth = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+        if (!same(url.searchParams.get('k') || req.headers['x-freefield-key'] || auth, typeof key === 'function' ? key() : key)) return send(403, {error: 'нет доступа — возьмите ссылку на MCP в приложении Freefield (🔌 MCP)'});
+        // программы MCP заголовок Origin не шлют; запросы со страниц в браузере — только со своей страницы
+        if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return send(403, {error: 'запросы с чужих сайтов не принимаются'});
+        if (!api.mcp) return send(503, {error: 'MCP по ссылке работает, когда Freefield запущен из Claude Desktop'});
+        if (req.method !== 'POST') { res.writeHead(405, {Allow: 'POST'}); return res.end(); }
+        return await api.mcp(req, res);
+      }
+      if (url.pathname.startsWith('/api/')) {
+        if (req.method === 'OPTIONS') { res.writeHead(cors['Access-Control-Allow-Origin'] ? 204 : 403, cors); return res.end(); }   // предзапрос браузера
+        // приложение открыто на этом же компьютере (localhost / 127.0.0.1) — ключ отдаём ему сам, без QR-кода.
+        // Только запросам с этого компьютера, по адресу localhost и со своей же страницы (не с чужих сайтов)
+        if (url.pathname === '/api/local-key' && req.method === 'GET') {
+          const loop = /^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(req.socket.remoteAddress || '');
+          const host = /^(127\.0\.0\.1|localhost|\[::1\]):\d+$/.test(req.headers.host || '');
+          const own = req.headers.origin === SITE;   // сайт Freefield с GitHub в браузере этого же компьютера
+          const origin = !req.headers.origin || req.headers.origin === `http://${req.headers.host}` || own;
+          const site = !req.headers['sec-fetch-site'] || req.headers['sec-fetch-site'] === 'same-origin' || own;
+          if (!loop || !host || !origin || !site) return send(403, {error: 'ключ выдаётся только приложению на этом компьютере'});
+          return send(200, {key: typeof key === 'function' ? key() : key});
+        }
+        if (!same(url.searchParams.get('k') || req.headers['x-freefield-key'] || '', typeof key === 'function' ? key() : key)) return send(403, {error: 'нет доступа — откройте Freefield по QR-коду с компьютера'});
+        if (url.pathname === '/api/hub' && req.method === 'GET') return send(200, await api.hello());
+        if (url.pathname === '/api/batches' && req.method === 'GET') return send(200, await api.list());
+        // номер профиля Chrome (1, 2, …) — у каждого свои аккаунты
+        const prof = Math.max(1, Math.min(20, parseInt(url.searchParams.get('profile'), 10) || 1));
+        if ((url.pathname === '/api/account' || url.pathname === '/api/login') && req.method === 'POST') {
+          const site = url.searchParams.get('site');
+          if (!['flow', 'arena', 'dola', 'vids'].includes(site)) return send(400, {error: 'неизвестный сервис'});
+          const email = /^[^\s@/"'<>]{1,64}@[\w.-]{1,120}$/.test(url.searchParams.get('email') || '') ? url.searchParams.get('email') : null;   // какой аккаунт Google взять
+          return send(200, await (url.pathname === '/api/account' ? api.switchAccount(site, prof) : api.openLogin(site, prof, email)));
+        }
+        if (url.pathname === '/api/status' && req.method === 'POST') return send(200, await api.status(url.searchParams.has('profile') ? prof : null));
+        // «💳 Проверить баланс»: ?sites=flow,dola,vids,arena
+        if (url.pathname === '/api/balance' && req.method === 'POST') {
+          const sites = (url.searchParams.get('sites') || 'flow').split(',').filter(s => ['flow', 'dola', 'vids', 'arena'].includes(s));
+          if (!api.balance) return send(503, {error: 'проверка баланса появится после перезапуска Claude Desktop'});
+          return send(200, await api.balance(sites.length ? sites : ['flow']));
+        }
+        if (url.pathname === '/api/profile' && req.method === 'POST') return send(200, await api.newProfile());
+        if (url.pathname === '/api/profile/open' && req.method === 'POST') return send(200, await api.openProfile(prof));
+        if (url.pathname === '/api/profile/close' && req.method === 'POST') return send(200, await api.closeProfile(prof));
+        if (url.pathname === '/api/profiles/all' && req.method === 'POST') return send(200, await api.openAll());
+        if (url.pathname === '/api/profiles/close' && req.method === 'POST') return send(200, await api.closeAll());
+        if (url.pathname === '/api/batch' && req.method === 'POST') {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 40e6) return send(413, {error: 'слишком большое задание — уменьшите фото'}); }
+          const {scenarios} = JSON.parse(body || '{}');
+          // фото-референсы из приложения (data URL, до ~15 МБ каждое) — компьютер сохранит их в outputs/refs
+          const photo = x => typeof x === 'string' && /^data:image\/(png|jpeg|webp|gif);base64,/.test(x) && x.length < 21e6;
+          const list = (Array.isArray(scenarios) ? scenarios : []).map(s => ({prompt: String(s.prompt || '').trim().slice(0, 2500),
+            kind: s.kind === 'image' ? 'image' : 'video', service: ['auto', 'flow', 'arena', 'dola', 'vids'].includes(s.service) ? s.service : 'auto',
+            aspect_ratio: ['16:9', '9:16', '1:1', '3:4', '4:3', '2:3', '21:9'].includes(s.aspect_ratio) ? s.aspect_ratio : undefined,
+            seconds: [5, 8, 10].includes(+s.seconds) ? +s.seconds : undefined,
+            count: [1, 2, 3, 4].includes(+s.count) ? +s.count : undefined,
+            model: /^[a-z0-9.-]{2,30}$/.test(s.model || '') ? s.model : undefined,
+            images: [...(Array.isArray(s.images) ? s.images : []), s.image].filter(photo).slice(0, 4),
+            sheet: photo(s.sheet) ? s.sheet : undefined})).filter(s => s.prompt.length >= 3);   // развёртка героя — отдельно: только «ингредиент», не первый кадр
+          if (!list.length || list.length > 10) return send(400, {error: 'нужно от 1 до 10 сценариев'});
+          return send(200, await api.submit(list));
+        }
+        if (url.pathname === '/api/outputs' && req.method === 'GET') return send(200, await api.outputs());
+        if (url.pathname === '/api/sync' && req.method === 'POST') return send(200, await api.sync());
+        const m = url.pathname.match(/^\/api\/file\/([\w-]+)\/(\d+)\/(\d+)$/);
+        const o = url.pathname.match(/^\/api\/out\/(\d{4}-\d{2}-\d{2})\/([^/]+)$/);
+        if ((m || o) && req.method === 'GET') {
+          const file = m ? await api.filePath(m[1], +m[2], +m[3]) : await api.outPath(o[1], decodeURIComponent(o[2]));
+          if (!file || !fs.existsSync(file)) return send(404, {error: 'файл не найден'});
+          res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream',
+            'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
+          return fs.createReadStream(file).pipe(res);
+        }
+        return send(404, {error: 'нет такого запроса'});
+      }
+      // само приложение
+      const rel = decodeURIComponent(url.pathname) === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
+      const file = path.resolve(appDir, rel);
+      // скрытые файлы и папки (.git и т. п.) не отдаём никому — только файлы самого приложения
+      const hidden = path.relative(path.resolve(appDir), file).split(path.sep).some(p => p.startsWith('.'));
+      if (hidden || !file.startsWith(path.resolve(appDir) + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return send(404, 'Not found', 'text/plain');
+      res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-cache'});
+      fs.createReadStream(file).pipe(res);
+    } catch (e) {
+      log('hub:', e.message);
+      if (!res.headersSent) send(500, {error: e.message});
+    }
+  });
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, host, () => { server.off('error', reject); resolve(server); });
+  });
+}

@@ -115,8 +115,8 @@ Claude сам генерирует картинки и видео и показ�
 ## Android-приложение (APK)
 - Готовый файл: `Freefield.apk` (Android 7.0+). Собран через Capacitor 8 без Android Studio.
 - Проект: папка `mobile/`. Пересборка после изменений: двойной щелчок по `mobile/build-apk.cmd`.
-- Инструменты: Java 21 в `C:\Users\illia\.jdks`, Android SDK в `C:\Users\illia\AppData\Local\Android\Sdk`.
-- Подпись — отладочный ключ (`C:\Users\illia\.android\debug.keystore`): не удаляйте его, иначе новые версии не встанут поверх старой.
+- Инструменты: Java 21 в `%USERPROFILE%\.jdks`, Android SDK в `%USERPROFILE%\AppData\Local\Android\Sdk`.
+- Подпись — отладочный ключ (`%USERPROFILE%\.android\debug.keystore`): не удаляйте его, иначе новые версии не встанут поверх старой.
 - В APK: сайты сервисов открываются во вкладке Chrome (вход общий с Chrome), «Скачать» сохраняет в «Документы/Freefield».
 
 ## Установка на телефон (PWA)
