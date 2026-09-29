@@ -8,7 +8,8 @@
   window.__ffAutopilot = true;
   const onFlow = () => /\/tools\/flow/.test(location.pathname);   // Flow — одностраничное приложение: путь может смениться без перезагрузки
 
-  const state = {busy: false, cancel: false, task: null, step: '', text: '', manual: null, resume: null, log: [], total: 0, done: 0, skip: new Set()};
+  const FLOW = 'https://labs.google/fx/tools/flow';
+  const state = {busy: false, cancel: false, task: null, step: '', text: '', manual: null, choices: null, resume: null, log: [], total: 0, done: 0, skip: new Set(), me: '', left: null};
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const low = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
   const visible = el => !!el && el.isConnected && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden' && !el.closest('#ff-ap');
@@ -61,6 +62,82 @@
       if (!fieldText(el).includes(low(text).slice(0, 30))) { el.textContent = text; el.dispatchEvent(new InputEvent('input', {bubbles: true, data: text, inputType: 'insertText'})); }
     }
     return fieldText(el).includes(low(text).slice(0, 30));
+  }
+
+  // ---- аккаунт Google во Flow: вход общий для профиля Chrome, поэтому аккаунты — по очереди (подробно — в bg.js)
+  const AUTH = '/fx/api/auth';   // вход во Flow (next-auth): кто вошёл, выйти, войти
+  const bg = m => chrome.runtime.sendMessage({from: 'flow', ...m}).catch(() => ({}));
+  async function whoami() {   // почта аккаунта; '' — не вошёл; null — не узнали (Google поменял вход) — тогда работаем как раньше
+    try {
+      const r = await fetch(AUTH + '/session', {credentials: 'include'});
+      if (!r.ok) return null;
+      const j = await r.json();
+      return j?.user?.email ? low(j.user.email) : '';
+    } catch { return null; }
+  }
+  // выйти и войти аккаунтом email: он уже добавлен в Google в этом Chrome — Google пустит без пароля; '' — выбрать аккаунт.
+  // Удалось — вкладка уходит на страницу входа Google и возвращается во Flow (очередь продолжится сама); нет — false
+  async function signIn(email) {
+    const form = async () => new URLSearchParams({csrfToken: (await (await fetch(AUTH + '/csrf', {credentials: 'include'})).json()).csrfToken, callbackUrl: FLOW, json: 'true'});
+    const post = async path => fetch(AUTH + path, {method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: await form()});
+    try {
+      await chrome.storage.local.set({signin: {to: email, at: Date.now()}});
+      await post('/signout');
+      const r = await post('/signin/google?' + new URLSearchParams(email ? {login_hint: email} : {prompt: 'select_account'}));
+      const {url} = await r.json();
+      if (!/^https:\/\//.test(url || '')) throw new Error('нет адреса входа');
+      log(`вход: ${email || 'выбор аккаунта'}`);
+      location.href = url;
+      return true;
+    } catch (e) { log('сменить аккаунт не вышло: ' + e.message); await chrome.storage.local.remove('signin'); return false; }
+  }
+  const CREDITS = /not enough credits|insufficient credits|out of credits|no (more )?credits|(run|ran) out of credits|credit limit|недостаточно кредитов|не хватает кредитов|кредит\S* (закончил|кончил)|нет кредитов/;
+  const NOTES = '[role=alert], [role=dialog], [role=tooltip], [aria-live], [class*=error], [class*=toast], [class*=snack]';
+  function creditsOut(since) {   // только новое сообщение: старое (с прошлой попытки) могло остаться на странице
+    const el = [...document.querySelectorAll(NOTES)].filter(visible).find(e => CREDITS.test(low(e.innerText)) && !since.has(low(e.innerText)));
+    return el ? el.innerText.trim().slice(0, 160) : '';
+  }
+  // аккаунт, в котором хватит кредитов на задание: этот, следующий (вход — сам) или спросить человека. false — вкладка уходит на вход
+  async function ensureAccount(t) {
+    const need = t.credits || 0;
+    let missed = '';   // сам войти этим аккаунтом не вышел (Google просит пароль или выбор) — второй раз сам не пробуем
+    for (;;) {
+      if (state.cancel) return true;
+      const me = await whoami();
+      const {signin} = await chrome.storage.local.get('signin');
+      if (signin) {   // вернулись со входа Google
+        await chrome.storage.local.remove('signin');
+        if (signin.to && me !== null && me !== signin.to) { missed = signin.to; log(`хотел войти ${signin.to}, а во Flow ${me || 'никто'}`); }
+      }
+      if (me === null || !me && !state.task) return true;
+      if (!me) {
+        const a = await manual('Войдите в Google Flow своим аккаунтом — дальше я сам', [['in', '🔑 Войти', true], ['go', '✓ Вошёл — продолжай']]);
+        if (a === 'in' && await signIn('')) return false;
+        continue;
+      }
+      const plan = await bg({type: 'plan', email: me, need});
+      state.me = me; state.left = plan.left ?? null; draw();
+      if (plan.go || !need || plan.to === undefined && !plan.none) return true;
+      if (plan.to && plan.to === missed) {
+        const a = await manual(`Сам войти аккаунтом ${plan.to} не получилось — видимо, Google просит пароль. Войдите им во Flow сами (значок аккаунта справа вверху → выйти → войти) и нажмите «Продолжай»`,
+          [['go', '✓ Вошёл — продолжай', true], ['in', '🔑 Выбрать аккаунт'], ['here', `▶ Остаться в ${me}`]]);
+        if (a === 'in' && await signIn('')) return false;
+        if (a === 'here') return true;
+        missed = '';
+        continue;
+      }
+      if (plan.to) {
+        status(`в ${me} на это задание кредитов нет — вхожу ${plan.to}`);
+        if (state.task) send({type: 'progress', id: state.task.id, text: `Аккаунт — в ${me} кредиты на сегодня кончились, вхожу ${plan.to}`});
+        if (await signIn(plan.to)) return false;
+        missed = plan.to;
+        continue;
+      }
+      const a = await manual(`Кредиты Flow на сегодня кончились — на это задание нужно ${need}: ${plan.none.map(x => `${x.email} — ~${x.left}`).join(', ')}. Войдите другим аккаунтом Google — я его запомню и дальше буду переключать сам`,
+        [['in', '➕ Войти другим аккаунтом', true], ['here', '▶ Всё равно в этом']]);
+      if (a === 'in' && await signIn('')) return false;
+      if (a === 'here') return true;
+    }
   }
 
   // ---- проект: на странице проекта есть поле промпта; нет — «Новый проект»
@@ -213,7 +290,7 @@
       .find(e => /error|failed|couldn.t|unable|policy|violat|try again|не удалось|ошибк|наруш|попробуйте/.test(low(e.innerText)) && !since.has(low(e.innerText)));
     return el ? el.innerText.trim().slice(0, 200) : '';
   }
-  const alertsNow = () => new Set([...document.querySelectorAll('[role=alert], [aria-live], [class*=toast], [class*=snack]')].map(e => low(e.innerText)));
+  const alertsNow = () => new Set([...document.querySelectorAll(NOTES)].map(e => low(e.innerText)));
   async function waitResults(kind, want, before, alerts) {
     const tag = kind === 'video' ? 'video' : 'img', limit = (kind === 'video' ? 12 : 5) * 60e3, t0 = Date.now();
     const calm = (kind === 'video' ? 120 : 60) * 1e3;   // часть вариантов есть, а новые давно не появляются — Flow отдал сколько смог
@@ -224,7 +301,7 @@
       found = now;
       if (found.length >= want || (found.length && Date.now() - changed > calm)) break;
       const err = errorText(alerts);
-      if (err) throw new Error('Flow: ' + err);
+      if (err) throw Object.assign(new Error('Flow: ' + err), {credits: CREDITS.test(low(err))});
       status(`жду ${kind === 'video' ? 'видео' : 'картинку'} от Flow · ${Math.round((Date.now() - t0) / 1000)} с`);
       await sleep(3000);
     }
@@ -266,8 +343,11 @@
     step('Создать');
     const before = snapshot(), alerts = alertsNow(), f = promptField();
     await submit(f);
-    const started = await waitFor(() => !fieldText(f) || document.querySelector('[role=progressbar], progress') || snapshot().size > before.size, 15000);
+    const started = await waitFor(() => creditsOut(alerts) || !fieldText(f) || document.querySelector('[role=progressbar], progress') || snapshot().size > before.size, 15000);
+    const out = creditsOut(alerts);
+    if (out) throw Object.assign(new Error('Flow: ' + out), {credits: true});
     if (!started) await manual('Нажмите «Создать» во Flow — дальше я сам');
+    if (state.me && t.credits) bg({type: 'spent', email: state.me, credits: t.credits});
     step('Жду результат');
     let urls = await waitResults(t.kind, Math.max(1, t.count || 1), before, alerts);
     if (!urls.length && !state.cancel) {
@@ -291,18 +371,30 @@
   function step(name) { state.step = name; log('…'); status(name); lastSent = 0; }
   async function next() {
     if (state.busy) return;
-    if (!onFlow()) { setTimeout(next, 3000); return; }
+    if (!/^\/fx\b/.test(location.pathname)) { setTimeout(next, 3000); return; }   // labs.google, но не инструменты Labs
     const {mine = true} = await chrome.runtime.sendMessage({from: 'flow', type: 'claim'}).catch(() => ({}));
     if (!mine || state.busy) return;
-    const {queue = []} = await chrome.storage.local.get('queue');
+    const {queue = [], addAcct} = await chrome.storage.local.get(['queue', 'addAcct']);
+    if (addAcct) { await chrome.storage.local.remove('addAcct'); if (await signIn('')) return; }   // «➕ Добавить аккаунт» во Freefield
     const todo = queue.filter(t => !state.skip.has(t.id));
+    if (!onFlow()) { if (todo.length) location.href = FLOW; else setTimeout(next, 3000); return; }   // после входа — не на странице Flow
     state.total = Math.max(state.total, state.done + todo.length);
     const t = todo[0];
-    if (!t) { state.task = null; draw(); return; }
+    if (!t) { await ensureAccount({}); state.task = null; draw(); return; }   // заданий нет — только запомнить, кто вошёл
     Object.assign(state, {busy: true, task: t, cancel: false, log: []});
+    if (!await ensureAccount(t)) { state.busy = false; return; }   // вкладка ушла на вход Google — задание ждёт в очереди
     let msg;
     try { msg = {type: 'result', id: t.id, files: await run(t)}; }
-    catch (e) { msg = {type: 'error', id: t.id, message: state.cancel ? 'остановлено' : e.message, log: state.log.slice(-15)}; }
+    catch (e) {
+      if (e.credits && !state.cancel) {   // Flow: кредитов нет — аккаунт на сегодня всё, задание — в следующем аккаунте
+        await bg({type: 'out', email: state.me});
+        send({type: 'progress', id: t.id, text: `Аккаунт — в ${state.me || 'этом аккаунте'} кредиты кончились, беру следующий`});
+        Object.assign(state, {busy: false, task: null, manual: null});
+        setTimeout(next, 1500);
+        return;
+      }
+      msg = {type: 'error', id: t.id, message: state.cancel ? 'остановлено' : e.message, log: state.log.slice(-15)};
+    }
     await chrome.runtime.sendMessage({from: 'flow', type: 'done', id: t.id, msg}).catch(() => {});
     state.done++;
     Object.assign(state, {busy: false, task: null, manual: null});
@@ -310,15 +402,16 @@
     setTimeout(next, 1500);
   }
   chrome.runtime.onMessage.addListener(m => {
-    if (m?.type === 'kick') next();
+    if (m?.type === 'kick' || m?.type === 'signin') next();
     if (m?.type === 'cancel' && state.task && m.ids.includes(state.task.id)) { state.cancel = true; state.resume?.(); }
   });
 
   // ---- панель: что делаю, помощь человека, отчёт
-  function manual(msg) {
-    state.manual = msg; draw();
+  // просьба к человеку; choices — свои кнопки [действие, надпись, главная], ответ — действие нажатой ('go' — «Сделал»)
+  function manual(msg, choices = null) {
+    state.manual = msg; state.choices = choices; draw();
     if (state.task) send({type: 'progress', id: state.task.id, text: '✋ нужна помощь во вкладке Flow: ' + msg});
-    return new Promise(r => { state.resume = () => { state.manual = null; state.resume = null; draw(); r(); }; });
+    return new Promise(r => { state.resume = a => { Object.assign(state, {manual: null, choices: null, resume: null}); draw(); r(a); }; });
   }
   function reportText() {
     const t = state.task || {};
@@ -342,13 +435,14 @@
     const t = state.task, btn = (a, txt, main) => `<button data-ap="${a}" style="margin:6px 6px 0 0;padding:6px 10px;border-radius:10px;border:1px solid ${main ? '#d4ff3a' : 'rgba(255,255,255,.2)'};background:${main ? '#d4ff3a' : 'transparent'};color:${main ? '#0a0a0c' : '#f3f3f6'};font:600 12px system-ui;cursor:pointer">${txt}</button>`;
     p.innerHTML = `<div style="font-weight:700;margin-bottom:4px">🤖 Freefield Автопилот${state.total > 1 ? ` · ${Math.min(state.done + 1, state.total)} из ${state.total}` : ''}</div>
       ${t ? `<div style="color:#9a9aa7;font-size:12px">${t.kind === 'video' ? '🎬 видео' : '🖼 картинка'}${t.engine ? ' · ' + t.engine : ''}${t.aspect ? ' · ' + t.aspect : ''}</div>` : ''}
+      ${state.me ? `<div style="color:#9a9aa7;font-size:12px">👤 ${state.me}${state.left != null ? ` · сегодня ещё ~${state.left} кредитов` : ''}</div>` : ''}
       <div style="margin-top:6px">${state.manual ? '✋ ' + state.manual : '⏳ ' + (state.text || state.step)}</div>
-      <div>${state.manual ? btn('go', '✓ Сделал — продолжай', true) + btn('prompt', '📋 Промпт') : ''}${btn('report', '📋 Отчёт для Claude')}${t ? btn('skip', '⏭ Пропустить') : ''}</div>`;
+      <div>${state.choices ? state.choices.map(([a, txt, main]) => btn(a, txt, main)).join('') : state.manual ? btn('go', '✓ Сделал — продолжай', true) + btn('prompt', '📋 Промпт') : ''}${btn('report', '📋 Отчёт для Claude')}${t ? btn('skip', '⏭ Пропустить') : ''}</div>`;
   }
   async function onPanel(e) {
     const a = e.target.closest('[data-ap]')?.dataset.ap;
     if (!a) return;
-    if (a === 'go') state.resume?.();
+    if (a === 'go' || state.choices?.some(c => c[0] === a)) state.resume?.(a);
     if (a === 'prompt' && state.task) navigator.clipboard.writeText(state.task.prompt).catch(() => {});
     if (a === 'report') { await navigator.clipboard.writeText(reportText()).catch(() => {}); e.target.textContent = '✓ Скопировано — пришлите Claude'; }
     if (a === 'skip' && state.task) { state.skip.add(state.task.id); state.cancel = true; state.resume?.(); }

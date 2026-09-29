@@ -3389,8 +3389,12 @@ async function saveRefs(it, list) {
 // Сайт не может нажимать кнопки на чужом сайте, поэтому это делает расширение (папка autopilot/): открывает Flow, прикладывает
 // фото, вставляет промпт, выбирает формат и модель, нажимает «Создать», ждёт и возвращает файлы в карточку. Только компьютер.
 const AUTOPILOT_ZIP = 'autopilot/freefield-autopilot.zip';
-const autopilot = {on: false, version: '', send(msg) { window.postMessage({ff: 'app', ...msg}, '*'); }};
+const autopilot = {on: false, version: '', accounts: [], me: '', send(msg) { window.postMessage({ff: 'app', ...msg}, '*'); }};
+const AP_VER = '0.2.0';   // версия в autopilot/manifest.json: у кого старее — просим обновить папку расширения
+const apOld = () => autopilot.on && autopilot.version.split('.').map(Number).reduce((d, n, i) => d || n - (AP_VER.split('.').map(Number)[i] || 0), 0) < 0;
 const apCan = it => it?.status === 'external' && it.phone?.site === 'flow';
+// кредиты Flow за карточку: цена модели × варианты (картинки Nano Banana 2 — без кредитов). По ней Автопилот выбирает аккаунт
+const apCost = it => (SCN_MODELS[it.type]?.find(m => m[0] === 'flow' && m[2] === it.phone?.engine)?.[4] || 0) * (it.phone?.count || 1);
 const apOn = () => autopilot.on && !pwa.mobile();
 window.addEventListener('message', async e => {
   if (e.source !== window || e.data?.ff !== 'autopilot') return;
@@ -3398,6 +3402,11 @@ window.addEventListener('message', async e => {
   if (m.type === 'hello') {
     const was = autopilot.on; Object.assign(autopilot, {on: true, version: m.version});
     if (!was) { render(); updateGenButton(); if (cl.mode === 'chars') renderChars(); autopilot.send({type: 'status'}); }
+    return;
+  }
+  if (m.type === 'accounts') {   // аккаунты Google, которые Автопилот знает во Flow, и сколько в них кредитов сегодня
+    Object.assign(autopilot, {accounts: m.list || [], me: m.me || ''});
+    if (vcUi.view === 'autopilot' && !$('#voiceSheet').classList.contains('hidden')) renderVoices();
     return;
   }
   if (m.type === 'queue') {   // после перезагрузки: карточки «🤖», которых нет в очереди расширения, — снова обычные
@@ -3441,7 +3450,7 @@ function autopilotRun(list) {
   if (!autopilot.on) return openAutopilot();
   todo.forEach(it => { it.statusText = '🤖 в очереди — открываю Google Flow'; DB.put(it); });
   autopilot.send({type: 'tasks', tasks: todo.map(it => ({id: it.id, kind: it.type, prompt: it.finalPrompt, engine: it.phone.engine || '', aspect: it.aspect,
-    count: it.phone.count || 1, images: it.refs || []}))});
+    count: it.phone.count || 1, images: it.refs || [], credits: apCost(it)}))});
   render();
   const rest = [].concat(list).filter(it => it?.status === 'external' && !apCan(it)).length;
   toast(`🤖 Автопилот: ${todo.length} ${plur(todo.length, 'карточка', 'карточки', 'карточек')} — Google Flow откроется в соседней вкладке, дальше само` +
@@ -3453,10 +3462,26 @@ function autopilotStop(it) {
 }
 // окно «Автопилот»: что умеет и как поставить
 function openAutopilot() { Object.assign(vcUi, {view: 'autopilot', from: 'autopilot'}); vcShow(); }
+// Аккаунты Google во Flow (пользователь 2026-09-29: «три вкладки в одном аккаунте, а не в трёх»). Вход во Flow общий для профиля
+// Chrome — во всех вкладках один аккаунт; поэтому Автопилот берёт аккаунты по очереди и сам входит следующим, когда кредиты кончились.
+function apAccountsHTML() {
+  if (apOld()) return `<div class="mcp-note">⬆ Есть новая версия Автопилота (${AP_VER}): он сам переключает аккаунты Google, когда кредиты кончились. Скачайте архив ниже заново, распакуйте его в ту же папку «freefield-autopilot» с заменой файлов и нажмите ⟳ у Автопилота на странице chrome://extensions.</div>`;
+  const list = autopilot.accounts || [], day = 50;
+  const left = a => a.out ? 0 : Math.max(0, day - (a.spent || 0));
+  const rows = list.map(a => `<div class="acc-prof"><span>${a.email === autopilot.me ? '🟢' : '👤'} ${esc(a.email)} — ${a.out ? 'кредиты на сегодня кончились' : `сегодня ещё ~${left(a)} из ${day} кредитов`}${a.email === autopilot.me ? ' · сейчас во Flow' : ''}</span>
+    <span>${a.out || a.spent ? `<button class="btn small" data-ap-acct-reset="${esc(a.email)}" title="Если кредиты на самом деле есть (Flow пополнил или считали не всё) — Автопилот снова возьмёт этот аккаунт">↺ Кредиты есть</button>` : ''}<button class="btn small" data-ap-acct-del="${esc(a.email)}" title="Автопилот не будет входить этим аккаунтом">✕</button></span></div>`).join('');
+  const total = list.reduce((s, a) => s + left(a), 0);
+  return `<div class="cl-sec">Аккаунты Google во Flow${list.length ? ` · сегодня ещё ~${total} кредитов` : ''}</div>
+    <p class="set-p">Во всех вкладках одного Chrome Flow открыт <b>одним</b> аккаунтом — так устроен вход Google, поэтому Автопилот берёт аккаунты по очереди, в одной вкладке: в аккаунте кончились 50 кредитов на сегодня — он сам выходит и входит следующим, без пароля. Аккаунт попадает в список, как только им вошли во Flow.</p>
+    ${rows || '<p class="hint">Пока ни одного — войдите во Flow, и аккаунт появится здесь.</p>'}
+    <div class="vc-foot" style="justify-content:flex-start"><button class="btn small" data-ap-acct-add title="Во вкладке Flow откроется выбор аккаунта Google — выберите или добавьте другой">➕ Добавить аккаунт</button></div>
+    <p class="hint">Чтобы входить без пароля, аккаунт должен быть добавлен в Google в этом Chrome (при первом входе Google спросит пароль — это делаете вы, Автопилот пароли не вводит).</p>`;
+}
 function autopilotHTML() {
   return `<div class="mcp-status">${autopilot.on ? `🟢 Автопилот установлен (версия ${esc(autopilot.version)}) — карточки Google Flow делаются сами` : '⚪ Автопилот не установлен в этом браузере'}</div>
     <p class="set-p">Расширение для Chrome на компьютере. Само открывает Google Flow, прикладывает фото, вставляет промпт, выбирает формат и модель (Nano Banana, Omni, Veo), нажимает «Создать», ждёт и возвращает готовое в карточку — «🚀 Серия роликов» с ним идёт до конца сама. Кредиты тратятся ваши, как если бы нажимали вы.</p>
     ${pwa.mobile() ? '<div class="mcp-note">📱 На телефоне расширения не работают — поставьте Автопилот в Chrome на компьютере и откройте Freefield там.</div>' : ''}
+    ${autopilot.on ? apAccountsHTML() : ''}
     <div class="cl-sec">Как поставить — один раз, 2 минуты</div>
     <ol class="steps">
       <li><a class="btn small free" href="${AUTOPILOT_ZIP}" download>⤓ Скачать Автопилот (.zip)</a> и распакуйте архив: на Windows — правой кнопкой по файлу → <b>«Извлечь все»</b> (просто открыть zip мало). Появится папка «freefield-autopilot».</li>
@@ -6100,6 +6125,9 @@ function bindVoices() {
     if (x.vcFlowKind) { d.flow.kind = x.vcFlowKind; return renderVoices(); }
     // замена голоса у готового видео
     if (vcUi.view === 'series' && Object.keys(x).some(k => k.startsWith('ser'))) return serClick(b);
+    if (b.hasAttribute('data-ap-acct-add')) { autopilot.send({type: 'acct-add'}); return toast('Во вкладке Google Flow откроется выбор аккаунта Google — выберите другой аккаунт, и он появится здесь', {type: 'ok', ms: 8000}); }
+    if (x.apAcctDel) return autopilot.send({type: 'acct-del', email: x.apAcctDel});
+    if (x.apAcctReset) return autopilot.send({type: 'acct-reset', email: x.apAcctReset});
     if (x.scrF) { vcUi.scrF = x.scrF; return renderVoices(); }
     if (x.scrCopy) return scrCopy(x.scrCopy);
     if (x.scrScn) return scrToScn(x.scrScn);
@@ -6805,7 +6833,8 @@ function serSetupHTML(c) {
     <div class="vc-opt"><span>Пожелания к роликам (необязательно)</span><textarea class="vc-in" data-ser-idea rows="2" maxlength="400" placeholder="Например: про первые шаги в программировании, с юмором, без рекламы">${esc(o.idea)}</textarea></div>
     <div class="ser-cost">💳 ${o.service === 'flow'
       ? `Flow: ${o.n} × ${per} = <b>${total}</b> ${plur(total, 'кредит', 'кредита', 'кредитов')} — на сегодня ${acc} ${plur(acc, 'аккаунт', 'аккаунта', 'аккаунтов')} Google (по 50 в день)${left != null ? `; сейчас во Flow осталось <b>${left}</b>` : ''}.`
-      : 'Авто: видео разойдутся по Flow, Dola и Arena — кредитов Flow уйдёт меньше.'} ${o.frames === 'new' ? 'Кадры Nano Banana 2 — без кредитов.' : ''}${c.flow?.name ? ` Голос во Flow — ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}: он должен быть сохранён в каждом аккаунте Flow, где пойдут видео.` : ''}</div>
+      : 'Авто: видео разойдутся по Flow, Dola и Arena — кредитов Flow уйдёт меньше.'} ${o.frames === 'new' ? 'Кадры Nano Banana 2 — без кредитов.' : ''}${!hub && apOn() && o.service === 'flow' && acc > 1
+      ? ` 🤖 Автопилот сам переключит аккаунты, когда в одном кончатся кредиты${autopilot.accounts.length < acc ? ` — знает ${autopilot.accounts.length} из ${acc} нужных: <button class="wr-link" data-ser-ap>👤 добавить аккаунты</button>` : ''}.` : ''}${c.flow?.name ? ` Голос во Flow — ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}: он должен быть сохранён в каждом аккаунте Flow, где пойдут видео.` : ''}</div>
     ${need.length ? `<div class="ch-video"><b>Чтобы серия пошла, не хватает:</b><ul class="ch-need">${need.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>` : ''}
     <div class="vc-foot"><button class="btn free" data-ser-go ${need.length ? 'disabled' : ''}>▶ Запустить: ${o.n} ${plur(o.n, 'видео', 'видео', 'видео')}</button>${serOf(c.id) ? '<button class="btn" data-ser-last>Последняя серия</button>' : ''}<button class="btn" data-vc-back>Отмена</button></div>`;
 }

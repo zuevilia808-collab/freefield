@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Freefield Автопилот",
-  "version": "0.1.0",
-  "description": "Сам делает карточки Freefield в Google Flow: открывает Flow, прикладывает фото, вставляет промпт, нажимает «Создать» и возвращает результат.",
+  "version": "0.2.0",
+  "description": "Сам делает карточки Freefield в Google Flow: открывает Flow, прикладывает фото, вставляет промпт, нажимает «Создать» и возвращает результат. Кредиты кончились — сам входит следующим аккаунтом Google.",
   "icons": {"48": "icon-48.png", "128": "icon-128.png"},
   "action": {"default_title": "Freefield Автопилот", "default_icon": {"48": "icon-48.png", "128": "icon-128.png"}},
   "background": {"service_worker": "bg.js"},
