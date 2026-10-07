@@ -1764,7 +1764,7 @@ const SERVICES = [
      equiv: 'ИИ-видео в Google Vids: Omni, 720p, 10 секунд, со звуком, вертикально или горизонтально — примерно минута на видео'}},
   {id: 'gemini', name: 'Gemini', by: 'Google', url: 'https://gemini.google.com/', ico: 'Ge', color: 'linear-gradient(135deg,#4285f4,#9b72cb,#d96570)',
    period: 'day', credits: 'без кредитов — дневной лимит', short: '≈ 20 картинок/день',
-   image: {models: 'Nano Banana 2', equiv: '≈ 20 картинок в день (Nano Banana Pro — 2 в день)'}},
+   image: {models: 'Nano Banana 2.1', equiv: '≈ 20 картинок в день (Nano Banana Pro — 2 в день)'}},
   {id: 'aistudio', name: 'Google AI Studio', by: 'Google', url: 'https://aistudio.google.com/', ico: 'AI', color: 'linear-gradient(135deg,#1a73e8,#0b57d0)',
    period: 'day', credits: 'без кредитов — динамический дневной лимит', short: 'сотни/день',
    image: {models: 'Nano Banana', engine: 'модель Nano Banana (…flash-image) в чате', equiv: 'обычно сотни картинок в день (зависит от сложности запросов)'}},
@@ -4502,7 +4502,7 @@ function updateGenButton() {
     $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
     $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайте';
     $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
-      (asset.kind === 'loc' ? (asset.refs[0] && asset.info ? ' · развёртка и инфографика ✓' : ` · нужна ${!asset.refs[0] && !asset.info ? 'развёртка и инфографика' : !asset.info ? 'инфографика' : 'развёртка'}`)
+      (asset.kind === 'loc' ? (asset.refs[0] ? ` · развёртка ✓${asset.info ? ' · инфографика ✓' : ''}` : ' · нужна развёртка')
         : asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
     return;
   }
@@ -5053,7 +5053,7 @@ function bindControls() {
 // где пользователь один раз вошёл в аккаунты. Сценарии пишутся здесь: с телефона они уходят на компьютер по домашнему
 // Wi-Fi (Freefield открыт по QR-коду с компьютера), а без подключения копируются заданием для чата с Claude.
 const CLAUDE_SVC = [
-  {id: 'flow', what: '50 кредитов в день. Видео — Omni 1.1 Flash по умолчанию (20 кредитов), Veo 3.1 Lite — 10; картинки Nano Banana 2 — без кредитов.'},
+  {id: 'flow', what: '50 кредитов в день. Видео — Omni 1.1 Flash по умолчанию (20 кредитов), Veo 3.1 Lite — 10; картинки Nano Banana 2.1 — без кредитов.'},
   {id: 'arena', what: 'Бесплатно. Один запрос = 2 видео или 2 картинки от двух случайных топ-моделей; умеет оживлять картинку. Arena может публиковать промпты для исследований — не пишите личное.'},
   {id: 'dola', what: 'Картинки Seedream 5.0 — без кредитов, обычно 4 варианта за раз; видео Seedance 2.5 — за баллы Dola.'},
   {id: 'vids', what: 'Бесплатно. Видео Omni · 720p · 10 с · со звуком, вертикально или горизонтально, около минуты на видео. Фото героя — «ингредиенты» (Google один раз попросит вас принять правила).'},
@@ -5280,8 +5280,8 @@ const SCN_MODELS = {
     ['vids', 'omni', 'Omni', '10 с · 720p · бесплатно', 0],
   ],
   image: [
+    ['flow', 'nano-banana-2.1', 'Nano Banana 2.1', 'без кредитов', 0],
     ['flow', 'nano-banana-2', 'Nano Banana 2', 'без кредитов', 0],
-    ['flow', 'nano-banana-2.1', 'Nano Banana 2.1', 'новая · нет в аккаунте — сделает Nano Banana 2', 0],
     ['flow', 'nano-banana-2-lite', 'Nano Banana 2 Lite', 'без кредитов', 0],
     ['flow', 'nano-banana-pro', 'Nano Banana Pro', '8 кредитов', 8],
     ['dola', 'seedream-5-pro', 'Seedream 5.0', 'без кредитов · обычно 4 варианта', 0],
@@ -5317,10 +5317,10 @@ function arChip(a, on, attr) {
   return `<button class="chip ${on ? 'on' : ''}" ${attr}="${a}" title="${AR_NAME[a]}"><span class="ar" style="width:${Math.round(w * k)}px;height:${Math.round(h * k)}px"></span>${a}</button>`;
 }
 const scnModel = (kind, site, key) => SCN_MODELS[kind].find(m => m[0] === site && m[1] === key);
-// модель по умолчанию на сервисе (пользователь 2026-09-27): видео Flow — Omni 1.1 Flash, Dola — Seedance 2.5; фото Flow — Nano Banana 2, Dola — Seedream 5.0
+// модель по умолчанию на сервисе (пользователь 2026-09-27, 2026-10-07): видео Flow — Omni 1.1 Flash, Dola — Seedance 2.5; фото Flow — Nano Banana 2.1, Dola — Seedream 5.0
 function scnDefault(kind, site) {
   if (kind === 'video') return {flow: 'omni-1.1-flash', dola: 'seedance-2.5', arena: 'battle', vids: 'omni'}[site];
-  return {flow: 'nano-banana-2', dola: 'seedream-5-pro', arena: 'battle'}[site];
+  return {flow: 'nano-banana-2.1', dola: 'seedream-5-pro', arena: 'battle'}[site];
 }
 // телефон без связи с компьютером: сценарии и ассеты делаются вручную на сайтах сервисов (карточки «на телефоне»)
 const phoneOnly = () => !hubLink.ok && pwa.mobile();
@@ -5685,11 +5685,17 @@ function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : c
 
 /* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
-  flow: {what: 'Nano Banana 2 · без кредитов · до 4 фото · берёт несколько референсов'},
+  flow: {what: 'Nano Banana 2.1 · без кредитов · до 4 фото · берёт несколько референсов'},
   dola: {what: 'Seedream 5.0 · без кредитов · обычно 4 варианта'},
   arena: {what: '2 фото от двух разных моделей · бесплатно'},
 };
 const ASSET_MAX_REFS = 4;
+// Nano Banana 2.1 — по умолчанию (пользователь 2026-10-07): сохранённый прежний выбор по умолчанию (Nano Banana 2) — на 2.1, один раз
+if (!ls.get('freefield.nb21', false)) {
+  const m = ls.get('freefield.asset.model', null);
+  if (m?.flow === 'nano-banana-2') ls.set('freefield.asset.model', {...m, flow: 'nano-banana-2.1'});
+  ls.set('freefield.nb21', true);
+}
 // «Что создаём» — ассеты рилса по шагам (пользователь 2026-09-27): готовый английский промпт с [ПОЛЯМИ], формат и количество.
 // Промпт — шаблон: пользователь меняет [ПОЛЯ] на своё, больше ничего не дописывается
 const ASSET_KINDS = {
@@ -5704,19 +5710,37 @@ const ASSET_KINDS = {
     promptRef: 'Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.'},
   // Пользователь 2026-09-29: обязательны развёртка И инфографика; что делает герой и где — не вписывать: модель сама выбирает
   // обстановку по теме инфографики, у каждого кадра — своя (LOC_SCENES)
-  loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке и инфографике · 3:4 ×4', aspect: '3:4', count: 4, many: 'Кадры героя в локациях',
-    ask: 'Сколько кадров «персонаж в локации» нужно?', note: 'Один кадр на сценарий: 5 сценариев — 5 кадров. Место и действие вписывать не нужно — их подберут по инфографике, у каждого кадра своё; герой — по развёртке.',
-    hint: 'Нужны развёртка героя и инфографика. Место и действие подберутся сами — по теме инфографики',
-    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. The reference infographic shows what the video is about: read it only to understand the topic, then choose yourself a real-life setting, props and an action for the character that clearly fit this topic. Never show the infographic itself, its text, icons or charts in the image. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'},
+  // Пользователь 2026-10-07: место и действие можно вписать у каждого кадра (необязательно); инфографика желательна, но не обязательна.
+  // Промпт кадра собирает assetItemPrompt: вписанное место и действие, а чего нет — модель выбирает по теме инфографики или сама
+  loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке · место и действие по желанию · 3:4 ×4', aspect: '3:4', count: 4, many: 'Кадры героя в локациях',
+    ask: 'Сколько кадров «персонаж в локации» нужно?', note: 'Один кадр на сценарий. У каждого кадра можно вписать место и действие — или оставить пустыми: их подберут по инфографике (если она есть) или выберет модель.',
+    hint: 'Нужна развёртка героя; инфографика желательна. Место и действие — по желанию у каждого кадра',
+    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'},
 };
 // у каждого кадра «персонаж в локации» — своя сцена по теме инфографики (кадры одного запуска не повторяются)
 const LOC_SCENES = ['the key moment of the topic: he is doing the main action it is about', 'a close-up moment with a prop, tool or product from the topic',
   'an everyday home setting connected to the topic', 'an outdoor setting connected to the topic', 'a workplace, workshop or shop typical for the topic',
   'he explains something to the camera in a place typical for the topic', 'a moment of success or result that the topic promises',
   'a common problem or mistake from the topic, shown in a real situation', 'a calm evening or morning scene connected to the topic', 'a lively scene with the atmosphere of the topic'];
+// без инфографики темы нет — сцены без неё
+const LOC_SCENES_FREE = ['a calm everyday moment at home', 'walking along a city street', 'at work in a typical workplace', 'a close-up moment with an object in his hands',
+  'he talks to the camera', 'a moment of joy or success', 'outdoors in nature', 'sitting in a cozy cafe', 'by a window in soft evening light', 'a lively scene with people in the background'];
+// промпт кадра «персонаж в локации»: основа (поле «Что на фото») + вписанные место и действие; чего нет — по инфографике или на выбор модели
+function locPrompt(base, it, i) {
+  const place = (it.vals.LOCATION || '').trim(), action = (it.vals.ACTION || '').trim();
+  const miss = !place && !action ? 'a real-life setting, props and an action for the character' : !place ? 'a real-life setting and props' : !action ? 'an action for the character' : '';
+  const one = place && !action;   // не хватает только действия — одно, остальное — несколько
+  const parts = [base];
+  if (place) parts.push(`Location: ${place}.`);
+  if (action) parts.push(`Action: ${action}.`);
+  if (asset.info) parts.push(`The reference infographic shows what the video is about: read it only to understand the topic${miss ? `, then choose yourself ${miss} that clearly ${one ? 'fits' : 'fit'} this topic` : ''}. Never show the infographic itself, its text, icons or charts in the image.`);
+  else if (miss) parts.push(`Choose yourself ${miss} that ${one ? 'looks' : 'look'} natural and believable.`);
+  if (!place && !action) parts.push(`Scene idea for this shot: ${(asset.info ? LOC_SCENES : LOC_SCENES_FREE)[Math.max(0, i) % LOC_SCENES.length]}.`);
+  return parts.join(' ');
+}
 const asset = {
   svc: ls.get('freefield.asset.svc', 'flow'),   // flow | dola | arena | other (прежние модели: FLUX, платные…)
-  model: ls.get('freefield.asset.model', {flow: 'nano-banana-2', dola: 'seedream-5-pro'}),
+  model: ls.get('freefield.asset.model', {flow: 'nano-banana-2.1', dola: 'seedream-5-pro'}),
   aspect: ls.get('freefield.asset.aspect', '3:4'),
   count: ls.get('freefield.asset.count', 4),
   refs: [],   // data URL фото-референсов (только в этой вкладке); у «Персонажа в локации» первое — развёртка героя
@@ -5739,14 +5763,14 @@ function setAssetSvc(svc) {
   updateLabels();
 }
 function assetLocHTML() {
-  const slot = (key, ico, name, img) => `<div class="asset-slot ${img ? 'has' : 'need'}" data-aslot-box="${key}">${img ? `<img src="${img}" alt="">` : `<span>${ico}</span>`}
-    <b>${name}</b><small>${img ? 'есть' : 'обязательно'}</small>
+  const slot = (key, ico, name, img) => `<div class="asset-slot ${img ? 'has' : key === 'sheet' ? 'need' : ''}" data-aslot-box="${key}">${img ? `<img src="${img}" alt="">` : `<span>${ico}</span>`}
+    <b>${name}</b><small>${img ? 'есть' : key === 'sheet' ? 'обязательно' : 'желательно'}</small>
     <button class="btn small" data-aslot="${key}">${img ? 'Другая' : '＋ Добавить'}</button>${img ? `<button class="asset-slot-rm" data-aslot-rm="${key}" title="Убрать">✕</button>` : ''}</div>`;
-  const chars = vc.chars.filter(c => c.sheet && c.info);
+  const chars = vc.chars.filter(c => c.sheet);
   return `<div class="asset-slots">${slot('sheet', '🧍', 'Развёртка героя', asset.refs[0])}${slot('info', '📊', 'Инфографика', asset.info)}</div>
     ${asset.refs.slice(1).map((r, i) => `<div class="asset-ref"><img src="${r}" alt=""><button data-aref-rm="${i + 1}" title="Убрать фото">✕</button></div>`).join('')}
     ${chars.length ? `<div class="asset-chars"><span class="hint">Взять у персонажа:</span>${chars.map(c => `<button class="btn small" data-aslot-char="${c.id}">🎭 ${esc(c.name)}</button>`).join('')}</div>` : ''}
-    <span class="hint">${asset.refs[0] && asset.info ? 'Место и действие вписывать не нужно: модель прочитает инфографику и сама подберёт обстановку по её теме — у каждого кадра свою. Герой — точно по развёртке.' : 'Нужны обе картинки: по развёртке — внешность героя, по инфографике — где он и что делает.'}</span>`;
+    <span class="hint">${asset.info ? 'Пустые место и действие подберутся по теме инфографики — у каждого кадра свои.' : 'Без инфографики пустые место и действие выберет модель.'}</span>`;
 }
 function assetRefsHTML() {
   if (asset.kind === 'loc') return assetLocHTML();
@@ -5775,12 +5799,12 @@ function assetItemBase(it) {
   const K = ASSET_KINDS[asset.kind], p = $('#prompt').value.trim();
   return K?.promptRef && it.ref && p === K.prompt ? K.promptRef : p;
 }
-const assetItemPrompt = it => assetItemBase(it).replace(FIELD_RE, (a, key, off, str) => {
+const assetItemPrompt = it => asset.kind === 'loc' ? locPrompt(assetItemBase(it), it, asset.items.indexOf(it)) : assetItemBase(it).replace(FIELD_RE, (a, key, off, str) => {
   let v = (it.vals[key] || '').trim();
   if (!v) return a;
   if (/(^|[.!?]s+)$/.test(str.slice(0, off))) v = v[0].toUpperCase() + v.slice(1);   // в начале предложения — с большой буквы
   return v;
-}) + (asset.kind === 'loc' ? ` Scene idea for this shot: ${LOC_SCENES[Math.max(0, asset.items.indexOf(it)) % LOC_SCENES.length]}.` : '');
+});
 const assetItemFields = it => assetFields(assetItemBase(it));
 // сколько аккаунтов возьмётся сразу: во Flow 4 генерации на аккаунт, в Dola и Arena — 2
 const assetCap = () => ({flow: 4, dola: 2, arena: 2})[asset.svc] || 4;
@@ -5790,10 +5814,12 @@ function assetItemsHTML() {
   const K = ASSET_KINDS[asset.kind];
   if (!K) return '';
   const cards = asset.items.slice(0, asset.n).map((it, i) => {
-    const f = assetItemFields(it);
+    const f = assetItemFields(it), loc = asset.kind === 'loc';
+    // у «Персонажа в локации» — место и действие, оба необязательные
+    const fieldsHTML = loc ? [['LOCATION', 'Место — по желанию'], ['ACTION', 'Действие — по желанию']].map(([key, ph]) => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${ph}" aria-label="${ph}" enterkeyhint="next" autocomplete="off">`).join('') : '';
     return `<div class="asset-item"><b class="n">${i + 1}</b>
       <button class="asset-item-ph ${it.ref ? 'has' : ''}" data-ai-ph="${i}" title="${it.ref ? 'Убрать фото этой картинки' : 'Своё фото для этой картинки (например, герой для развёртки)'}">${it.ref ? `<img src="${it.ref}" alt="">` : ic('plus')}</button>
-      <div class="asset-item-f">${f.length ? f.map(key => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${esc(FIELD_RU[key] || key)}" aria-label="${esc(FIELD_RU[key] || key)}" enterkeyhint="next" autocomplete="off">`).join('')
+      <div class="asset-item-f">${loc ? fieldsHTML : f.length ? f.map(key => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${esc(FIELD_RU[key] || key)}" aria-label="${esc(FIELD_RU[key] || key)}" enterkeyhint="next" autocomplete="off">`).join('')
         : `<span class="hint">${asset.kind === 'loc' ? 'место и действие — по инфографике, у этого кадра своё' : it.ref ? 'по этому фото — промпт общий' : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div>
       ${asset.n > 1 ? `<button class="asset-item-rm" data-ai-rm="${i}" title="Убрать эту картинку" aria-label="Убрать картинку ${i + 1}">✕</button>` : ''}</div>`;
   }).join('');
@@ -6055,11 +6081,11 @@ function setAssetCount(n) {
   updateGenButton();
   // «Персонаж в локации»: обе картинки есть — выбирать ничего не нужно; нет — окно выбора той, которой не хватает
   if (asset.kind === 'loc') {
-    const need = !asset.refs[0] ? 'sheet' : !asset.info ? 'info' : null, took = asset.tookSheet;
+    const need = !asset.refs[0] ? 'sheet' : null, took = asset.tookSheet;
     asset.tookSheet = false;
-    if (!need) return toast(`${took ? 'Развёртку и инфографику взял из «Создания сценария». ' : ''}Место и действие подберутся по инфографике — жмите «Создать»`, {type: 'ok', ms: 6000});
+    if (!need) return toast(`${took ? `Развёртку${asset.info ? ' и инфографику' : ''} взял из «Создания сценария». ` : ''}Место и действие — по желанию у каждого кадра; пустые ${asset.info ? 'подберутся по инфографике' : 'выберет модель'}`, {type: 'ok', ms: 6000});
     asset.pickFor = need;
-    toast(need === 'sheet' ? 'Выберите фото развёртки героя' : 'Выберите инфографику — по ней подберутся место и действие', {ms: 6000});
+    toast('Выберите фото развёртки героя', {ms: 6000});
     $('#assetFile').value = '';
     return $('#assetFile').click();
   }
@@ -6173,15 +6199,13 @@ async function assetGo() {
   const prompts = items ? items.map(assetItemPrompt) : [raw];
   // шаблон с незаполненными [ПОЛЯМИ]
   if (prompts.some(p => /\[[A-Z][A-Z ]*[\]:]/.test(p))) return nudge('Впишите своё вместо [ПОЛЕЙ] в промпте: тема, герой, место…');
-  if (asset.kind === 'loc' && (!asset.refs[0] && !list.every(it => it.ref) || !asset.info)) {
-    const need = !asset.info ? 'info' : 'sheet';
-    $(`#assetCreate [data-aslot-box="${need}"]`)?.classList.add('miss');
-    return toast(need === 'info' ? 'Для «Персонажа в локации» нужна инфографика — по ней подберутся место и действие' : 'Для «Персонажа в локации» нужна развёртка героя',
-      {type: 'err', ms: 8000, action: need === 'info' ? '📊 Выбрать инфографику' : '🧍 Выбрать развёртку', onAction: () => { asset.pickFor = need; $('#assetFile').value = ''; $('#assetFile').click(); }});
+  if (asset.kind === 'loc' && !asset.refs[0] && !list.every(it => it.ref)) {
+    $(`#assetCreate [data-aslot-box="sheet"]`)?.classList.add('miss');
+    return toast('Для «Персонажа в локации» нужна развёртка героя', {type: 'err', ms: 8000, action: '🧍 Выбрать развёртку', onAction: () => { asset.pickFor = 'sheet'; $('#assetFile').value = ''; $('#assetFile').click(); }});
   }
   // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow);
   // у «Персонажа в локации» последней всегда идёт инфографика
-  const imgsOf = it => asset.kind === 'loc' ? [...[...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS - 1), asset.info]
+  const imgsOf = it => asset.kind === 'loc' ? [...[...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS - (asset.info ? 1 : 0)), ...(asset.info ? [asset.info] : [])]
     : [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
   const tasks = (list || [null]).map((it, i) => assetTask(composePrompt(prompts[i], state.style, 'image'), imgsOf(it)));
   if (peek.on) return peekShow('Создание ассетов', {prompts: tasks.map((t, i) => [`Картинка ${i + 1} → ${SITE_SHORT[t.service] || t.service} · ${t.model || ''}`, t.prompt]),
@@ -6212,9 +6236,14 @@ function bindAsset() {
     if (pk) {
       e.stopPropagation();
       const K = ASSET_KINDS[pk.dataset.akindPeek];
-      return peekShow(K.name, {prompts: [['Промпт', K.prompt], ...(K.promptRef ? [['Промпт, когда есть фото героя', K.promptRef]] : []),
-        ...(pk.dataset.akindPeek === 'loc' ? [['К каждому кадру дописывается своя сцена (по очереди)', LOC_SCENES.map((x, i) => `${i + 1}. Scene idea for this shot: ${x}.`).join('\n')]] : [])],
-        request: {формат: K.aspect, картинок_за_раз: K.count || asset.count, фото: pk.dataset.akindPeek === 'loc' ? ['развёртка героя', 'инфографика (последней)'] : pk.dataset.akindPeek === 'sheet' ? ['фото героя — если есть'] : ['пример стиля — по желанию'],
+      const isLoc = pk.dataset.akindPeek === 'loc';
+      return peekShow(K.name, {prompts: [[isLoc ? 'Основа (поле «Что на фото»)' : 'Промпт', K.prompt], ...(K.promptRef ? [['Промпт, когда есть фото героя', K.promptRef]] : []),
+        ...(isLoc ? [['Что дописывается к каждому кадру', ['Место вписано → Location: <место>.', 'Действие вписано → Action: <действие>.',
+          'Есть инфографика → The reference infographic shows what the video is about: read it only to understand the topic, then choose yourself <чего не вписано> that clearly fit this topic. Never show the infographic itself, its text, icons or charts in the image.',
+          'Нет инфографики, что-то не вписано → Choose yourself <чего не вписано> that look natural and believable.',
+          'Ни места, ни действия → Scene idea for this shot: <сцена по очереди из списка ниже>.'].join('\n')],
+          ['Сцены — с инфографикой', LOC_SCENES.map((x, i) => `${i + 1}. ${x}`).join('\n')], ['Сцены — без инфографики', LOC_SCENES_FREE.map((x, i) => `${i + 1}. ${x}`).join('\n')]] : [])],
+        request: {формат: K.aspect, картинок_за_раз: K.count || asset.count, фото: pk.dataset.akindPeek === 'loc' ? ['развёртка героя', 'инфографика (последней, если есть)'] : pk.dataset.akindPeek === 'sheet' ? ['фото героя — если есть'] : ['пример стиля — по желанию'],
           куда: 'программа на компьютере: POST /api/batch → ' + SITE_SHORT[asset.svc]}});
     }
     const b = e.target.closest('button');
@@ -6240,9 +6269,9 @@ function bindAsset() {
     if (b.dataset.aslotChar) {
       const c = vc.char(b.dataset.aslotChar);
       if (!c) return;
-      asset.refs[0] = c.sheet; asset.info = c.info;
+      asset.refs[0] = c.sheet; asset.info = c.info || asset.info || null;
       renderAsset(); updateGenButton();
-      return toast(`${c.name}: развёртка и инфографика на месте — жмите «Создать»`, {type: 'ok'});
+      return toast(`${c.name}: ${asset.info ? 'развёртка и инфографика' : 'развёртка'} на месте — жмите «Создать»`, {type: 'ok'});
     }
     if (b.dataset.arefRm) { asset.refs.splice(+b.dataset.arefRm, 1); renderAsset(); return updateGenButton(); }
     if (b.hasAttribute('data-import-all')) return hubLink.importAll(b);
@@ -7119,7 +7148,7 @@ async function serWrite(j, c) {
   finally { Object.assign(wr, keep); ser.writing.delete(j.id); }
 }
 // 2. кадры «герой в локации» во Flow — по промпту ассета, с развёрткой героя; вертикально, как видео
-const serFrameTask = (r, c, hub) => ({prompt: String(r.asset_prompt || r.title).replace(/vertical 3:4/gi, 'vertical 9:16'), kind: 'image', service: 'flow', model: 'nano-banana-2',
+const serFrameTask = (r, c, hub) => ({prompt: String(r.asset_prompt || r.title).replace(/vertical 3:4/gi, 'vertical 9:16'), kind: 'image', service: 'flow', model: 'nano-banana-2.1',
   aspect_ratio: '9:16', count: hub ? 2 : 1, images: [c.sheet]});
 async function serFramesSend(j, c) {
   const rows = j.rows.filter(r => !r.frame && !r.skip);
@@ -7260,7 +7289,7 @@ function serSetupHTML(c) {
     <div class="vc-opt"><span>Пожелания к роликам (необязательно)</span><textarea class="vc-in" data-ser-idea rows="2" maxlength="400" placeholder="Например: про первые шаги в программировании, с юмором, без рекламы">${esc(o.idea)}</textarea></div>
     <div class="ser-cost">💳 ${o.service === 'flow'
       ? `Flow: ${o.n} × ${per} = <b>${total}</b> ${plur(total, 'кредит', 'кредита', 'кредитов')} — на сегодня ${acc} ${plur(acc, 'аккаунт', 'аккаунта', 'аккаунтов')} Google (по 50 в день)${left != null ? `; сейчас во Flow осталось <b>${left}</b>` : ''}.`
-      : 'Авто: видео разойдутся по Flow, Dola и Arena — кредитов Flow уйдёт меньше.'} ${o.frames === 'new' ? 'Кадры Nano Banana 2 — без кредитов.' : ''}${c.flow?.name ? ` Голос во Flow — ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}: он должен быть сохранён в каждом аккаунте Flow, где пойдут видео.` : ''}</div>
+      : 'Авто: видео разойдутся по Flow, Dola и Arena — кредитов Flow уйдёт меньше.'} ${o.frames === 'new' ? 'Кадры Nano Banana 2.1 — без кредитов.' : ''}${c.flow?.name ? ` Голос во Flow — ${c.flow.kind === 'char' ? '@' : '@Voice: '}${esc(c.flow.name)}: он должен быть сохранён в каждом аккаунте Flow, где пойдут видео.` : ''}</div>
     ${need.length ? `<div class="ch-video"><b>Чтобы серия пошла, не хватает:</b><ul class="ch-need">${need.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>` : ''}
     <div class="vc-foot"><button class="btn free" data-ser-go ${need.length ? 'disabled' : ''}>▶ Запустить: ${o.n} ${plur(o.n, 'видео', 'видео', 'видео')}</button>${serOf(c.id) ? '<button class="btn" data-ser-last>Последняя серия</button>' : ''}<button class="btn" data-vc-back>Отмена</button></div>`;
 }
@@ -8064,7 +8093,7 @@ function writeOutHTML() {
       ${s.asset_prompt ? `<details class="wr-prompts"><summary>Промпт ассета — для «🖼 Ассет ×4»</summary><p>${esc(s.asset_prompt)}</p></details>` : ''}
       <div class="cl-row">
         <button class="btn small" data-wcopy-video="${i}" title="Скопировать сценарий — заполненный эталонный промпт, по блокам">📋 Копировать</button>
-        ${s.asset_prompt ? `<button class="btn small" data-wasset="${i}" title="Flow · Nano Banana 2 · 3:4 · ×4 с развёрткой героя — без кредитов">🖼 Ассет ×4</button>` : ''}
+        ${s.asset_prompt ? `<button class="btn small" data-wasset="${i}" title="Flow · Nano Banana 2.1 · 3:4 · ×4 с развёрткой героя — без кредитов">🖼 Ассет ×4</button>` : ''}
         <button class="btn small" data-wscn="${i}" title="Добавить сценарий в «Видео сервисы»">🎬 В видео сервисы</button></div>
     </div>`).join('') +
     `<div class="cl-row"><button class="btn" data-wasset="all" title="Для каждого сценария — 4 фото героя в его локации (Flow, без кредитов)">🖼 Ассеты для всех</button>
@@ -8074,10 +8103,10 @@ function writeOutHTML() {
 async function writeAssets(list) {
   list = list.filter(s => s.asset_prompt.length >= 3);
   if (!list.length) return toast('У сценария нет промпта для ассета', {type: 'err'});
-  if (!(await hubReady())) return phoneCards(list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: wr.sheet ? [wr.sheet] : undefined})));
+  if (!(await hubReady())) return phoneCards(list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2.1', aspect_ratio: '3:4', count: 4, images: wr.sheet ? [wr.sheet] : undefined})));
   try {
     const r = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({scenarios: list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2', aspect_ratio: '3:4', count: 4, images: [wr.sheet]}))})});
+      body: JSON.stringify({scenarios: list.map(s => ({prompt: s.asset_prompt, kind: 'image', service: 'flow', model: 'nano-banana-2.1', aspect_ratio: '3:4', count: 4, images: [wr.sheet]}))})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
     toast(`Отправлено в Google Flow: ${list.length} × 4 фото героя. Выберите лучшее в галерее и приложите его к сценарию кнопкой 📎`, {type: 'ok', ms: 8000});
