@@ -937,6 +937,18 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 /* задания на компьютере — живые карточки над галереей: этап, что делает сейчас, сколько идёт */
 .hub-jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:12px;align-items:start}
 .hub-jobs:empty{display:none}
+/* «🧊 3D-модель» и «🔍 Увеличить»: окно настроек, карточка модели в галерее, просмотр */
+.m3d-mode{margin-bottom:14px}
+.m3d-src{display:flex;gap:12px;align-items:center}
+.m3d-src img{width:110px;height:110px;object-fit:contain;border-radius:12px;background:var(--card);border:1px solid var(--line);flex:none}
+.m3d-views{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.m3d-views .asset-slot{cursor:pointer}
+.m3d-check{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin-top:14px}
+.m3d-ph{display:grid;place-items:center;width:100%;height:100%;min-height:160px;font-size:54px;background:linear-gradient(135deg,#1c2433,#2b3550)}
+.card.model img{width:100%;height:100%;object-fit:contain;background:#1b1f27}
+.lb-model{width:min(92vw,900px);height:min(70vh,720px);background:#20242c;border-radius:12px;display:block}
+.m3d-ph.lb-ph{width:min(80vw,560px);height:min(60vh,560px);font-size:96px;border-radius:12px}
+#lbInfo .meta dd{overflow-wrap:anywhere}
 .hub-jobs-head{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
 .hub-jobs-head b{color:var(--text)}
 .card.job{max-height:420px}
@@ -1318,7 +1330,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <section class="feed" id="feed">
     <div class="feed-head">
       <div class="seg" id="filterSeg">
-        <button data-v="all" class="on">Все</button><button data-v="image">Фото</button><button data-v="video">Видео</button>
+        <button data-v="all" class="on">Все</button><button data-v="image">Фото</button><button data-v="video">Видео</button><button data-v="model">🧊 3D</button>
       </div>
       <input class="search" id="search" placeholder="Поиск по промптам…">
       <span class="count" id="countLabel"></span>
@@ -1379,6 +1391,14 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <div class="sheet-panel">
     <div class="sheet-head"><h2>MCP-сервер Freefield</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
     <div class="sheet-body" id="mcpBody"></div>
+  </div>
+</div>
+
+<!-- «🧊 3D-модель» и «🔍 Увеличить»: картинка из галереи → Freefield на компьютере -->
+<div class="sheet hidden" id="m3dSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2 id="m3dTitle">🧊 3D-модель</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-body" id="m3dBody"></div>
   </div>
 </div>
 
@@ -3473,6 +3493,7 @@ function cardHTML(it) {
         }<button data-act="delete">Удалить</button></div>` : ''}
       </div></div>`;
   }
+  if (it.type === 'model') return m3dCardHTML(it);
   const media = it.type === 'video'
     ? `<video data-src="${urlOf(it.blob)}" ${it.posterBlob ? `poster="${urlOf(it.posterBlob)}"` : ''} muted loop playsinline preload="none"></video><span class="badge">▶ ${it.duration != null ? it.duration + ' с' : 'видео'}</span>`
     : `<img src="${urlOf(it.blob)}" alt="${esc(it.prompt)}" loading="lazy">`;
@@ -3480,6 +3501,7 @@ function cardHTML(it) {
     <div class="card-ov">
       <div class="card-actions">
         ${it.type === 'image' ? '<button class="act wide" data-act="animate" title="Сделать видео из этой картинки">🎬 Оживить</button>' : ''}
+        ${it.type === 'image' ? '<button class="act" data-act="to3d" title="🧊 3D-модель из этой картинки (на компьютере)">🧊</button>' : ''}
         ${it.type === 'video' ? '<button class="act" data-act="revoice" title="Заменить голос — на образец голоса персонажа">🎙</button>' : ''}
         <button class="act" data-act="variation" title="Ещё вариант">↻</button>
         <button class="act" data-act="reuse" title="Повторить с этими настройками">✎</button>
@@ -3552,8 +3574,8 @@ function refreshCard(it) {
 }
 function updateCounts() {
   const done = items.filter(i => i.status === 'done');
-  const nImg = done.filter(i => i.type === 'image').length;
-  $('#countLabel').textContent = done.length ? `${nImg} фото · ${done.length - nImg} видео` : '';
+  const nImg = done.filter(i => i.type === 'image').length, n3d = done.filter(i => i.type === 'model').length;
+  $('#countLabel').textContent = done.length ? `${nImg} фото · ${done.length - nImg - n3d} видео${n3d ? ` · ${n3d} 3D` : ''}` : '';
   const n = items.filter(i => i.status === 'queued' || i.status === 'running').length;
   $('#queueInfo').textContent = n ? `⏳ В работе: ${n}` : 'Ctrl+Enter';
   $('#navBadge').textContent = n;
@@ -3608,7 +3630,7 @@ function jobCardHTML({key, b, it}) {
     ${err ? '' : '<div class="shimmer"></div>'}
     <div class="pend-info">
       ${err ? '<div class="job-x">⚠️</div>' : '<div class="spin"></div>'}
-      <div class="pend-kind">${it.kind === 'video' ? '🎬 видео' : '🖼 фото'} · ${esc(it.siteLabel || SITE_SHORT[it.site] || it.site || 'компьютер')}</div>
+      <div class="pend-kind">${it.kind === 'video' ? '🎬 видео' : it.kind === '3d' ? '🧊 3D-модель' : it.site === 'upscale' ? '🔍 увеличение' : '🖼 фото'} · ${esc(it.siteLabel || SITE_SHORT[it.site] || it.site || 'компьютер')}</div>
       <div class="pend-status">${esc(status)}</div>
       ${err ? `<div class="pend-prompt job-err">${esc(it.message || 'причину программа не назвала')}</div>`
         : `<div class="job-steps">${JOB_STEPS.map((s, i) => `<i class="${i < step ? 'ok' : i === step ? 'now' : ''}" title="${s}"></i>`).join('')}</div>
@@ -3632,6 +3654,7 @@ setInterval(tick, 1000);
 
 function fileName(it) {
   const slug = (it.prompt || 'art').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'art';
+  if (it.type === 'model') return `freefield-3d-${slug}.${it.m3d?.pack || 'glb'}`;
   return `freefield-${slug}-${it.seed}.${it.type === 'video' ? 'mp4' : ({'image/png': 'png', 'image/webp': 'webp'}[it.blob?.type] || 'jpg')}`;
 }
 
@@ -3699,6 +3722,9 @@ async function doAction(act, it, el) {
     case 'save-voice': { const c = vc.char(it.char); if (c?.sample) await saveFile(dataBlob(c.sample), `голос-${c.name}.wav`); break; }
     case 'revoice': closeLB(); openRevoice(it); break;
     case 'to-char': closeLB(); openToChar(it); break;
+    case 'to3d': closeLB(); openM3d(it, '3d'); break;
+    case 'upscale': closeLB(); openM3d(it, 'up'); break;
+    case 'open3d': openLB(it.id); break;
     case 'paste-clip':
       try {
         for (const ci of await navigator.clipboard.read()) {
@@ -3825,6 +3851,7 @@ function closeLB() { $('#lightbox').classList.add('hidden'); $('#lbMedia').inner
 function showLB() {
   const it = lbList[lbIndex];
   if (!it) return closeLB();
+  if (it.type === 'model') return showLB3d(it);
   $('#lbMedia').innerHTML = it.type === 'video'
     ? `<video src="${urlOf(it.blob)}" controls autoplay loop playsinline></video>`
     : `<img src="${urlOf(it.blob)}" alt="">`;
@@ -3849,6 +3876,8 @@ function showLB() {
       ${it.type === 'image' && it.blob ? '<button data-act="to-scn" title="Сделать сценарий с этим фото: Freefield отправит его в Flow / Arena / Dola">📎 В сценарий</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-asset" title="Взять это фото референсом в «Создание ассетов» — например, развёртку героя">🖼 Референс для ассета</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-char" title="Сохранить в персонажа: кадр в локации, развёртка или инфографика">🧍 В персонажа</button>' : ''}
+      ${it.type === 'image' && it.blob ? '<button data-act="to3d" title="Сделать 3D-модель из этой картинки — на компьютере, бесплатно">🧊 3D-модель</button>' : ''}
+      ${it.type === 'image' && it.blob ? '<button data-act="upscale" title="Увеличить в 2 или 4 раза — на компьютере, бесплатно">🔍 Увеличить</button>' : ''}
       ${it.type === 'video' ? '<button data-act="revoice" title="Сделать голос ровно как в образце персонажа">🎙 Заменить голос</button>' : ''}
       <button data-act="download">⤓ Скачать</button>
       <button data-act="variation">↻ Вариант</button>
@@ -3862,6 +3891,155 @@ function stepLB(d) {
   const n = lbIndex + d;
   if (n >= 0 && n < lbList.length) { lbIndex = n; showLB(); }
 }
+
+/* =============================== 🧊 3D-модель и 🔍 Увеличить =============================== */
+// Картинка из галереи уходит в Freefield на компьютере: 3D-модель делают бесплатные сервисы под аккаунтами пользователя
+// (Hunyuan 3D, Hugging Face, Tripo, Meshy), увеличение — Flow или Real-ESRGAN. Пока идёт — живая карточка в галерее,
+// готовое само приходит в галерею (модель — карточкой с обложкой, увеличенная картинка — обычной картинкой).
+const M3D_SVC = [['auto', 'Авто', 'Сам выберет лучший бесплатный: Hunyuan 3D → Hugging Face → Tripo → Meshy; не вышло — следующий'],
+  ['hunyuan', 'Hunyuan 3D', 'Сайт Tencent: 20 бесплатных моделей в день'], ['hf', 'Hugging Face', 'TRELLIS.2 и Hunyuan3D-2.1: 1–3 модели в день на ваш аккаунт'],
+  ['tripo', 'Tripo', 'Бесплатные кредиты на месяц (≈ 10 моделей)'], ['meshy', 'Meshy', '100 кредитов и 10 скачиваний в месяц']];
+const m3d = {item: null, mode: '3d', views: {}, opts: {service: 'auto', quality: 'high', texture: true, pbr: false, format: 'glb', factor: 2, ...ls.get('freefield.m3d.opts', {})}};
+const fmtTri = n => n == null ? '' : n >= 1e6 ? `${Math.round(n / 1e5) / 10} млн` : n >= 1000 ? `${Math.round(n / 1000)} тыс.` : String(n);
+function m3dCardHTML(it) {
+  const m = it.m3d || {};
+  return `<div class="card model" data-id="${it.id}" style="aspect-ratio:${it.w}/${it.h}">
+    ${it.posterBlob ? `<img src="${urlOf(it.posterBlob)}" alt="" loading="lazy">` : '<div class="m3d-ph">🧊</div>'}
+    <span class="badge">🧊 3D · ${esc(String(m.format || m.pack || 'glb').toUpperCase())}${m.triangles ? ' · ' + fmtTri(m.triangles) + ' треуг.' : ''}</span>
+    <div class="card-ov">
+      <div class="card-actions">
+        <button class="act wide" data-act="open3d" title="Покрутить модель">👁 Смотреть</button>
+        <button class="act" data-act="download" title="Скачать модель">⤓</button>
+        <button class="act" data-act="delete" title="Удалить">🗑</button>
+      </div>
+      <div class="card-foot"><div class="card-prompt">${esc(it.prompt)}</div><div class="card-model">${esc(it.modelTitle || '')}</div></div>
+    </div></div>`;
+}
+// просмотрщик GLB — веб-компонент Google model-viewer, грузится только когда нужен
+let mvLoad = null;
+const loadModelViewer = () => mvLoad ||= customElements.get('model-viewer') ? Promise.resolve() : new Promise((ok, no) => {
+  const sc = document.createElement('script');
+  sc.type = 'module';
+  sc.src = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@4/dist/model-viewer.min.js';
+  sc.onload = () => ok();
+  sc.onerror = () => { mvLoad = null; no(new Error('нет связи')); };
+  document.head.append(sc);
+});
+function showLB3d(it) {
+  const m = it.m3d || {}, glb = (m.pack || 'glb') === 'glb';
+  $('#lbMedia').innerHTML = glb
+    ? `<model-viewer class="lb-model" src="${urlOf(it.blob)}" ${it.posterBlob ? `poster="${urlOf(it.posterBlob)}"` : ''} camera-controls auto-rotate shadow-intensity="1" alt="3D-модель"></model-viewer>`
+    : it.posterBlob ? `<img src="${urlOf(it.posterBlob)}" alt="">` : '<div class="m3d-ph lb-ph">🧊</div>';
+  if (glb) loadModelViewer().catch(() => toast('Просмотр 3D не загрузился (нет связи с cdn.jsdelivr.net) — модель можно скачать', {type: 'err', ms: 7000}));
+  const rows = [
+    ['Формат', `${String(m.format || 'glb').toUpperCase()}${m.pack === 'zip' ? ' (архив: модель + текстуры)' : ''}`],
+    ['Полигоны', m.triangles != null ? `${m.triangles.toLocaleString('ru-RU')} треугольников, ${Number(m.vertices || 0).toLocaleString('ru-RU')} вершин` : 'сервис не дал посчитать'],
+    ['Текстуры', `${m.textures ?? '—'}${m.pbr ? ' · PBR' : ''}`],
+    ['Где сделано', `${m.service || '—'}${m.engine ? ' · ' + m.engine : ''}`],
+    ...(m.folder ? [['Папка на компьютере', m.folder.replace(/^.*?(outputs[\\/])/, '…$1')]] : []),
+    ['Создано', new Date(it.createdAt).toLocaleString('ru-RU', {dateStyle: 'short', timeStyle: 'short'})],
+  ];
+  $('#lbInfo').innerHTML = `
+    <div><span class="tier free">Free</span></div>
+    <div><h4>Из картинки</h4><p>${esc(it.prompt)}</p></div>
+    <dl class="meta">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+    ${it.note ? `<p class="hint">${esc(it.note)}</p>` : ''}
+    ${(m.warnings || []).map(w => `<p class="hint">⚠ ${esc(w)}</p>`).join('')}
+    ${glb ? '<p class="hint">Крутите мышью или пальцем, колёсико — ближе и дальше.</p>' : '<p class="hint">Архив откройте в Blender, Unity, Unreal или Godot.</p>'}
+    <div class="lb-actions">
+      <button class="primary" data-act="download">⤓ Скачать ${glb ? 'GLB' : 'архив'}</button>
+      <button data-act="delete" class="danger">🗑 Удалить</button>
+    </div>`;
+  $('#lbPrev').style.visibility = lbIndex > 0 ? '' : 'hidden';
+  $('#lbNext').style.visibility = lbIndex < lbList.length - 1 ? '' : 'hidden';
+}
+function openM3d(it, mode = '3d') {
+  if (!it?.blob) return toast('Картинка не найдена', {type: 'err'});
+  Object.assign(m3d, {item: it.id, mode, views: {}});
+  renderM3d();
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#m3dSheet').classList.remove('hidden');
+}
+function renderM3d() {
+  const it = items.find(x => x.id === m3d.item), o = m3d.opts;
+  if (!it) return closeSheets();
+  $('#m3dTitle').textContent = m3d.mode === 'up' ? '🔍 Увеличить картинку' : '🧊 3D-модель';
+  const seg = (key, list) => `<div class="seg">${list.map(([v, t]) => `<button data-m3d-${key}="${v}" class="${String(o[key]) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const head = `<div class="seg m3d-mode"><button data-m3d-mode="3d" class="${m3d.mode === '3d' ? 'on' : ''}">🧊 3D-модель</button><button data-m3d-mode="up" class="${m3d.mode === 'up' ? 'on' : ''}">🔍 Увеличить</button></div>`;
+  const src = `<div class="m3d-src"><img src="${urlOf(it.blob)}" alt=""><div class="hint">${esc((it.prompt || '').slice(0, 160))}<br>${it.w} × ${it.h}</div></div>`;
+  if (m3d.mode === 'up') {
+    $('#m3dBody').innerHTML = `${head}${src}<div class="cl-sec">Во сколько раз</div>${seg('factor', [[2, '×2'], [4, '×4']])}
+      <p class="hint">Получится ≈ ${it.w * o.factor} × ${it.h * o.factor}. Картинку, которую сделал Flow, увеличит сам Flow (2K / 4K), остальные — Real-ESRGAN на Hugging Face под вашим аккаунтом. Кадр не обрезается, увеличенная картинка придёт в галерею.</p>
+      <div class="vc-foot"><button class="btn free" data-m3d-go>🔍 Увеличить ×${o.factor}</button></div>`;
+    return;
+  }
+  const slot = (k, t) => { const v = m3d.views[k]; return `<div class="asset-slot ${v ? 'has' : ''}" data-m3d-view="${k}" title="${v ? 'Заменить' : 'Добавить картинку: вид ' + t.toLowerCase()}">${v ? `<img src="${v}" alt=""><button class="asset-slot-rm" data-m3d-view-rm="${k}" title="Убрать">✕</button>` : '<span>＋</span>'}<small>${t}</small></div>`; };
+  const svc = M3D_SVC.find(x => x[0] === o.service) || M3D_SVC[0];
+  $('#m3dBody').innerHTML = `${head}${src}
+    <p class="hint">Лучше всего — персонаж целиком на однотонном фоне: руки и ноги не обрезаны, поза A или T.</p>
+    <div class="cl-sec">Другие виды <span class="hint">по желанию — модель выйдет точнее</span></div>
+    <div class="m3d-views">${slot('back', 'Сзади')}${slot('left', 'Слева')}${slot('right', 'Справа')}</div>
+    <div class="cl-sec">Где делать</div>
+    <div class="chips">${M3D_SVC.map(([v, t, d]) => `<button class="chip ${o.service === v ? 'on' : ''}" data-m3d-service="${v}" title="${esc(d)}">${t}</button>`).join('')}</div>
+    <p class="hint">${esc(svc[2])}. Платные кредиты не тратятся. Войти в сервис нужно один раз — в окне Chrome Freefield на компьютере.</p>
+    <div class="cl-sec">Качество</div>${seg('quality', [['standard', 'Обычное'], ['high', 'Высокое'], ['max', 'Максимум']])}
+    <div class="cl-sec">Формат файла</div>${seg('format', [['glb', 'GLB'], ['obj', 'OBJ'], ['fbx', 'FBX']])}
+    ${o.format === 'fbx' ? '<p class="hint">FBX: если сервис отдаёт только GLB, программа переведёт его через Blender — он должен быть установлен на компьютере.</p>' : ''}
+    <div class="m3d-check"><label><input type="checkbox" data-m3d-check="texture" ${o.texture ? 'checked' : ''}> Текстура</label><label><input type="checkbox" data-m3d-check="pbr" ${o.pbr ? 'checked' : ''}> PBR-материалы</label></div>
+    <div class="vc-foot"><button class="btn free" data-m3d-go>🧊 Сделать 3D-модель</button></div>`;
+}
+// картинка для компьютера — как есть (без уменьшения), в формате, который он принимает
+async function m3dDataUrl(blob) {
+  if (/^image\/(png|jpeg|webp|gif)$/.test(blob.type) && blob.size < 15e6) return blobDataUrl(blob);
+  return blobDataUrl(await downscale(blob, 4096));
+}
+async function m3dGo(btn) {
+  const it = items.find(x => x.id === m3d.item), o = m3d.opts, up = m3d.mode === 'up';
+  if (!it?.blob) return;
+  btn.disabled = true;
+  try {
+    if (!(await hubReady())) return toast('Нужна программа Freefield на компьютере: откройте Freefield с компьютера (раздел «Профили»)', {type: 'err', ms: 8000});
+    const body = {title: (up ? `Увеличение ×${o.factor}: ` : '3D: ') + (it.prompt || '').slice(0, 200), pc_name: it.pcName || undefined, image: await m3dDataUrl(it.blob), aspect: it.aspect};
+    if (!up) {
+      const views = {};
+      for (const [k, v] of Object.entries(m3d.views)) views[k] = v;
+      Object.assign(body, {views, service: o.service, quality: o.quality, texture: o.texture, pbr: o.pbr, format: o.format});
+    }
+    const r = await fetch(hubLink.url(up ? '/api/upscale' : '/api/3d'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id) throw new Error(j.error || `компьютер ответил ${r.status}${r.status === 404 ? ' — обновите программу Freefield на компьютере (файлы из pc/mcp)' : ''}`);
+    if (!up) { const map = ls.get('freefield.m3d.src', {}); map[j.id] = it.id; ls.set('freefield.m3d.src', Object.fromEntries(Object.entries(map).slice(-200))); }
+    closeSheets();
+    toast(up ? '🔍 Увеличиваю на компьютере — карточка в галерее покажет этап' : '🧊 3D-модель делается на компьютере — карточка в галерее покажет этап', {type: 'ok', ms: 6000});
+    hubLink.refresh();
+  } catch (e) { toast('Не получилось отправить: ' + e.message, {type: 'err', ms: 8000}); }
+  finally { btn.disabled = false; }
+}
+$('#m3dBody').addEventListener('click', async e => {
+  const b = e.target.closest('button, [data-m3d-view]');
+  if (!b) return;
+  const o = m3d.opts, d = b.dataset;
+  if (d.m3dMode) m3d.mode = d.m3dMode;
+  else if (d.m3dService) o.service = d.m3dService;
+  else if (d.m3dQuality) o.quality = d.m3dQuality;
+  else if (d.m3dFormat) o.format = d.m3dFormat;
+  else if (d.m3dFactor) o.factor = +d.m3dFactor;
+  else if (d.m3dViewRm) delete m3d.views[d.m3dViewRm];
+  else if (d.m3dView) {
+    const f = await pickFile('image/*');
+    if (!f) return;
+    m3d.views[d.m3dView] = await m3dDataUrl(f);
+  } else if ('m3dGo' in d) return m3dGo(b);
+  else return;
+  ls.set('freefield.m3d.opts', o);
+  renderM3d();
+});
+$('#m3dBody').addEventListener('change', e => {
+  const k = e.target.dataset.m3dCheck;
+  if (!k) return;
+  m3d.opts[k] = e.target.checked;
+  ls.set('freefield.m3d.opts', m3d.opts);
+});
 
 /* =============================== catalog UI =============================== */
 function modelCardHTML(m) {
@@ -4724,7 +4902,7 @@ const CLAUDE_SVC = [
   {id: 'dola', what: 'Картинки Seedream 5.0 — без кредитов, обычно 4 варианта за раз; видео Seedance 2.5 — за баллы Dola.'},
   {id: 'vids', what: 'Бесплатно. Видео Omni · 720p · 10 с · со звуком, вертикально или горизонтально, около минуты на видео. Фото героя — «ингредиенты» (Google один раз попросит вас принять правила).'},
 ];
-const SITE_NAMES = {flow: 'Google Flow', arena: 'Arena', dola: 'Dola', vids: 'Google Vids', freefield: 'Freefield'};
+const SITE_NAMES = {flow: 'Google Flow', arena: 'Arena', dola: 'Dola', vids: 'Google Vids', freefield: 'Freefield', upscale: '🔍 Увеличение'};
 const CL_MAX = 10;
 const plur = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many;
 const blankScn = () => ({prompt: '', kind: 'video', service: 'auto'});   // формат (aspect) — свой у каждого сценария, по умолчанию последний выбранный
@@ -4856,7 +5034,7 @@ const hubLink = {
     const item = {id: uid(), type: kind, status: 'done', statusText: '', createdAt: meta.mtime || Date.now(), importedAt: Date.now(),
       prompt, userPrompt: prompt, finalPrompt: prompt, model: meta.appModel || `ext:${site}-${kind}`, tier: String(meta.appModel).startsWith('pol:') ? 'paid' : 'free',
       modelTitle: `${SITE_NAMES[site] || site}${meta.model ? ' · ' + meta.model : ''}${meta.label ? ' · ' + meta.label : ''}`,
-      seed: 0, cost: 0, source: 'text', aspect: meta.aspect || '16:9', w: d?.[0] || 1280, h: d?.[1] || 720, duration, blob, viaClaude: true};
+      seed: 0, cost: 0, source: 'text', aspect: meta.aspect || '16:9', w: d?.[0] || 1280, h: d?.[1] || 720, duration, blob, viaClaude: true, pcName: name};
     items.push(item);
     items.sort((a, b) => b.createdAt - a.createdAt);
     await DB.put(item);
@@ -4866,17 +5044,42 @@ const hubLink = {
     return true;
   },
   gotToast(got, prefix) {
-    if (got.video || got.image) toast(`${prefix}: ${[got.video && `${got.video} видео`,
-      got.image && `${got.image} ${plur(got.image, 'картинка', 'картинки', 'картинок')}`].filter(Boolean).join(' и ')}`, {type: 'ok', ms: 6000});
+    if (got.video || got.image || got.model) toast(`${prefix}: ${[got.video && `${got.video} видео`,
+      got.image && `${got.image} ${plur(got.image, 'картинка', 'картинки', 'картинок')}`, got.model && `${got.model} ${plur(got.model, '3D-модель', '3D-модели', '3D-моделей')}`].filter(Boolean).join(' и ')}`, {type: 'ok', ms: 6000});
+  },
+  // готовая 3D-модель с компьютера → карточка в галерее (картинка, из которой её сделали, — обложкой)
+  async importModel(b, it, got) {
+    const f = it.files?.[0];
+    const name = f && (f.name || f.url);
+    if (!f || this.imported[name]) return false;
+    const r = await fetch(this.url(f.url));
+    if (!r.ok) return false;
+    const blob = await r.blob();
+    const src = items.find(x => x.id === ls.get('freefield.m3d.src', {})[b.id]);
+    const m = it.meta3d || {};
+    const item = {id: uid(), type: 'model', status: 'done', statusText: '', createdAt: b.created, importedAt: Date.now(),
+      prompt: it.prompt, userPrompt: it.prompt, finalPrompt: it.prompt, model: 'pc:3d', tier: 'free',
+      modelTitle: `${it.siteLabel || '3D'}${it.model ? ' · ' + it.model : ''}`, seed: 0, cost: 0, source: 'image',
+      aspect: src?.aspect || '1:1', w: src?.w || 1024, h: src?.h || 1024, blob, posterBlob: src?.blob || null, m3d: m, note: it.note || '', viaClaude: true, pcName: name};
+    items.push(item);
+    items.sort((a, b) => b.createdAt - a.createdAt);
+    await DB.put(item);
+    this.imported[name] = Date.now();
+    ls.set('freefield.claude.imported', this.imported);
+    got.model = (got.model || 0) + 1;
+    return true;
   },
   // готовые файлы новых генераций — в галерею сами
   async importDone() {
-    const got = {video: 0, image: 0};
+    const got = {video: 0, image: 0, model: 0};
     for (const b of this.batches) {
       // только сделанное через Freefield: старые синхронизации тащили с сайтов всё подряд — их не берём
       if (b.created < this.since || (b.source === 'sync' && !b.ours)) continue;
-      for (const it of b.items) for (const f of it.files || []) {
+      for (const it of b.items) {
+        if (it.kind === '3d') { if (it.status === 'done') try { if (await this.importModel(b, it, got)) render(); } catch { /* в следующий раз */ } continue; }
+        for (const f of it.files || []) {
         try { if (await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: b.created}, got)) render(); } catch { /* попробуем в следующий раз */ }
+        }
       }
     }
     this.gotToast(got, 'С компьютера в галерею');

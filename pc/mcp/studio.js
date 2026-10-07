@@ -85,6 +85,7 @@ export async function startBatch(scenarios, source) {
 
 // ---- связь с приложением по Wi-Fi ----
 const hubKey = () => readState().hubKey;
+const SVC3D = {auto: 'авто', hunyuan: 'Hunyuan 3D', hf: 'Hugging Face', tripo: 'Tripo', meshy: 'Meshy'};
 export const hubApi = {
   // вход, кредиты и расход — по каждому профилю Chrome (профиль 1 — ещё и в корне ответа, как раньше)
   hello: async () => {
@@ -213,9 +214,10 @@ export const hubApi = {
   },
   list: async () => {
     const {SITE_LABEL} = await batchMod();
-    return allBatches().map(b => ({...b, items: b.items.map(it => ({n: it.n, prompt: it.prompt, kind: it.kind, site: it.site, siteLabel: SITE_LABEL[it.site],
+    return allBatches().map(b => ({...b, items: b.items.map(it => ({n: it.n, prompt: it.prompt, kind: it.kind, site: it.site,
       model: it.model, appModel: it.appModel || null, status: it.status, message: it.message, note: it.note, aspect: it.aspect,
-      files: (it.files || []).map((f, j) => ({url: `/api/file/${b.id}/${it.n}/${j}`, name: path.basename(f.path), mime: f.mime, label: f.label}))}))}));
+      siteLabel: SITE_LABEL[it.site] || it.siteLabel || null, meta3d: it.meta3d || null,
+      files: (it.files || []).map((f, j) => ({url: `/api/file/${b.id}/${it.n}/${j}`, name: f.name || path.basename(f.path), mime: f.mime, label: f.label}))}))}));
   },
   filePath: async (id, n, j) => {
     const p = allBatches().find(b => b.id === id)?.items.find(i => i.n === n)?.files?.[j]?.path;
@@ -237,6 +239,66 @@ export const hubApi = {
     const r = await runSync();
     return {ok: true, added: r.added.length, errors: r.errors,
       message: r.added.length ? `Забрано с сайтов: ${r.added.length} — появится в галерее` : 'Новых файлов на сайтах нет — в Freefield уже всё'};
+  },
+  // «🧊 3D-модель» из приложения: картинка (и виды сзади/слева/справа) → модель; идёт как пакет — приложение показывает
+  // живую карточку с этапами, а готовую модель забирает в галерею (GLB одним файлом, иначе zip с текстурами)
+  make3d: async o => {
+    const {saveDataUrl} = await import('./refs.js');
+    const image = o.pcPath || saveDataUrl(OUT, o.image);
+    const extra = Object.fromEntries(Object.entries(o.views || {}).map(([k, v]) => [k, saveDataUrl(OUT, v)]));
+    const views = Object.keys(extra).length ? {front: image, ...extra} : null;
+    const it = {n: 1, prompt: o.title || '3D-модель', kind: '3d', site: o.service, siteLabel: SVC3D[o.service] || 'авто', status: 'running', message: 'в очереди',
+      note: '', aspect: '1:1', files: []};
+    const b = {id: `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'phone', created: Date.now(), done: false, pid: process.pid, items: [it]};
+    batches.set(b.id, b);
+    persistBatches();
+    (async () => {
+      try {
+        const M = await import('./mesh3d.js');
+        const {zipFiles} = await import('./media.js');
+        const r = await M.imageTo3d({image: views ? undefined : image, views, service: o.service, quality: o.quality, texture: o.texture, pbr: o.pbr,
+          format: o.format, allowPaid: false, outDir: path.join(OUT, '3d', b.id), onStatus: m => { it.message = m; persistBatches(); }});
+        const others = r.files.filter(f => f.path !== r.model_path && f.role !== 'model_alt');
+        const file = others.length ? await zipFiles(r.files.map(f => ({path: f.path, name: path.relative(path.join(OUT, '3d', b.id), f.path)})), path.join(OUT, '3d', b.id, `freefield-3d-${b.id}.zip`)) : r.model_path;
+        const ext = path.extname(file).slice(1);
+        it.files = [{path: file, name: `freefield-3d-${b.id}.${ext}`, mime: {zip: 'application/zip', glb: 'model/gltf-binary', obj: 'model/obj'}[ext] || 'application/octet-stream', label: `3D · ${r.format.toUpperCase()}`}];
+        const fl = r.free_left;
+        Object.assign(it, {status: 'done', message: '', site: r.service, siteLabel: r.service_label, model: r.engine,
+          note: [r.polygons && `${r.polygons.triangles.toLocaleString('ru')} треугольников`, r.error, fl && (r.service === 'hf' ? `квота ZeroGPU: ≈ ${fl.generations_left_estimate} моделей` : `осталось ≈ ${fl.left} ${fl.unit}`)].filter(Boolean).join(' · '),
+          meta3d: {format: r.format, pack: ext, triangles: r.polygons?.triangles ?? null, vertices: r.polygons?.vertices ?? null, textures: r.textures, pbr: r.pbr,
+            service: r.service_label, engine: r.engine, folder: path.join(OUT, '3d', b.id), model_path: r.model_path, error: r.error || null, warnings: r.warnings, skipped: r.skipped}});
+      } catch (e) { Object.assign(it, {status: 'error', message: e.message}); }
+      b.done = true;
+      persistBatches();
+    })();
+    return {id: b.id};
+  },
+  // «🔍 Увеличить» из приложения: результат — обычная картинка, приложение заберёт её в галерею
+  upscale: async o => {
+    const {saveDataUrl} = await import('./refs.js');
+    const src = o.pcPath || saveDataUrl(OUT, o.image);
+    const it = {n: 1, prompt: o.title || `Увеличение ×${o.factor}`, kind: 'image', site: 'upscale', siteLabel: 'увеличение', status: 'running', message: 'в очереди', note: '', aspect: o.aspect, files: []};
+    const b = {id: `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'phone', created: Date.now(), done: false, pid: process.pid, items: [it]};
+    batches.set(b.id, b);
+    persistBatches();
+    (async () => {
+      try {
+        const U = await import('./upscale.js');
+        const r = await U.upscaleImage({file: src, factor: o.factor, outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), onStatus: m => { it.message = m; persistBatches(); }});
+        Object.assign(it, {status: 'done', message: '', model: `×${r.factor_actual ?? o.factor} · ${r.engine}`, siteLabel: r.service === 'flow' ? 'Google Flow' : 'Hugging Face',
+          note: [`${r.width}×${r.height}`, ...r.warnings].join(' · '), files: [{path: r.path, mime: r.mime}]});
+      } catch (e) { Object.assign(it, {status: 'error', message: e.message}); }
+      b.done = true;
+      persistBatches();
+    })();
+    return {id: b.id};
+  },
+  // файл галереи, который сделал этот компьютер (по имени) — чтобы не пересылать его обратно и чтобы Flow мог его увеличить
+  findOutput: name => {
+    if (!/^[\w.\-]+$/.test(name || '')) return null;
+    const days = fs.existsSync(OUT) ? fs.readdirSync(OUT).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse() : [];
+    for (const d of days) { const p = path.join(OUT, d, name); if (fs.existsSync(p)) return p; }
+    return null;
   },
   outPath: async (day, name) => {
     const p = path.resolve(OUT, day, name);
