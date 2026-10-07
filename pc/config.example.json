@@ -1,0 +1,19 @@
+// Конфиг Freefield. Скопируйте этот файл в папку Freefield (рядом с папками mcp и outputs) под именем config.json
+// и впишите свои значения в Блокноте. Строки, которые начинаются с //, — пояснения, их можно оставить.
+// Этот файл никому не отправляйте и не загружайте в репозиторий: в нём ваш токен.
+{
+  // Токен Hugging Face: huggingface.co → Settings → Access Tokens → Create new token → тип «Read».
+  // С ним 3D-модели и апскейл в Spaces идут на квоте ZeroGPU ВАШЕГО аккаунта (а не анонимной), даже без окна Chrome.
+  // Можно не вписывать: тогда Freefield работает через ваш вход в huggingface.co в окне Chrome Freefield.
+  "hf_token": "",
+
+  // Если в профилях Chrome Freefield разные аккаунты Hugging Face — токен для профиля N: "2": "hf_...", "3": "hf_..."
+  "hf_tokens": {},
+
+  // Путь к Blender (бесплатный, blender.org), если он установлен не в обычную папку. Нужен только для формата FBX,
+  // когда сервис отдаёт GLB. Пример: "C:\\Program Files\\Blender Foundation\\Blender 4.5\\blender.exe"
+  "blender": "",
+
+  // Свои Spaces для апскейла по порядку (пусто — Freefield берёт свои: Real-ESRGAN)
+  "upscale_spaces": []
+}

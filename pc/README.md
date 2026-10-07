@@ -8,6 +8,7 @@
 | В репозитории | На компьютере | Что это |
 |---|---|---|
 | `pc/mcp/*.js`, `*.mjs` | `Freefield\mcp\` | сама программа (связь с сайтом на порту 5180, профили Chrome, сайты сервисов) |
+| `pc/config.example.json` | `Freefield\config.json` | ваш конфиг (токен Hugging Face, Blender) — копия образца, заполняете сами |
 | `pc/serve.js` | `Freefield\serve.js` | простой сервер страницы без генерации (не обязателен) |
 | `index.html` и остальное в корне | `Freefield\app\` | страница Freefield |
 
@@ -16,11 +17,27 @@
 - Или отдельно, без Claude: в папке `Freefield` выполнить `node mcp/hub-main.mjs`.
 - Проверка: `http://127.0.0.1:5180` открывается.
 
+## Персонаж → игровая 3D-модель (инструменты для Claude)
+- **flow_image** — картинки Nano Banana во Flow: до 4 референсов (`image_paths`), размер `resolution` 1k / 2k / 4k
+  (через меню Flow «Скачать», без пережатия), модель по умолчанию — новая **Nano Banana 2.1** (нет её в аккаунте — Nano Banana 2).
+  Кредиты не тратит без `allow_credits=true`.
+- **upscale_image** — увеличить ×2 / ×4: картинку Flow увеличивает сам Flow, остальные — Real-ESRGAN в Space на Hugging Face.
+- **image_to_3d** — 3D-модель по картинке (или по видам спереди/сзади/слева/справа): сайт Hunyuan 3D (20 бесплатных в день),
+  Spaces на Hugging Face (TRELLIS.2, Hunyuan3D-2.1), Tripo, Meshy. Файлы — в `Freefield\outputs\3d\<задание>\`.
+  Платные кредиты не тратит без `allow_paid=true`. Формат glb / obj / fbx (FBX из GLB — через Blender, если он установлен).
+- Все инструменты возвращают JSON: абсолютные пути файлов, ширину×высоту, модель, число полигонов, остаток бесплатного.
+- Вход в сайты (Hunyuan 3D, Tripo, Meshy, huggingface.co) — один раз самому, в окне Chrome Freefield. Проверка: **portal_status**.
+
+## Конфиг: config.json (заполняете сами)
+Токены и пароли Claude в чате не принимает. Токен Hugging Face (по желанию — чтобы 3D и апскейл шли на квоте вашего
+аккаунта без окна Chrome) и путь к Blender вписываются в файл `Freefield\config.json` — образец `pc/config.example.json`.
+Этот файл не загружайте в репозиторий.
+
 ## Обновить программу из репозитория
 Скачать нужный файл из `pc/mcp/` и заменить им такой же в `Freefield\mcp\`, потом перезапустить программу
 (закрыть Claude Desktop полностью — значок у часов → «Выход» — и открыть снова).
 Страницу обновлять не нужно: `127.0.0.1:5180` сама берёт новейшую версию с GitHub.
 
 ## Не загружать в репозиторий (он публичный)
-`.browser-profile*` — вход в ваши аккаунты Google; `mcp/.state.json`, `mcp/.batches.json`, `mcp/.lock-*` — ключ связи
+`config.json` — ваш токен Hugging Face; `.browser-profile*` — вход в ваши аккаунты Google; `mcp/.state.json`, `mcp/.batches.json`, `mcp/.lock-*` — ключ связи
 и рабочее состояние; `outputs` — готовые фото и видео; `node_modules`.

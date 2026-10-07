@@ -330,6 +330,105 @@ export async function humanCheck(page) {
   return captcha ? 'captcha' : null;
 }
 
+// Перехват скачивания, которое запускает сам сайт (кнопка «Скачать», меню Flow «2K»): файл ложится в папку dir, а не в
+// «Загрузки» пользователя, и Chrome не спрашивает, куда сохранить. Два способа сразу:
+//  • в странице: ссылка-«скачать» (blob:, data: или с атрибутом download) перехватывается до того, как Chrome начнёт
+//    скачивание, — так скачивают Flow и большинство сайтов; файл берём из самой страницы (даже если сайт сразу «отозвал» blob);
+//  • через протокол отладки: обычное скачивание по адресу ложится в dir (для контекста вкладки, иначе — для окна по умолчанию).
+// Перехват включён только на время ожидания. start() → {started(), wait(ms) → {path, name, url}, stop()}.
+const DL_HOOK = () => {
+  window.__ffDlOn = true;
+  window.__ffDl = null;
+  if (window.__ffDlHook) return;
+  window.__ffDlHook = true;
+  window.__ffBlobs = new Map();
+  const create = URL.createObjectURL;
+  URL.createObjectURL = function (obj) {
+    const u = create.call(this, obj);
+    try { if (window.__ffDlOn && obj instanceof Blob) { window.__ffBlobs.set(u, obj); if (window.__ffBlobs.size > 20) window.__ffBlobs.delete(window.__ffBlobs.keys().next().value); } } catch {}
+    return u;
+  };
+  const take = a => {
+    const href = a.href || '';
+    if (!window.__ffDlOn || !(a.hasAttribute('download') || /^(blob|data):/.test(href))) return false;
+    window.__ffDl = {href, name: a.getAttribute('download') || ''};
+    return true;
+  };
+  const click = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function () { if (take(this)) return; return click.apply(this, arguments); };
+  document.addEventListener('click', e => { const a = e.target?.closest?.('a'); if (a && take(a)) e.preventDefault(); }, true);
+};
+export async function downloadCapture(page, dir) {
+  fs.mkdirSync(dir, {recursive: true});
+  await page.evaluate(DL_HOOK).catch(() => {});
+  // протокол отладки: скачивание по адресу — в dir
+  let cdp = null, set = null;
+  const begun = new Map();
+  let done = null, failed = null;
+  try {
+    const b = await ensureBrowser();
+    cdp = await b.newBrowserCDPSession();
+    let ctxId;
+    try {
+      const s = await page.context().newCDPSession(page);
+      ctxId = (await s.send('Target.getTargetInfo')).targetInfo.browserContextId;
+      await s.detach().catch(() => {});
+    } catch {}
+    cdp.on('Browser.downloadWillBegin', e => begun.set(e.guid, e));
+    cdp.on('Browser.downloadProgress', e => {
+      if (!begun.has(e.guid)) return;
+      if (e.state === 'completed' && !done) { const w = begun.get(e.guid); done = {path: path.join(dir, e.guid), name: w.suggestedFilename || '', url: w.url || ''}; }
+      if (e.state === 'canceled') failed = new Error('скачивание отменено');
+    });
+    const tryCtx = async id => { await cdp.send('Browser.setDownloadBehavior', {behavior: 'allowAndName', downloadPath: dir, eventsEnabled: true, ...(id ? {browserContextId: id} : {})}); return id; };
+    // контекст профиля Chrome не всегда принимается («Failed to find browser context») — тогда окно по умолчанию
+    const used = await tryCtx(ctxId).catch(() => tryCtx(undefined)).catch(() => null);
+    if (used !== null) set = behavior => cdp.send('Browser.setDownloadBehavior', {behavior, eventsEnabled: false, ...(used ? {browserContextId: used} : {})});
+  } catch {}
+  // из страницы: перехваченная ссылка → файл
+  const fromPage = async () => {
+    const d = await page.evaluate(async () => {
+      const d = window.__ffDl;
+      if (!d) return null;
+      window.__ffDl = null;
+      let blob = window.__ffBlobs?.get(d.href);
+      if (!blob && /^(blob|data):/.test(d.href)) blob = await (await fetch(d.href)).blob();
+      if (!blob) return {href: d.href, name: d.name};
+      const b64 = await new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = () => no(fr.error); fr.readAsDataURL(blob); });
+      return {b64, type: blob.type, name: d.name};
+    }).catch(() => null);
+    if (!d) return null;
+    let buf = d.b64 ? Buffer.from(d.b64, 'base64') : null;
+    if (!buf) { const r = await page.request.get(d.href, {timeout: 180000}); if (!r.ok()) throw new Error(`сайт не отдал файл (HTTP ${r.status()})`); buf = await r.body(); }
+    const name = d.name || decodeURIComponent((d.href || '').split('?')[0].split('/').pop() || '') || 'download';
+    const file = path.join(dir, 'page-' + Date.now() + '-' + name.replace(/[^\w.\-]+/g, '_').slice(-80));
+    fs.writeFileSync(file, buf);
+    return {path: file, name, url: d.href && !/^(blob|data):/.test(d.href) ? d.href : ''};
+  };
+  let stopped = false;
+  return {
+    started: () => begun.size > 0 || !!done,
+    async wait(ms) {
+      const t0 = Date.now();
+      for (;;) {
+        if (done) return done;
+        const p = await fromPage();
+        if (p) return (done = p);
+        if (failed) throw failed;
+        if (Date.now() - t0 >= ms) return null;
+        await sleep(Math.min(700, Math.max(50, ms - (Date.now() - t0))));
+      }
+    },
+    async stop() {
+      if (stopped) return;
+      stopped = true;
+      await page.evaluate(() => { window.__ffDlOn = false; window.__ffBlobs?.clear(); }).catch(() => {});
+      if (set) await set('default').catch(() => {});
+      await cdp?.detach().catch(() => {});
+    },
+  };
+}
+
 export async function screenshot(page, file) {
   await page.screenshot({path: file});
   return file;
