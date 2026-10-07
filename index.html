@@ -389,6 +389,48 @@ body[data-cm=scn] .only-scn,body[data-cm=scn] .panel-scroll > section.keep-scn{d
 .only-write{display:none}
 body[data-cm=write] .panel-scroll > :not(.only-write):not(.keep-write){display:none}
 body[data-cm=write] .only-write{display:block}
+/* «3D»: 3D-модель по картинке */
+.only-3d{display:none}
+body[data-cm="3d"] .panel-scroll > :not(.only-3d):not(.keep-3d){display:none}
+body[data-cm="3d"] .only-3d{display:block}
+.m3d-main{display:grid;grid-template-columns:1fr;gap:8px}
+#m3dCreate .block-head{margin-top:16px}
+#m3dCreate .block-head:first-child{margin-top:0}
+.m3d-main .asset-slot img{height:200px;object-fit:contain;background:#14171d}
+.m3d-main .asset-slot{cursor:pointer;min-height:120px;justify-items:center;align-content:center}
+/* ⟨/⟩ — промпт и запрос для разработчика */
+.gen-row{display:flex;gap:8px;align-items:stretch}
+.gen-row .gen-btn{flex:1;width:auto}
+.peek-btn{flex:none;width:46px;border-radius:14px;border:1px solid var(--line);background:var(--panel3);color:var(--text2);font:700 13px ui-monospace,Menlo,Consolas,monospace;cursor:pointer}
+.peek-btn:hover{color:var(--text);border-color:rgba(212,255,58,.4)}
+body[data-cm=chars] .peek-btn{display:none}
+.peek-mini{position:absolute;top:6px;right:6px;font:700 10px ui-monospace,Menlo,Consolas,monospace;padding:2px 5px;border-radius:6px;background:rgba(0,0,0,.45);color:var(--text2);border:1px solid var(--line)}
+.peek-mini:hover{color:var(--text)}
+.asset-kind{position:relative}
+.peek-sec{margin-bottom:14px}
+.peek-h{display:flex;justify-content:space-between;align-items:center;font:700 12.5px var(--display);margin-bottom:6px}
+.peek-h button{font-size:11.5px}
+.peek-sec pre{white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;background:#101216;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:46vh;overflow:auto;margin:0}
+/* без поясняющих строк (пользователь 2026-10-07): в пяти вкладках — только кнопки, поля и короткие заголовки.
+   Текст подсказки прячем, а кнопки-ссылки внутри неё оставляем */
+aside.panel .block-head .hint{font-size:0}
+aside.panel .block-head .hint :is(button,a){font-size:11.5px}
+aside.panel .block-head .hint :is(button,a) ~ :is(button,a){margin-left:8px}
+aside.panel :is(.wr-howto,.model-line,.asset-kind small){display:none!important}
+aside.panel :is(.wr-slot .hint,.vc-note,.scn-intro,.scn-to,.scn-fmt .hint,.wr-lead,.wr-setup > .hint,#assetRefs > .hint,section > .hint,section > p.hint,section > div.hint):not(:has(button,a,input)){display:none!important}
+aside.panel :is(.wr-slot .hint,.vc-note,.scn-intro,.scn-to,.scn-fmt .hint,.wr-lead,.wr-setup > .hint,#assetRefs > .hint,section > .hint,section > p.hint,section > div.hint){font-size:0}
+aside.panel :is(.wr-slot .hint,.vc-note,.scn-intro,.scn-to,.scn-fmt .hint,.wr-lead,.wr-setup > .hint,#assetRefs > .hint,section > .hint,section > p.hint,section > div.hint) :is(button,a,input){font-size:11.5px}
+aside.panel :is(.cl-plan,.ch-empty){display:none!important}
+aside.panel #assetRefs:not(:has(img,button)){display:none}
+aside.panel .asset-chars > .hint{display:none}
+aside.panel .cl-conn:not(:has(button)){display:none!important}
+aside.panel .cl-conn{font-size:0;padding:6px;background:none;border:0}
+aside.panel .cl-conn button{font-size:12px}
+aside.panel :is(.asset-svc,.wr-ai){font-size:0}
+aside.panel :is(.asset-svc,.wr-ai) b{font-size:13px}
+aside.panel .wr-ai i{font-size:10.5px}
+aside.panel .wr-setup ol.steps li{font-size:0}
+aside.panel .wr-setup ol.steps li :is(button,input,a){font-size:12px}
 /* «Персонажи»: герои роликов со всем, что к ним нужно */
 .only-chars{display:none}
 body[data-cm=chars] .panel-scroll > :not(.only-chars):not(.keep-chars){display:none}
@@ -621,6 +663,8 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 /* три главных раздела «Создать» — большие вкладки с иконками */
 .create-mode{margin-bottom:16px;padding:4px;border-radius:17px;background:rgba(0,0,0,.35)}
 .create-mode button{flex-direction:column;gap:5px;padding:9px 6px 8px;border-radius:13px;white-space:normal;line-height:1.2;font-size:12px;min-height:62px}
+/* пять вкладок в ряд — поровну */
+.create-mode button{flex:1 1 0;min-width:0;padding:9px 1px 8px;font-size:10.5px;letter-spacing:-.02em}
 .create-mode button .ic{width:20px;height:20px;transition:color .25s,transform .35s var(--spring)}
 .create-mode button.on .ic{color:var(--free);transform:translateY(-1px) scale(1.08);filter:drop-shadow(0 0 8px rgba(212,255,58,.55))}
 .create-mode .seg-thumb{border-radius:13px;background:linear-gradient(180deg,rgba(212,255,58,.14),rgba(212,255,58,.04)),var(--panel3);box-shadow:0 0 0 1px rgba(212,255,58,.32) inset,0 8px 22px -10px rgba(212,255,58,.35)}
@@ -1128,6 +1172,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M11 18h2"/></symbol>
 <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></symbol>
+<symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2.8 20.5 7.5v9L12 21.2 3.5 16.5v-9z"/><path d="M3.8 7.6 12 12.2l8.2-4.6M12 12.2v8.8"/></symbol>
 <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.6"/><path d="M2.5 20.5a6.5 6.5 0 0 1 13 0"/><path d="M15.5 4.5a3.6 3.6 0 0 1 0 7M18 14.2a6.5 6.5 0 0 1 3.5 6.3"/></symbol>
 <symbol id="i-pin" viewBox="0 0 24 24"><path d="M19.5 10c0 5.5-7.5 11.5-7.5 11.5S4.5 15.5 4.5 10a7.5 7.5 0 0 1 15 0z"/><circle cx="12" cy="10" r="2.8"/></symbol>
 <symbol id="i-sheet" viewBox="0 0 24 24"><path d="M3 7.5V5.5a2.5 2.5 0 0 1 2.5-2.5h2M16.5 3h2A2.5 2.5 0 0 1 21 5.5v2M21 16.5v2a2.5 2.5 0 0 1-2.5 2.5h-2M7.5 21h-2A2.5 2.5 0 0 1 3 18.5v-2"/><circle cx="12" cy="9" r="2.4"/><path d="M7.8 17.2a4.2 4.2 0 0 1 8.4 0"/></symbol>
@@ -1209,14 +1254,16 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <aside class="panel">
     <div class="panel-scroll">
 
-      <div class="seg create-mode keep-scn keep-write keep-chars" id="createMode">
+      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d" id="createMode">
         <button data-cm="one" class="on" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Создание ассетов</span></button>
         <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Создание сценария</span></button>
         <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео сервисы</span></button>
         <button data-cm="chars" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
+        <button data-cm="3d" title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
       </div>
       <section class="only-write" id="writeCreate"></section>
       <section class="only-chars" id="charsCreate"></section>
+      <section class="only-3d" id="m3dCreate"></section>
       <input type="file" id="writeFile" accept="image/*" hidden>
       <section class="only-scn" id="scnCreate"></section>
       <section class="only-asset" id="assetCreate"></section>
@@ -1322,7 +1369,10 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 
     </div>
     <div class="gen-bar">
-      <button class="gen-btn" id="genBtn"><span id="genLabel">Сгенерировать</span><span class="gen-sub" id="genSub">Бесплатно</span></button>
+      <div class="gen-row">
+        <button class="gen-btn" id="genBtn"><span id="genLabel">Сгенерировать</span><span class="gen-sub" id="genSub">Бесплатно</span></button>
+        <button class="peek-btn" id="peekBtn" title="⟨/⟩ Что уйдёт: промпт и запрос — ничего не отправляется">⟨/⟩</button>
+      </div>
       <div class="model-line"><span id="etaLine"></span><span id="queueInfo">Ctrl+Enter</span></div>
     </div>
   </aside>
@@ -1394,7 +1444,15 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   </div>
 </div>
 
-<!-- «🧊 3D-модель» и «🔍 Увеличить»: картинка из галереи → Freefield на компьютере -->
+<!-- ⟨/⟩ для разработчика: какой промпт и запрос уйдёт по кнопке (ничего не отправляется) -->
+<div class="sheet hidden" id="peekSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2 id="peekTitle">⟨/⟩</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-body" id="peekBody"></div>
+  </div>
+</div>
+
+<!-- «🔍 Увеличить»: картинка из галереи → Freefield на компьютере -->
 <div class="sheet hidden" id="m3dSheet">
   <div class="sheet-panel">
     <div class="sheet-head"><h2 id="m3dTitle">🧊 3D-модель</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
@@ -3358,6 +3416,11 @@ function nudge(msg) {
 }
 
 async function generate() {
+  if (peek.on) {
+    const m = currentModel(), raw = $('#prompt').value.trim();
+    return peekShow('Другие модели', {prompts: [['Промпт', composePrompt(raw, state.style, state.mode)]],
+      request: {модель: m.id, название: m.title, вид: state.mode, формат: state.aspect, количество: state.count, seed: $('#seed').value || 'случайный', избегать: $('#negative').value || null}});
+  }
   const started = await (state.mode === 'video' ? generateVideo() : generateImages());
   if (started && isMobile()) setView('gallery');
 }
@@ -3722,8 +3785,8 @@ async function doAction(act, it, el) {
     case 'save-voice': { const c = vc.char(it.char); if (c?.sample) await saveFile(dataBlob(c.sample), `голос-${c.name}.wav`); break; }
     case 'revoice': closeLB(); openRevoice(it); break;
     case 'to-char': closeLB(); openToChar(it); break;
-    case 'to3d': closeLB(); openM3d(it, '3d'); break;
-    case 'upscale': closeLB(); openM3d(it, 'up'); break;
+    case 'to3d': closeLB(); m3dFromItem(it); break;
+    case 'upscale': closeLB(); openUp(it); break;
     case 'open3d': openLB(it.id); break;
     case 'paste-clip':
       try {
@@ -3899,7 +3962,7 @@ function stepLB(d) {
 const M3D_SVC = [['auto', 'Авто', 'Сам выберет лучший бесплатный: Hunyuan 3D → Hugging Face → Tripo → Meshy; не вышло — следующий'],
   ['hunyuan', 'Hunyuan 3D', 'Сайт Tencent: 20 бесплатных моделей в день'], ['hf', 'Hugging Face', 'TRELLIS.2 и Hunyuan3D-2.1: 1–3 модели в день на ваш аккаунт'],
   ['tripo', 'Tripo', 'Бесплатные кредиты на месяц (≈ 10 моделей)'], ['meshy', 'Meshy', '100 кредитов и 10 скачиваний в месяц']];
-const m3d = {item: null, mode: '3d', views: {}, opts: {service: 'auto', quality: 'high', texture: true, pbr: false, format: 'glb', factor: 2, ...ls.get('freefield.m3d.opts', {})}};
+const m3d = {src: null, views: {}, sending: false, up: null, opts: {service: 'auto', quality: 'high', texture: true, pbr: false, format: 'glb', factor: 2, ...ls.get('freefield.m3d.opts', {})}};
 const fmtTri = n => n == null ? '' : n >= 1e6 ? `${Math.round(n / 1e5) / 10} млн` : n >= 1000 ? `${Math.round(n / 1000)} тыс.` : String(n);
 function m3dCardHTML(it) {
   const m = it.m3d || {};
@@ -3953,92 +4016,176 @@ function showLB3d(it) {
   $('#lbPrev').style.visibility = lbIndex > 0 ? '' : 'hidden';
   $('#lbNext').style.visibility = lbIndex < lbList.length - 1 ? '' : 'hidden';
 }
-function openM3d(it, mode = '3d') {
+// «3D» — пятая вкладка: картинка (из галереи кнопкой 🧊 или своим файлом), виды, где делать, качество, формат
+function m3dFromItem(it) {
   if (!it?.blob) return toast('Картинка не найдена', {type: 'err'});
-  Object.assign(m3d, {item: it.id, mode, views: {}});
-  renderM3d();
-  $$('.sheet').forEach(x => x.classList.add('hidden'));
-  $('#m3dSheet').classList.remove('hidden');
+  m3d.src = {blob: it.blob, pcName: it.pcName || null, w: it.w, h: it.h, aspect: it.aspect, prompt: it.prompt || '', item: it.id};
+  m3d.views = {};
+  setView('create');
+  setCreateMode('3d');
 }
-function renderM3d() {
-  const it = items.find(x => x.id === m3d.item), o = m3d.opts;
-  if (!it) return closeSheets();
-  $('#m3dTitle').textContent = m3d.mode === 'up' ? '🔍 Увеличить картинку' : '🧊 3D-модель';
-  const seg = (key, list) => `<div class="seg">${list.map(([v, t]) => `<button data-m3d-${key}="${v}" class="${String(o[key]) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-  const head = `<div class="seg m3d-mode"><button data-m3d-mode="3d" class="${m3d.mode === '3d' ? 'on' : ''}">🧊 3D-модель</button><button data-m3d-mode="up" class="${m3d.mode === 'up' ? 'on' : ''}">🔍 Увеличить</button></div>`;
-  const src = `<div class="m3d-src"><img src="${urlOf(it.blob)}" alt=""><div class="hint">${esc((it.prompt || '').slice(0, 160))}<br>${it.w} × ${it.h}</div></div>`;
-  if (m3d.mode === 'up') {
-    $('#m3dBody').innerHTML = `${head}${src}<div class="cl-sec">Во сколько раз</div>${seg('factor', [[2, '×2'], [4, '×4']])}
-      <p class="hint">Получится ≈ ${it.w * o.factor} × ${it.h * o.factor}. Картинку, которую сделал Flow, увеличит сам Flow (2K / 4K), остальные — Real-ESRGAN на Hugging Face под вашим аккаунтом. Кадр не обрезается, увеличенная картинка придёт в галерею.</p>
-      <div class="vc-foot"><button class="btn free" data-m3d-go>🔍 Увеличить ×${o.factor}</button></div>`;
-    return;
-  }
-  const slot = (k, t) => { const v = m3d.views[k]; return `<div class="asset-slot ${v ? 'has' : ''}" data-m3d-view="${k}" title="${v ? 'Заменить' : 'Добавить картинку: вид ' + t.toLowerCase()}">${v ? `<img src="${v}" alt=""><button class="asset-slot-rm" data-m3d-view-rm="${k}" title="Убрать">✕</button>` : '<span>＋</span>'}<small>${t}</small></div>`; };
-  const svc = M3D_SVC.find(x => x[0] === o.service) || M3D_SVC[0];
-  $('#m3dBody').innerHTML = `${head}${src}
-    <p class="hint">Лучше всего — персонаж целиком на однотонном фоне: руки и ноги не обрезаны, поза A или T.</p>
-    <div class="cl-sec">Другие виды <span class="hint">по желанию — модель выйдет точнее</span></div>
+async function m3dFromFile(f) {
+  if (!f || !/^image\//.test(f.type)) return toast('Нужна картинка (png, jpg, webp)', {type: 'err'});
+  const d = await dims(f).catch(() => null);
+  m3d.src = {blob: f, pcName: null, w: d?.[0] || 1024, h: d?.[1] || 1024, aspect: null, prompt: f.name.replace(/\.\w+$/, ''), item: null};
+  renderM3dPanel();
+  updateGenButton();
+}
+const m3dSeg = (key, list) => `<div class="seg">${list.map(([v, t]) => `<button data-m3d-${key}="${v}" class="${String(m3d.opts[key]) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+function renderM3dPanel() {
+  const o = m3d.opts, src = m3d.src;
+  const slot = (k, t) => { const v = m3d.views[k]; return `<div class="asset-slot ${v ? 'has' : ''}" data-m3d-view="${k}" title="${v ? 'Заменить' : 'Вид ' + t.toLowerCase()}">${v ? `<img src="${v}" alt=""><button class="asset-slot-rm" data-m3d-view-rm="${k}" title="Убрать">✕</button>` : '<span>＋</span>'}<small>${t}</small></div>`; };
+  $('#m3dCreate').innerHTML = `
+    <div class="block-head"><span class="lbl">Картинка</span></div>
+    <div class="m3d-main"><div class="asset-slot ${src ? 'has' : ''}" data-m3d-src title="${src ? 'Заменить картинку' : 'Выбрать картинку — или нажмите 🧊 на картинке в галерее'}">${src ? `<img src="${urlOf(src.blob)}" alt=""><button class="asset-slot-rm" data-m3d-src-rm title="Убрать">✕</button>` : '<span>＋</span>'}</div></div>
+    <div class="block-head"><span class="lbl">Виды</span></div>
     <div class="m3d-views">${slot('back', 'Сзади')}${slot('left', 'Слева')}${slot('right', 'Справа')}</div>
-    <div class="cl-sec">Где делать</div>
+    <div class="block-head"><span class="lbl">Где делать</span></div>
     <div class="chips">${M3D_SVC.map(([v, t, d]) => `<button class="chip ${o.service === v ? 'on' : ''}" data-m3d-service="${v}" title="${esc(d)}">${t}</button>`).join('')}</div>
-    <p class="hint">${esc(svc[2])}. Платные кредиты не тратятся. Войти в сервис нужно один раз — в окне Chrome Freefield на компьютере.</p>
-    <div class="cl-sec">Качество</div>${seg('quality', [['standard', 'Обычное'], ['high', 'Высокое'], ['max', 'Максимум']])}
-    <div class="cl-sec">Формат файла</div>${seg('format', [['glb', 'GLB'], ['obj', 'OBJ'], ['fbx', 'FBX']])}
-    ${o.format === 'fbx' ? '<p class="hint">FBX: если сервис отдаёт только GLB, программа переведёт его через Blender — он должен быть установлен на компьютере.</p>' : ''}
-    <div class="m3d-check"><label><input type="checkbox" data-m3d-check="texture" ${o.texture ? 'checked' : ''}> Текстура</label><label><input type="checkbox" data-m3d-check="pbr" ${o.pbr ? 'checked' : ''}> PBR-материалы</label></div>
-    <div class="vc-foot"><button class="btn free" data-m3d-go>🧊 Сделать 3D-модель</button></div>`;
+    <div class="block-head"><span class="lbl">Качество</span></div>${m3dSeg('quality', [['standard', 'Обычное'], ['high', 'Высокое'], ['max', 'Максимум']])}
+    <div class="block-head"><span class="lbl">Формат</span></div>${m3dSeg('format', [['glb', 'GLB'], ['obj', 'OBJ'], ['fbx', 'FBX']])}
+    <div class="m3d-check"><label><input type="checkbox" data-m3d-check="texture" ${o.texture ? 'checked' : ''}> Текстура</label><label><input type="checkbox" data-m3d-check="pbr" ${o.pbr ? 'checked' : ''}> PBR</label></div>`;
 }
 // картинка для компьютера — как есть (без уменьшения), в формате, который он принимает
 async function m3dDataUrl(blob) {
   if (/^image\/(png|jpeg|webp|gif)$/.test(blob.type) && blob.size < 15e6) return blobDataUrl(blob);
   return blobDataUrl(await downscale(blob, 4096));
 }
-async function m3dGo(btn) {
-  const it = items.find(x => x.id === m3d.item), o = m3d.opts, up = m3d.mode === 'up';
-  if (!it?.blob) return;
-  btn.disabled = true;
+// что программа на компьютере сделает с заданием — для ⟨/⟩
+const M3D_PLAN = {
+  order: {auto: 'Hunyuan 3D → Hugging Face → Tripo → Meshy (с видами: Hunyuan 3D → Tripo → Meshy → Hugging Face); не вышло — следующий',
+    hunyuan: 'сайт 3d.hunyuanglobal.com в окне Chrome Freefield', hf: 'Spaces: с текстурой — microsoft/TRELLIS.2, затем tencent/Hunyuan3D-2.1; с видами — tencent/Hunyuan3D-2mv',
+    tripo: 'сайт studio.tripo3d.ai в окне Chrome Freefield', meshy: 'сайт meshy.ai/workspace/image-to-3d в окне Chrome Freefield'},
+  quality: {standard: 'TRELLIS.2: 1024, 300 тыс. граней, текстура 2048 · Hunyuan3D-2.1: octree 256, 30 шагов',
+    high: 'TRELLIS.2: 1536, 500 тыс. граней, текстура 2048 · Hunyuan3D-2.1: octree 384, 50 шагов',
+    max: 'TRELLIS.2: 1536, 1 млн граней, текстура 4096 · Hunyuan3D-2.1: octree 512, 50 шагов'},
+};
+async function m3dGo() {
+  const src = m3d.src, o = m3d.opts;
+  if (!src?.blob) { toast('Выберите картинку — или нажмите 🧊 на картинке в галерее', {type: 'err'}); return $('#m3dCreate [data-m3d-src]')?.click(); }
+  const body = {title: '3D: ' + (src.prompt || '').slice(0, 200), pc_name: src.pcName || undefined, image: await m3dDataUrl(src.blob), aspect: src.aspect,
+    views: {...m3d.views}, service: o.service, quality: o.quality, texture: o.texture, pbr: o.pbr, format: o.format};
+  if (peek.on) return peekShow('3D', {prompts: [['Что сделает программа на компьютере', [
+      `Сервис: ${M3D_PLAN.order[o.service]}`, `Качество «${o.quality}»: ${M3D_PLAN.quality[o.quality]}`,
+      `Текстура: ${o.texture ? 'да' : 'нет'} · PBR: ${o.pbr ? 'да' : 'нет'} · формат: ${o.format.toUpperCase()}${o.format === 'obj' ? ' (из GLB — сама программа)' : o.format === 'fbx' ? ' (из GLB — через Blender)' : ''}`,
+      'Платные кредиты: не тратятся (allow_paid = false)', `Готовое: Freefield/outputs/3d/<задание>/ → в галерею карточкой «🧊 3D»`].join('\n')]],
+    request: {куда: 'программа на компьютере: POST /api/3d', body}});
+  m3d.sending = true;
+  updateGenButton();
   try {
     if (!(await hubReady())) return toast('Нужна программа Freefield на компьютере: откройте Freefield с компьютера (раздел «Профили»)', {type: 'err', ms: 8000});
-    const body = {title: (up ? `Увеличение ×${o.factor}: ` : '3D: ') + (it.prompt || '').slice(0, 200), pc_name: it.pcName || undefined, image: await m3dDataUrl(it.blob), aspect: it.aspect};
-    if (!up) {
-      const views = {};
-      for (const [k, v] of Object.entries(m3d.views)) views[k] = v;
-      Object.assign(body, {views, service: o.service, quality: o.quality, texture: o.texture, pbr: o.pbr, format: o.format});
-    }
-    const r = await fetch(hubLink.url(up ? '/api/upscale' : '/api/3d'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+    const r = await fetch(hubLink.url('/api/3d'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.id) throw new Error(j.error || `компьютер ответил ${r.status}${r.status === 404 ? ' — обновите программу Freefield на компьютере (файлы из pc/mcp)' : ''}`);
-    if (!up) { const map = ls.get('freefield.m3d.src', {}); map[j.id] = it.id; ls.set('freefield.m3d.src', Object.fromEntries(Object.entries(map).slice(-200))); }
-    closeSheets();
-    toast(up ? '🔍 Увеличиваю на компьютере — карточка в галерее покажет этап' : '🧊 3D-модель делается на компьютере — карточка в галерее покажет этап', {type: 'ok', ms: 6000});
+    if (src.item) { const map = ls.get('freefield.m3d.src', {}); map[j.id] = src.item; ls.set('freefield.m3d.src', Object.fromEntries(Object.entries(map).slice(-200))); }
+    toast('🧊 3D-модель делается на компьютере — карточка в галерее покажет этап', {type: 'ok', ms: 6000});
+    if (isMobile()) setView('gallery');
     hubLink.refresh();
   } catch (e) { toast('Не получилось отправить: ' + e.message, {type: 'err', ms: 8000}); }
-  finally { btn.disabled = false; }
+  finally { m3d.sending = false; updateGenButton(); }
 }
-$('#m3dBody').addEventListener('click', async e => {
-  const b = e.target.closest('button, [data-m3d-view]');
+$('#m3dCreate').addEventListener('click', async e => {
+  const b = e.target.closest('button, [data-m3d-view], [data-m3d-src]');
   if (!b) return;
   const o = m3d.opts, d = b.dataset;
-  if (d.m3dMode) m3d.mode = d.m3dMode;
-  else if (d.m3dService) o.service = d.m3dService;
+  if (d.m3dService) o.service = d.m3dService;
   else if (d.m3dQuality) o.quality = d.m3dQuality;
   else if (d.m3dFormat) o.format = d.m3dFormat;
-  else if (d.m3dFactor) o.factor = +d.m3dFactor;
+  else if ('m3dSrcRm' in d) { m3d.src = null; updateGenButton(); }
+  else if ('m3dSrc' in d) return m3dFromFile(await pickFile('image/*'));
   else if (d.m3dViewRm) delete m3d.views[d.m3dViewRm];
   else if (d.m3dView) {
     const f = await pickFile('image/*');
     if (!f) return;
     m3d.views[d.m3dView] = await m3dDataUrl(f);
-  } else if ('m3dGo' in d) return m3dGo(b);
-  else return;
+  } else return;
   ls.set('freefield.m3d.opts', o);
-  renderM3d();
+  renderM3dPanel();
 });
-$('#m3dBody').addEventListener('change', e => {
+$('#m3dCreate').addEventListener('change', e => {
   const k = e.target.dataset.m3dCheck;
   if (!k) return;
   m3d.opts[k] = e.target.checked;
   ls.set('freefield.m3d.opts', m3d.opts);
+});
+// картинку можно перетащить или вставить (Ctrl+V), пока открыта вкладка «3D»
+$('#m3dCreate').addEventListener('dragover', e => e.preventDefault());
+$('#m3dCreate').addEventListener('drop', e => { e.preventDefault(); const f = [...(e.dataTransfer?.files || [])].find(x => x.type.startsWith('image/')); if (f) m3dFromFile(f); });
+document.addEventListener('paste', e => {
+  if (cl.mode !== '3d' || e.target.closest?.('input, textarea')) return;
+  const f = [...(e.clipboardData?.files || [])].find(x => x.type.startsWith('image/'));
+  if (f) { e.preventDefault(); m3dFromFile(f); }
+});
+
+// «🔍 Увеличить» — окно у картинки из галереи
+function openUp(it) {
+  if (!it?.blob) return toast('Картинка не найдена', {type: 'err'});
+  m3d.up = it.id;
+  renderUp();
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#m3dSheet').classList.remove('hidden');
+}
+function renderUp() {
+  const it = items.find(x => x.id === m3d.up), o = m3d.opts;
+  if (!it) return closeSheets();
+  $('#m3dTitle').textContent = '🔍 Увеличить';
+  $('#m3dBody').innerHTML = `<div class="m3d-src"><img src="${urlOf(it.blob)}" alt=""><div class="hint">${it.w} × ${it.h} → ${it.w * o.factor} × ${it.h * o.factor}</div></div>
+    <div class="cl-sec">Во сколько раз</div>${m3dSeg('factor', [[2, '×2'], [4, '×4']])}
+    <div class="vc-foot"><button class="btn free" data-up-go>🔍 Увеличить ×${o.factor}</button><button class="btn small" data-up-peek title="Что уйдёт: запрос — ничего не отправляется">⟨/⟩</button></div>`;
+}
+async function upGo(btn, dry) {
+  const it = items.find(x => x.id === m3d.up), o = m3d.opts;
+  if (!it?.blob) return;
+  const body = {title: `Увеличение ×${o.factor}: ` + (it.prompt || '').slice(0, 200), pc_name: it.pcName || undefined, image: await m3dDataUrl(it.blob), aspect: it.aspect, factor: o.factor};
+  if (dry) return peekShow('🔍 Увеличить', {prompts: [['Что сделает программа на компьютере', `Картинка из Flow (известна программе по имени файла) — Flow сам: меню «Скачать» → ${o.factor === 2 ? '2K' : '4K'}.\nИначе — Space на Hugging Face с Real-ESRGAN (Nick088/Real-ESRGAN_Pytorch → doevent/Face-Real-ESRGAN → finegrain/finegrain-image-enhancer) под вашим аккаунтом.\nРезультат — в галерею обычной картинкой.`]],
+    request: {куда: 'программа на компьютере: POST /api/upscale', body}});
+  btn.disabled = true;
+  try {
+    if (!(await hubReady())) return toast('Нужна программа Freefield на компьютере: откройте Freefield с компьютера (раздел «Профили»)', {type: 'err', ms: 8000});
+    const r = await fetch(hubLink.url('/api/upscale'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id) throw new Error(j.error || `компьютер ответил ${r.status}${r.status === 404 ? ' — обновите программу Freefield на компьютере (файлы из pc/mcp)' : ''}`);
+    closeSheets();
+    toast('🔍 Увеличиваю на компьютере — карточка в галерее покажет этап', {type: 'ok', ms: 6000});
+    hubLink.refresh();
+  } catch (e) { toast('Не получилось отправить: ' + e.message, {type: 'err', ms: 8000}); }
+  finally { btn.disabled = false; }
+}
+$('#m3dBody').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.m3dFactor) { m3d.opts.factor = +b.dataset.m3dFactor; ls.set('freefield.m3d.opts', m3d.opts); return renderUp(); }
+  if (b.hasAttribute('data-up-go')) return upGo(b);
+  if (b.hasAttribute('data-up-peek')) return upGo(b, true);
+});
+
+// ⟨/⟩ для разработчика: большая кнопка вкладки проходит свой обычный путь, но перед отправкой показывает промпт и запрос
+const peek = {on: false};
+async function peekRun() {
+  if (peek.on) return;
+  peek.on = true;
+  try { await createGo(); } finally { peek.on = false; }
+}
+// данные картинок в запросе — коротко: тип и размер
+function peekRedact(v) {
+  if (typeof v === 'string' && v.startsWith('data:')) return `[картинка ${v.slice(5, v.indexOf(';'))}, ${Math.round(v.length * 0.75 / 1024)} КБ]`;
+  if (Array.isArray(v)) return v.map(peekRedact);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, peekRedact(x)]));
+  return v;
+}
+let peekTexts = [];
+function peekShow(title, {prompts = [], request}) {
+  peekTexts = [...prompts.map(p => p[1]), ...(request ? [JSON.stringify(peekRedact(request), null, 2)] : [])];
+  $('#peekTitle').textContent = '⟨/⟩ ' + title;
+  $('#peekBody').innerHTML = prompts.map(([h], i) => `<div class="peek-sec"><div class="peek-h">${esc(h)}<button class="btn small" data-peek-copy="${i}">Копировать</button></div><pre>${esc(peekTexts[i])}</pre></div>`).join('') +
+    (request ? `<div class="peek-sec"><div class="peek-h">Запрос<button class="btn small" data-peek-copy="${prompts.length}">Копировать</button></div><pre>${esc(peekTexts[prompts.length])}</pre></div>` : '');
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#peekSheet').classList.remove('hidden');
+}
+$('#peekBtn').addEventListener('click', peekRun);
+$('#peekBody').addEventListener('click', async e => {
+  const b = e.target.closest('[data-peek-copy]');
+  if (b) toast(await clCopyText(peekTexts[+b.dataset.peekCopy]) ? 'Скопировано' : 'Не удалось скопировать', {type: 'ok'});
 });
 
 /* =============================== catalog UI =============================== */
@@ -4300,6 +4447,15 @@ function renderVideoOptions() {
 }
 
 function updateGenButton() {
+  if (cl.mode === '3d') {
+    const btn = $('#genBtn');
+    btn.classList.remove('paid');
+    btn.disabled = m3d.sending;
+    $('#genLabel').textContent = m3d.sending ? '⏳ Отправляю…' : m3d.src ? '🧊 Сделать 3D-модель' : '🧊 Выберите картинку';
+    $('#genSub').textContent = 'на компьютере';
+    $('#etaLine').textContent = '';
+    return;
+  }
   if (cl.mode === 'chars') {
     const n = vc.chars.length, btn = $('#genBtn');
     btn.classList.remove('paid');
@@ -5498,7 +5654,7 @@ async function refToScenario(blob) {
 }
 function setCreateMode(m) {
   const prev = cl.mode;
-  cl.mode = ['scn', 'write', 'chars'].includes(m) ? m : 'one';
+  cl.mode = ['scn', 'write', 'chars', '3d'].includes(m) ? m : 'one';
   if (cl.mode === 'scn' && prev !== 'scn') { const t = scnTrim(cl.scn); if (t.length !== cl.scn.length) { cl.scn = t; cl.sel = null; cl.save(); } }
   ls.set('freefield.create.cm', cl.mode);
   document.body.dataset.cm = cl.mode;
@@ -5507,15 +5663,25 @@ function setCreateMode(m) {
   if (cl.mode === 'scn') { renderScn(); if (hubLink.key && hubLink.local()) hubLink.refresh(); }
   else if (cl.mode === 'write') renderWrite();
   else if (cl.mode === 'chars') renderChars();
+  else if (cl.mode === '3d') renderM3dPanel();
   else setAssetSvc(asset.svc);
   styleSync();
   updateGenButton();
 }
 // большая кнопка внизу в режиме сценариев: отправить на компьютер, а без него — карточки для сайтов сервисов
 // own — свой список сценариев (кнопка «🎬 Видео» у персонажа): уходит только он, «Видео сервисы» остаются как были
-async function scnGo(own) { return (await hubReady()) ? clSend(own) : scnPhone(own); }
+async function scnGo(own) {
+  if (peek.on) {
+    const list = own || cl.ready();
+    if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
+    const out = await clTasks(list), plan = clPlan(list);
+    return peekShow('Видео сервисы', {prompts: out.map((t, i) => [`Сценарий ${i + 1} → ${SITE_SHORT[plan[i]?.site] || plan[i]?.site || t.service} · ${plan[i]?.model || t.model || ''}`, t.prompt]),
+      request: {куда: 'программа на компьютере: POST /api/batch', body: {scenarios: out}}});
+  }
+  return (await hubReady()) ? clSend(own) : scnPhone(own);
+}
 // большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
-function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
+function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
 
 /* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
@@ -5593,7 +5759,7 @@ function assetRefsHTML() {
 // кнопки «Что создаём»: инфографика, развёртка, герой в локации — и просто «Добавить референс»
 function assetKindsHTML() {
   const full = asset.refs.length >= ASSET_MAX_REFS;
-  return Object.entries(ASSET_KINDS).map(([k, K]) => `<button class="asset-kind ${asset.kind === k ? 'on' : ''}" data-akind="${k}" aria-pressed="${asset.kind === k}">${ic(K.ico)}<b>${K.name}${asset.kind === k ? `<span class="n-badge">${asset.n} шт.</span>` : ''}</b><small>${K.sub}</small></button>`).join('') +
+  return Object.entries(ASSET_KINDS).map(([k, K]) => `<button class="asset-kind ${asset.kind === k ? 'on' : ''}" data-akind="${k}" aria-pressed="${asset.kind === k}">${ic(K.ico)}<b>${K.name}${asset.kind === k ? `<span class="n-badge">${asset.n} шт.</span>` : ''}</b><small>${K.sub}</small><span class="peek-mini" data-akind-peek="${k}" title="⟨/⟩ Шаблон промпта этой кнопки">⟨/⟩</span></button>`).join('') +
     `<button class="asset-kind add" data-aref-add ${full ? 'disabled' : ''}>${ic('plus')}<b>Добавить референс</b><small>${full ? 'уже 4 фото — больше нельзя' : 'фото героя или сцены · до 4'}</small></button>`;
 }
 
@@ -6018,6 +6184,8 @@ async function assetGo() {
   const imgsOf = it => asset.kind === 'loc' ? [...[...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS - 1), asset.info]
     : [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
   const tasks = (list || [null]).map((it, i) => assetTask(composePrompt(prompts[i], state.style, 'image'), imgsOf(it)));
+  if (peek.on) return peekShow('Создание ассетов', {prompts: tasks.map((t, i) => [`Картинка ${i + 1} → ${SITE_SHORT[t.service] || t.service} · ${t.model || ''}`, t.prompt]),
+    request: {куда: 'программа на компьютере: POST /api/batch', body: {scenarios: tasks}}});
   // без компьютера — карточки для сайтов: «Создать» во Flow, Dola или Arena пользователь нажимает сам
   if (!(await hubReady())) return phoneCards(tasks);
   asset.sending = true;
@@ -6039,6 +6207,16 @@ async function assetGo() {
 }
 function bindAsset() {
   const onClick = e => {
+    // ⟨/⟩ на кнопке «Что создаём» — её шаблон промпта (кнопку не нажимаем)
+    const pk = e.target.closest('[data-akind-peek]');
+    if (pk) {
+      e.stopPropagation();
+      const K = ASSET_KINDS[pk.dataset.akindPeek];
+      return peekShow(K.name, {prompts: [['Промпт', K.prompt], ...(K.promptRef ? [['Промпт, когда есть фото героя', K.promptRef]] : []),
+        ...(pk.dataset.akindPeek === 'loc' ? [['К каждому кадру дописывается своя сцена (по очереди)', LOC_SCENES.map((x, i) => `${i + 1}. Scene idea for this shot: ${x}.`).join('\n')]] : [])],
+        request: {формат: K.aspect, картинок_за_раз: K.count || asset.count, фото: pk.dataset.akindPeek === 'loc' ? ['развёртка героя', 'инфографика (последней)'] : pk.dataset.akindPeek === 'sheet' ? ['фото героя — если есть'] : ['пример стиля — по желанию'],
+          куда: 'программа на компьютере: POST /api/batch → ' + SITE_SHORT[asset.svc]}});
+    }
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.asvc) return setAssetSvc(b.dataset.asvc);
@@ -7626,6 +7804,11 @@ async function writeGemini(sys, user) {
 }
 async function writeGo() {
   if (wr.busy) return;
+  if (peek.on) {
+    const who = writerNow(), {sys, user, chat} = writeBrief();
+    return peekShow('Создание сценария', {prompts: who === 'chat' ? [['Задание для ИИ в чате (копируется)', chat]] : [['Системный промпт', sys], ['Задание (вместе с картинками)', typeof user === 'string' ? user : JSON.stringify(user, null, 2)]],
+      request: {ИИ: who === 'chat' ? 'ИИ в чате' : WRITERS[who]?.name, картинки: {инфографика: wr.info || null, развёртка: wr.sheet || null, кадры_в_локациях: wr.locs || []}, сценариев: wr.count}});
+  }
   if (wrNeedKey()) return geminiOpen();
   // кадры «персонаж в локации» обязательны при любом ИИ: сколько сценариев, столько кадров (пользователь 2026-09-27)
   const pics = writerNow() === 'chat' ? [] : ['info', 'sheet'].filter(k => !wr[k]), gap = wrLocGap();
