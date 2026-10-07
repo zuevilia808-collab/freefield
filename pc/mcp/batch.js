@@ -31,8 +31,8 @@ export const MODELS = {
   arena: {video: {'battle': {label: 'битва двух анонимных моделей'}}, image: {'battle': {label: 'битва двух моделей'}}},
   vids: {video: P.VIDS_MODELS, image: {}},
 };
-// по умолчанию (просьба пользователя 2026-09-27): видео Flow — Omni 1.1 Flash (и 10, и 8 с), Dola — Seedance 2.5; фото Flow — Nano Banana 2, Dola — Seedream 5.0
-const DEFAULT = {flow: {video: 'omni-1.1-flash', image: 'nano-banana-2'}, dola: {video: 'seedance-2.5', image: 'seedream-5-pro'}, arena: {video: 'battle', image: 'battle'}, vids: {video: 'omni'}};
+// по умолчанию (просьба пользователя 2026-09-27, 2026-10-07): видео Flow — Omni 1.1 Flash (и 10, и 8 с), Dola — Seedance 2.5; фото Flow — Nano Banana 2.1, Dola — Seedream 5.0
+const DEFAULT = {flow: {video: 'omni-1.1-flash', image: 'nano-banana-2.1'}, dola: {video: 'seedance-2.5', image: 'seedream-5-pro'}, arena: {video: 'battle', image: 'battle'}, vids: {video: 'omni'}};
 
 function modelFor(site, kind, s) {
   const list = MODELS[site][kind];
@@ -140,7 +140,9 @@ async function generateIn(site, it, onStatus, p) {
   }
   if (site === 'flow') {
     const model = P.FLOW_IMAGE_MODELS[key];
-    return {model: model.label, results: await P.flowImage({prompt, aspect: fitAspect('image', 'flow', it.aspect), count: it.count || 1, model, imagePath: it.image_path, imagePaths: refsOf(it).slice(0, 4), onStatus})};
+    // у модели с запасной (Nano Banana 2.1 → 2) кредиты не тратим: попросит Flow кредиты — сделает запасная, бесплатная
+    const res = await P.flowImage({prompt, aspect: fitAspect('image', 'flow', it.aspect), count: it.count || 1, model, imagePath: it.image_path, imagePaths: refsOf(it).slice(0, 4), onStatus, allowCredits: !model.fallback});
+    return {model: res[0]?.model || model.label, results: res};
   }
   if (site === 'dola' && it.kind === 'video') {
     const model = P.DOLA_VIDEO_MODELS[key];
