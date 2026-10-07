@@ -10,7 +10,10 @@ import crypto from 'node:crypto';
 
 const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webp': 'image/webp', '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg', '.mp4': 'video/mp4', '.webm': 'video/webm', '.apk': 'application/vnd.android.package-archive'};
+  '.jpeg': 'image/jpeg', '.mp4': 'video/mp4', '.webm': 'video/webm', '.apk': 'application/vnd.android.package-archive',
+  '.glb': 'model/gltf-binary', '.obj': 'model/obj', '.fbx': 'application/octet-stream', '.zip': 'application/zip'};
+// фото из приложения (data URL, до ~15 МБ)
+const photo = x => typeof x === 'string' && /^data:image\/(png|jpeg|webp|gif);base64,/.test(x) && x.length < 21e6;
 
 // Адреса компьютера в домашней сети (сначала обычные домашние 192.168.x.x)
 export function lanAddresses() {
@@ -88,8 +91,7 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           let body = '';
           for await (const chunk of req) { body += chunk; if (body.length > 40e6) return send(413, {error: 'слишком большое задание — уменьшите фото'}); }
           const {scenarios} = JSON.parse(body || '{}');
-          // фото-референсы из приложения (data URL, до ~15 МБ каждое) — компьютер сохранит их в outputs/refs
-          const photo = x => typeof x === 'string' && /^data:image\/(png|jpeg|webp|gif);base64,/.test(x) && x.length < 21e6;
+          // фото-референсы из приложения — компьютер сохранит их в outputs/refs
           const list = (Array.isArray(scenarios) ? scenarios : []).map(s => ({prompt: String(s.prompt || '').trim().slice(0, 2500),
             kind: s.kind === 'image' ? 'image' : 'video', service: ['auto', 'flow', 'arena', 'dola', 'vids'].includes(s.service) ? s.service : 'auto',
             aspect_ratio: ['16:9', '9:16', '1:1', '3:4', '4:3', '2:3', '21:9'].includes(s.aspect_ratio) ? s.aspect_ratio : undefined,
@@ -100,6 +102,22 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
             sheet: photo(s.sheet) ? s.sheet : undefined})).filter(s => s.prompt.length >= 3);   // развёртка героя — отдельно: только «ингредиент», не первый кадр
           if (!list.length || list.length > 10) return send(400, {error: 'нужно от 1 до 10 сценариев'});
           return send(200, await api.submit(list));
+        }
+        // «🧊 3D-модель» и «🔍 Увеличить» из галереи: картинка — data URL или имя файла, который сделал этот компьютер (pc_name)
+        if ((url.pathname === '/api/3d' || url.pathname === '/api/upscale') && req.method === 'POST') {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 90e6) return send(413, {error: 'слишком большие картинки — уменьшите их'}); }
+          const j = JSON.parse(body || '{}');
+          const pcPath = j.pc_name ? api.findOutput(String(j.pc_name)) : null;
+          if (!pcPath && !photo(j.image)) return send(400, {error: 'нужна картинка (png, jpg, webp)'});
+          const title = String(j.title || '').trim().slice(0, 300);
+          if (url.pathname === '/api/upscale') return send(200, await api.upscale({image: j.image, pcPath, factor: +j.factor === 4 ? 4 : 2, title,
+            aspect: /^\d+:\d+$/.test(j.aspect || '') ? j.aspect : undefined}));
+          const views = Object.fromEntries(['back', 'left', 'right'].map(k => [k, j.views?.[k]]).filter(([, v]) => photo(v)));
+          const pickOf = (v, list, d) => list.includes(v) ? v : d;
+          return send(200, await api.make3d({image: j.image, pcPath, views, title,
+            service: pickOf(j.service, ['auto', 'hunyuan', 'hf', 'tripo', 'meshy'], 'auto'), quality: pickOf(j.quality, ['standard', 'high', 'max'], 'high'),
+            texture: j.texture !== false, pbr: j.pbr === true, format: pickOf(j.format, ['glb', 'obj', 'fbx'], 'glb')}));
         }
         if (url.pathname === '/api/outputs' && req.method === 'GET') return send(200, await api.outputs());
         if (url.pathname === '/api/sync' && req.method === 'POST') return send(200, await api.sync());
