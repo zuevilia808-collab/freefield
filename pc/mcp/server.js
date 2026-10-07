@@ -13,6 +13,7 @@ import {fileURLToPath} from 'node:url';
 import crypto from 'node:crypto';
 import {readState, writeState} from './state.js';
 import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog} from './studio.js';
+import {fileInfo, aspectCheck} from './media.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.FREEFIELD_OUTPUT_DIR || path.join(HERE, '..', 'outputs');
@@ -48,6 +49,15 @@ const slug = s => (s || 'art').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-')
 const EXT = {'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm'};
 const MIME = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif'};
 const fmtUSD = v => v == null ? 'цена по факту' : '$' + (v < 0.1 ? +v.toPrecision(2) : v.toFixed(2));
+
+// Ответ инструмента: для человека — текст и превью, для скриптов агента — JSON (structuredContent и последним текстовым
+// блоком, тот же объект): абсолютные пути файлов и их параметры (ширина×высота, модель, формат…)
+function toolResult(data, {text = '', images = [], isError = false} = {}) {
+  return {content: [...images, ...(text ? [{type: 'text', text}] : []), {type: 'text', text: JSON.stringify(data)}],
+    structuredContent: data, ...(isError ? {isError: true} : {})};
+}
+// файлы → описание для агента (картинки и видео — с шириной и высотой)
+const filesInfo = (paths, extra = () => ({})) => paths.map((p, i) => fileInfo(typeof p === 'string' ? p : p.path, extra(p, i)));
 
 function saveOutput(buf, mime, prompt, seed) {
   const dir = path.join(OUT, new Date().toISOString().slice(0, 10));
@@ -297,7 +307,7 @@ let jobSeq = 0;
 function startJob(kind, run) {
   const job = {id: `${kind}-${++jobSeq}-${Date.now().toString(36)}`, kind, status: 'running', message: 'в очереди',
     started: Date.now(), listeners: new Set(), result: null, error: null};
-  job.promise = run(msg => { job.message = msg; job.listeners.forEach(f => f(msg)); })
+  job.promise = Promise.resolve().then(() => run(msg => { job.message = msg; job.listeners.forEach(f => f(msg)); }, job))
     .then(r => { job.status = 'done'; job.result = r; }, e => { job.status = 'error'; job.error = e; log(job.id, e.message); });
   jobs.set(job.id, job);
   return job;
@@ -324,24 +334,29 @@ const HINTS = {
 
 function jobResult(job) {
   const sec = Math.round((Date.now() - job.started) / 1000);
-  if (job.status === 'running') return {content: [{type: 'text', text:
-    `⏳ Ещё генерируется: ${job.message} (прошло ${sec} с). Вызови check_job с job_id="${job.id}", чтобы дождаться результата.`}]};
-  if (job.status === 'error') return {isError: true, content: [{type: 'text', text: `Ошибка: ${job.error.message}${HINTS[job.error.kind] || ''}`}]};
-  return job.result;
+  if (job.status === 'running') return toolResult({job_id: job.id, status: 'running', message: job.message, elapsed_s: sec}, {text:
+    `⏳ Ещё генерируется: ${job.message} (прошло ${sec} с). Вызови check_job с job_id="${job.id}", чтобы дождаться результата.`});
+  if (job.status === 'error') return toolResult({job_id: job.id, status: 'error', error: job.error.message, error_kind: job.error.kind || 'other',
+    ...(job.error.skipped?.length ? {skipped: job.error.skipped} : {})}, {text: `Ошибка: ${job.error.message}${HINTS[job.error.kind] || ''}`, isError: true});
+  const r = job.result;
+  if (!r?.structuredContent) return r;
+  // номер задачи — в JSON результата (последний текстовый блок — тот же JSON)
+  const data = {job_id: job.id, ...r.structuredContent};
+  return {...r, structuredContent: data, content: [...r.content.slice(0, -1), {type: 'text', text: JSON.stringify(data)}]};
 }
 
 function imageResult(out, info) {
   const file = saveOutput(out.buf, out.mime, info.prompt, info.seed);
   recordGen({kind: 'image', site: 'freefield', model: info.model, appModel: info.appModel, prompt: info.prompt, aspect: info.aspect, files: [{path: file, mime: out.mime}]});
-  const content = [];
-  if (out.buf.length <= 3.5 * 1024 * 1024) content.push({type: 'image', data: out.buf.toString('base64'), mimeType: out.mime});
-  content.push({type: 'text', text: [`Готово: ${info.model}${info.cost ? ` · ≈ ${fmtUSD(info.cost)}` : ' · бесплатно'}`,
+  const images = out.buf.length <= 3.5 * 1024 * 1024 ? [{type: 'image', data: out.buf.toString('base64'), mimeType: out.mime}] : [];
+  const fi = fileInfo(file, {model: info.model, aspect_ratio: info.aspect, seed: info.seed});
+  Object.assign(fi, aspectCheck(fi.width, fi.height, info.aspect));
+  return toolResult({status: 'done', service: 'freefield', files: [fi], cost_usd: info.cost || 0, ...(info.note ? {note: info.note} : {})}, {images, text: [`Готово: ${info.model}${info.cost ? ` · ≈ ${fmtUSD(info.cost)}` : ' · бесплатно'}`,
     `Файл: ${file}`, `Формат: ${info.aspect} · seed ${info.seed}`, info.note].filter(Boolean).join('\n')});
-  return {content};
 }
 
 // ============================== сервер и инструменты ==============================
-const SERVER_INFO = {name: 'freefield', version: '1.1.0'};
+const SERVER_INFO = {name: 'freefield', version: '1.2.0'};
 const SERVER_OPTS = {
   instructions: 'Freefield генерирует картинки и видео. Пиши промпты на английском, подробно (объект, действие, окружение, свет, стиль, камера). ' +
     'По умолчанию используй бесплатные модели. Платные модели списывают деньги с баланса Pollinations: перед их вызовом назови пользователю цену из list_models и дождись согласия. ' +
@@ -351,7 +366,10 @@ const SERVER_OPTS = {
     'Рабочий порядок: пользователь пишет сценарии в чат — сразу перепиши каждый в подробный английский промпт и запусти batch_generate (для картинок по умолчанию ' +
     'Nano Banana 2 во Flow и Seedream 5.0 в Dola — без кредитов), не переспрашивай по мелочам. Прислал фото в чат — вызови chat_photos, получи путь и передай его ' +
     'как image_path: для видео — оживить фото (Arena), для картинки — сделать по референсу (Flow / Dola). Готовые файлы сами появляются в галерее приложения ' +
-    'Freefield (открытого по ссылке из phone_link на компьютере или телефоне) — в чат коротко: что готово и что не получилось.',
+    'Freefield (открытого по ссылке из phone_link на компьютере или телефоне) — в чат коротко: что готово и что не получилось. ' +
+    'Пайплайн «персонаж → игровая 3D-модель»: flow_image (референсы в image_paths, resolution 2k) → при необходимости upscale_image → image_to_3d → check_job. ' +
+    'Каждый результат содержит JSON с абсолютными путями файлов и их параметрами — бери пути оттуда. Платные кредиты — только с allow_credits / allow_paid и согласия пользователя. ' +
+    'Токены и пароли пользователя не проси в чате: токен Hugging Face пользователь сам вписывает в config.json Freefield.',
 };
 const server = new McpServer(SERVER_INFO, SERVER_OPTS);
 // все инструменты запоминаем: по ссылке http://…:5180/mcp?k=… (Claude Code, Cursor и другие программы) — тот же набор
@@ -448,15 +466,17 @@ server.registerTool('generate_video', {
     const file = saveOutput(out.buf, out.mime || 'video/mp4', prompt, s);
     recordGen({kind: 'video', site: 'freefield', model: free ? WAN.title : paid.title || paid.name, appModel: free ? 'free:wan22' : 'pol:' + paid.name,
       prompt, aspect: aspect_ratio, files: [{path: file, mime: out.mime || 'video/mp4'}]});
-    return {content: [{type: 'text', text: [`Готово: видео ${free ? WAN.title + ' · бесплатно' : (paid.title || paid.name) + ` · ≈ ${fmtUSD(cost)}`}`,
-      `Файл: ${file}`, poster ? `Первый кадр: ${poster}` : '', `Длительность: ${duration} с · ${aspect_ratio} · seed ${s}`].filter(Boolean).join('\n')}]};
+    return toolResult({status: 'done', service: 'freefield', files: [fileInfo(file, {model: free ? WAN.title : paid.title || paid.name, aspect_ratio, seed: s}),
+      ...(poster ? [fileInfo(poster, {role: 'first_frame'})] : [])], cost_usd: cost || 0}, {text: [`Готово: видео ${free ? WAN.title + ' · бесплатно' : (paid.title || paid.name) + ` · ≈ ${fmtUSD(cost)}`}`,
+      `Файл: ${file}`, poster ? `Первый кадр: ${poster}` : '', `Длительность: ${duration} с · ${aspect_ratio} · seed ${s}`].filter(Boolean).join('\n')});
   });
   return waitJob(job, WAIT_MS, extra);
 });
 
 server.registerTool('check_job', {
   title: 'Дождаться генерации',
-  description: 'Ждёт (до wait_seconds) и возвращает результат долгой генерации по job_id (generate_*, flow_*, arena_video, dola_image, batch_generate).',
+  description: 'Ждёт (до wait_seconds) и возвращает результат долгой задачи по job_id (generate_*, flow_*, arena_video, dola_image, batch_generate, image_to_3d, upscale_image). ' +
+    'Последний текстовый блок ответа (и structuredContent) — JSON: status (running | done | error), а у готовой — абсолютные пути файлов и их параметры.',
   inputSchema: {
     job_id: z.string(),
     wait_seconds: z.number().min(0).max(120).default(45),
@@ -538,50 +558,96 @@ server.registerTool('account_status', {
 let portalsMod = null, batchModP = null;
 const portals = async () => (portalsMod ??= await import('./portals.js'));
 const batchMod = async () => (batchModP ??= await import('./batch.js'));
+const mesh3d = () => import('./mesh3d.js');
+const upscaleMod = () => import('./upscale.js');
 
 async function preview(out) {
-  // в чат — уменьшенная копия (оригинал сохраняется целиком)
+  // в чат — уменьшенная копия (оригинал сохраняется целиком); нет библиотеки sharp — большую картинку в чат не показываем
   if (out.buf.length <= 1.5 * 1024 * 1024 && /jpeg|png|webp/.test(out.mime)) return {data: out.buf.toString('base64'), mimeType: out.mime};
-  const sharp = (await import('sharp')).default;
-  const small = await sharp(out.buf).resize({width: 1568, height: 1568, fit: 'inside', withoutEnlargement: true}).jpeg({quality: 85}).toBuffer();
-  return {data: small.toString('base64'), mimeType: 'image/jpeg'};
+  try {
+    const sharp = (await import('sharp')).default;
+    const small = await sharp(out.buf).resize({width: 1568, height: 1568, fit: 'inside', withoutEnlargement: true}).jpeg({quality: 85}).toBuffer();
+    return {data: small.toString('base64'), mimeType: 'image/jpeg'};
+  } catch { return null; }
 }
+const previewItem = async out => { const p = await preview(out).catch(() => null); return p ? [{type: 'image', ...p}] : []; };
 
 async function portalResult(results, info) {
   const content = [], files = [];
   for (const out of results) {
     files.push(saveOutput(out.buf, out.mime || 'image/jpeg', info.prompt, randSeed()));
-    if (out.mime?.startsWith('image/')) content.push({type: 'image', ...(await preview(out))});
+    if (out.mime?.startsWith('image/')) content.push(...(await previewItem(out)));
   }
   recordGen({kind: 'image', site: info.siteId, model: info.model, prompt: info.prompt, aspect: info.aspect,
     files: files.map((p, i) => ({path: p, mime: results[i].mime || 'image/jpeg'}))});
-  content.push({type: 'text', text: [`Готово: ${info.site} · ${info.model} · бесплатные кредиты вашего аккаунта`,
+  const fis = filesInfo(files, () => ({model: info.model, aspect_ratio: info.aspect}));
+  for (const f of fis) Object.assign(f, aspectCheck(f.width, f.height, info.aspect));
+  return toolResult({status: 'done', service: info.siteId, files: fis}, {images: content, text: [`Готово: ${info.site} · ${info.model} · бесплатные кредиты вашего аккаунта`,
     ...files.map((f, i) => `Файл ${i + 1}: ${f}`), `Формат: ${info.aspect}`].join('\n')});
-  return {content};
 }
 
 const PORTAL_HINT = 'Генерация идёт на сайте под аккаунтом пользователя в отдельном окне Chrome Freefield (вход выполнен им самим один раз). ' +
   'Если сайт попросит войти или пройти проверку «я не робот» — инструмент остановится: попроси пользователя сделать это в окне Chrome и повтори.';
 
+// Картинки Flow: сохранить как есть, описать каждый файл для агента (путь, размер, модель, формат кадра)
+async function flowImageResult(results, info) {
+  const P = await portals();
+  const files = [], images = [], warnings = [], errors = [];
+  for (const out of results) {
+    const file = saveOutput(out.buf, out.mime || 'image/png', info.prompt, randSeed());
+    const fi = fileInfo(file, {model: out.model || info.model, aspect_ratio: info.aspect, resolution: out.resolution ?? null, upscaled: !!out.upscaled, flow_id: out.id || null});
+    if (out.width && !fi.width) Object.assign(fi, {width: out.width, height: out.height});
+    Object.assign(fi, aspectCheck(fi.width, fi.height, info.aspect));
+    if (fi.aspect_ok === false) warnings.push(`${fi.name}: кадр ${fi.width}×${fi.height} (${fi.aspect_ratio_actual}) не совпадает с ${info.aspect} — Freefield его не обрезал и не сдвигал`);
+    if (out.warning) { fi.warning = out.warning; warnings.push(`${fi.name}: ${out.warning}`); }
+    if (out.error) errors.push(out.error);
+    files.push(fi);
+    P.rememberFlowFile(file, out.id);
+    if (images.length < 4 && /^image\//.test(fi.mime)) images.push(...(await previewItem({buf: out.buf, mime: fi.mime})));
+  }
+  recordGen({kind: 'image', site: 'flow', model: files[0]?.model || info.model, prompt: info.prompt, aspect: info.aspect, files: files.map(f => ({path: f.path, mime: f.mime}))});
+  const err = errors[0];
+  const data = {status: 'done', service: 'flow', model_requested: info.model, aspect_ratio: info.aspect, resolution_requested: info.resolution, files, warnings,
+    ...(err ? {error: err, error_kind: 'credits'} : {})};
+  const text = [err ? `⚠ ${err}. Сохранён оригинал 1K (без увеличения).` : `Готово: Google Flow · ${[...new Set(files.map(f => f.model))].join(', ')} · бесплатные кредиты вашего аккаунта`,
+    ...files.map((f, i) => `Файл ${i + 1}: ${f.path} · ${f.width}×${f.height}${f.resolution ? ' · ' + f.resolution : ''}`), ...warnings.map(w => '⚠ ' + w)].join('\n');
+  return toolResult(data, {text, images, isError: !!err});
+}
+
 server.registerTool('flow_image', {
   title: 'Картинка через Google Flow',
-  description: 'Генерирует картинки моделями Nano Banana на сайте Google Flow за бесплатные ежедневные кредиты Flow (50 в день). ' +
-    'nano-banana-2 (по умолчанию) и nano-banana-2-lite кредиты не тратят; nano-banana-pro может тратить кредиты. ' + PORTAL_HINT,
+  description: 'Генерирует картинки моделями Nano Banana на сайте Google Flow за бесплатные кредиты Flow. ' +
+    'model: nano-banana-2.1 (по умолчанию, новая версия; если её нет в аккаунте или Flow просит за неё кредиты без allow_credits — Flow сделает на nano-banana-2, ' +
+    'какая модель сработала — в поле model каждого файла), nano-banana-2 и nano-banana-2-lite — без кредитов, nano-banana-pro — тратит кредиты (только с allow_credits=true). ' +
+    'image_paths — до 4 фото-референсов («ингредиенты» Flow: персонаж, развёртка, стиль). ' +
+    'resolution — размер файла через меню Flow «Скачать»: 1k — оригинал, 2k — увеличение Flow (по умолчанию, максимум без подписки), 4k — обычно только с подпиской Google AI. ' +
+    'Если размер стоит кредитов, без allow_credits=true Freefield их не тратит и возвращает ошибку с ценой (оригинал 1K сохраняется). ' +
+    'Файлы сохраняются как их отдаёт Flow (PNG/JPEG), без пережатия; кадр не обрезается и не сдвигается — формат проверяется (aspect_ok). ' +
+    'Ответ и check_job содержат JSON: files[] с path (абсолютный), width, height, model, aspect_ratio, resolution. ' + PORTAL_HINT,
   inputSchema: {
     prompt: z.string().min(3).describe('Подробный промпт (лучше на английском).'),
-    model: z.enum(['nano-banana-2', 'nano-banana-2-lite', 'nano-banana-pro']).default('nano-banana-2'),
+    model: z.enum(['nano-banana-2.1', 'nano-banana-2', 'nano-banana-2-lite', 'nano-banana-pro']).default('nano-banana-2.1'),
     aspect_ratio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16']).default('16:9'),
-    count: z.number().int().min(1).max(4).default(1).describe('Сколько вариантов (каждый тратит кредиты).'),
-    image_path: z.string().optional().describe('Фото-референс (png, jpg, webp): картинка будет сделана по нему. Фото из чата — через chat_photos.'),
+    count: z.number().int().min(1).max(4).default(1).describe('Сколько вариантов за раз (x1–x4).'),
+    image_paths: z.array(z.string()).max(4).optional().describe('До 4 фото-референсов (png, jpg, webp) — «ингредиенты» Flow. Фото из чата — через chat_photos.'),
+    image_path: z.string().optional().describe('Один референс (старый параметр; то же, что image_paths из одного файла).'),
+    resolution: z.enum(['1k', '2k', '4k']).default('2k').describe('Размер скачивания через меню Flow: 1k оригинал, 2k (по умолчанию), 4k.'),
+    allow_credits: z.boolean().default(false).describe('true — разрешить тратить кредиты Flow (платная модель или платный размер). Только с согласия пользователя.'),
   },
   annotations: {readOnlyHint: false, openWorldHint: true},
-}, async ({prompt, model, aspect_ratio, count, image_path}, extra) => {
-  let ref = null;
-  try { if (image_path) { readLocalImage(image_path); ref = path.resolve(image_path); } } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+}, async ({prompt, model, aspect_ratio, count, image_paths = [], image_path, resolution, allow_credits}, extra) => {
+  let refs;
+  try {
+    refs = [...new Set([...image_paths, ...(image_path ? [image_path] : [])].map(p => { readLocalImage(p); return path.resolve(p); }))];
+    if (refs.length > 4) throw new GenError('Flow принимает до 4 фото-референсов');
+  } catch (e) { return toolResult({status: 'error', error: e.message, error_kind: 'input'}, {text: 'Ошибка: ' + e.message, isError: true}); }
   const P = await portals();
+  const blocked = P.flowResBlocked(resolution, allow_credits);
+  if (blocked) return toolResult({status: 'error', error: blocked, error_kind: /недоступно/.test(blocked) ? 'plan' : 'credits', resolution_requested: resolution},
+    {text: `Ошибка: ${blocked}. Возьми resolution="2k" или "1k"${/недоступно/.test(blocked) ? '' : ', или allow_credits=true с согласия пользователя'}.`, isError: true});
   const m = P.FLOW_IMAGE_MODELS[model];
-  const job = startJob('flow', async status => portalResult(await P.flowImage({prompt, aspect: aspect_ratio, count, model: m, imagePath: ref, onStatus: status}),
-    {site: 'Google Flow', siteId: 'flow', model: m.label, prompt, aspect: aspect_ratio}));
+  const job = startJob('flow', async status => flowImageResult(await P.flowImage({prompt, aspect: aspect_ratio, count, model: m, imagePaths: refs, onStatus: status,
+    allowCredits: allow_credits, resolution}), {model: m.label, prompt, aspect: aspect_ratio, resolution}));
   return waitJob(job, WAIT_MS, extra);
 });
 
@@ -602,7 +668,8 @@ server.registerTool('flow_video', {
     const res = await P.flowVideo({prompt, aspect: aspect_ratio, count: 1, model: m, onStatus: status});
     const files = res.map(o => saveOutput(o.buf, o.mime || 'video/mp4', prompt, randSeed()));
     recordGen({kind: 'video', site: 'flow', model: m.label, prompt, aspect: aspect_ratio, files: files.map(p => ({path: p, mime: 'video/mp4'}))});
-    return {content: [{type: 'text', text: [`Готово: видео Google Flow · ${m.label} · бесплатные кредиты`, ...files.map(f => `Файл: ${f}`), `Формат: ${aspect_ratio}`].join('\n')}]};
+    return toolResult({status: 'done', service: 'flow', files: filesInfo(files, () => ({model: m.label, aspect_ratio}))},
+      {text: [`Готово: видео Google Flow · ${m.label} · бесплатные кредиты`, ...files.map(f => `Файл: ${f}`), `Формат: ${aspect_ratio}`].join('\n')});
   });
   return waitJob(job, WAIT_MS, extra);
 });
@@ -627,7 +694,8 @@ server.registerTool('vids_video', {
     const res = await P.vidsVideo({prompt, aspect: aspect_ratio, imagePaths: image_paths, onStatus: status});
     const files = res.map(o => saveOutput(o.buf, o.mime || 'video/mp4', prompt, randSeed()));
     recordGen({kind: 'video', site: 'vids', model: 'Omni · Google Vids', prompt, aspect: aspect_ratio, files: files.map(p => ({path: p, mime: 'video/mp4'}))});
-    return {content: [{type: 'text', text: ['Готово: видео Google Vids · Omni · 720p · 10 с · бесплатно', ...files.map(f => `Файл: ${f}`), `Формат: ${aspect_ratio}`].join('\n')}]};
+    return toolResult({status: 'done', service: 'vids', files: filesInfo(files, () => ({model: 'Omni · Google Vids', aspect_ratio}))},
+      {text: ['Готово: видео Google Vids · Omni · 720p · 10 с · бесплатно', ...files.map(f => `Файл: ${f}`), `Формат: ${aspect_ratio}`].join('\n')});
   });
   return waitJob(job, WAIT_MS, extra);
 });
@@ -673,8 +741,8 @@ server.registerTool('arena_video', {
     const saved = results.map(o => ({path: saveOutput(o.buf, o.mime || 'video/mp4', prompt, randSeed()), mime: o.mime || 'video/mp4', label: o.label}));
     recordGen({kind: 'video', site: 'arena', model: 'битва двух анонимных моделей', prompt, files: saved});
     const files = saved.map(f => `${f.label}: ${f.path}`);
-    return {content: [{type: 'text', text: [`Готово: Arena · ${results.length} видео от двух анонимных моделей · бесплатно`, ...files,
-      `Чат на Arena (там можно проголосовать — после этого Arena покажет названия моделей): ${chat}`].join('\n')}]};
+    return toolResult({status: 'done', service: 'arena', chat, files: filesInfo(saved, f => ({model: f.label}))}, {text: [`Готово: Arena · ${results.length} видео от двух анонимных моделей · бесплатно`, ...files,
+      `Чат на Arena (там можно проголосовать — после этого Arena покажет названия моделей): ${chat}`].join('\n')});
   });
   return waitJob(job, WAIT_MS, extra);
 });
@@ -690,11 +758,13 @@ async function batchResult(batch) {
   const content = [];
   for (const it of batch.items) for (const f of it.files || []) {
     if (!f.mime.startsWith('image/') || content.length >= 8) continue;
-    try { content.push({type: 'image', ...(await preview({buf: fs.readFileSync(f.path), mime: f.mime}))}); } catch {}
+    try { content.push(...(await previewItem({buf: fs.readFileSync(f.path), mime: f.mime}))); } catch {}
   }
   const ok = batch.items.filter(i => i.status === 'done').length;
-  content.push({type: 'text', text: `Пакет ${batch.id}: готово ${ok} из ${batch.items.length} · бесплатные кредиты сайтов\n\n` + B.summary(batch.items)});
-  return {content};
+  const items = batch.items.map(i => ({n: i.n, status: i.status, kind: i.kind, site: i.site, model: i.model || null, ...(i.message && i.status === 'error' ? {error: i.message} : {}),
+    files: filesInfo(i.files || [], () => ({model: i.model || null, aspect_ratio: i.aspect || null}))}));
+  return toolResult({status: 'done', batch_id: batch.id, done: ok, total: batch.items.length, items},
+    {images: content, text: `Пакет ${batch.id}: готово ${ok} из ${batch.items.length} · бесплатные кредиты сайтов\n\n` + B.summary(batch.items)});
 }
 
 server.registerTool('batch_generate', {
@@ -715,7 +785,7 @@ server.registerTool('batch_generate', {
       seconds: z.union([z.literal(5), z.literal(8), z.literal(10)]).optional().describe('Длина видео: во Flow 8 — Veo 3.1 Lite (10 кредитов), 10 — Omni 1.1 Flash (20 кредитов); ' +
         'в Dola 5 или 10. Бери по сценарию пользователя: расписан на 10 секунд — ставь 10.'),
       model: z.string().optional().describe('Модель на выбранном сервисе (иначе — по умолчанию): Flow видео omni-1.1-flash (по умолчанию) | veo-3.1-lite | veo-3.1-fast | veo-3.1-quality; ' +
-        'Flow фото nano-banana-2 | nano-banana-2-lite | nano-banana-pro; Dola видео seedance-2.0-fast | seedance-2.5 | seedance-1.0; Dola фото seedream-5-pro | seedream-4.5.'),
+        'Flow фото nano-banana-2 | nano-banana-2.1 (новая) | nano-banana-2-lite | nano-banana-pro; Dola видео seedance-2.0-fast | seedance-2.5 | seedance-1.0; Dola фото seedream-5-pro | seedream-4.5.'),
       image_path: z.string().optional().describe('Фото-референс: для видео — оживить его (Arena), для картинки — сделать по нему (Flow Nano Banana 2 / Dola / Arena). Фото из чата — через chat_photos.'),
       image_paths: z.array(z.string()).max(4).optional().describe('Несколько фото-референсов: Flow берёт все как «ингредиенты», Dola и Arena — первое'),
     })).min(1).max(10),
@@ -734,6 +804,78 @@ server.registerTool('batch_generate', {
     const t = setInterval(() => status(progressLine(batch.items)), 3000);
     try { await batch.promise; } finally { clearInterval(t); }
     return batchResult(batch);
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('image_to_3d', {
+  title: 'Картинка → 3D-модель',
+  description: 'Делает 3D-модель по картинке персонажа или предмета на бесплатных лимитах, под аккаунтами пользователя. Асинхронно: возвращает job_id — результат через check_job. ' +
+    'service: auto (по умолчанию: сайт Hunyuan 3D — 20 бесплатных в день → Spaces на Hugging Face → Tripo → Meshy; если сервис не смог — следующий), ' +
+    'hunyuan (официальный сайт Hunyuan 3D, международная версия), tripo (Tripo Studio, бесплатные кредиты в месяц), meshy (Meshy, 100 кредитов и 10 скачиваний в месяц), ' +
+    'hf (Spaces microsoft/TRELLIS.2 и tencent/Hunyuan3D-2.1, мультивью — tencent/Hunyuan3D-2mv, на квоте ZeroGPU аккаунта пользователя: ≈ 3,5 мин GPU в день — 1–3 модели). ' +
+    'Вход: image_path (одна картинка) ИЛИ views {front, back, left, right} (мультивью, где сервис умеет). quality: standard | high | max (max — максимум полигонов и текстур, что даёт сервис). ' +
+    'texture (по умолчанию true), pbr, format: glb (по умолчанию) | fbx | obj — если сервис не отдаёт нужный формат, Freefield переводит сам (OBJ — сам, FBX — через установленный Blender). ' +
+    'Результат (JSON): model_path и files[] — абсолютные пути модели и текстур в Freefield/outputs/3d/<job>/, polygons (треугольники, вершины), service, free_left (сколько бесплатного осталось). ' +
+    'Платные кредиты не тратит без allow_paid=true. Если сайт просит войти или пройти проверку «я не робот» — остановится: попроси пользователя сделать это в окне Chrome Freefield и повтори. ' +
+    'Совет: картинка — персонаж целиком на однотонном фоне, без обрезанных рук и ног (A- или T-поза лучше для игры).',
+  inputSchema: {
+    image_path: z.string().optional().describe('Картинка (png, jpg, webp) — персонаж или предмет целиком.'),
+    views: z.object({front: z.string(), back: z.string().optional(), left: z.string().optional(), right: z.string().optional()}).optional()
+      .describe('Мультивью: пути к видам спереди (обязательно), сзади, слева, справа.'),
+    service: z.enum(['auto', 'hunyuan', 'tripo', 'meshy', 'hf']).default('auto'),
+    quality: z.enum(['standard', 'high', 'max']).default('high'),
+    texture: z.boolean().default(true),
+    pbr: z.boolean().default(false).describe('PBR-материалы (metallic/roughness/normal). TRELLIS.2 и Hunyuan3D-2.1 дают их всегда.'),
+    format: z.enum(['glb', 'fbx', 'obj']).default('glb'),
+    allow_paid: z.boolean().default(false).describe('true — разрешить тратить платные кредиты сервиса. Только с согласия пользователя.'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({image_path, views, service, quality, texture, pbr, format, allow_paid}, extra) => {
+  const bad = msg => toolResult({status: 'error', error: msg, error_kind: 'input'}, {text: 'Ошибка: ' + msg, isError: true});
+  if (!image_path && !views) return bad('нужна картинка: image_path или views.front');
+  if (image_path && views) return bad('укажи что-то одно: image_path или views');
+  let img = null, vw = null;
+  try {
+    if (image_path) { readLocalImage(image_path); img = path.resolve(image_path); }
+    if (views) vw = Object.fromEntries(Object.entries(views).filter(([, v]) => v).map(([k, v]) => { readLocalImage(v); return [k, path.resolve(v)]; }));
+  } catch (e) { return bad(e.message); }
+  const M = await mesh3d();
+  const job = startJob('3d', async (status, j) => {
+    const outDir = path.join(OUT, '3d', j.id);
+    const r = await M.imageTo3d({image: img, views: vw, service, quality, texture, pbr, format, allowPaid: allow_paid, outDir, onStatus: status});
+    const left = r.free_left, leftText = r.service === 'hf'
+      ? `${left.quota}${left.seconds_left != null ? `, осталось ≈ ${left.seconds_left} с` : ''} (≈ ${left.generations_left_estimate} моделей)`
+      : `бесплатно осталось ≈ ${left.left} ${left.unit} за ${left.per} (${left.source})`;
+    const text = [r.error ? `⚠ ${r.error}` : `Готово: 3D-модель · ${r.service_label} · ${r.engine}`,
+      `Модель: ${r.model_path}`, r.polygons ? `Полигоны: ${r.polygons.triangles.toLocaleString('ru')} треугольников, ${r.polygons.vertices.toLocaleString('ru')} вершин` : 'Полигоны: сервис не дал посчитать',
+      `Текстуры: ${r.textures}${r.pbr ? ' · PBR' : ''}`, `Остаток: ${leftText}`,
+      ...r.skipped.map(x => `Пропущен ${x.service}: ${x.reason}`), ...r.warnings.map(w => '⚠ ' + w)].join('\n');
+    return toolResult(r, {text, isError: !!r.error});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('upscale_image', {
+  title: 'Увеличить картинку ×2 / ×4',
+  description: 'Увеличивает картинку в 2 или 4 раза бесплатно. Картинку сделал Flow через Freefield — увеличивает сам Flow (меню «Скачать» → 2K/4K, 4K обычно только с подпиской Google AI; ' +
+    'если размер стоит кредитов — без allow_credits=true не тратит). Иначе — Real-ESRGAN в Space на Hugging Face под аккаунтом пользователя (токен в config.json Freefield или вход в окне Chrome Freefield). ' +
+    'Результат (JSON): path (абсолютный), width, height, factor_actual. Картинку не обрезает. Асинхронно: если вернулся job_id — дождись через check_job.',
+  inputSchema: {
+    path: z.string().describe('Картинка (png, jpg, webp).'),
+    factor: z.union([z.literal(2), z.literal(4)]).default(2),
+    service: z.enum(['auto', 'flow', 'hf']).default('auto'),
+    allow_credits: z.boolean().default(false),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({path: file, factor, service, allow_credits}, extra) => {
+  try { readLocalImage(file); } catch (e) { return toolResult({status: 'error', error: e.message, error_kind: 'input'}, {text: 'Ошибка: ' + e.message, isError: true}); }
+  const U = await upscaleMod();
+  const job = startJob('upscale', async status => {
+    const r = await U.upscaleImage({file: path.resolve(file), factor, service, allowCredits: allow_credits, outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), onStatus: status});
+    recordGen({kind: 'image', site: r.service === 'flow' ? 'flow' : 'freefield', model: `увеличение ×${factor} · ${r.engine}`, prompt: `увеличение ×${factor}: ${path.basename(file)}`, files: [{path: r.path, mime: r.mime}]});
+    return toolResult(r, {text: [`Готово: ×${r.factor_actual ?? factor} · ${r.engine}`, `Файл: ${r.path}`, `Размер: ${r.width}×${r.height} (было ${r.source.width}×${r.source.height})`,
+      ...r.warnings.map(w => '⚠ ' + w)].join('\n')});
   });
   return waitJob(job, WAIT_MS, extra);
 });
@@ -767,7 +909,7 @@ server.registerTool('chat_photos', {
   if (!photos.length) return {isError: true, content: [{type: 'text', text: 'В чате Claude Code не нашёл присланных фото. Попроси пользователя вставить фото в чат ' +
     '(Ctrl+V или перетащить файл) или назвать путь к файлу.'}]};
   const content = [];
-  for (const p of photos) try { content.push({type: 'image', ...(await preview({buf: fs.readFileSync(p.path), mime: p.mime}))}); } catch {}
+  for (const p of photos) try { content.push(...(await previewItem({buf: fs.readFileSync(p.path), mime: p.mime}))); } catch {}
   content.push({type: 'text', text: [`Фото из чата сохранены (${photos.length}):`, ...photos.map((p, i) => `${i + 1}. ${p.path}`),
     'Передай путь как image_path.'].join('\n')});
   return {content};
@@ -830,8 +972,9 @@ server.registerTool('switch_account', {
 });
 
 server.registerTool('portal_status', {
-  title: 'Вход в Flow, Dola и Arena',
-  description: 'Проверяет, выполнен ли вход в Google Flow, Dola и Arena в окне Chrome Freefield, и сколько кредитов Flow осталось сегодня. open=true — открыть сайты, чтобы пользователь мог войти.',
+  title: 'Вход в сервисы и остаток бесплатного',
+  description: 'Проверяет вход в окне Chrome Freefield и остаток бесплатного: Google Flow (кредиты на сегодня), Dola, Arena, Vids, а для 3D — Hunyuan 3D (генераций на сегодня), ' +
+    'Tripo и Meshy (кредиты на месяц), Hugging Face (вход и квота ZeroGPU). open=true — открыть сайты, чтобы пользователь мог войти.',
   inputSchema: {open: z.boolean().default(false)},
   annotations: {readOnlyHint: true, openWorldHint: true},
 }, async ({open}) => {
@@ -839,8 +982,13 @@ server.registerTool('portal_status', {
     const P = await portals();
     const st = await P.status(open);
     const u = P.usageReport();
-    return {content: [{type: 'text', text: Object.entries(st).map(([k, v]) => `${P.SITES[k].name}: ${v}`).join('\n') +
-      `\n\nРасход сегодня:\nGoogle Flow: ${u.flow}\nDola: ${u.dola}\nArena: ${u.arena}\nGoogle Vids: ${u.vids}`}]};
+    const M = await mesh3d();
+    const st3 = await M.status3d(open).catch(e => ({error: e.message}));
+    const free3 = Object.fromEntries(Object.keys(M.SERVICES_3D).map(k => [k, M.freeLeft(k)]));
+    return toolResult({sites: st, sites_3d: st3, free_left_3d: free3, usage_today: {flow: u.flow, dola: u.dola, arena: u.arena, vids: u.vids}},
+      {text: Object.entries(st).map(([k, v]) => `${P.SITES[k].name}: ${v}`).join('\n') +
+      `\n\n3D:\n` + Object.entries(st3).map(([k, v]) => `${M.SERVICES_3D[k]?.name || k}: ${v}`).join('\n') +
+      `\n\nРасход сегодня:\nGoogle Flow: ${u.flow}\nDola: ${u.dola}\nArena: ${u.arena}\nGoogle Vids: ${u.vids}`});
   } catch (e) { return {isError: true, content: [{type: 'text', text: 'Не удалось открыть браузер Freefield: ' + e.message}]}; }
 });
 

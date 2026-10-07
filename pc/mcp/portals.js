@@ -2,12 +2,14 @@
 // Работает как человек в видимом окне: промпты отправляет по одному, а результатов ждёт сразу нескольких.
 // Если сайт просит войти, пройти проверку «я не робот» или жалуется на подозрительную активность —
 // останавливается и сообщает пользователю, ничего не обходит.
-import {context, humanCheck, leaseProfile, profilePages, newProfilePage} from './bridge.js';
+import {context, humanCheck, leaseProfile, profilePages, newProfilePage, downloadCapture} from './bridge.js';
+import {imageSize} from './media.js';
 // данные аккаунтов — у каждого профиля Chrome свои (state.js: withProfile)
 import {HERE, readAcct as readState, writeAcct as writeState, currentProfile} from './state.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import os from 'node:os';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export class PortalError extends Error { constructor(msg, kind = 'other') { super(msg); this.kind = kind; } }
@@ -33,7 +35,7 @@ export function siteRun(site, fn) {
   return run;
 }
 let uiChain = Promise.resolve();
-function ui(fn) {
+export function ui(fn) {
   const run = uiChain.then(fn);
   uiChain = run.catch(() => {});
   return run;
@@ -315,7 +317,10 @@ async function statusIn(open) {
 // ============================== Google Flow ==============================
 export const FLOW_IMAGE_MODELS = {
   'nano-banana-2-lite': {label: 'Nano Banana 2 Lite', re: /Nano Banana 2 Lite/, credits: 0},   // по счётчику Flow — бесплатно
-  'nano-banana-2': {label: 'Nano Banana 2', re: /Nano Banana 2(?! Lite)/, credits: 0},             // тоже бесплатно
+  'nano-banana-2': {label: 'Nano Banana 2', re: /Nano Banana 2(?![.\d]| Lite)/, credits: 0},     // тоже бесплатно
+  // новая версия (появилась во Flow в октябре 2026). Нет в меню аккаунта или Flow просит за неё кредиты без
+  // разрешения — генерация идёт на Nano Banana 2, и в результате это видно (поле model)
+  'nano-banana-2.1': {label: 'Nano Banana 2.1', re: /Nano Banana 2\.1(?! Lite)/, credits: 0, fallback: 'nano-banana-2'},
   'nano-banana-pro': {label: 'Nano Banana Pro', re: /Nano Banana Pro/, credits: 8},
 };
 export const FLOW_VIDEO_MODELS = {
@@ -369,7 +374,7 @@ async function flowProject(page) {
   writeState({flowProject: page.url()});
 }
 
-async function flowSettings(page, {kind, aspect, count, model, seconds, quality = '720p'}) {
+async function flowSettings(page, {kind, aspect, count, model, seconds, quality = '720p', allowCredits = true}) {
   // у некоторых аккаунтов справа открыта панель агента («Здравствуйте, … Что вы хотите создать?») — закрываем её
   if (await page.getByRole('button', {name: /Открыть историю сеансов|Open session history/i}).isVisible().catch(() => false)) {
     await page.getByRole('button', {name: /^(Закрыть|Close)$/}).last().click({timeout: 5000}).catch(() => {});
@@ -389,22 +394,48 @@ async function flowSettings(page, {kind, aspect, count, model, seconds, quality 
   await sleep(400);
   await page.getByRole('radio', {name: new RegExp(`(^|\\s)${aspect}$`)}).first().click();
   await page.getByRole('radio', {name: `x${count}`, exact: true}).click();
-  await family.click();
-  await sleep(500);
-  await page.getByRole('menuitem', {name: model.re}).click();
-  await sleep(800);
+  // модель; нет её в меню этого аккаунта — запасная (Nano Banana 2.1 → 2)
+  const pick = async m => {
+    await family.click();
+    await sleep(500);
+    const item = page.getByRole('menuitem', {name: m.re}).first();
+    await item.waitFor({state: 'visible', timeout: 8000}).catch(() => {});
+    if (!(await item.isVisible().catch(() => false))) { await page.keyboard.press('Escape'); await sleep(300); return false; }
+    await item.click();
+    await sleep(800);
+    return true;
+  };
+  const backup = model.fallback ? (kind === 'video' ? FLOW_VIDEO_MODELS : FLOW_IMAGE_MODELS)[model.fallback] : null;
+  let used = model;
+  if (!(await pick(model))) {
+    if (!backup || !(await pick(backup))) throw new PortalError(`во Flow нет модели ${model.label} — возможно, сайт изменил список моделей`, 'ui');
+    used = backup;
+  }
   // видео: качество (никогда не 360p — по умолчанию 720p) и длина, если модель их предлагает (Omni: 360p/720p, 4–10 с)
-  let cost = null;
   if (kind === 'video') {
     const opt = async re => { const r = page.getByRole('radio', {name: re}).first(); if (await r.isVisible().catch(() => false)) { await r.click(); await sleep(400); return true; } return false; };
     if (!(await opt(new RegExp(`^${quality}`)))) await opt(/^720p/);
     if (seconds) await opt(new RegExp(`^${seconds} сек|^${seconds}s`));
+  }
+  // цена — как её пишет сам Flow («Стоимость генерации в бонусах: N»); нет строки — по таблице моделей
+  const readCost = async () => {
     const txt = await page.evaluate(() => document.querySelector('.cdk-overlay-container')?.innerText || '').catch(() => '');
-    cost = +(txt.match(/Стоимость генерации в бонусах:\s*(\d+)|cost[^:]*:\s*(\d+)/i)?.slice(1).find(Boolean)) || null;
+    const n = txt.match(/Стоимость генерации в бонусах:\s*(\d+)|cost[^:]*:\s*(\d+)/i)?.slice(1).find(Boolean);
+    return n != null ? +n : null;
+  };
+  let cost = await readCost();
+  // без разрешения тратить кредиты: платная модель с запасной — берём запасную, без неё — стоп с ценой
+  if (!allowCredits && (cost ?? (used.credits || 0) * count) > 0) {
+    if (used !== backup && backup && await pick(backup)) { used = backup; cost = await readCost(); }
+    const price = cost ?? (used.credits || 0) * count;
+    if (price > 0) {
+      await page.keyboard.press('Escape');
+      throw new PortalError(`${used.label} во Flow стоит ${price} кредитов (бонусов) за эту генерацию — без allow_credits=true Freefield их не тратит`, 'credits');
+    }
   }
   await page.keyboard.press('Escape');
   await sleep(500);
-  return {cost};
+  return {cost, model: used};
 }
 
 // адрес файла Flow: раньше flow-content.google/(image|video)/<id>, теперь и flow.google.com/asb/<токен>
@@ -540,7 +571,7 @@ async function flowGenerate(o) {
   flowInflight.add(full);
   try { return await flowGenerateIn(o, full); } finally { flowInflight.delete(full); }
 }
-async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imagePath, imagePaths, onStatus, timeoutMs}, full) {
+async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imagePath, imagePaths, onStatus, timeoutMs, allowCredits = true, resolution = null}, full) {
   const tag = 'ff' + crypto.randomBytes(4).toString('hex');
   const key = () => flowKey(full);   // кусочек промпта, которого нет в других идущих промптах
   let spent = (model.credits || 0) * count;
@@ -558,7 +589,8 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
     if (refs.length) onStatus(`прикрепляю фото-референсы: ${refs.length}`);
     await flowSetRefs(page, refs);
     onStatus(`настраиваю: ${model.label}, ${aspect}${kind === 'video' ? `, 720p${seconds ? ', ' + seconds + ' с' : ''}` : ''}, x${count}`);
-    const {cost} = await flowSettings(page, {kind, aspect, count, model, seconds});
+    const {cost, model: used} = await flowSettings(page, {kind, aspect, count, model, seconds, allowCredits});
+    if (used !== model) { onStatus(`${model.label} сейчас не подходит — беру ${used.label}`); model = used; }
     spent = cost ?? (model.credits || 0) * count;
     const before = new Set((await flowMedia(page)).map(m => flowId(m.src)));
     const errors0 = (await flowScan(page, {tag: '-', key: '\u0000', count: 0})).errors;
@@ -578,7 +610,7 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
     return {page, before};
   }));
   onStatus(`Flow генерирует (${model.label})`);
-  const res = await flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus});
+  const res = (await flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits})).map(r => ({...r, model: model.label}));
   // стоимость — как написал сам Flow в настройках («Стоимость генерации в бонусах: N»), иначе по таблице моделей
   flowSpend(spent);
   track('flow', {[kind === 'video' ? 'videos' : 'images']: res.length, credits: spent});
@@ -587,7 +619,7 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
 }
 
 // Ждёт свои плитки, затем скачивает их; для видео — сам видеофайл
-async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus}) {
+async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits}) {
   const t0 = Date.now();
   const got = [];
   const take = m => { const id = flowId(m.src); if (!got.some(g => flowId(g.src) === id)) { got.push(m); flowClaimed.add(id); markOurs('flow', [id]); } };
@@ -627,18 +659,174 @@ async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onSt
     const cur = latest.get(flowId(m.src)) || m;
     onStatus(`скачиваю ${results.length + 1} из ${Math.min(count, got.length)}`);
     // у видео с <video> в плитке адрес файла уже есть — качаем сразу, без наведения
+    // картинка в нужном размере — через меню плитки Flow («Скачать» → 1K / 2K / 4K): файл как его отдаёт Flow, без пережатия.
+    // Не вышло — оригинал по ссылке плитки, с пометкой (warning)
+    if (kind === 'image' && resolution) {
+      try { results.push({...(await flowMenuDownload(page, cur, {resolution, allowCredits, onStatus})), id: flowId(cur.src)}); markSynced('flow', [flowId(cur.src)]); continue; }
+      catch (e) {
+        // размер стоит кредитов или недоступен аккаунту — запоминаем (следующий запрос остановится до генерации)
+        if (e.kind === 'credits' || e.kind === 'plan') writeState({flowRes: {...readState().flowRes, [resolution]: {kind: e.kind, message: e.message, date: today()}}});
+        try {
+          const d = await download(page, cur.src);
+          results.push({...d, width: cur.w, height: cur.h, resolution: null, upscaled: false, id: flowId(cur.src),
+            ...(e.kind === 'credits' || e.kind === 'plan' ? {error: e.message, error_kind: e.kind} : {}),
+            warning: `${resolution.toUpperCase()} через меню Flow не получилось (${e.message}) — сохранён оригинал по ссылке плитки`});
+          markSynced('flow', [flowId(cur.src)]);
+        } catch (e2) { lastErr = e2; }
+        continue;
+      }
+    }
     const src = kind === 'video' && cur.tag !== 'VIDEO' ? await ui(async () => {
       await page.bringToFront().catch(() => {});
       await sleep(600);
       try { return await flowVideoSrc(page, cur.src); } finally { await page.mouse.move(5, 5).catch(() => {}); }
     }) : cur.src;
-    try { results.push({...(await download(page, src)), width: cur.w, height: cur.h}); }
+    try { results.push({...(await download(page, src)), width: cur.w, height: cur.h, id: flowId(cur.src)}); }
     catch (e) { lastErr = e; continue; }   // не скачался один вариант — сохраняем остальные (заберёт синхронизация)
     markSynced('flow', [flowId(cur.src), flowId(src)]);   // синхронизация не будет качать это второй раз
   }
   if (!results.length && lastErr) throw lastErr;
   return results;
 }
+
+// ---- скачивание картинки через меню плитки Flow: «⋮» → «Скачать» → «1K» / «2K» / «4K» ----
+// 2K и 4K Flow не хранит: увеличивает по запросу своим кодом страницы (с reCAPTCHA) и сам начинает скачивание —
+// поэтому Freefield нажимает пункты меню, как человек, а файл перехватывает (bridge.downloadCapture).
+const FLOW_RES = {'1k': 1, '2k': 2, '4k': 4};
+// размер уже отказал сегодня (стоит кредитов или недоступен аккаунту) — сообщение, иначе null
+export function flowResBlocked(resolution, allowCredits) {
+  const r = readState().flowRes?.[resolution];
+  if (!r || r.date !== today()) return null;
+  return r.kind === 'plan' || !allowCredits ? r.message : null;
+}
+const sniffMime = (buf, name = '') => ({png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif'})[imageSize(buf)?.format] ||
+  ({'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'})[path.extname(name).toLowerCase()] || 'application/octet-stream';
+export async function flowMenuDownload(page, media, {resolution = '1k', allowCredits = false, onStatus = () => {}} = {}) {
+  const id = flowId(media.src), want = FLOW_RES[resolution] || 1;
+  const dir = path.join(os.tmpdir(), 'freefield-dl', crypto.randomBytes(5).toString('hex'));
+  let cap = null, chosen = '';
+  const menuTexts = () => page.evaluate(() => [...document.querySelectorAll('[role="menuitem"], [role="menuitemradio"]')]
+    .filter(e => e.getClientRects().length).map(e => (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim())).catch(() => []);
+  try {
+    await ui(async () => {
+      await page.bringToFront().catch(() => {});
+      await page.keyboard.press('Escape').catch(() => {});
+      await sleep(300);
+      // плитка с этим результатом (по id файла в адресе картинки), её центр — навести курсор, чтобы появилась кнопка меню
+      const box = await page.evaluate(id => {
+        document.querySelectorAll('[data-ffdl]').forEach(e => e.removeAttribute('data-ffdl'));
+        const el = [...document.querySelectorAll('img, video')].find(e => (e.currentSrc || e.src || '').includes(id));
+        const tile = el?.closest('flow-grid-tile-container, flow-tile-container, [class*="tile-container"]') || el?.parentElement;
+        if (!tile) return null;
+        tile.scrollIntoView({block: 'center'});
+        tile.setAttribute('data-ffdl', '1');
+        const r = tile.getBoundingClientRect();
+        return {x: r.x + r.width / 2, y: r.y + r.height / 2};
+      }, id);
+      if (!box) throw new PortalError('плитка с картинкой не найдена в сетке Flow', 'ui');
+      await sleep(400);
+      await page.mouse.move(box.x, box.y);
+      await sleep(900);
+      // кнопка меню плитки: по подписи («Ещё», «Другие действия», «More options»…), по aria-haspopup или значку more_vert
+      const found = await page.evaluate(() => {
+        const tile = document.querySelector('[data-ffdl]');
+        const btns = [...(tile?.querySelectorAll('button, [role="button"]') || [])].filter(b => b.getClientRects().length);
+        const lab = b => `${b.getAttribute('aria-label') || ''} ${b.title || ''} ${b.innerText || ''}`;
+        const b = btns.find(b => /ещё|еще|больше|друг\S* действ|параметр|меню|more|option|menu|more_vert|more_horiz/i.test(lab(b))) ||
+          btns.find(b => /^(menu|true)$/.test(b.getAttribute('aria-haspopup') || '')) || btns[btns.length - 1];
+        document.querySelectorAll('[data-ffbtn]').forEach(e => e.removeAttribute('data-ffbtn'));
+        if (b) b.setAttribute('data-ffbtn', '1');
+        return !!b;
+      });
+      if (!found) throw new PortalError('у плитки Flow не появилась кнопка меню', 'ui');
+      // пункт перекрыт другим слоем меню — нажимаем событием (меню Flow слушают click)
+      const press = loc => loc.click({timeout: 6000}).catch(() => loc.dispatchEvent('click'));
+      await press(page.locator('[data-ffbtn="1"]').first());
+      await sleep(800);
+      const dl = page.locator('[role="menuitem"]:visible', {hasText: /скачать|download|сохранить на (компьютер|устройство)/i}).first();
+      if (!(await dl.isVisible().catch(() => false))) throw new PortalError(`в меню плитки Flow нет «Скачать» (есть: ${(await menuTexts()).join(' | ') || 'ничего'})`, 'ui');
+      const seen = new Set(await menuTexts());
+      cap = await downloadCapture(page, dir);
+      await dl.hover({timeout: 3000}).catch(() => {});
+      await press(dl);
+      await sleep(1000);
+      // подменю размеров; его нет — скачивание уже пошло (Flow не предлагает выбор размера)
+      const sizes = (await menuTexts()).filter(t => !seen.has(t) && /(^|\D)[124]\s?K\b/i.test(t));
+      if (!sizes.length) {
+        if (want > 1) throw new PortalError(`Flow не предложил ${want}K для этой картинки`, 'nores');
+        chosen = 'Скачать';
+        return;
+      }
+      const text = sizes.find(t => new RegExp(`(^|\\D)${want}\\s?K\\b`, 'i').test(t));
+      if (!text) throw new PortalError(`Flow не предлагает ${want}K (есть: ${sizes.join(' | ')})`, 'nores');
+      const item = page.locator('[role="menuitem"]:visible, [role="menuitemradio"]:visible', {hasText: text}).first();
+      const disabled = await item.evaluate(e => e.getAttribute('aria-disabled') === 'true' || e.hasAttribute('disabled')).catch(() => false);
+      if (disabled || /upgrade|ultra|подписк|обнов|улучш\S* план|lock/i.test(text))
+        throw new PortalError(`${want}K во Flow этого аккаунта недоступно (Flow: «${text}») — нужна подписка Google AI`, 'plan');
+      const price = text.match(/(\d+)\s*(кредит|бонус|credit)/i);
+      if (price && +price[1] > 0 && !allowCredits)
+        throw new PortalError(`${want}K во Flow стоит ${price[1]} кредитов (бонусов) — без allow_credits=true Freefield их не тратит`, 'credits');
+      await item.hover({timeout: 3000}).catch(() => {});
+      await press(item);
+      chosen = text;
+    });
+    onStatus(want > 1 ? `Flow увеличивает картинку до ${want}K` : 'скачиваю оригинал из Flow');
+    const t0 = Date.now();
+    let file = null;
+    while (!file && Date.now() - t0 < 180000) {
+      file = await cap.wait(3000);
+      if (file) break;
+      const toast = await page.evaluate(() => [...document.querySelectorAll('[role="alert"], [role="status"], .mat-mdc-snack-bar-label')]
+        .map(e => (e.innerText || '').replace(/\s+/g, ' ').trim()).filter(Boolean).pop() || '').catch(() => '');
+      if (/не удалось|ошибк|failed|error|limit|лимит|попробуйте позже|try again/i.test(toast) && !cap.started())
+        throw new PortalError(`Flow: «${toast}»`, /limit|лимит/i.test(toast) ? 'quota' : 'busy');
+    }
+    if (!file) throw new PortalError(`Flow не отдал файл за 3 минуты${want > 1 ? ` (увеличение до ${want}K)` : ''}`, 'busy');
+    const buf = fs.readFileSync(file.path);
+    const s = imageSize(buf);
+    return {buf, mime: sniffMime(buf, file.name), name: file.name, width: s?.width ?? null, height: s?.height ?? null,
+      resolution: `${want}K`, upscaled: want > 1, menu: chosen};
+  } finally {
+    await cap?.stop();
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.mouse.move(5, 5).catch(() => {});
+    fs.rmSync(dir, {recursive: true, force: true});
+  }
+}
+
+// Какие файлы сделал Flow: путь → id файла во Flow и проект (для upscale_image). У каждого профиля Chrome — свой список
+export function rememberFlowFile(file, id) {
+  if (!id) return;
+  const st = readState(), map = {...(st.flowFiles || {})};
+  map[path.resolve(file)] = {id, project: st.flowProject || null, at: Date.now()};
+  const keys = Object.keys(map);
+  for (const k of keys.slice(0, Math.max(0, keys.length - 500))) delete map[k];
+  writeState({flowFiles: map});
+}
+export const flowFileOf = file => readState().flowFiles?.[path.resolve(file)] || null;
+
+// Увеличить картинку, которую раньше сделал Flow (upscale_image): открыть её проект и скачать через меню в 2K или 4K.
+// id — id файла Flow (Freefield запоминает его для каждой своей картинки).
+export const flowUpscaleById = ({id, project, resolution, allowCredits = false, onStatus = () => {}}) => siteSlot('flow', async () => {
+  const page = await siteRun('flow', () => ui(async () => {
+    const page = await sitePage('flow');
+    await assertReady(page, 'flow');
+    if (project && !page.url().startsWith(project)) { await page.goto(project, {waitUntil: 'domcontentloaded', timeout: 60000}); await sleep(3000); }
+    else await flowProject(page);
+    await assertReady(page, 'flow');
+    return page;
+  }));
+  // сетка большая — прокручиваем, пока плитка с этим id не появится
+  for (let i = 0; i < 40; i++) {
+    const has = await page.evaluate(id => [...document.querySelectorAll('img, video')].some(e => (e.currentSrc || e.src || '').includes(id)), id).catch(() => false);
+    if (has) break;
+    if (i === 39) throw new PortalError('картинка не найдена в проекте Flow (её удалили или это другой аккаунт)', 'notfound');
+    await page.mouse.wheel(0, 900).catch(() => {});
+    await sleep(700);
+  }
+  const src = await page.evaluate(id => [...document.querySelectorAll('img, video')].map(e => e.currentSrc || e.src || '').find(s => s.includes(id)), id);
+  return flowMenuDownload(page, {src}, {resolution, allowCredits, onStatus});
+});
 
 // Навести курсор на плитку и дождаться ссылки на сам видеофайл
 export async function flowVideoSrc(page, tileSrc) {

@@ -1,0 +1,9 @@
+# Программа на компьютере: ключи, вход в аккаунты и готовые файлы в репозиторий не попадают (он публичный)
+config.json
+pc/config.json
+.browser-profile*
+.state.json
+.batches.json
+.lock-*
+outputs/
+node_modules/
