@@ -7,6 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import net from 'node:net';
+import {ECHO, echoUp, echoLauncher, startEcho, ECHO_NOT_FOUND} from './echo.js';
 
 const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webp': 'image/webp', '.jpg': 'image/jpeg',
@@ -31,7 +33,6 @@ const siteCors = req => req.headers.origin === SITE ? {'Access-Control-Allow-Ori
 
 // «Эхо» — озвучка голосом из видео (отдельная программа пользователя на этом компьютере, http://127.0.0.1:7865).
 // Приложение ходит к нему через хаб с тем же ключом: /api/echo/api/... и /api/echo/files/... — так работает и на ПК, и с телефона по Wi-Fi
-const ECHO = {host: '127.0.0.1', port: +(process.env.ECHO_PORT || 7865)};
 function proxyEcho(req, res, target, cors) {
   const headers = {};   // Origin/Referer/Cookie не передаём: для «Эхо» это запрос хаба, а не чужой страницы
   for (const h of ['content-type', 'content-length', 'range', 'accept']) if (req.headers[h]) headers[h] = req.headers[h];
@@ -45,7 +46,7 @@ function proxyEcho(req, res, target, cors) {
   up.on('error', () => {
     if (res.headersSent) return res.destroy();
     res.writeHead(503, {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors});
-    res.end(JSON.stringify({error: '«Эхо» не запущено — открой ярлык «Эхо — озвучка» на рабочем столе', echo_down: true}));
+    res.end(JSON.stringify({error: '«Эхо» не запущено', echo_down: true}));
   });
   req.pipe(up);
 }
@@ -86,6 +87,22 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           return send(200, {key: typeof key === 'function' ? key() : key});
         }
         if (!same(url.searchParams.get('k') || req.headers['x-freefield-key'] || '', typeof key === 'function' ? key() : key)) return send(403, {error: 'нет доступа — откройте Freefield по QR-коду с компьютера'});
+        // «Эхо» не запущено — запустить (без окна; и с телефона); ответ сразу, готовность приложение проверяет само
+        if (url.pathname === '/api/echo-start' && req.method === 'POST') {
+          const up = await echoUp();
+          if (up) return send(200, {ok: true, already: true, model: up.model});
+          const file = echoLauncher();
+          if (!file) return send(200, {ok: false, error: ECHO_NOT_FOUND});
+          startEcho().then(r => log('«Эхо»:', r.ok ? 'запущено' : r.error));
+          return send(200, {ok: true, starting: path.basename(file)});
+        }
+        // обновить программу из репозитория (GitHub, ветка main); новый код — после перезапуска программы
+        if (url.pathname === '/api/update' && req.method === 'POST') {
+          try {
+            const {updateFromGithub} = await import('./update.js');
+            return send(200, {ok: true, ...(await updateFromGithub({log}))});
+          } catch (e) { return send(502, {error: 'не обновилось: ' + e.message}); }
+        }
         const echo = url.pathname.match(/^\/api\/echo(\/(?:api|files)(?:\/[\w.-]+)+)$/);
         if (echo) {
           // путь уже нормализован (new URL убирает «..»); на всякий случай — без «.»/«..» в отрезках.
@@ -175,8 +192,76 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
       if (!res.headersSent) send(500, {error: e.message});
     }
   });
+  // интерфейс «Эхо» как есть — для телефона: порт 5181 (рядом с 5180), вход по тому же ключу
+  startEchoUi({host, key, log}).catch(e => log('«Эхо» для телефона:', e.message));
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, host, () => { server.off('error', reject); resolve(server); });
+  });
+}
+
+/* ---- «Эхо» как есть — с телефона по Wi-Fi (пользователь 2026-10-08: «в Озвучке не меняй дизайн Эхо, оставь как есть»).
+   «Эхо» слушает только этот компьютер; здесь — прозрачный проход ко всему его интерфейсу на отдельном порту, потому что
+   его страница ходит по своим адресам от корня (/api/…). Ключ — один раз в ссылке (?k=…), дальше — cookie этого адреса.
+   Чтение файлов по пути на диске (upload-path, voice-from-file) не пропускаем. «Эхо» не запущено — запускаем и ждём */
+export const ECHO_UI_PORT = +(process.env.ECHO_UI_PORT || 5181);
+const ECHO_WAIT = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Эхо</title>
+<body style="margin:0;display:grid;place-items:center;height:100vh;background:#0e0e12;color:#cfcfd8;font:15px system-ui,sans-serif;text-align:center">
+<div>⏳ Запускаю «Эхо» на компьютере…<br><small style="color:#9a9aa7">первая загрузка модели — до минуты</small></div>
+<script>setTimeout(() => location.reload(), 3000)</script>`;
+function startEchoUi({port = ECHO_UI_PORT, host, key, log}) {
+  const K = () => typeof key === 'function' ? key() : key;
+  const authed = req => { const c = /(?:^|;\s*)ff_echo=([^;]+)/.exec(req.headers.cookie || ''); return !!c && same(decodeURIComponent(c[1]), K()); };
+  const fwd = req => {
+    const h = {...req.headers};
+    for (const x of ['origin', 'referer', 'cookie']) delete h[x];   // для «Эхо» это запрос с этого компьютера, а не чужой страницы
+    h.host = `${ECHO.host}:${ECHO.port}`;
+    return h;
+  };
+  const blocked = p => /^\/api\/(upload-path|voice-from-file)\b/i.test(p) || p.split('/').some(x => x === '..');
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url, 'http://x'), k = url.searchParams.get('k');
+    const plain = (code, text) => { res.writeHead(code, {'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store'}); res.end(text); };
+    if (k) {
+      if (!same(k, K())) return plain(403, 'нет доступа — откройте «Озвучку» в Freefield');
+      url.searchParams.delete('k');
+      res.writeHead(302, {Location: url.pathname + url.search, 'Set-Cookie': `ff_echo=${encodeURIComponent(K())}; Path=/; HttpOnly; SameSite=Lax`, 'Cache-Control': 'no-store'});
+      return res.end();
+    }
+    if (!authed(req)) return plain(403, 'нет доступа — откройте «Озвучку» в Freefield');
+    if (blocked(url.pathname)) return plain(403, 'недоступно с телефона');
+    const up = http.request({...ECHO, method: req.method, path: url.pathname + url.search, headers: fwd(req), timeout: 10 * 60e3}, r => {
+      res.writeHead(r.statusCode, r.headers);
+      r.pipe(res);
+    });
+    up.on('timeout', () => up.destroy(new Error('timeout')));
+    up.on('error', () => {
+      if (res.headersSent) return res.destroy();
+      if (req.method === 'GET' && /text\/html/.test(req.headers.accept || '')) {
+        startEcho().then(r => r.ok || log('«Эхо»:', r.error));
+        res.writeHead(503, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '3'});
+        return res.end(ECHO_WAIT);
+      }
+      res.writeHead(503, {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'});
+      res.end(JSON.stringify({error: '«Эхо» не запущено', echo_down: true}));
+    });
+    req.pipe(up);
+  });
+  // если страница «Эхо» держит живое соединение (WebSocket) — тоже насквозь
+  server.on('upgrade', (req, sock, head) => {
+    const url = new URL(req.url, 'http://x');
+    if (!authed(req) || blocked(url.pathname)) return sock.destroy();
+    const up = net.connect(ECHO.port, ECHO.host, () => {
+      const h = fwd(req);
+      up.write(`${req.method} ${url.pathname + url.search} HTTP/1.1\r\n` + Object.entries(h).map(([a, b]) => `${a}: ${b}`).join('\r\n') + '\r\n\r\n');
+      if (head?.length) up.write(head);
+      sock.pipe(up).pipe(sock);
+    });
+    up.on('error', () => sock.destroy());
+    sock.on('error', () => up.destroy());
+  });
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, host, () => { server.off('error', reject); log(`«Эхо» для телефона: порт ${port}`); resolve(server); });
   });
 }

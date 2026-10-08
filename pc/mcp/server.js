@@ -14,6 +14,7 @@ import crypto from 'node:crypto';
 import {readState, writeState} from './state.js';
 import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog} from './studio.js';
 import {fileInfo, aspectCheck} from './media.js';
+import {ECHO_URL, startEcho} from './echo.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.FREEFIELD_OUTPUT_DIR || path.join(HERE, '..', 'outputs');
@@ -372,7 +373,7 @@ const SERVER_OPTS = {
     'Токены и пароли пользователя не проси в чате: токен Hugging Face пользователь сам вписывает в config.json Freefield. ' +
     'Озвучка голосом персонажа — программа пользователя «Эхо» на этом компьютере: echo_voices (какие голоса есть; имя голоса = имя персонажа), ' +
     'echo_speak («озвучь голосом Паша радостно: …» → voice="Паша", emotion="happy"), echo_clone_voice (новый голос из отрезка видео или аудио). ' +
-    '«Эхо» не запущено — попроси пользователя открыть ярлык «Эхо — озвучка» на рабочем столе; сам его не запускай.',
+    '«Эхо» — часть Freefield: не запущено — Freefield запустит его сам (первая загрузка модели — до минуты).',
 };
 const server = new McpServer(SERVER_INFO, SERVER_OPTS);
 // все инструменты запоминаем: по ссылке http://…:5180/mcp?k=… (Claude Code, Cursor и другие программы) — тот же набор
@@ -883,16 +884,19 @@ server.registerTool('upscale_image', {
   return waitJob(job, WAIT_MS, extra);
 });
 
-/* ---- «Эхо»: клон голоса и озвучка (отдельная программа пользователя http://127.0.0.1:7865; её код не меняем) ---- */
-const ECHO_URL = process.env.ECHO_URL || 'http://127.0.0.1:7865';
+/* ---- «Эхо»: клон голоса и озвучка (часть Freefield, http://127.0.0.1:7865; её код не меняем). Не запущено — запускаем сами ---- */
 const ECHO_EMOTIONS = ['neutral', 'calm', 'happy', 'excited', 'sad', 'serious'];
 const ECHO_LANGS = ['russian', 'english', 'german', 'french', 'spanish', 'italian', 'portuguese', 'japanese', 'korean', 'chinese', 'auto'];
 class EchoError extends Error { constructor(msg, kind = 'echo') { super(msg); this.kind = kind; } }
-async function echo(p, body) {
+async function echo(p, body, status) {
+  const go = () => fetch(ECHO_URL + p, {method: body ? 'POST' : 'GET', headers: body ? {'Content-Type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
   let r;
-  try {
-    r = await fetch(ECHO_URL + p, {method: body ? 'POST' : 'GET', headers: body ? {'Content-Type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
-  } catch { throw new EchoError('«Эхо» не запущено — попроси пользователя открыть ярлык «Эхо — озвучка» на рабочем столе', 'not_running'); }
+  try { r = await go(); } catch {
+    status?.('запускаю «Эхо» — первая загрузка модели до минуты');
+    const s = await startEcho();
+    if (!s.ok) throw new EchoError(s.error, 'not_running');
+    try { r = await go(); } catch { throw new EchoError('«Эхо» не отвечает', 'not_running'); }
+  }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new EchoError(typeof data.detail === 'string' ? data.detail : data.error || `«Эхо» ответило ${r.status}`);
   return data;
@@ -911,7 +915,7 @@ const echoFail = e => toolResult({status: 'error', error: e.message, error_kind:
 
 server.registerTool('echo_voices', {
   title: 'Голоса в «Эхо»',
-  description: 'Голоса, сохранённые в «Эхо» (клон голоса из отрезка видео или аудио, на этом компьютере): имя (обычно = имя персонажа Freefield), ' +
+  description: 'Голоса, сохранённые в «Эхо» (озвучка Freefield: клон голоса из отрезка видео или аудио, на этом компьютере): имя (обычно = имя персонажа Freefield), ' +
     'живые образцы эмоций, ★ избранные. JSON: voices [{name, favorite, emotions, samples: [{id, emotion, duration_s, text}]}].',
   inputSchema: {},
   annotations: {readOnlyHint: true, openWorldHint: false},
@@ -948,7 +952,7 @@ server.registerTool('echo_speak', {
   annotations: {readOnlyHint: false, openWorldHint: false},
 }, async (args, extra) => {
   const job = startJob('echo', async status => {
-    const takes = await echoWait(await echo('/api/speak', args), status);
+    const takes = await echoWait(await echo('/api/speak', args, status), status);
     const files = (takes || []).map(t => ({path: t.file_mp3, wav: t.file_wav || null, mime: 'audio/mpeg', duration_s: t.duration ?? null, voice: t.voice_name,
       emotion: t.emotion, emotion_natural: !!t.emotion_natural, intensity: t.intensity ?? null, take: t.take, takes: t.takes, speed: t.speed, language: t.language, echo_id: t.id}));
     return toolResult({status: 'done', service: 'echo', voice: args.voice, text: args.text, files}, {text: ['Готово:',
@@ -974,7 +978,7 @@ server.registerTool('echo_clone_voice', {
   const file = path.resolve(args.path);
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return toolResult({status: 'error', error: `нет файла ${file}`, error_kind: 'input'}, {text: `Ошибка: нет файла ${file}`, isError: true});
   const job = startJob('echo', async status => {
-    const v = await echoWait(await echo('/api/voice-from-file', {...args, path: file, end: args.end ?? args.start + 12}), status);
+    const v = await echoWait(await echo('/api/voice-from-file', {...args, path: file, end: args.end ?? args.start + 12}, status), status);
     return toolResult({status: 'done', service: 'echo', voice: {id: v.id, name: v.name, emotion: v.emotion || 'neutral', duration_s: v.duration ?? null, text: v.text || ''}, source: file},
       {text: `Голос «${v.name}» (${v.emotion || 'neutral'}) сохранён в «Эхо». Распознанный текст образца: ${v.text || '—'}`});
   });
