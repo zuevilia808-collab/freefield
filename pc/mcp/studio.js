@@ -114,10 +114,9 @@ export const hubApi = {
     // версия приложения (время правки app/index.html): открытая страница видит, что вышло обновление
     const app = Math.round(fs.statSync(path.join(HERE, '..', 'app', 'index.html'), {throwIfNoEntry: false})?.mtimeMs || 0);
     const {lanAddresses} = await import('./hub.js');
-    const {ECHO_UI_PORT} = await import('./hub.js');
     // что умеет эта версия программы: приложение видит, что программу на компьютере пора обновить
     return {ok: true, name: 'Freefield', ...profiles[0], profiles, active, open, multi, unknown, app, mcp: !!hubApi.mcp, lan: lanAddresses(), port: HUB_PORT,
-      features: ['echo', 'echo-start', 'echo-ui', 'update'], echoUi: ECHO_UI_PORT, echoPort: (await import('./echo.js')).ECHO.port};
+      features: ['echo', 'echo-start', 'update'], echoPort: (await import('./echo.js')).ECHO.port};
   },
   // выход и вход — в своём профиле Chrome (если открыт другой, Chrome Freefield переключится, когда там не идут генерации)
   switchAccount: async (site, p = 1) => {
