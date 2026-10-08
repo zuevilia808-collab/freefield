@@ -577,14 +577,152 @@ body[data-cm=voice] .gen-row,body[data-cm=voice] .model-line{display:none}
 .mt-er span{min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .mt-er i{display:block;font-style:normal;font-size:11px;color:var(--muted)}
 .mt-er small{color:var(--muted);font-variant-numeric:tabular-nums}
-/* «Озвучка»: само «Эхо» в рамке */
-.ehw{position:relative;min-height:320px;background:#0b0b0f}
-.ehw iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
-.eh-ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim)}
-.eh-ph .ic{width:40px;height:40px}
+/* «Озвучка»: «Эхо» внутри Freefield — вид как у самого «Эхо» */
+.ehw{position:relative;min-height:0;overflow:auto}
 .eh-card.col{flex-direction:column;align-items:stretch}
 .eh-ps{display:block;font:11.5px/1.5 var(--mono);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:9px;padding:8px;overflow-wrap:anywhere;color:var(--text)}
 .eh-chars{display:flex;flex-direction:column;gap:6px}
+.eh-card .link-btn{color:var(--free);font-weight:600;text-decoration:underline}
+.ehx{container-type:inline-size;padding:22px 26px 28px;--ec:#12150f;--ei:#0c0e0a;--el:#23281d;--em:#8f9586}
+.ehx .ic{width:16px;height:16px;flex:none}
+.ehx-top{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:20px}
+.ehx-logo{flex:none;width:52px;height:52px;border-radius:15px;background:var(--lime-grad);color:var(--ink);display:grid;place-items:center;box-shadow:var(--glow)}
+.ehx-logo svg{width:24px;height:24px}
+.ehx-logo.sm{width:34px;height:34px;border-radius:10px;box-shadow:none}
+.ehx-logo.sm svg{width:17px;height:17px}
+.ehx-top h2{font:800 22px/1 var(--display);letter-spacing:-.01em}
+.ehx-top h2 span{color:var(--free)}
+.ehx-top small{display:block;color:var(--em);font-size:12.5px;margin-top:6px}
+.ehx-pill{margin-left:auto;display:flex;align-items:center;gap:8px;padding:8px 15px;border-radius:999px;border:1px solid var(--el);background:var(--ei);font-size:12.5px;color:var(--text2);white-space:nowrap}
+.ehx-pill i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px currentColor}
+.ehx-pill i.warn{background:var(--warn)}
+.ehx-pill i.bad{background:var(--danger)}
+#ehxState .eh-card{margin-bottom:18px}
+.ehx-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,390px);gap:22px;align-items:start;transition:opacity .25s}
+.ehx-grid.off{opacity:.42;pointer-events:none;filter:saturate(.5)}
+.ehx-col{display:flex;flex-direction:column;gap:22px;min-width:0}
+.ehx-card{min-width:0;background:linear-gradient(180deg,rgba(212,255,58,.025),transparent 140px),var(--ec);border:1px solid var(--el);border-radius:20px;padding:22px 22px 24px}
+.ehx-side{position:sticky;top:0}
+.ehx-h{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}
+.ehx-h h3{font:700 16.5px/1.2 var(--display)}
+.ehx-h small{display:block;color:var(--em);font-size:12.5px;margin-top:4px}
+.ehx-n{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font:700 14px var(--display);color:var(--free);border:1px solid rgba(212,255,58,.45);background:rgba(212,255,58,.06);margin-top:1px}
+.ehx-n.on{background:var(--free);color:var(--ink);border-color:var(--free)}
+.ehx-drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:250px;padding:24px 16px;border:1.5px dashed rgba(212,255,58,.3);border-radius:16px;cursor:pointer;overflow:hidden;text-align:center;transition:border-color .2s,background .2s}
+.ehx-drop::before{content:"";position:absolute;left:-60%;right:-60%;bottom:-25%;height:80%;pointer-events:none;background-image:linear-gradient(rgba(212,255,58,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(212,255,58,.14) 1px,transparent 1px);background-size:64px 36px;transform:perspective(240px) rotateX(58deg);transform-origin:bottom;-webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%)}
+.ehx-drop:hover,.ehx-drop.drag{border-color:var(--free);background:rgba(212,255,58,.03)}
+.ehx-drop>*{position:relative}
+.ehx-up{width:62px;height:62px;border-radius:17px;background:var(--lime-grad);color:var(--ink);display:grid;place-items:center;box-shadow:var(--glow);margin-bottom:10px}
+.ehx .ehx-up .ic{width:24px;height:24px}
+.ehx-drop b{font:700 17px var(--display)}
+.ehx-drop small{color:var(--em);font-size:12.5px}
+.ehx-file{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:13px;color:var(--text2)}
+.ehx-file>span{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}
+.ehx-file b{overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.ehx-sel{position:relative;height:92px;border-radius:14px;background:var(--ei);border:1px solid var(--el);touch-action:none;cursor:crosshair;-webkit-user-select:none;user-select:none}
+.ehx-sel .in{position:absolute;inset:14px 16px}
+.ehx-sel .bars{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between}
+.ehx-sel .bars i{width:2px;border-radius:2px;background:rgba(255,255,255,.22)}
+.ehx-sel .bars.on{clip-path:inset(0 calc(100% - var(--b,0%)) 0 var(--a,0%))}
+.ehx-sel .bars.on i{background:var(--free)}
+.ehx-sel .rng{position:absolute;top:-8px;bottom:-8px;left:var(--a,0%);width:calc(var(--b,0%) - var(--a,0%));border:1.5px solid var(--free);border-radius:9px;background:rgba(212,255,58,.08);cursor:grab}
+.ehx-sel .rng i{position:absolute;top:50%;width:12px;height:36px;margin-top:-18px;border-radius:5px;background:var(--free);cursor:ew-resize;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.ehx-sel .hl{left:-7px}
+.ehx-sel .hr{right:-7px}
+.ehx-sel .tm{position:absolute;top:-8px;bottom:-8px;left:var(--t,-10%);width:2px;background:#fff;opacity:.8;pointer-events:none}
+.ehx-selinfo{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin-top:9px;font-size:12.5px;color:var(--text2);font-variant-numeric:tabular-nums}
+.ehx-selinfo small{color:var(--em)}
+.ehx-selinfo .bad{color:var(--danger)}
+.ehx-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px}
+.ehx-row #ehxCut{margin-left:auto}
+.ehx-tog{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--el);background:var(--ei);font-weight:600;font-size:13px;color:var(--text2)}
+.ehx-tog.on{border-color:rgba(212,255,58,.45);color:var(--free)}
+.ehx-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;background:var(--lime-grad);color:var(--ink);font-weight:700;white-space:nowrap;transition:filter .2s,opacity .2s}
+.ehx-btn:hover:not(:disabled){filter:brightness(1.06)}
+.ehx-btn:disabled{opacity:.55}
+.ehx-btn.ghost{background:var(--ei);color:var(--text);border:1px solid var(--el);font-weight:600}
+.ehx-btn.ghost:disabled{color:var(--em);opacity:1}
+.ehx-btn.sm{height:34px;padding:0 12px;font-size:12.5px;border-radius:10px}
+.ehx-btn.go{margin-top:20px;height:50px;padding:0 26px;font-size:15px;box-shadow:var(--glow)}
+.ehx-play{flex:none;width:42px;height:42px;border-radius:50%;background:var(--free);color:var(--ink);display:grid;place-items:center;transition:transform .15s}
+.ehx-play:active{transform:scale(.94)}
+.ehx .ehx-play .ic{width:17px;height:17px;fill:currentColor}
+.ehx-player{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:16px;background:var(--ei);border:1px solid var(--el)}
+.ehx-player small{flex:none;color:var(--em);font-size:12.5px;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ehx-wave{position:relative;flex:1;min-width:0;height:30px}
+.ehx-wave>div{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;gap:1px}
+.ehx-wave i{width:2px;border-radius:2px;background:rgba(255,255,255,.26)}
+.ehx-wave .w2{clip-path:inset(0 calc(100% - var(--p,0%)) 0 0)}
+.ehx-wave .w2 i{background:var(--free)}
+.ehx-lbl{font-size:12.5px;color:var(--em);margin:16px 0 8px}
+.ehx-lbl b{color:var(--text);font-weight:700}
+.ehx-lbl.spread{display:flex;justify-content:space-between;gap:10px}
+.ehx-in{width:100%;min-width:0;background:var(--ei);border:1px solid var(--el);border-radius:12px;padding:11px 14px;color:var(--text);outline:0;font-size:14px;transition:border-color .2s}
+.ehx-in:focus{border-color:rgba(212,255,58,.5)}
+textarea.ehx-in{resize:vertical;line-height:1.5;display:block}
+textarea.ehx-in.big{min-height:150px}
+select.ehx-in{height:44px;padding:0 12px;cursor:pointer}
+.ehx-row3{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;margin-top:12px}
+.ehx-note{color:var(--em);font-size:12.5px;margin-top:12px}
+.ehx-note b{color:var(--text)}
+.ehx-sep{height:1px;background:var(--el);margin:18px 0 0}
+.ehx-empty{color:var(--em);font-size:13px;padding:6px 0 2px}
+.ehx-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ehx-chip{display:inline-flex;align-items:center;border:1px solid var(--el);border-radius:999px;background:var(--ei);padding:0 6px;transition:border-color .2s}
+.ehx-chip button{display:grid;place-items:center;padding:9px 5px;color:var(--em)}
+.ehx-chip button[data-ehx-vsel]{font-weight:700;color:var(--text);padding:9px 6px}
+.ehx-chip button.fav{color:var(--free)}
+.ehx-chip button.fav .ic{fill:currentColor}
+.ehx-chip .ic{width:14px;height:14px}
+.ehx-chip.on{border-color:var(--free);background:rgba(212,255,58,.07)}
+.ehx-chip.on button[data-ehx-vsel]{color:var(--free)}
+.ehx-emos{display:flex;flex-wrap:wrap;gap:8px}
+.ehx-emos button{position:relative;padding:11px 15px;border-radius:12px;border:1px solid var(--el);background:var(--ei);font-weight:600;font-size:13.5px;color:var(--text2)}
+.ehx-emos button.on{background:var(--free);color:var(--ink);border-color:var(--free)}
+.ehx-emos i{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:#5fd4ff}
+.ehx-hint{display:flex;align-items:center;gap:8px;color:var(--em);font-size:12.5px;margin-top:10px}
+.ehx-hint i{flex:none;width:7px;height:7px;border-radius:50%;background:#5fd4ff}
+.ehx input[type=range]{accent-color:var(--free);width:100%}
+.ehx-opts{display:flex;flex-wrap:wrap;gap:14px;margin-top:18px}
+.ehx-opts label{display:flex;flex-direction:column;gap:7px;font-size:12.5px;color:var(--em)}
+.ehx-opts select{min-width:170px}
+.ehx-tempo{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;border:1px solid var(--el);border-radius:12px;background:var(--ei);min-width:200px}
+.ehx-tempo b{color:var(--text);font-variant-numeric:tabular-nums;min-width:38px}
+.ehx-seg{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--el);border-radius:12px;background:var(--ei);align-self:flex-start}
+.ehx-seg button{display:inline-flex;align-items:center;gap:6px;min-width:34px;height:34px;padding:0 11px;border-radius:9px;color:var(--text2);font-weight:600;justify-content:center}
+.ehx-seg button.on{background:var(--free);color:var(--ink)}
+.ehx-seg .ic{width:14px;height:14px}
+.ehx-seg.tabs{margin-bottom:14px}
+.ehx-takes{display:flex;flex-direction:column;gap:12px}
+.ehx-take{padding:14px;border-radius:16px;background:var(--ei);border:1px solid var(--el);transition:border-color .3s}
+.ehx-take.new{border-color:rgba(212,255,58,.5)}
+.ehx-tk{display:flex;gap:12px;align-items:center}
+.ehx-tk>div{flex:1;min-width:0}
+.ehx-tk p{font-weight:600;font-size:13.5px;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.ehx-take>small{display:block;color:var(--em);font-size:12px;margin-top:10px}
+.ehx-acts{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:10px}
+.ehx-acts>button:not(.ehx-btn){width:32px;height:32px;display:grid;place-items:center;color:var(--em);border-radius:9px;transition:color .2s,background .2s}
+.ehx-acts>button:not(.ehx-btn):hover{background:rgba(255,255,255,.05);color:var(--text)}
+.ehx-acts>button.on{color:var(--free)}
+.ehx-acts>button.on .ic{fill:currentColor}
+.ehx-foot{color:var(--em);font-size:12px;margin-top:22px}
+@container (max-width:860px){
+  .ehx-grid{grid-template-columns:minmax(0,1fr)}
+  .ehx-side{position:static}
+}
+@container (max-width:560px){
+  .ehx-card{padding:18px 15px 20px;border-radius:18px}
+  .ehx-row3{grid-template-columns:minmax(0,1fr) auto}
+  .ehx-row3>input{grid-column:1/-1}
+  .ehx-drop{min-height:200px}
+  .ehx-opts label{flex:1 1 140px}
+  .ehx-opts select,.ehx-tempo{min-width:0;width:100%}
+  .ehx-row #ehxCut{margin-left:0;flex:1 1 100%}
+  .ehx-btn.go{width:100%}
+}
+@media (max-width:900px){.ehx{padding:4px 0 8px}}
+.eh-qr{align-self:center;background:#fff;padding:10px;border-radius:12px;line-height:0}
+.eh-qr img{width:220px;height:220px;image-rendering:pixelated}
 .eh-chr{display:grid;grid-template-columns:36px 1fr auto;gap:9px;align-items:center;padding:6px 8px;border-radius:11px;background:var(--panel2);border:1px solid var(--line)}
 .eh-chr img,.eh-chr .vc-ph{width:36px;height:36px;border-radius:9px;object-fit:cover;display:grid;place-items:center;background:var(--panel3);font-style:normal}
 .eh-chr span{min-width:0;display:flex;flex-direction:column}
@@ -596,7 +734,7 @@ body[data-cm=voice] .gen-row,body[data-cm=voice] .model-line{display:none}
   .mtw{padding:0;margin-bottom:12px}
   .mtw-view{flex:none;height:36vh;min-height:200px}
   #mtZoom{width:70px}
-  .ehw{height:calc(100dvh - var(--top) - var(--sat) - var(--nav) - 230px);min-height:420px;margin:0 -16px 12px;border-block:1px solid var(--line)}
+  .ehw{overflow:visible;margin-bottom:12px}
 }
 /* разделов больше пяти — в две строки по четыре */
 #createMode{flex-wrap:wrap}
@@ -829,6 +967,7 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .asset-item-ph{flex:none;position:relative;width:40px;height:40px;border-radius:10px;border:1px dashed var(--line2);color:var(--muted);display:grid;place-items:center;overflow:hidden;transition:border-color .2s,color .2s}
 .asset-item-ph .ic{width:16px;height:16px}
 .asset-item-ph:hover{border-color:var(--free);color:var(--free)}
+.asset-item-ph.miss{border:1.5px solid var(--danger);color:var(--danger)}
 .asset-item-ph img{width:100%;height:100%;object-fit:cover}
 .asset-item-ph.has{border-style:solid}
 .asset-item-ph.has::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,10,12,.6);color:#fff;font-size:13px;opacity:0;transition:opacity .2s}
@@ -4897,7 +5036,9 @@ async function mtAudioFile() {
 }
 async function mtAudioEcho() {
   await echoEnsure();
-  if (eh.state !== 'ok') return toast(eh.state === 'old' ? 'Программа Freefield на компьютере старая — обновите её (вкладка «Озвучка»)' : eh.state === 'nohub' ? 'Озвучка «Эхо» — с программой Freefield на компьютере' : eh.err || '«Эхо» не запустилось', {type: 'err', ms: 8000});
+  const lan = eh.state === 'nohub' && !hubLink.local() && ls.get('freefield.pcLan', null);
+  if (eh.state !== 'ok') return toast(eh.state === 'old' ? 'Программа Freefield на компьютере старая — обновите её (вкладка «Озвучка»)' : eh.state === 'nohub' ? 'Озвучка «Эхо» — с программой Freefield на компьютере' : eh.err || '«Эхо» не запустилось', {type: 'err', ms: 8000,
+    ...(lan && {action: '🎙 Открыть с компьютера', onAction: () => pcLanOpen('edit')})});
   try { mtPick.takes = await echoApi('/history'); } catch (e) { return toast(e.message, {type: 'err'}); }
   mtOpenPick('echo');
 }
@@ -5625,10 +5766,9 @@ document.addEventListener('paste', e => {
 });
 
 /* ---- «🎙 Озвучка» — «Эхо», часть Freefield (пользователь 2026-10-08: «Эхо должно стать частью Freefield, а не отдельным
-   приложением»; «в Озвучке не меняй дизайн Эхо, оставь как есть»). Во вкладке — сам интерфейс «Эхо» как есть;
-   программа Freefield на компьютере запускает «Эхо» сама, без окна — и когда вкладку открыли с телефона.
-   На ПК — прямо http://127.0.0.1:7865, с телефона — через программу Freefield (порт 5181, тот же ключ).
-   Слева — связка с персонажами: имя персонажа = имя голоса в «Эхо», клон голоса из его образца ---- */
+   приложением»; «в Озвучке не меняй дизайн Эхо»; «у неё не должно быть своего адреса»). Во вкладке — интерфейс в виде «Эхо»
+   (exRender), всё — через программу Freefield (/api/echo/…); она же запускает «Эхо» сама, без окна — и когда вкладку открыли
+   с телефона. Слева — связка с персонажами: имя персонажа = имя голоса в «Эхо», клон голоса из его образца ---- */
 const ECHO_EMO = [['neutral', 'Как в образце'], ['calm', 'Спокойно'], ['happy', 'Радостно'], ['excited', 'Восторженно'], ['sad', 'Грустно'], ['serious', 'Серьёзно']];
 const echoEmoName = e => (ECHO_EMO.find(x => x[0] === e) || ECHO_EMO[0])[1];
 const echoUrl = p => hubLink.url('/api/echo' + p);   // p: '/api/…' или '/files/outputs/<id>.mp3'
@@ -5660,7 +5800,7 @@ async function echoJob(job, onMsg) {
 }
 const eh = {
   state: null,   // null — не проверяли; ok; starting — Freefield запускает «Эхо»; down — не запустилось; old — программа на ПК старая; nohub — нет программы
-  err: '', model: '', voices: [], at: 0, busy: '', cloneEmo: 'neutral', updating: false, src: '',
+  err: '', model: '', voices: [], at: 0, busy: '', cloneEmo: 'neutral', updating: false, qr: false,
 };
 const echoSamples = name => eh.voices.filter(v => echoKey(v.name) === echoKey(name));
 // «Эхо» готово? Нет — запускаем (программа Freefield делает это сама, без окна) и ждём, пока ответит
@@ -5689,64 +5829,467 @@ function echoEnsure() {
   })().finally(() => { echoEnsuring = null; });
   return echoEnsuring;
 }
-// адрес интерфейса «Эхо»: на компьютере — напрямую, с телефона — через программу Freefield
-function echoSrc() {
-  if (hubLink.onPc() || hubLink.pcSite()) return `http://127.0.0.1:${hubLink.info?.echoPort || 7865}/`;
-  return `http://${location.hostname}:${hubLink.info?.echoUi || 5181}/?k=${encodeURIComponent(hubLink.key)}`;
-}
 function echoStatusHTML() {
   if (eh.state === 'ok') return '';
   if (eh.state === 'old') return `<div class="eh-card col"><b>Программа Freefield на компьютере старая — в ней нет «Эхо»</b>
     ${hubHas('update') ? `<button class="btn small primary" data-eh-update ${eh.updating ? 'disabled' : ''}>${eh.updating ? '⏳ Обновляю…' : '⟳ Обновить программу'}</button>`
       : `<span>Один раз: на компьютере откройте PowerShell (Пуск → «PowerShell») и вставьте строку:</span><code class="eh-ps" data-noicon>${esc(UPDATE_PS)}</code><button class="btn small" data-eh-copy-ps>📋 Копировать строку</button>`}
     <span>Потом закройте Claude Desktop полностью (значок у часов → «Выход») и откройте снова.</span><button class="btn small" data-eh-recheck>↻ Проверить снова</button></div>`;
-  if (eh.state === 'nohub') return `<div class="eh-card">💻 Нужна программа Freefield на компьютере — откройте Freefield с компьютера или по его Wi-Fi-ссылке <button class="btn small" data-eh-recheck>↻</button></div>`;
+  if (eh.state === 'nohub') return echoNoHubHTML();
   if (eh.state === 'starting' || eh.state === null) return '<div class="eh-card">⏳ Запускаю «Эхо» на компьютере — первая загрузка модели до минуты</div>';
   return `<div class="eh-card">⚠ ${esc(eh.err || '«Эхо» не запустилось')} <button class="btn small" data-eh-recheck>↻ Ещё раз</button></div>`;
 }
+// нет связи с программой на компьютере: ключ сменился / компьютер не отвечает / сайт на ПК без программы / телефон с GitHub
+function echoNoHubHTML() {
+  const again = '<button class="btn small" data-eh-recheck>↻ Проверить снова</button>';
+  if (hubLink.denied) return `<div class="eh-card">🔑 Ключ связи сменился — на компьютере: «Озвучка» → «📱 На телефон», отсканируйте новый QR-код ${again}</div>`;
+  if (hubLink.local() && hubLink.key) return `<div class="eh-card">🔴 Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi ${again}</div>`;
+  if (hubLink.pcSite()) return `<div class="eh-card">💻 Программа Freefield на этом компьютере не отвечает — откройте Claude Desktop ${again}</div>`;
+  // Freefield с GitHub на телефоне: «Эхо» — на видеокарте компьютера, телефон открывает его с компьютера по Wi-Fi
+  const p = ls.get('freefield.pcLan', null);
+  if (p) return `<div class="eh-card col"><b>🎙 «Эхо» — на компьютере, телефон подключается к нему по Wi-Fi</b>
+    <button class="btn primary" data-eh-lan>🎙 Открыть «Озвучку» с компьютера</button>
+    <span class="hint">Компьютер ${esc(p.addr.replace(/:\d+$/, ''))} · телефон — в той же сети Wi-Fi, на компьютере открыт Claude Desktop; «Эхо» запустится само.
+      Chrome спросит доступ к устройствам в локальной сети — разрешите, и «Озвучка» заработает прямо здесь.
+      <button class="link-btn" data-eh-recheck>Проверить снова</button> · <button class="link-btn" data-eh-unpair>Забыть компьютер</button></span></div>`;
+  return `<div class="eh-card col"><b>🎙 «Озвучка» идёт на компьютере — телефон подключается к нему по Wi-Fi</b>
+    <span>Один раз: на компьютере откройте Freefield → «Озвучка» → <b>«📱 На телефон»</b> и наведите камеру этого телефона на QR-код.</span>
+    <span class="hint">После этого «Озвучка» заработает здесь. Телефон и компьютер — в одной сети Wi-Fi.</span></div>`;
+}
+// на компьютере: QR-код для телефона — Freefield на телефоне запомнит компьютер и откроет «Озвучку» с него
+const echoPairUrl = () => `${SITE_URL}#pc=${hubLink.info.lan[0]}:${hubLink.info.port || 5180}&k=${encodeURIComponent(hubLink.key)}&to=voice`;
+function echoPhoneHTML() {
+  if (hubLink.viaLan) return `<div class="eh-card">📱 Телефон подключён к компьютеру ${esc(hubLink.base.replace(/^http:\/\/|:\d+$/g, ''))} по Wi-Fi
+    <button class="link-btn" data-eh-unpair>Забыть компьютер</button></div>`;
+  if (!hubLink.ok || !hubLink.onPc() || !hubLink.key || !hubLink.info?.lan?.length) return '';
+  return `<div class="block-head"><span class="lbl">Озвучка на телефоне</span></div>
+    <div class="eh-card col">${eh.qr ? `<div class="eh-qr" id="ehQr"></div>
+      <span>Наведите камеру телефона на код — Freefield на телефоне подключится к этому компьютеру, и «Озвучка» заработает там. Телефон — в той же сети Wi-Fi.</span>
+      <span class="hint">🔒 В коде — ключ связи с этим компьютером: не показывайте его посторонним.</span>
+      <button class="btn small" data-eh-qr>Скрыть код</button>`
+    : `<span>Чтобы «Озвучка» работала на телефоне, один раз отсканируйте QR-код телефоном (он — в той же сети Wi-Fi).</span><button class="btn small" data-eh-qr>📱 На телефон</button>`}</div>`;
+}
 function echoCharsHTML() {
   if (eh.state !== 'ok' || !vc.chars.length) return '';
-  return `<div class="block-head"><span class="lbl">Голоса персонажей</span><button class="icon-btn" data-eh-open title="«Эхо» в отдельном окне">↗</button></div>
+  return `<div class="block-head"><span class="lbl">Голоса персонажей</span></div>
     <div class="eh-chars">${vc.chars.map(c => { const s = echoSamples(c.name);
       return `<div class="eh-chr">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>${s.length ? [...new Set(s.map(v => echoEmoName(v.emotion || 'neutral').toLowerCase()))].join(', ') : 'нет голоса'}</small></span>
         ${c.sample ? `<button class="btn small" data-eh-clone="${esc(c.id)}" ${eh.busy ? 'disabled' : ''} title="Клон голоса из образца персонажа">${s.length ? '＋ Образец' : 'Сделать голос'}</button>` : ''}</div>`; }).join('')}</div>
     ${eh.busy ? `<div class="eh-busy">⏳ ${esc(eh.busy)}</div>` : ''}`;
 }
-// вкладка: слева — состояние и голоса персонажей; интерфейс «Эхо» — справа (на телефоне — в самой вкладке)
+// вкладка: «Эхо» — справа (на телефоне — в самой вкладке), слева — голоса персонажей и QR-код для телефона
 function renderEcho() {
   const root = $('#echoCreate');
   if (!root) return;
-  // каркас — один раз: рамка с «Эхо» на телефоне живёт в #ehSlot, перерисовка её бы перезагружала
-  if (!$('#ehSlot')) root.innerHTML = '<div id="ehStatus"></div><div id="ehSlot"></div><div id="ehChars"></div>';
-  if (eh.state === null || eh.state === 'ok' && Date.now() - eh.at > 60000) echoEnsure();
+  // каркас — один раз: «Эхо» на телефоне живёт в #ehSlot (перерисовка панели его не трогает)
+  if (!$('#ehSlot')) root.innerHTML = '<div id="ehSlot"></div><div id="ehChars"></div><div id="ehPhone"></div>';
+  if (eh.state === null || eh.state === 'nohub' && hubLink.ok || eh.state === 'ok' && Date.now() - eh.at > 60000) echoEnsure();
   workMount();
   echoShow();
 }
 function echoShow() {
   if (cl.mode === 'voice') {
-    const st = $('#ehStatus'), ch = $('#ehChars');
-    if (st) st.innerHTML = echoStatusHTML();
+    const ch = $('#ehChars'), ph = $('#ehPhone');
     if (ch) ch.innerHTML = echoCharsHTML();
-    echoFrame();
+    if (ph) { ph.innerHTML = echoPhoneHTML(); if ($('#ehQr')) drawQR($('#ehQr'), echoPairUrl()); }
+    exRender();
+    if (eh.state === 'ok' && Date.now() - ex.at > 60000) exLoad();
   }
   if (!$('#voiceSheet').classList.contains('hidden') && vcUi.view === 'char') echoCharFill();
 }
-// сам «Эхо» — в рамке; адрес меняем, только когда «Эхо» готово (иначе рамка покажет ошибку соединения)
-function echoFrame() {
+/* ---- «Эхо» внутри «Озвучки» (пользователь 2026-10-08, со снимками «Эхо»: «у неё не должно быть своего адреса типа 127.0.0… —
+   всё встроено в раздел „Озвучка“ и открывается на телефоне»). Вид — как у самого «Эхо»: 1 видео с голосом → 2 голос →
+   3 текст озвучки, справа — готовые озвучки. Ходит всё через программу Freefield (/api/echo/…) — тем же адресом, что и
+   приложение: на компьютере, с телефона по Wi-Fi. Код «Эхо» не меняем — только его API ---- */
+const EHX_BARS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></svg>';
+const EHX_ADJ = {neutral: 'обычная', calm: 'спокойная', happy: 'радостная', excited: 'восторженная', sad: 'грустная', serious: 'серьёзная'};
+const EHX_LANGS = [['russian', 'Русский'], ['english', 'English'], ['german', 'Deutsch'], ['french', 'Français'], ['spanish', 'Español'],
+  ['italian', 'Italiano'], ['portuguese', 'Português'], ['japanese', '日本語'], ['korean', '한국어'], ['chinese', '中文'], ['auto', 'Определить сам']];
+const ex = {
+  status: null, hist: [], fav: false, at: 0, fresh: new Set(),
+  up: null, upPct: -1, upName: '', a: 0, b: 0, clean: true, cut: '',   // 1: загруженный ролик и отрезок
+  voice: null, vName: '', vText: '', vEmo: 'neutral', saving: false,   // 2: голос в карточке
+  text: '', emo: 'neutral', intensity: 0.7, lang: 'russian', speed: 1, takes: 1, sel: '', speak: '',   // 3: озвучка
+  ...ls.get('freefield.echo.ui', {}),
+};
+const exSave = () => ls.set('freefield.echo.ui', {text: ex.text, emo: ex.emo, intensity: ex.intensity, lang: ex.lang, speed: ex.speed, takes: ex.takes, sel: ex.sel});
+const exT = s => `${Math.floor((s || 0) / 60)}:${String(Math.floor((s || 0) % 60)).padStart(2, '0')}`;
+const exT1 = s => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+const exNum = (x, d = 1) => x.toFixed(d).replace('.', ',');
+const exDate = c => { const d = new Date(typeof c === 'number' && c < 1e12 ? c * 1000 : c); return isNaN(d) ? '' : d.toLocaleString('ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}).replace(', ', ' '); };
+const exProg = (m, p) => (p != null && p !== '' ? Math.round(p <= 1 ? p * 100 : p) + '% · ' : '') + (m || '«Эхо» работает…');
+// голоса «Эхо» по именам: один голос — несколько образцов (эмоции); избранные первыми
+function exGroups() {
+  const g = new Map();
+  for (const v of eh.voices) {
+    if (v.saved === false || !v.name) continue;
+    const k = echoKey(v.name), x = g.get(k) || {name: v.name, id: v.id, fav: false, list: []};
+    x.fav ||= !!v.favorite; x.list.push(v);
+    if ((v.emotion || 'neutral') === 'neutral' && (x.list[0].emotion || 'neutral') !== 'neutral') x.id = v.id;
+    g.set(k, x);
+  }
+  return [...g.values()];
+}
+const exStep = () => ex.voice && !exVoiceSaved() ? 2 : ex.up && !ex.voice ? 1 : exGroups().length ? 3 : 1;
+const exVoiceSaved = () => { const v = ex.voice; return !!v && v.saved !== false && !!v.name && ex.vName.trim() === v.name && ex.vText === (v.text || '') && ex.vEmo === (v.emotion || 'neutral'); };
+
+// звук «Эхо» (озвучка, образец голоса, ролик) — через программу Freefield; сайт с GitHub на телефоне, связанный по Wi-Fi,
+// берёт его файлом (звук с адреса http страница https сама не играет)
+const exBlobs = new Map();
+async function exMedia(p) {
+  const u = echoUrl('/' + String(p || '').replace(/^\//, ''));
+  if (!hubLink.viaLan) return u;
+  if (!exBlobs.has(u)) exBlobs.set(u, fetch(u).then(r => { if (!r.ok) throw new Error('файл не скачался: ' + r.status); return r.blob(); }).then(b => URL.createObjectURL(b)));
+  return exBlobs.get(u).catch(e => { exBlobs.delete(u); throw e; });
+}
+// волна звука: пики из файла (озвучки и образцы короткие), по одному разу на файл
+const exPeakCache = new Map(), exPeakDone = new Map();
+function exPeaks(p, n) {
+  if (!exPeakCache.has(p)) exPeakCache.set(p, (async () => {
+    const r = await fetch(echoUrl('/' + p.replace(/^\//, '')));
+    if (!r.ok) return null;
+    const ab = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(await r.arrayBuffer());
+    const d = ab.getChannelData(0), step = Math.max(1, Math.floor(d.length / n)), out = [];
+    for (let i = 0; i < n; i++) { let m = 0; for (let j = i * step, e = Math.min(d.length, j + step); j < e; j += 8) m = Math.max(m, Math.abs(d[j])); out.push(m); }
+    const top = Math.max(...out, 0.01), pk = out.map(x => x / top);
+    exPeakDone.set(p, pk);
+    return pk;
+  })().catch(() => null));
+  return exPeakCache.get(p);
+}
+const exResample = (pk, n) => { if (!pk?.length) return null; const top = Math.max(...pk.map(Math.abs), 0.0001);
+  return Array.from({length: n}, (_, i) => Math.abs(pk[Math.floor(i * pk.length / n)]) / top); };
+const exBars = (pk, n) => (pk || Array(n).fill(0.14)).map(v => `<i style="height:${Math.max(8, Math.round(v * 100))}%"></i>`).join('');
+const exWave = (key, src, n = 90, pk = exPeakDone.get(src)) => `<div class="ehx-wave" data-wave="${esc(key)}" ${src && !pk ? `data-wave-src="${esc(src)}" data-n="${n}"` : ''}><div class="w1">${exBars(pk, n)}</div><div class="w2">${exBars(pk, n)}</div></div>`;
+// волны рисуем, когда их видно (озвучек до 60 — не качаем все сразу)
+const exWaveObs = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  exWaveObs.unobserve(e.target);
+  const el = e.target, n = +el.dataset.n || 90;
+  exPeaks(el.dataset.waveSrc, n).then(pk => { if (pk) el.querySelectorAll('div').forEach(d => { d.innerHTML = exBars(pk, n); }); });
+}), {rootMargin: '200px'}) : null;
+
+// один проигрыватель на всю вкладку: ▶ у озвучки, у образца голоса и у отрезка ролика
+const exAud = new Audio();
+let exNow = '', exTo = 0;
+async function exPlay(key, src, from = 0, to = 0) {
+  if (exNow === key && !exAud.paused) return exAud.pause();
+  if (exNow === key && exAud.src && (!to || exAud.currentTime < to - 0.05)) return exAud.play().catch(() => {});
+  if (exNow === key && to) exAud.currentTime = from;
+  exAud.pause();
+  try { exAud.src = await exMedia(src); } catch (e) { return toast(e.message, {type: 'err'}); }
+  exNow = key; exTo = to;
+  exAud.currentTime = from;
+  exAud.play().catch(e => e.name !== 'AbortError' && toast('Не играет: ' + e.message, {type: 'err'}));
+}
+function exPlayMarks() {
+  $$('#echoWork [data-ehx-play]').forEach(b => { const on = b.dataset.ehxPlay === exNow && !exAud.paused; b.classList.toggle('on', on); b.innerHTML = ic(on ? 'pause' : 'play'); });
+}
+['play', 'pause', 'ended'].forEach(ev => exAud.addEventListener(ev, exPlayMarks));
+exAud.addEventListener('timeupdate', () => {
+  if (exTo && exAud.currentTime >= exTo) { exAud.pause(); exAud.currentTime = exTo; }
+  const w = $(`#echoWork [data-wave="${CSS.escape(exNow)}"]`);
+  if (w && exAud.duration) w.style.setProperty('--p', (exAud.currentTime / exAud.duration * 100) + '%');
+  if (exNow === 'seg') { const s = $('#ehxSel'); if (s && ex.up?.duration) s.style.setProperty('--t', (exAud.currentTime / ex.up.duration * 100) + '%'); }
+});
+
+function exHead(n, t, sub) {
+  return `<div class="ehx-h"><b class="ehx-n ${exStep() === n ? 'on' : ''}">${n}</b><div><h3>${t}</h3><small>${sub}</small></div></div>`;
+}
+// 1. Видео с голосом: загрузить ролик (или звук) и выделить кусок, где человек говорит
+function exSrcHTML() {
+  const head = exHead(1, 'Видео с голосом', 'Загрузи ролик и выдели кусок, где человек говорит');
+  const busy = ex.upPct >= 0;
+  if (!ex.up) return head + `<label class="ehx-drop" id="ehxDrop"><input type="file" id="ehxFile" accept="video/*,audio/*,.mkv,.mov,.mp3,.wav,.m4a" hidden ${busy ? 'disabled' : ''}>
+      <span class="ehx-up">${busy ? ic('hourglass') : ic('upload')}</span><b>${busy ? `Загружаю… ${ex.upPct}%` : pwa.mobile() ? 'Выбери видео' : 'Перетащи видео сюда'}</b>
+      <small>${busy ? esc(ex.upName) : `${pwa.mobile() ? 'из галереи телефона' : 'или нажми, чтобы выбрать файл'} · MP4, MOV, MKV, WEBM, а также MP3/WAV`}</small></label>`;
+  const u = ex.up, D = u.duration || 0, pk = exResample(u.peaks, 140);
+  return head + `<div class="ehx-file"><span>${ic(u.kind === 'audio' ? 'volume' : 'video')}<b>${esc(u.name || 'файл')}</b>· ${exT(D)}</span><button class="ehx-btn ghost sm" data-ehx-new>Другой файл</button></div>
+    <div class="ehx-sel" id="ehxSel"><div class="in"><div class="bars">${exBars(pk, 140)}</div><div class="bars on">${exBars(pk, 140)}</div>
+      <div class="rng"><i class="hl"></i><i class="hr"></i></div><b class="tm"></b></div></div>
+    <div class="ehx-selinfo" id="ehxSelInfo"></div>
+    <div class="ehx-row"><button class="ehx-play" data-ehx-play="seg" title="Прослушать отрезок">${ic('play')}</button>
+      <button class="ehx-tog ${ex.clean ? 'on' : ''}" data-ehx-clean>${ic(ex.clean ? 'check' : 'x')}Убрать музыку и шум</button>
+      <button class="ehx-btn" id="ehxCut" data-ehx-cut></button></div>`;
+}
+// отрезок без перерисовки: рамка, подписи, кнопка
+function exSelShow() {
+  const s = $('#ehxSel'), u = ex.up;
+  if (!s || !u) return;
+  const D = u.duration || 1, L = ex.b - ex.a, bad = L < 1.5 || L > 30;
+  s.style.setProperty('--a', ex.a / D * 100 + '%'); s.style.setProperty('--b', ex.b / D * 100 + '%');
+  $('#ehxSelInfo').innerHTML = `<span>${exT1(ex.a)} — ${exT1(ex.b)} · <b class="${bad ? 'bad' : ''}">${exNum(L)} с</b></span><small>кусок 1,5–30 с, лучше 6–15 с чистой речи одного человека</small>`;
+  const c = $('#ehxCut');
+  c.disabled = bad || !!ex.cut;
+  c.innerHTML = ex.cut ? '⏳ ' + esc(ex.cut) : ic('scissors') + 'Вырезать голос';
+}
+// 2. Голос: образец, что звучит, имя, эмоция, сохранить; «Мои голоса»
+function exVoiceHTML() {
+  const head = exHead(2, 'Голос', 'Проверь, что получилось, и сохрани голос, чтобы не вырезать его снова');
+  const v = ex.voice, groups = exGroups();
+  const body = v ? `<div class="ehx-player"><button class="ehx-play" data-ehx-play="v:${esc(v.id)}" data-src="${esc(v.url || '')}">${ic('play')}</button>
+      ${exWave('v:' + v.id, v.url, 120)}<small>${esc(ex.vName.trim() || v.name || 'новый голос')} · ${exT(v.duration)}</small></div>
+    <div class="ehx-lbl"><b>Что звучит в отрезке</b> — исправь ошибки, от этого зависит похожесть</div>
+    <textarea class="ehx-in" rows="2" data-ehx-f="vText" placeholder="Текст, который звучит в образце">${esc(ex.vText)}</textarea>
+    <div class="ehx-row3"><input class="ehx-in" data-ehx-f="vName" value="${esc(ex.vName)}" placeholder="Имя голоса" title="Имя голоса — например, имя персонажа" maxlength="60" autocomplete="off">
+      <select class="ehx-in" data-ehx-f="vEmo" aria-label="Как человек говорит в этом отрезке">${ECHO_EMO.map(([k]) => `<option value="${k}" ${ex.vEmo === k ? 'selected' : ''}>Эмоция: ${EHX_ADJ[k]}</option>`).join('')}</select>
+      <span id="ehxSaveBox">${exSaveBtn()}</span></div>
+    <p class="ehx-note">Чтобы эмоция звучала живо, сохрани ещё отрезки <b>с тем же именем</b>, где человек говорит радостно, грустно и т.д., и укажи их эмоцию.</p>`
+    : `<p class="ehx-empty">Вырежи голос из видео выше — или выбери сохранённый ниже.</p>`;
+  return head + body + (groups.length ? `${v ? '<div class="ehx-sep"></div>' : ''}<div class="ehx-lbl">Мои голоса</div>
+    <div class="ehx-chips">${groups.map(g => `<span class="ehx-chip ${echoKey(g.name) === echoKey(ex.sel) ? 'on' : ''}">
+      <button class="${g.fav ? 'fav' : ''}" data-ehx-vfav="${esc(g.id)}" title="${g.fav ? 'Убрать из избранных' : 'В избранные'}">${ic('star')}</button>
+      <button data-ehx-vsel="${esc(g.name)}" title="Озвучивать этим голосом">${esc(g.name)}</button>
+      <button data-ehx-vdel="${esc(g.name)}" title="Удалить голос со всеми образцами">${ic('x')}</button></span>`).join('')}</div>` : '');
+}
+const exSaveBtn = () => exVoiceSaved() ? `<button class="ehx-btn ghost" disabled>${ic('check')}Сохранено</button>`
+  : `<button class="ehx-btn" data-ehx-save ${ex.saving ? 'disabled' : ''}>${ex.saving ? '⏳ Сохраняю…' : 'Сохранить'}</button>`;
+// 3. Текст озвучки: текст, эмоция (живой образец или обработка интонации), язык, темп, варианты
+const exCount = () => { const n = [...ex.text].length; return `${n} ${plur(n, 'символ', 'символа', 'символов')} · ≈ ${Math.max(n ? 1 : 0, Math.round(n / 13 / ex.speed))} сек`; };
+function exSpeakHTML() {
+  const head = exHead(3, 'Текст озвучки', 'Что должен сказать этот голос');
+  const live = new Set(echoSamples(ex.sel).map(v => v.emotion || 'neutral'));
+  const own = ex.emo === 'neutral' || live.has(ex.emo);
+  const langs = ex.status?.languages?.length ? ex.status.languages.map(l => [l.id, l.name]) : EHX_LANGS;
+  return head + `<div class="ehx-lbl spread"><b>Текст</b><span id="ehxCount">${exCount()}</span></div>
+    <textarea class="ehx-in big" rows="5" maxlength="5000" data-ehx-f="text" placeholder="Что скажет голос">${esc(ex.text)}</textarea>
+    <div class="ehx-lbl"><b>Эмоция</b></div>
+    <div class="ehx-emos">${ECHO_EMO.map(([k, t]) => `<button class="${ex.emo === k ? 'on' : ''}" data-ehx-emo="${k}">${t}${k !== 'neutral' && live.has(k) ? '<i title="есть живой образец"></i>' : ''}</button>`).join('')}</div>
+    <p class="ehx-hint"><i></i>${ex.emo === 'neutral' ? 'Голос повторит манеру речи из образца.' : live.has(ex.emo) ? 'Есть живой образец этой эмоции — прозвучит естественно.' : 'Живого образца этой эмоции нет — она добавится обработкой интонации.'}</p>
+    ${own ? '' : `<div class="ehx-lbl spread"><b>Сила эмоции</b><span id="ehxInt">${Math.round(ex.intensity * 100)}%</span></div>
+      <input type="range" class="ehx-range" min="0.2" max="1" step="0.05" value="${ex.intensity}" data-ehx-f="intensity" aria-label="Сила эмоции">`}
+    <div class="ehx-opts"><label><span>Язык</span><select class="ehx-in" data-ehx-f="lang">${langs.map(([id, name]) => `<option value="${esc(id)}" ${ex.lang === id ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select></label>
+      <label><span>Темп</span><span class="ehx-tempo"><input type="range" min="0.8" max="1.3" step="0.05" value="${ex.speed}" data-ehx-f="speed" aria-label="Темп"><b id="ehxSpeed">${exNum(ex.speed)}×</b></span></label>
+      <label><span>Вариантов</span><span class="ehx-seg">${[1, 2, 3].map(k => `<button class="${ex.takes === k ? 'on' : ''}" data-ehx-takes="${k}">${k}</button>`).join('')}</span></label></div>
+    <button class="ehx-btn go" id="ehxGo" data-ehx-speak></button>`;
+}
+const exGoShow = () => { const b = $('#ehxGo'); if (b) { b.disabled = !!ex.speak; b.innerHTML = ex.speak ? '⏳ ' + esc(ex.speak) : ic('sparkles') + 'Озвучить'; } };
+// справа: готовые озвучки — слушать, ★, скачать MP3 / WAV, удалить
+function exTakesHTML() {
+  const list = ex.hist.filter(t => !ex.fav || t.favorite);
+  return `<div class="ehx-h"><span class="ehx-logo sm">${EHX_BARS}</span><div><h3>Готовые озвучки</h3><small>Слушай и скачивай</small></div></div>
+    <div class="ehx-seg tabs"><button class="${ex.fav ? '' : 'on'}" data-ehx-fav="">Все</button><button class="${ex.fav ? 'on' : ''}" data-ehx-fav="1">${ic('star')}Избранные</button></div>
+    <div class="ehx-takes">${list.length ? list.map(t => `<div class="ehx-take ${ex.fresh.has(t.id) ? 'new' : ''}">
+      <div class="ehx-tk"><button class="ehx-play" data-ehx-play="t:${esc(t.id)}" data-src="${esc(t.mp3 || '')}">${ic('play')}</button>
+        <div><p>${esc(t.text || '')}</p>${exWave('t:' + t.id, t.mp3, 64)}</div></div>
+      <small>${esc(t.voice_name || '')} · ${exT(t.duration)} · вариант ${t.take || 1}/${t.takes || 1}${t.created ? ' · ' + exDate(t.created) : ''}</small>
+      <div class="ehx-acts"><button class="${t.favorite ? 'on' : ''}" data-ehx-tfav="${esc(t.id)}" title="${t.favorite ? 'Убрать из избранных' : 'В избранные'}">${ic('star')}</button>
+        <button class="ehx-btn ghost sm" data-ehx-dl="mp3" data-id="${esc(t.id)}">${ic('download')}MP3</button>${t.wav ? `<button class="ehx-btn ghost sm" data-ehx-dl="wav" data-id="${esc(t.id)}">WAV</button>` : ''}
+        <button data-ehx-tdel="${esc(t.id)}" title="Удалить озвучку">${ic('trash')}</button></div></div>`).join('')
+      : `<p class="ehx-empty">${ex.fav ? 'Избранных пока нет — отметь ☆ у озвучки' : 'Здесь появятся озвучки'}</p>`}</div>`;
+}
+function exPill() {
+  const m = ex.status?.model || eh.model, gpu = typeof ex.status?.gpu === 'string' ? ex.status.gpu : '';
+  const [c, t] = eh.state === 'ok' ? (m === 'loading' ? ['warn', 'Загружаю модель…'] : m === 'error' ? ['bad', 'Модель не загрузилась'] : ['', ex.status?.busy ? 'Озвучивает…' : 'Готово' + (gpu ? ' · ' + gpu : '')])
+    : eh.state === 'starting' || eh.state === null ? ['warn', 'Запускаю…'] : ['bad', 'Программа не отвечает'];
+  return `<i class="${c}"></i>${esc(t)}`;
+}
+// перерисовать «Эхо» (part — одну карточку); поле, где пишут, остаётся в фокусе
+function exRender(part) {
   const box = $('#echoWork');
   if (!box) return;
-  const ok = eh.state === 'ok', src = ok ? echoSrc() : '';
-  box.classList.toggle('on', ok);
-  let fr = box.querySelector('iframe');
-  if (!ok) { if (fr) { fr.remove(); eh.src = ''; } box.innerHTML = '<div class="eh-ph">🎙</div>'; return; }
-  if (fr && eh.src === src) return;
-  box.innerHTML = '';
-  fr = document.createElement('iframe');
-  fr.title = 'Эхо — озвучка';
-  fr.allow = 'microphone; autoplay; clipboard-read; clipboard-write';
-  fr.src = eh.src = src;
-  box.append(fr);
+  if (!box.querySelector('.ehx')) box.innerHTML = `<div class="ehx">
+    <header class="ehx-top"><span class="ehx-logo">${EHX_BARS}</span><div><h2>Эх<span>о</span></h2><small>озвучка голосом из видео</small></div><span class="ehx-pill" id="ehxPill"></span></header>
+    <div id="ehxState"></div>
+    <div class="ehx-grid"><div class="ehx-col"><section class="ehx-card" id="ehxSrc"></section><section class="ehx-card" id="ehxVoice"></section><section class="ehx-card" id="ehxSpeak"></section></div>
+      <aside class="ehx-card ehx-side" id="ehxTakes"></aside></div>
+    <p class="ehx-foot">Всё работает на вашем компьютере и бесплатно — файлы никуда не отправляются. Клонируй только свой голос или голос человека, который на это согласился.</p></div>`;
+  const fo = document.activeElement?.closest?.('#echoWork [data-ehx-f]'), key = fo?.dataset.ehxF, sel = fo && 'selectionStart' in fo ? [fo.selectionStart, fo.selectionEnd] : null;
+  const parts = {src: ['#ehxSrc', exSrcHTML], voice: ['#ehxVoice', exVoiceHTML], speak: ['#ehxSpeak', exSpeakHTML], takes: ['#ehxTakes', exTakesHTML]};
+  for (const [k, [id, fn]] of Object.entries(parts)) if (!part || part === k) box.querySelector(id).innerHTML = fn();
+  $('#ehxPill').innerHTML = exPill();
+  $('#ehxState').innerHTML = eh.state === 'ok' ? '' : echoStatusHTML();
+  box.querySelector('.ehx-grid').classList.toggle('off', eh.state !== 'ok');
+  if (!part || part === 'src') exSelShow();
+  if (!part || part === 'speak') exGoShow();
+  if (!part || part === 'voice' || part === 'speak') $$('#echoWork .ehx-n').forEach((n, i) => n.classList.toggle('on', exStep() === i + 1));
+  box.querySelectorAll('[data-wave-src]').forEach(el => exWaveObs ? exWaveObs.observe(el) : exPeaks(el.dataset.waveSrc, +el.dataset.n).then(pk => { if (pk) el.querySelectorAll('div').forEach(d => { d.innerHTML = exBars(pk, +el.dataset.n); }); }));
+  exPlayMarks();
+  if (key) { const el = box.querySelector(`[data-ehx-f="${key}"]`); if (el && el !== document.activeElement) { el.focus({preventScroll: true}); if (sel && 'setSelectionRange' in el) try { el.setSelectionRange(...sel); } catch {} } }
 }
+// состояние «Эхо» (модель, языки) и готовые озвучки; модель ещё грузится — спрашиваем снова
+let exTimer = null;
+async function exLoad() {
+  if (eh.state !== 'ok') return;
+  ex.at = Date.now();
+  const [st, h] = await Promise.all([echoApi('/status').catch(() => null), echoApi('/history').catch(() => null)]);
+  if (st) ex.status = st;
+  if (Array.isArray(h)) ex.hist = h;
+  if (cl.mode === 'voice') exRender();
+  clearTimeout(exTimer);
+  if (ex.status?.model === 'loading') exTimer = setTimeout(() => cl.mode === 'voice' && exLoad(), 4000);
+}
+
+// загрузить ролик в «Эхо» (с ходом загрузки — видео с телефона бывают большими)
+async function exUpload(file) {
+  if (!file || ex.upPct >= 0) return;
+  if (!(await hubReady())) return toast('Нет связи с программой Freefield на компьютере', {type: 'err'});
+  ex.upPct = 0; ex.upName = file.name || ''; exRender('src');
+  try {
+    const d = await new Promise((res, rej) => {
+      const x = new XMLHttpRequest(), fd = new FormData();
+      fd.append('file', file, file.name || 'video.mp4');
+      x.open('POST', echoUrl('/api/upload'));
+      x.upload.onprogress = e => { if (!e.lengthComputable) return; ex.upPct = Math.round(e.loaded / e.total * 100); const b = $('#ehxDrop b'); if (b) b.textContent = `Загружаю… ${ex.upPct}%`; };
+      x.onload = () => { let j = {}; try { j = JSON.parse(x.responseText); } catch {}
+        x.status < 300 ? res(j) : rej(new Error(x.status === 503 ? '«Эхо» не запущено' : (typeof j.detail === 'string' && j.detail) || j.error || '«Эхо»: ошибка ' + x.status)); };
+      x.onerror = () => rej(new Error('файл не дошёл до компьютера'));
+      x.send(fd);
+    });
+    if (!d.id) throw new Error('«Эхо» не приняло файл');
+    ex.up = d; ex.a = 0; ex.b = Math.min(d.duration || 12, 12);
+    if ((d.duration || 0) < 1.5) toast('В файле меньше 1,5 с звука — голос из него не вырезать', {type: 'err', ms: 8000});
+  } catch (e) { toast('Не загрузилось: ' + e.message, {type: 'err', ms: 9000}); }
+  ex.upPct = -1;
+  exRender('src');
+}
+// вырезать голос из отрезка → карточка «Голос» (текст «Эхо» распознаёт само)
+async function exCut() {
+  const u = ex.up;
+  if (!u || ex.cut) return;
+  ex.cut = 'Ставлю в очередь…'; exSelShow();
+  try {
+    const v = await echoJob(await echoApi('/voice', {upload_id: u.id, start: +ex.a.toFixed(2), end: +ex.b.toFixed(2), clean: ex.clean}), (m, p) => { ex.cut = exProg(m, p); exSelShow(); });
+    Object.assign(ex, {voice: v, vText: v.text || '', vName: v.saved ? v.name || '' : '', vEmo: v.emotion || 'neutral'});
+    ex.cut = '';
+    exRender();
+    $('#ehxVoice')?.scrollIntoView({block: 'start', behavior: 'smooth'});
+    toast('Голос вырезан — проверь текст, впиши имя и сохрани', {type: 'ok', ms: 7000});
+  } catch (e) { ex.cut = ''; exSelShow(); toast('Голос не вырезан: ' + e.message, {type: 'err', ms: 9000}); }
+}
+async function exVoices() { eh.voices = await echoApi('/voices').catch(() => eh.voices); eh.at = Date.now(); }
+async function exSaveVoice() {
+  const v = ex.voice, name = ex.vName.trim();
+  if (!v || ex.saving) return;
+  if (!name) { toast('Впиши имя голоса — например, имя персонажа', {type: 'err'}); return $('#echoWork [data-ehx-f="vName"]')?.focus(); }
+  ex.saving = true; $('#ehxSaveBox').innerHTML = exSaveBtn();
+  try {
+    const s = await echoApi(`/voices/${encodeURIComponent(v.id)}/save`, {name, text: ex.vText, emotion: ex.vEmo});
+    ex.voice = {...v, ...(s && typeof s === 'object' && !Array.isArray(s) ? s : {}), saved: true, name, text: ex.vText, emotion: ex.vEmo};
+    ex.sel = name; exSave();
+    await exVoices();
+    toast(`🎙 Голос «${name}» сохранён`, {type: 'ok'});
+  } catch (e) { toast('Не сохранилось: ' + e.message, {type: 'err'}); }
+  ex.saving = false;
+  echoShow();
+}
+function exPick(name) {
+  const g = exGroups().find(x => echoKey(x.name) === echoKey(name));
+  if (!g) return;
+  const v = g.list.find(x => x.id === g.id) || g.list[0];
+  Object.assign(ex, {sel: g.name, voice: v, vName: v.name, vText: v.text || '', vEmo: v.emotion || 'neutral'});
+  exSave(); exRender('voice'); exRender('speak');
+}
+async function exSpeak() {
+  if (ex.speak) return;
+  if (!ex.text.trim()) { toast('Впиши текст, который скажет голос', {type: 'err'}); return $('#echoWork [data-ehx-f="text"]')?.focus(); }
+  if (!exGroups().some(g => echoKey(g.name) === echoKey(ex.sel))) return toast('Выбери голос в «Мои голоса» — или вырежи и сохрани новый', {type: 'err', ms: 7000});
+  ex.speak = 'Ставлю в очередь…'; exGoShow();
+  try {
+    const own = ex.emo === 'neutral' || echoSamples(ex.sel).some(v => (v.emotion || 'neutral') === ex.emo);
+    const takes = await echoJob(await echoApi('/speak', {voice: ex.sel, text: ex.text.trim(), emotion: ex.emo, intensity: own ? 0.7 : ex.intensity, takes: ex.takes, speed: ex.speed, language: ex.lang}),
+      (m, p) => { ex.speak = exProg(m, p); exGoShow(); });
+    ex.fresh = new Set((Array.isArray(takes) ? takes : []).map(t => t.id));
+    ex.fav = false;
+    ex.speak = '';
+    await exLoad();
+    const first = (Array.isArray(takes) ? takes : [])[0];
+    if (first?.mp3) exPlay('t:' + first.id, first.mp3);
+  } catch (e) { ex.speak = ''; exGoShow(); toast('Не озвучилось: ' + e.message, {type: 'err', ms: 9000}); }
+}
+// отрезок ролика мышью или пальцем: края — за ручки, весь — за середину, по пустому месту — новый там же той же длины
+function exSelDown(e) {
+  const s = e.target.closest('#ehxSel');
+  if (!s || !ex.up?.duration || ex.cut) return;
+  e.preventDefault();
+  const r = s.querySelector('.in').getBoundingClientRect(), D = ex.up.duration;
+  const at = x => Math.max(0, Math.min(D, (x - r.left) / r.width * D));
+  const t0 = at(e.clientX), a0 = ex.a, b0 = ex.b, L = b0 - a0;
+  const mode = e.target.closest('.hl') ? 'a' : e.target.closest('.hr') ? 'b' : t0 >= a0 && t0 <= b0 ? 'move' : 'new';
+  if (mode === 'new') { ex.a = Math.max(0, Math.min(t0, D - L)); ex.b = Math.min(D, ex.a + L); exSelShow(); }
+  const move = ev => {
+    const t = at(ev.clientX);
+    if (mode === 'a') ex.a = Math.max(0, Math.min(t, ex.b - 1.5));
+    else if (mode === 'b') ex.b = Math.min(D, Math.max(t, ex.a + 1.5));
+    else if (mode === 'move') { const d = Math.max(-a0, Math.min(D - b0, t - t0)); ex.a = a0 + d; ex.b = b0 + d; }
+    else { ex.a = Math.max(0, Math.min(t, D - L)); ex.b = Math.min(D, ex.a + L); }
+    exSelShow();
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); if (exNow === 'seg') exAud.pause(); };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+(() => {
+  const W = $('#echoWork');
+  W.addEventListener('pointerdown', exSelDown);
+  W.addEventListener('click', async e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled || !W.contains(b)) return;
+    const d = b.dataset, take = id => ex.hist.find(t => t.id === id);
+    if (d.ehxPlay) {
+      if (d.ehxPlay === 'seg') return exPlay('seg', ex.up.preview || ex.up.url, ex.a, ex.b);
+      return d.src && exPlay(d.ehxPlay, d.src);
+    }
+    if ('ehxNew' in d) { if (exNow === 'seg') exAud.pause(); ex.up = null; return exRender('src'); }
+    if ('ehxClean' in d) { ex.clean = !ex.clean; return exRender('src'); }
+    if ('ehxCut' in d) return exCut();
+    if ('ehxSave' in d) return exSaveVoice();
+    if (d.ehxVsel) return exPick(d.ehxVsel);
+    if (d.ehxVfav) {
+      const g = exGroups().find(x => x.id === d.ehxVfav);
+      try { await echoApi(`/voices/${encodeURIComponent(d.ehxVfav)}/favorite`, {favorite: !g?.fav}); await exVoices(); } catch (er) { toast(er.message, {type: 'err'}); }
+      return exRender('voice');
+    }
+    if (d.ehxVdel) {
+      const g = exGroups().find(x => echoKey(x.name) === echoKey(d.ehxVdel));
+      if (!g || !confirm(`Удалить голос «${g.name}» со всеми образцами?`)) return;
+      try { await echoApi(`/voices/${encodeURIComponent(g.id)}?group=true`, null, 'DELETE'); } catch (er) { return toast('Не удалилось: ' + er.message, {type: 'err'}); }
+      if (ex.voice && echoKey(ex.voice.name) === echoKey(g.name)) ex.voice = null;
+      if (echoKey(ex.sel) === echoKey(g.name)) { ex.sel = ''; exSave(); }
+      await exVoices();
+      return echoShow();
+    }
+    if (d.ehxEmo) { ex.emo = d.ehxEmo; exSave(); return exRender('speak'); }
+    if (d.ehxTakes) { ex.takes = +d.ehxTakes; exSave(); return $$('#echoWork [data-ehx-takes]').forEach(x => x.classList.toggle('on', x === b)); }
+    if ('ehxSpeak' in d) return exSpeak();
+    if ('ehxFav' in d) { ex.fav = !!d.ehxFav; return exRender('takes'); }
+    if (d.ehxTfav) {
+      const t = take(d.ehxTfav);
+      try { const r = await echoApi(`/history/${encodeURIComponent(d.ehxTfav)}/favorite`, {favorite: !t?.favorite}); if (t) t.favorite = r?.favorite ?? !t.favorite; } catch (er) { toast(er.message, {type: 'err'}); }
+      return exRender('takes');
+    }
+    if (d.ehxTdel) {
+      if (!confirm('Удалить эту озвучку?')) return;
+      try { await echoApi(`/history/${encodeURIComponent(d.ehxTdel)}`, null, 'DELETE'); ex.hist = ex.hist.filter(t => t.id !== d.ehxTdel); } catch (er) { toast('Не удалилось: ' + er.message, {type: 'err'}); }
+      return exRender('takes');
+    }
+    if (d.ehxDl) {
+      const t = take(d.id), p = t?.[d.ehxDl];
+      if (!p) return;
+      try {
+        const r = await fetch(echoUrl('/' + p.replace(/^\//, '')));
+        if (!r.ok) throw new Error('ошибка ' + r.status);
+        saveFile(await r.blob(), `озвучка-${(t.voice_name || 'эхо').replace(/[\\/:*?"<>|]+/g, '')}-${t.take || 1}.${d.ehxDl}`);
+      } catch (er) { toast('Не скачалось: ' + er.message, {type: 'err'}); }
+    }
+  });
+  W.addEventListener('input', e => {
+    const f = e.target.closest('[data-ehx-f]');
+    if (!f) return;
+    const k = f.dataset.ehxF;
+    ex[k] = ['intensity', 'speed'].includes(k) ? +f.value : f.value;
+    if (['text', 'intensity', 'lang', 'speed'].includes(k)) exSave();
+    if (k === 'text' || k === 'speed') $('#ehxCount').textContent = exCount();
+    if (k === 'speed') $('#ehxSpeed').textContent = exNum(ex.speed) + '×';
+    if (k === 'intensity') $('#ehxInt').textContent = Math.round(ex.intensity * 100) + '%';
+    if (['vName', 'vText', 'vEmo'].includes(k)) { $('#ehxSaveBox').innerHTML = exSaveBtn(); const s = $('#ehxVoice .ehx-player small'); if (s && ex.voice) s.textContent = `${ex.vName.trim() || ex.voice.name || 'новый голос'} · ${exT(ex.voice.duration)}`; }
+  });
+  W.addEventListener('change', e => { if (e.target.id === 'ehxFile') exUpload(e.target.files?.[0]); });
+  W.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.matches('[data-ehx-f="text"]')) { e.preventDefault(); exSpeak(); } });
+  const drop = e => e.target.closest?.('#ehxDrop');
+  W.addEventListener('dragover', e => { const z = drop(e); if (z) { e.preventDefault(); z.classList.add('drag'); } });
+  W.addEventListener('dragleave', e => drop(e)?.classList.remove('drag'));
+  W.addEventListener('drop', e => { const z = drop(e); if (!z) return; e.preventDefault(); z.classList.remove('drag'); exUpload(e.dataTransfer.files?.[0]); });
+})();
 // голос персонажа в «Эхо» из его образца: загрузка → отрезок (до 20 с) → голос под его именем; другая эмоция — живой образец
 async function echoCloneChar(c, emotion = eh.cloneEmo) {
   if (eh.busy || !c?.sample) return;
@@ -5760,8 +6303,6 @@ async function echoCloneChar(c, emotion = eh.cloneEmo) {
     const v = await echoJob(await echoApi('/voice', {upload_id: up.id, start: 0, end, clean: true}), m => { eh.busy = m; echoShow(); });
     await echoApi(`/voices/${encodeURIComponent(v.id)}/save`, {name: c.name, emotion});
     toast(`🎙 Голос «${c.name}» (${echoEmoName(emotion).toLowerCase()}) — в «Эхо»`, {type: 'ok', ms: 6000});
-    const fr = $('#echoWork iframe');
-    if (fr) fr.src = fr.src;   // новый голос виден в «Эхо» сразу
   } catch (e) { toast('Голос не сделан: ' + e.message, {type: 'err', ms: 9000}); }
   eh.busy = '';
   eh.voices = await echoApi('/voices').catch(() => eh.voices);
@@ -5779,16 +6320,25 @@ async function hubUpdate() {
   } catch (e) { toast('Не обновилось: ' + e.message, {type: 'err', ms: 9000}); }
   eh.updating = false; echoShow();
 }
-$('#echoCreate').addEventListener('click', async e => {
+async function echoClick(e) {
   const b = e.target.closest('button');
   if (!b || b.disabled) return;
+  if (e.currentTarget.id === 'echoCreate' && b.closest('#echoWork')) return;   // на телефоне «Эхо» внутри панели — своим обработчиком
   const d = b.dataset;
-  if ('ehRecheck' in d) { eh.state = null; await hubLink.refresh?.(); return renderEcho(); }
+  if ('ehRecheck' in d) { eh.state = null; if (!hubLink.viaLan) hubLink.lanTry = null; await hubLink.refresh?.(); return renderEcho(); }
   if ('ehUpdate' in d) return hubUpdate();
   if ('ehCopyPs' in d) return toast(await clCopyText(UPDATE_PS) ? 'Строка скопирована — вставьте её в PowerShell на компьютере' : 'Не удалось скопировать', {type: 'ok', ms: 7000});
-  if ('ehOpen' in d) return window.open(echoSrc(), '_blank', 'noopener');
+  if ('ehLan' in d) return pcLanOpen('voice');
+  if ('ehUnpair' in d) {
+    ls.set('freefield.pcLan', null);
+    if (hubLink.viaLan) { clearTimeout(hubLink.timer); Object.assign(hubLink, {viaLan: false, lanTry: null, base: '', ok: false, info: null, key: ls.get('freefield.hubKey', null)}); eh.state = null; }
+    return renderEcho();
+  }
+  if ('ehQr' in d) { eh.qr = !eh.qr; return echoShow(); }
   if (d.ehClone) return echoCloneChar(vc.char(d.ehClone));
-});
+}
+$('#echoCreate').addEventListener('click', echoClick);
+$('#echoWork').addEventListener('click', echoClick);
 
 /* ---- у персонажа: «🎙 Голос в «Эхо»» — есть ли голос, сделать из его образца, открыть «Озвучку» ---- */
 function echoCharFill() {
@@ -6765,7 +7315,22 @@ const cl = {
 };
 
 // Связь с компьютером: сервер Freefield на ПК отдаёт это приложение по Wi-Fi; в ссылке из QR-кода — секретный ключ
-const HUB_PC = 'http://127.0.0.1:5180';   // программа Freefield на компьютере (запускается ярлыком или вместе с Claude Desktop)
+const HUB_PC = 'http://127.0.0.1:5180';
+// адрес компьютера в домашней сети из QR-кода — только адрес домашней сети (192.168.x.x, 10.x.x.x, 172.16–31.x.x, имя.local) и порт
+function pcLanAddr(a) {
+  const m = /^(\d{1,3}(?:\.\d{1,3}){3}|[a-z0-9-]+\.local):(\d{2,5})$/i.exec(String(a || ''));
+  if (!m) return null;
+  const o = m[1].split('.').map(Number);
+  return /\.local$/i.test(m[1]) || o.every(x => x <= 255) && (o[0] === 10 || o[0] === 192 && o[1] === 168 || o[0] === 172 && o[1] >= 16 && o[1] <= 31) ? m[0] : null;
+}
+// Freefield с компьютера по Wi-Fi (там «Эхо» и всё остальное работает само); to — вкладка
+function pcLanOpen(to) {
+  const p = ls.get('freefield.pcLan', null);
+  if (!p) return false;
+  const url = `http://${p.addr}/?k=${encodeURIComponent(p.key)}#${to}`;
+  if (native.on()) native.open(url); else location.assign(url);
+  return true;
+}   // программа Freefield на компьютере (запускается ярлыком или вместе с Claude Desktop)
 const hubLink = {
   key: null, ok: false, denied: false, info: null, batches: [], timer: null,
   since: ls.get('freefield.hubSince', 0),
@@ -6773,7 +7338,24 @@ const hubLink = {
   // base — адрес программы Freefield на этом компьютере, когда сайт открыт с GitHub (иначе — тот же сайт, путь относительный)
   base: '', direct: false, pcUp: null,
   url(p) { return this.base + p + (p.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(this.key); },
-  local: () => location.protocol === 'http:' || hubLink.direct,   // есть путь к компьютеру: открыто с него или сайт достучался сам
+  local: () => location.protocol === 'http:' || hubLink.direct || hubLink.viaLan,   // есть путь к компьютеру: открыто с него или сайт достучался сам
+  viaLan: false, lanTry: null,
+  // Freefield с GitHub на телефоне, связанный с компьютером по QR: напрямую к программе по Wi-Fi. Chrome так пускает с разрешения
+  // «Доступ к локальной сети» (адрес домашней сети, запрос с targetAddressSpace); не пустил — «Озвучка» откроется с компьютера (pcLanOpen)
+  // одна попытка на всех (вкладка, задания ждут её же); «Проверить снова» — новая
+  tryLan() {
+    const p = ls.get('freefield.pcLan', null);
+    if (!p || location.protocol !== 'https:' || this.pcSite()) return Promise.resolve(false);
+    return this.lanTry ||= (async () => {
+      try {
+        const r = await fetch(`http://${p.addr}/api/hub?k=${encodeURIComponent(p.key)}`, {signal: AbortSignal.timeout(15000), targetAddressSpace: 'local'});
+        if (!r.ok) return false;
+      } catch { return false; }
+      Object.assign(this, {base: 'http://' + p.addr, key: p.key, viaLan: true});
+      await this.refresh();
+      return this.ok;
+    })();
+  },
   // открыто на самом компьютере (localhost / 127.0.0.1 — для браузера это разные сайты со своим хранилищем):
   // ключ связи Freefield отдаёт такой странице сам — без QR-кода
   onPc: () => location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || hubLink.direct,
@@ -6814,11 +7396,24 @@ const hubLink = {
       q.delete('k');
       history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
     }
+    // Телефон ↔ компьютер (пользователь 2026-10-08: «озвучка с телефона не работает»): Freefield с GitHub на телефоне до
+    // компьютера не достаёт. QR из «Озвучки» на компьютере ведёт сюда с адресом компьютера в домашней сети и ключом после #
+    // (эта часть адреса на сервер не уходит): запоминаем и сразу открываем «Озвучку» с компьютера; дальше в «Озвучке» — кнопка
+    const pair = new URLSearchParams(location.hash.slice(1)), addr = pcLanAddr(pair.get('pc'));
+    if (pair.has('pc')) history.replaceState(null, '', location.pathname + location.search);
+    if (addr && pair.get('k')) {
+      ls.set('freefield.pcLan', {addr, key: pair.get('k')});
+      // телефон пускает к компьютеру напрямую — «Озвучка» прямо здесь; нет — Freefield с компьютера по Wi-Fi
+      if (pair.get('to') === 'voice' && location.protocol === 'https:') return this.tryLan().then(ok => ok ? (setView('create'), setCreateMode('voice')) : pcLanOpen('voice'));
+    }
+    this.tryLan();
     this.key = ls.get('freefield.hubKey', null);
     if (this.key && this.local()) this.refresh();
     else if (this.onPc()) this.localKey().then(ok => ok && this.refresh());
     // старые ссылки на раздел «Для Клода» ведут в «Сценарии» (адрес чистим, чтобы перезагрузка не перекидывала туда снова)
     if (location.hash === '#claude') { setView('create'); setCreateMode('scn'); history.replaceState(null, '', location.pathname + location.search); }
+    // ссылка с телефона «Открыть „Озвучку“» — сразу во вкладку («Эхо» программа на компьютере запустит сама)
+    if (/^#(voice|edit)$/.test(location.hash)) { setView('create'); setCreateMode(location.hash.slice(1)); history.replaceState(null, '', location.pathname + location.search); }
   },
   refresh() {
     // одно обновление за раз — иначе один и тот же файл импортировался бы дважды
@@ -6846,6 +7441,7 @@ const hubLink = {
       }
     } catch { this.ok = false; }
     renderHubJobs();   // задания на компьютере — живые карточки в галерее
+    if (this.ok && eh.state === 'nohub' && cl.mode === 'voice') renderEcho();   // связь появилась — «Озвучка» оживает сама
     $$('.cl-live').forEach(el => { el.innerHTML = clLiveHTML(el.dataset.where); });
     $$('.cl-plan').forEach(el => { el.innerHTML = clPlanText(); });
     $$('.scn-intro').forEach(el => { el.innerHTML = scnIntroText(); });
@@ -7384,15 +7980,22 @@ if (!ls.get('freefield.nb21', false)) {
 // «Что создаём» — ассеты рилса по шагам (пользователь 2026-09-27): готовый английский промпт с [ПОЛЯМИ], формат и количество.
 // Промпт — шаблон: пользователь меняет [ПОЛЯ] на своё, больше ничего не дописывается
 const ASSET_KINDS = {
+  // Пользователь 2026-10-08: «когда нажимаю „Создать инфографику“, появлялся промпт для создания инфографики» — промпт готовый,
+  // без [ПОЛЕЙ]; тема и заголовок — по желанию у каждой картинки (infoPrompt), пустые выбирает модель
   info: {ico: 'chart', name: 'Создать инфографику', sub: 'о чём ролик · 9:16', aspect: '9:16', many: 'Инфографики',
-    ask: 'Сколько инфографик нужно?', note: 'У каждой — своя тема и заголовок. Дальше откроется выбор фото-примера стиля (не обязателен).',
-    hint: 'Впишите в промпт вместо [ПОЛЕЙ] тему и заголовок. Референс не обязателен — можно добавить пример стиля',
-    prompt: 'Vertical infographic poster for a short video about [TOPIC]. Bold headline at the top: "[HEADLINE]". 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.'},
+    ask: 'Сколько инфографик нужно?', note: 'Тему и заголовок можно вписать у каждой — или оставить пустыми, их выберет модель. Дальше откроется выбор фото-примера стиля (не обязателен).',
+    hint: 'Промпт инфографики уже в поле. Тема и заголовок — по желанию у каждой картинки; пример стиля — по желанию',
+    prompt: 'Vertical infographic poster for a short video: a bold headline at the top, 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.',
+    legacy: ['Vertical infographic poster for a short video about [TOPIC]. Bold headline at the top: "[HEADLINE]". 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.'],
+    opt: [['TOPIC', 'Тема — по желанию'], ['HEADLINE', 'Заголовок — по желанию']]},
+  // Пользователь 2026-10-08: «при нажатии на „Развёртка героя“ в поле сразу же вводился промпт, который нужен для развёртки» —
+  // промпт готовый, без [ПОЛЕЙ]: развёртка — по фото героя (своё у каждой развёртки или общий референс)
   sheet: {ico: 'user', name: 'Развёртка героя', sub: 'спереди, сбоку, сзади · 16:9', aspect: '16:9', many: 'Развёртки героев',
-    ask: 'Сколько развёрток героя нужно?', note: 'По одной на героя. Дальше откроется выбор фото: по одному фото на героя, по порядку. Нет фото — опишете героя словами.',
-    hint: 'Есть фото героя — добавьте его референсом, развёртка будет по нему. Нет — опишите героя вместо [ПОЛЯ]',
-    prompt: 'Character turnaround sheet of [CHARACTER: age, face, hair, clothing]: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.',
-    promptRef: 'Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.'},
+    ask: 'Сколько развёрток героя нужно?', note: 'По одной на героя. Дальше откроется выбор фото: по одному фото на героя, по порядку.',
+    hint: 'Промпт развёртки уже в поле — добавьте фото героя, развёртка будет по нему',
+    prompt: 'Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.',
+    // прежний шаблон с [ПОЛЕМ] — если он остался в поле, это тоже шаблон, а не свой промпт
+    legacy: ['Character turnaround sheet of [CHARACTER: age, face, hair, clothing]: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.']},
   // Пользователь 2026-09-29: обязательны развёртка И инфографика; что делает герой и где — не вписывать: модель сама выбирает
   // обстановку по теме инфографики, у каждого кадра — своя (LOC_SCENES)
   // Пользователь 2026-10-07: место и действие можно вписать у каждого кадра (необязательно); инфографика желательна, но не обязательна.
@@ -7400,7 +8003,8 @@ const ASSET_KINDS = {
   loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке · место и действие по желанию · 3:4 ×4', aspect: '3:4', count: 4, many: 'Кадры героя в локациях',
     ask: 'Сколько кадров «персонаж в локации» нужно?', note: 'Один кадр на сценарий. У каждого кадра можно вписать место и действие — или оставить пустыми: их подберут по инфографике (если она есть) или выберет модель.',
     hint: 'Нужна развёртка героя; инфографика желательна. Место и действие — по желанию у каждого кадра',
-    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'},
+    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.',
+    opt: [['LOCATION', 'Место — по желанию'], ['ACTION', 'Действие — по желанию']]},
 };
 // у каждого кадра «персонаж в локации» — своя сцена по теме инфографики (кадры одного запуска не повторяются)
 const LOC_SCENES = ['the key moment of the topic: he is doing the main action it is about', 'a close-up moment with a prop, tool or product from the topic',
@@ -7421,6 +8025,17 @@ function locPrompt(base, it, i) {
   if (asset.info) parts.push(`The reference infographic shows what the video is about: read it only to understand the topic${miss ? `, then choose yourself ${miss} that clearly ${one ? 'fits' : 'fit'} this topic` : ''}. Never show the infographic itself, its text, icons or charts in the image.`);
   else if (miss) parts.push(`Choose yourself ${miss} that ${one ? 'looks' : 'look'} natural and believable.`);
   if (!place && !action) parts.push(`Scene idea for this shot: ${(asset.info ? LOC_SCENES : LOC_SCENES_FREE)[Math.max(0, i) % LOC_SCENES.length]}.`);
+  return parts.join(' ');
+}
+// промпт инфографики: основа (поле «Что на фото») + вписанные тема и заголовок; пустые — на выбор модели (если основа — шаблон:
+// свой промпт пользователя, видимо, уже говорит, о чём инфографика)
+function infoPrompt(base, it) {
+  const topic = (it.vals.TOPIC || '').trim(), head = (it.vals.HEADLINE || '').trim(), tpl = isAssetTpl(base);
+  const parts = [base];
+  if (topic) parts.push(`Topic: ${topic}.`);
+  else if (tpl) parts.push('Choose yourself a useful, popular topic for a short video.');
+  if (head) parts.push(`Headline text exactly: "${head}".`);
+  else if (tpl) parts.push(`Write a short, catchy headline for ${topic ? 'this' : 'the'} topic.`);
   return parts.join(' ');
 }
 const asset = {
@@ -7479,18 +8094,17 @@ const FIELD_RE = /\[([A-Z][A-Z ]*?)(?::[^\]]*)?\]/g;
 const FIELD_RU = {TOPIC: 'Тема ролика', HEADLINE: 'Заголовок на картинке', CHARACTER: 'Герой: возраст, лицо, волосы, одежда', ACTION: 'Что делает герой', LOCATION: 'Где: место, обстановка'};
 const assetFields = p => [...new Set([...String(p).matchAll(FIELD_RE)].map(m => m[1]))];
 const blankItem = () => ({vals: {}, ref: null});
-// основа промпта картинки — общий промпт из поля «Что на фото»; своё фото героя у развёртки — шаблон «по этому фото»
-function assetItemBase(it) {
-  const K = ASSET_KINDS[asset.kind], p = $('#prompt').value.trim();
-  return K?.promptRef && it.ref && p === K.prompt ? K.promptRef : p;
-}
-const assetItemPrompt = it => asset.kind === 'loc' ? locPrompt(assetItemBase(it), it, asset.items.indexOf(it)) : assetItemBase(it).replace(FIELD_RE, (a, key, off, str) => {
+// основа промпта картинки — общий промпт из поля «Что на фото»
+const assetItemBase = () => $('#prompt').value.trim();
+// шаблон кнопки «Что создаём» (или прежняя его версия), а не свой промпт пользователя
+const isAssetTpl = t => Object.values(ASSET_KINDS).some(x => x.prompt === t || x.legacy?.includes(t));
+const assetItemPrompt = it => asset.kind === 'loc' ? locPrompt(assetItemBase(), it, asset.items.indexOf(it)) : asset.kind === 'info' ? infoPrompt(assetItemBase(), it) : assetItemBase().replace(FIELD_RE, (a, key, off, str) => {
   let v = (it.vals[key] || '').trim();
   if (!v) return a;
   if (/(^|[.!?]s+)$/.test(str.slice(0, off))) v = v[0].toUpperCase() + v.slice(1);   // в начале предложения — с большой буквы
   return v;
 });
-const assetItemFields = it => assetFields(assetItemBase(it));
+const assetItemFields = () => assetFields(assetItemBase());
 // сколько аккаунтов возьмётся сразу: во Flow 4 генерации на аккаунт, в Dola и Arena — 2
 const assetCap = () => ({flow: 4, dola: 2, arena: 2})[asset.svc] || 4;
 const splitPlan = (n, cap) => Array.from({length: Math.ceil(n / cap)}, (_, i) => Math.min(cap, n - i * cap)).join(' + ');
@@ -7499,13 +8113,14 @@ function assetItemsHTML() {
   const K = ASSET_KINDS[asset.kind];
   if (!K) return '';
   const cards = asset.items.slice(0, asset.n).map((it, i) => {
-    const f = assetItemFields(it), loc = asset.kind === 'loc';
-    // у «Персонажа в локации» — место и действие, оба необязательные
-    const fieldsHTML = loc ? [['LOCATION', 'Место — по желанию'], ['ACTION', 'Действие — по желанию']].map(([key, ph]) => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${ph}" aria-label="${ph}" enterkeyhint="next" autocomplete="off">`).join('') : '';
+    const f = assetItemFields(), opt = K.opt;
+    // у «Персонажа в локации» — место и действие, у инфографики — тема и заголовок: все необязательные
+    const fieldsHTML = opt ? opt.map(([key, ph]) => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${ph}" aria-label="${ph}" enterkeyhint="next" autocomplete="off">`).join('') : '';
     return `<div class="asset-item"><b class="n">${i + 1}</b>
       <button class="asset-item-ph ${it.ref ? 'has' : ''}" data-ai-ph="${i}" title="${it.ref ? 'Убрать фото этой картинки' : 'Своё фото для этой картинки (например, герой для развёртки)'}">${it.ref ? `<img src="${it.ref}" alt="">` : ic('plus')}</button>
-      <div class="asset-item-f">${loc ? fieldsHTML : f.length ? f.map(key => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${esc(FIELD_RU[key] || key)}" aria-label="${esc(FIELD_RU[key] || key)}" enterkeyhint="next" autocomplete="off">`).join('')
-        : `<span class="hint">${asset.kind === 'loc' ? 'место и действие — по инфографике, у этого кадра своё' : it.ref ? 'по этому фото — промпт общий' : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div>
+      <div class="asset-item-f">${opt ? fieldsHTML : f.length ? f.map(key => `<input data-ai-f="${key}" data-ai-i="${i}" value="${esc(it.vals[key] || '')}" placeholder="${esc(FIELD_RU[key] || key)}" aria-label="${esc(FIELD_RU[key] || key)}" enterkeyhint="next" autocomplete="off">`).join('')
+        : `<span class="hint">${asset.kind === 'loc' ? 'место и действие — по инфографике, у этого кадра своё' : it.ref ? 'по этому фото — промпт общий'
+          : asset.kind === 'sheet' ? (asset.refs.length ? 'по общему фото героя' : 'нужно фото героя — нажмите ＋') : 'промпт общий — поле «Что на фото» ниже'}</span>`}</div>
       ${asset.n > 1 ? `<button class="asset-item-rm" data-ai-rm="${i}" title="Убрать эту картинку" aria-label="Убрать картинку ${i + 1}">✕</button>` : ''}</div>`;
   }).join('');
   return `<div class="block-head asset-items-head" style="margin-top:14px"><span class="lbl">${K.many} · ${asset.n}</span>
@@ -7537,11 +8152,10 @@ function setAssetKind(k) {
     if (!asset.refs.length && sheet) { asset.refs.push(sheet); asset.tookSheet = true; }
     if (!asset.info && info) { asset.info = info; asset.tookSheet = true; }
   }
-  const text = k === 'sheet' && asset.refs.length ? K.promptRef : K.prompt;
+  // промпт кнопки — сразу в поле «Что на фото»; там был свой промпт — его можно вернуть
   const cur = $('#prompt').value.trim();
-  const mine = cur && !Object.values(ASSET_KINDS).some(x => x.prompt === cur || x.promptRef === cur);
-  if (mine) toast('В поле «Что на фото» уже ваш промпт — оставил его', {ms: 9000, action: 'Заменить на шаблон', onAction: () => { fillAssetPrompt(text); renderAssetItems(); }});
-  else fillAssetPrompt(text);
+  fillAssetPrompt(K.prompt);
+  if (cur && !isAssetTpl(cur)) toast(`Промпт «${K.name}» — в поле «Что на фото»`, {ms: 9000, action: 'Вернуть мой', onAction: () => { fillAssetPrompt(cur); renderAssetItems(); }});
   renderAsset();
   updateLabels();
   openAkindSheet();
@@ -7776,7 +8390,7 @@ function setAssetCount(n) {
   }
   // сразу — окно выбора фото (нажатие на число — жест пользователя, браузер откроет окно)
   asset.pickFor = asset.kind === 'sheet' ? 'items' : 'common';
-  toast(asset.kind === 'sheet' ? 'Выберите фото героев — по одному на развёртку, по порядку. Нет фото — закройте окно и опишите героя словами'
+  toast(asset.kind === 'sheet' ? 'Выберите фото героев — по одному на развёртку, по порядку'
     : asset.kind === 'loc' ? 'Выберите фото развёртки героя' : 'Выберите фото-пример стиля — или закройте окно, он не обязателен', {ms: 6000});
   $('#assetFile').value = '';
   $('#assetFile').click();
@@ -7848,8 +8462,6 @@ async function assetAddRefs(files, to) {
     if (asset.refs.length >= ASSET_MAX_REFS) { toast(`Не больше ${ASSET_MAX_REFS} референсов`, {type: 'err'}); break; }
     try { asset.refs.push(await refDataUrl(f)); added++; } catch { toast('Не удалось прочитать фото', {type: 'err'}); }
   }
-  // развёртка: появилось общее фото героя — шаблон «по описанию» меняем на «по этому фото» (если его ещё не правили)
-  if (added && asset.kind === 'sheet' && $('#prompt').value.trim() === ASSET_KINDS.sheet.prompt) fillAssetPrompt(ASSET_KINDS.sheet.promptRef);
   renderAsset();
   updateGenButton();
   if (added) toast(added > 1 ? `Добавлено референсов: ${added}` : asset.kind ? 'Референс добавлен' : 'Референс добавлен — опишите, что должно быть на фото', {type: 'ok'});
@@ -7863,9 +8475,9 @@ async function assetGo() {
   const raw = $('#prompt').value.trim();
   if (raw.length < 3) return nudge('Опишите, что должно быть на фото: герой, место, действие, свет');
   const list = asset.kind ? asset.items.slice(0, asset.n) : null;
-  // у каждой картинки должны быть вписаны её поля
-  for (const [i, it] of (list || []).entries()) {
-    const miss = assetItemFields(it).find(key => !(it.vals[key] || '').trim());
+  // у каждой картинки должны быть вписаны её поля (у инфографики и «Персонажа в локации» они по желанию)
+  for (const [i, it] of (ASSET_KINDS[asset.kind]?.opt ? [] : list || []).entries()) {
+    const miss = assetItemFields().find(key => !(it.vals[key] || '').trim());
     if (!miss) continue;
     const inp = $(`#assetCreate [data-ai-i="${i}"][data-ai-f="${miss}"]`);
     inp?.classList.add('miss');
@@ -7887,6 +8499,15 @@ async function assetGo() {
   if (asset.kind === 'loc' && !asset.refs[0] && !list.every(it => it.ref)) {
     $(`#assetCreate [data-aslot-box="sheet"]`)?.classList.add('miss');
     return toast('Для «Персонажа в локации» нужна развёртка героя', {type: 'err', ms: 8000, action: '🧍 Выбрать развёртку', onAction: () => { asset.pickFor = 'sheet'; $('#assetFile').value = ''; $('#assetFile').click(); }});
+  }
+  // развёртка по шаблону делается по фото героя: у картинки своё фото или общий референс
+  const noPh = asset.kind === 'sheet' && isAssetTpl(raw) && !asset.refs.length ? list.findIndex(it => !it.ref) : -1;
+  if (noPh >= 0) {
+    const ph = $(`#assetCreate [data-ai-ph="${noPh}"]`);
+    ph?.classList.add('miss');
+    ph?.scrollIntoView({block: 'center', behavior: 'smooth'});
+    return toast(`${list.length > 1 ? `Развёртка ${noPh + 1}: нужно` : 'Нужно'} фото героя — развёртка делается по нему`, {type: 'err', ms: 8000,
+      action: '🧍 Выбрать фото', onAction: () => { asset.pickFor = noPh; $('#assetFile').value = ''; $('#assetFile').click(); }});
   }
   // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow);
   // у «Персонажа в локации» последней всегда идёт инфографика
@@ -7921,14 +8542,17 @@ function bindAsset() {
     if (pk) {
       e.stopPropagation();
       const K = ASSET_KINDS[pk.dataset.akindPeek];
-      const isLoc = pk.dataset.akindPeek === 'loc';
-      return peekShow(K.name, {prompts: [[isLoc ? 'Основа (поле «Что на фото»)' : 'Промпт', K.prompt], ...(K.promptRef ? [['Промпт, когда есть фото героя', K.promptRef]] : []),
+      const isLoc = pk.dataset.akindPeek === 'loc', isInfo = pk.dataset.akindPeek === 'info';
+      return peekShow(K.name, {prompts: [[isLoc || isInfo ? 'Основа (поле «Что на фото»)' : 'Промпт', K.prompt],
+        ...(isInfo ? [['Что дописывается к каждой картинке', ['Тема вписана → Topic: <тема>.', 'Нет темы → Choose yourself a useful, popular topic for a short video.',
+          'Заголовок вписан → Headline text exactly: "<заголовок>".', 'Нет заголовка → Write a short, catchy headline for the topic.',
+          'Основу в поле поменяли на свою — о пустых теме и заголовке ничего не дописывается.'].join('\n')]] : []),
         ...(isLoc ? [['Что дописывается к каждому кадру', ['Место вписано → Location: <место>.', 'Действие вписано → Action: <действие>.',
           'Есть инфографика → The reference infographic shows what the video is about: read it only to understand the topic, then choose yourself <чего не вписано> that clearly fit this topic. Never show the infographic itself, its text, icons or charts in the image.',
           'Нет инфографики, что-то не вписано → Choose yourself <чего не вписано> that look natural and believable.',
           'Ни места, ни действия → Scene idea for this shot: <сцена по очереди из списка ниже>.'].join('\n')],
           ['Сцены — с инфографикой', LOC_SCENES.map((x, i) => `${i + 1}. ${x}`).join('\n')], ['Сцены — без инфографики', LOC_SCENES_FREE.map((x, i) => `${i + 1}. ${x}`).join('\n')]] : [])],
-        request: {формат: K.aspect, картинок_за_раз: K.count || asset.count, фото: pk.dataset.akindPeek === 'loc' ? ['развёртка героя', 'инфографика (последней, если есть)'] : pk.dataset.akindPeek === 'sheet' ? ['фото героя — если есть'] : ['пример стиля — по желанию'],
+        request: {формат: K.aspect, картинок_за_раз: K.count || asset.count, фото: pk.dataset.akindPeek === 'loc' ? ['развёртка героя', 'инфографика (последней, если есть)'] : pk.dataset.akindPeek === 'sheet' ? ['фото героя — своё у каждой развёртки или общее'] : ['пример стиля — по желанию'],
           куда: 'программа на компьютере: POST /api/batch → ' + SITE_SHORT[asset.svc]}});
     }
     const b = e.target.closest('button');
@@ -10234,6 +10858,7 @@ function renderInstall() {
 async function hubReady() {
   if (hubLink.ok) return true;
   if (!hubLink.local() && hubLink.pcSite() && hubLink.pcUp === null) return hubLink.tryDirect();   // сайт с GitHub — программа на этом компьютере
+  if (!hubLink.local() && await hubLink.tryLan()) return true;   // телефон, связанный с компьютером по QR — напрямую по Wi-Fi
   if (!hubLink.local()) return false;
   if (!hubLink.key && !(hubLink.onPc() && await hubLink.localKey())) return false;
   await hubLink.refresh();

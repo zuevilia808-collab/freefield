@@ -64,14 +64,23 @@ function lnkTarget(file) {
   return new Promise(res => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], {windowsHide: true, timeout: 15000, encoding: 'utf8'},
     (err, out) => { if (err) return res(null); const [target, args = '', cwd = ''] = String(out).split(/\r?\n/); res(target ? {target, args, cwd} : null); }));
 }
-// запустить «Эхо» без окна консоли: ярлык → его цель; .bat/.cmd — через cmd; не вышло — как двойной щелчок (с окном)
+// запустить «Эхо» без окна консоли (пользователь 2026-10-08: «когда нажимаю „Озвучка“, вылазит терминал — так быть не должно»).
+// У Node на Windows detached + windowsHide окно консоли всё равно показывает, поэтому запускаем через WScript.Shell.Run(…, 0):
+// скрыто, и всё, что «Эхо» запускает в своей консоли (Python, ffmpeg), тоже без окна. Ярлык → его цель (программа, аргументы, папка)
 async function launchHidden(file) {
-  const opt = {detached: true, stdio: 'ignore', windowsHide: true};
-  if (process.platform !== 'win32') return spawn(file, [], opt).unref();
+  if (process.platform !== 'win32') return spawn(file, [], {detached: true, stdio: 'ignore'}).unref();
   let t = /\.lnk$/i.test(file) ? await lnkTarget(file) : {target: file, args: '', cwd: path.dirname(file)};
-  if (!t || !fs.existsSync(t.target) || /\.url$/i.test(t.target)) return spawn('explorer.exe', [file], opt).unref();
+  if (!t || !fs.existsSync(t.target) || /\.url$/i.test(t.target)) t = {target: file, args: '', cwd: path.dirname(file)};   // как двойной щелчок, но тоже скрыто
   const cwd = t.cwd && fs.existsSync(t.cwd) ? t.cwd : path.dirname(t.target);
-  if (/\.vbs$/i.test(t.target)) return spawn('wscript.exe', [t.target], {...opt, cwd}).unref();
-  if (/\.(bat|cmd)$/i.test(t.target)) spawn('cmd.exe', ['/d', '/s', '/c', `""${t.target}" ${t.args}"`], {...opt, cwd, windowsVerbatimArguments: true}).unref();
-  else spawn(t.target, t.args ? [t.args] : [], {...opt, cwd, windowsVerbatimArguments: true}).unref();
+  const cmd = /\.vbs$/i.test(t.target) ? `wscript.exe //B "${t.target}" ${t.args}` : `"${t.target}" ${t.args}`;
+  runHidden(cmd.trim(), cwd);
+}
+// WScript.Shell.Run с окном 0 (скрыто), не дожидаясь конца; файл сценария — UTF-16 с BOM (пути с кириллицей)
+function runHidden(cmd, cwd) {
+  const q = s => s.replace(/"/g, '""');
+  const vbs = path.join(os.tmpdir(), `freefield-echo-${process.pid}-${Date.now()}.vbs`);
+  const text = `Set s = CreateObject("WScript.Shell")\r\ns.CurrentDirectory = "${q(cwd)}"\r\ns.Run "${q(cmd)}", 0, False\r\n`;
+  fs.writeFileSync(vbs, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]));
+  const done = () => fs.rm(vbs, {force: true}, () => {});
+  spawn('wscript.exe', ['//B', '//Nologo', vbs], {stdio: 'ignore', windowsHide: true}).on('exit', done).on('error', done);
 }
