@@ -27,7 +27,28 @@ export function lanAddresses() {
 // Остальным сайтам — нет: браузер не отдаст им ответ без этих заголовков.
 const SITE = 'https://zuevilia808-collab.github.io';
 const siteCors = req => req.headers.origin === SITE ? {'Access-Control-Allow-Origin': SITE, 'Vary': 'Origin', 'Access-Control-Allow-Private-Network': 'true',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Freefield-Key', 'Access-Control-Max-Age': '600'} : {};
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Freefield-Key', 'Access-Control-Max-Age': '600'} : {};
+
+// «Эхо» — озвучка голосом из видео (отдельная программа пользователя на этом компьютере, http://127.0.0.1:7865).
+// Приложение ходит к нему через хаб с тем же ключом: /api/echo/api/... и /api/echo/files/... — так работает и на ПК, и с телефона по Wi-Fi
+const ECHO = {host: '127.0.0.1', port: +(process.env.ECHO_PORT || 7865)};
+function proxyEcho(req, res, target, cors) {
+  const headers = {};   // Origin/Referer/Cookie не передаём: для «Эхо» это запрос хаба, а не чужой страницы
+  for (const h of ['content-type', 'content-length', 'range', 'accept']) if (req.headers[h]) headers[h] = req.headers[h];
+  const up = http.request({...ECHO, method: req.method, path: target, headers, timeout: 10 * 60e3}, r => {
+    const out = {...cors, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'};
+    for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) if (r.headers[h]) out[h] = r.headers[h];
+    res.writeHead(r.statusCode, out);
+    r.pipe(res);
+  });
+  up.on('timeout', () => up.destroy(new Error('timeout')));
+  up.on('error', () => {
+    if (res.headersSent) return res.destroy();
+    res.writeHead(503, {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors});
+    res.end(JSON.stringify({error: '«Эхо» не запущено — открой ярлык «Эхо — озвучка» на рабочем столе', echo_down: true}));
+  });
+  req.pipe(up);
+}
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 
@@ -65,6 +86,15 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           return send(200, {key: typeof key === 'function' ? key() : key});
         }
         if (!same(url.searchParams.get('k') || req.headers['x-freefield-key'] || '', typeof key === 'function' ? key() : key)) return send(403, {error: 'нет доступа — откройте Freefield по QR-коду с компьютера'});
+        const echo = url.pathname.match(/^\/api\/echo(\/(?:api|files)(?:\/[\w.-]+)+)$/);
+        if (echo) {
+          // путь уже нормализован (new URL убирает «..»); на всякий случай — без «.»/«..» в отрезках.
+          // Чтение файлов по пути на диске — только для MCP на этом компьютере, не для телефона и не для сайта
+          if (echo[1].split('/').some(x => x === '.' || x === '..')) return send(400, {error: 'плохой путь'});
+          if (/^\/api\/(upload-path|voice-from-file)\b/i.test(echo[1])) return send(403, {error: 'недоступно через хаб'});
+          const q = new URLSearchParams(url.search); q.delete('k');
+          return proxyEcho(req, res, echo[1] + (q.toString() ? '?' + q : ''), cors);
+        }
         if (url.pathname === '/api/hub' && req.method === 'GET') return send(200, await api.hello());
         if (url.pathname === '/api/batches' && req.method === 'GET') return send(200, await api.list());
         // номер профиля Chrome (1, 2, …) — у каждого свои аккаунты
