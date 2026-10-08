@@ -415,8 +415,6 @@ body[data-cm=edit] .only-edit{display:block}
 .mt-ph{position:absolute;inset:0;display:none;place-items:center;font-size:30px;color:var(--dim)}
 .mt-ph .ic{width:34px;height:34px}
 .mt-stage.empty .mt-ph{display:grid}
-.mt-ctl{display:flex;align-items:center;gap:8px;margin-top:8px}
-.mt-ctl input[type=range]{flex:1;min-width:0;accent-color:var(--free)}
 #mtTime{font:600 11.5px var(--mono);font-variant-numeric:tabular-nums;color:var(--text2);white-space:nowrap}
 .mt-tabs{margin-top:10px}
 .mt-prog{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11.5px;color:var(--text2)}
@@ -424,43 +422,6 @@ body[data-cm=edit] .only-edit{display:block}
 .mt-bar{flex:1;min-width:40px;height:6px;border-radius:9px;background:var(--panel3);overflow:hidden}
 .mt-bar i{display:block;height:100%;background:var(--free);transition:width .3s}
 .mt-prog span{white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;max-width:55%}
-.mt-clips,.mt-titles{display:flex;flex-direction:column;gap:6px}
-.mt-clip{display:grid;grid-template-columns:54px 1fr;gap:9px;padding:7px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);transition:border-color .2s}
-.mt-clip.now{border-color:rgba(212,255,58,.5)}
-.mt-clip.gone{grid-template-columns:54px 1fr auto;align-items:center;opacity:.6}
-.mt-th{width:54px;height:72px;object-fit:cover;border-radius:8px;background:#14171d;cursor:pointer;display:block}
-.mt-cb{min-width:0;display:flex;flex-direction:column;gap:5px}
-.mt-ct{display:flex;gap:6px;align-items:baseline;font-size:12px;min-width:0}
-.mt-ct b{font-family:var(--display);font-size:11.5px}
-.mt-len{color:var(--free);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-.mt-cp{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.mt-trim{--a:0;--b:1;position:relative;height:22px}
-.mt-trim::before,.mt-trim::after{content:'';position:absolute;top:9px;height:4px;border-radius:4px}
-.mt-trim::before{left:0;right:0;background:var(--panel4)}
-.mt-trim::after{left:calc(var(--a) * 100%);right:calc((1 - var(--b)) * 100%);background:var(--free)}
-.mt-trim input{position:absolute;left:0;top:0;width:100%;height:22px;margin:0;background:none;-webkit-appearance:none;appearance:none;pointer-events:none;z-index:1}
-.mt-trim input::-webkit-slider-runnable-track{height:22px;background:none}
-.mt-trim input::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:12px;height:20px;margin-top:1px;border-radius:5px;background:#fff;border:2px solid var(--free-d);cursor:ew-resize}
-.mt-trim input::-moz-range-track{background:none}
-.mt-trim input::-moz-range-thumb{pointer-events:auto;width:9px;height:17px;border-radius:5px;background:#fff;border:2px solid var(--free-d);cursor:ew-resize}
-.mt-ca{display:flex;gap:4px}
-.mt-ca .icon-btn,.mt-clip.gone .icon-btn,.mt-trow .icon-btn{width:30px;height:28px;border-radius:9px;font-size:13px}
-.mt-ca .icon-btn .ic{width:14px;height:14px}
-.mt-ca .icon-btn.off{color:var(--danger)}
-.mt-ca .icon-btn:disabled{opacity:.3}
-.mt-tr{display:flex;gap:4px;justify-content:center}
-.mt-tr button{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:99px;color:var(--muted);border:1px dashed var(--line2);background:none}
-.mt-tr button .ic{width:12px;height:12px}
-.mt-tr button.on{color:var(--text);border-style:solid;border-color:rgba(212,255,58,.45);background:rgba(212,255,58,.08)}
-.mt-empty{width:100%;padding:22px;border-radius:12px;border:1px dashed var(--line2);color:var(--muted);background:none;font-weight:600}
-.mt-title{padding:7px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
-.mt-title textarea,.mt-ask textarea{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text);font:13px/1.45 var(--font);outline:0;resize:vertical}
-.mt-title textarea:focus,.mt-ask textarea:focus{border-color:rgba(212,255,58,.45)}
-.mt-trow{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:12px;color:var(--text2)}
-.mt-trow input{width:52px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:8px;padding:3px 6px;color:var(--text);outline:0}
-.mt-trow .chip{height:26px;padding:0 8px;font-size:11.5px}
-.mt-trow .chip.on{color:var(--text);border-color:rgba(212,255,58,.45)}
-.mt-trow .icon-btn{margin-left:auto}
 .mt-row2{display:flex;gap:8px;align-items:center;margin-top:8px}
 .mt-row2 .seg{flex:1}
 .mt-chk{display:flex;gap:6px;align-items:center;font-size:12.5px;white-space:nowrap}
@@ -522,44 +483,121 @@ body[data-cm=voice] .only-voice{display:block}
 #echoCreate .block-head{margin:16px 0 8px}
 #echoCreate .block-head:first-child{margin-top:0}
 #echoCreate .block-head .btn.small{margin-top:0}
-#echoCreate .block-head .seg button{padding:4px 9px;font-size:11.5px}
 .eh-card{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);font-size:13px;margin-bottom:10px}
 .eh-card .btn.small{margin-top:0}
-.eh-voices .chip.on{color:var(--text);border-color:rgba(212,255,58,.5);background:rgba(212,255,58,.08)}
-.eh-voices .chip.none{opacity:.6}
-.eh-have{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--text2)}
-.eh-have span{flex:1;min-width:0}
-.eh-have .icon-btn,.eh-ta .icon-btn{width:30px;height:28px;border-radius:9px;font-size:13px}
-.eh-have .icon-btn.on,.eh-ta .icon-btn.on{color:var(--free)}
-.eh-clone{margin-top:8px;padding:9px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:flex;flex-direction:column;gap:7px}
-.eh-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--text2)}
-.eh-row .btn.small{margin-top:0}
-.eh-row select{background:var(--panel3);border:1px solid var(--line2);border-radius:9px;color:var(--text);padding:5px 7px;font:600 12px var(--font)}
-.eh-row input[type=number]{width:58px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:8px;padding:3px 6px;color:var(--text);outline:0}
-.eh-range{margin-top:8px;flex-wrap:nowrap}
-.eh-range span{width:68px;flex:none}
-.eh-range input{flex:1;min-width:0;accent-color:var(--free)}
-.eh-range b{width:44px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
-#echoCreate > .eh-row{margin-top:8px}
-#echoCreate > .eh-row > span{width:68px;flex:none}
-.eh-count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
-.eh-text{resize:vertical;min-height:84px}
-.eh-emo .chip{position:relative}
-.eh-emo .chip.on{color:var(--text);border-color:rgba(212,255,58,.5);background:rgba(212,255,58,.08)}
-.eh-dot{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--free)}
-.eh-takes{display:flex;flex-direction:column;gap:6px}
-.eh-take{display:grid;grid-template-columns:auto 1fr;gap:6px 9px;padding:8px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);align-items:center}
-.eh-play{width:34px;height:34px}
-.eh-tb{min-width:0}
-.eh-tt{font-size:12.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.eh-tb small{display:block;margin-top:2px;font-size:11px;color:var(--muted)}
-.eh-ta{grid-column:2;display:flex;gap:4px}
 .eh-none{font-size:12.5px;color:var(--muted)}
 .eh-ch{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--text2)}
 .eh-ch .btn.small{margin-top:0}
 .eh-ch select{background:var(--panel3);border:1px solid var(--line2);border-radius:9px;color:var(--text);padding:5px 7px;font:600 12px var(--font)}
 .eh-ch i{font-style:normal;color:var(--muted);font-size:11.5px;width:100%}
 .eh-ch i:empty{display:none}
+/* правая часть во вкладках «Монтаж» и «Озвучка» (на телефоне — переезжает в саму вкладку) */
+.work{display:none;min-height:0;position:relative}
+@media (min-width:901px){
+  body[data-cm=edit] .feed,body[data-cm=voice] .feed{display:none}
+  body[data-cm=edit] .work,body[data-cm=voice] .work{display:flex;flex-direction:column}
+  body[data-cm=edit] #echoWork,body[data-cm=voice] #mtWork{display:none}
+  .work .mtw{flex:1;min-height:0}
+  .work .ehw{flex:1}
+}
+body[data-cm=voice] .gen-row,body[data-cm=voice] .model-line{display:none}
+/* «Монтаж»: просмотр, панель инструментов, таймлайн */
+.mtw{display:flex;flex-direction:column;gap:8px;padding:12px 16px 14px}
+.mtw-view{flex:1;min-height:220px;container-type:size;display:grid;place-items:center}
+.mtw-view .mt-stage{width:min(100cqw,calc(100cqh * var(--r)));max-width:100%;margin:0}
+.mtw-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mtw-bar .btn.small{margin-top:0}
+.mtw-bar .icon-btn{width:34px;height:32px;border-radius:10px}
+.mtw-play{background:var(--free)!important;color:var(--ink)!important;border-color:transparent!important}
+#mtTime{font:600 12px var(--mono);font-variant-numeric:tabular-nums;color:var(--text2);white-space:nowrap;min-width:92px}
+.mtw-sep{width:1px;height:22px;background:var(--line2);margin:0 2px}
+.mtw-grow{flex:1}
+#mtZoom{width:90px;accent-color:var(--free)}
+.mtw-menu{position:relative}
+.mtw-pop{position:absolute;bottom:calc(100% + 6px);left:0;z-index:30;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:12px;background:var(--panel3);border:1px solid var(--line2);box-shadow:0 12px 30px -10px rgba(0,0,0,.7);white-space:nowrap}
+.mtw-pop.hidden{display:none}
+.mtw-tl{display:grid;grid-template-columns:34px 1fr;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.28);overflow:hidden}
+.mtw-heads{display:grid;grid-template-rows:22px auto auto auto auto;border-right:1px solid var(--line)}
+.mtw-heads > *{display:grid;place-items:center;font-style:normal;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line)}
+.mtw-heads b:nth-of-type(1){height:58px}
+.mtw-heads b:nth-of-type(2){height:calc(var(--rp,1) * 30px + 8px)}
+.mtw-heads b:nth-of-type(3){height:calc(var(--rt,1) * 30px + 8px)}
+.mtw-heads b:nth-of-type(4){height:calc(var(--ra,1) * 30px + 8px)}
+.mtw-heads .ic{width:15px;height:15px}
+.mtw-scroll{overflow-x:auto;overflow-y:hidden;touch-action:pan-x;scrollbar-width:thin}
+.mtw-inner{position:relative;min-width:100%;user-select:none;-webkit-user-select:none}
+.mtw-ruler{position:relative;height:22px;border-bottom:1px solid var(--line);cursor:ew-resize;touch-action:none;background:repeating-linear-gradient(90deg,transparent 0 9px,rgba(255,255,255,.04) 9px 10px)}
+.mtw-ruler i{position:absolute;top:0;height:100%;border-left:1px solid var(--line2);padding-left:4px;font:600 10px var(--mono);font-style:normal;color:var(--muted);line-height:22px}
+.mtw-track{position:relative;border-bottom:1px solid var(--line);height:calc(var(--rows,1) * 30px + 8px)}
+.mtw-track.v{height:58px}
+.mtw-track:last-of-type{border-bottom:0}
+.tl-b{position:absolute;top:calc(4px + var(--row,0) * 30px);height:26px;border-radius:7px;display:flex;align-items:center;overflow:hidden;cursor:grab;font-size:11px;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.18);text-shadow:0 1px 2px #000;box-sizing:border-box}
+.tl-b span{flex:1;min-width:0;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.tl-b.v{top:4px;height:50px;align-items:flex-end;background:var(--th, none) left center/auto 100% repeat-x,#2a2f3a}
+.tl-b.v span{padding-bottom:4px;background:linear-gradient(transparent,rgba(0,0,0,.55))}
+.tl-b.p{background:var(--th, none) left center/auto 100% repeat-x,#5a3a7a}
+.tl-b.t{background:linear-gradient(180deg,#4b6bd8,#3654b8)}
+.tl-b.a{background:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 2px,transparent 2px 5px),linear-gradient(180deg,#2f8f6a,#21704f)}
+.tl-b.sel{outline:2px solid var(--free);outline-offset:-1px;z-index:3;touch-action:none}
+.tl-b.drag{opacity:.75;z-index:5;cursor:grabbing}
+.tl-h{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;z-index:2;touch-action:none;background:rgba(255,255,255,.0)}
+.tl-h.l{left:0}.tl-h.r{right:0}
+.tl-b:hover .tl-h,.tl-b.sel .tl-h{background:rgba(212,255,58,.55)}
+.tl-x{position:absolute;top:1px;width:17px;height:17px;margin-left:-8.5px;border-radius:6px;transform:rotate(45deg);background:var(--panel3);border:1px solid var(--line3);z-index:4;display:grid;place-items:center;font-size:10px;padding:0;color:var(--text2)}
+.tl-x > *{transform:rotate(-45deg)}
+.tl-x .ic{width:9px;height:9px}
+.tl-x.fade,.tl-x.black{background:var(--free);color:var(--ink);border-color:transparent}
+.tl-ins{position:absolute;top:2px;bottom:2px;width:3px;margin-left:-1px;background:var(--free);border-radius:2px;z-index:6}
+.tl-empty{position:absolute;inset:6px 6px auto 6px;height:44px;border-radius:9px;border:1px dashed var(--line2);background:none;color:var(--muted);font-weight:600;font-size:12.5px}
+.mtw-head{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#ff5d62;pointer-events:none;z-index:8}
+.mtw-head::before{content:'';position:absolute;top:0;left:-5px;border:6px solid transparent;border-top:8px solid #ff5d62}
+/* свойства выделенного */
+.mt-selbox{padding:10px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);display:flex;flex-direction:column;gap:8px}
+.mt-selbox .block-head{margin:0!important}
+.mt-sp1{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt-fl{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--text2)}
+.mt-fl .btn.small{margin-top:0}
+.mt-fl input[type=number]{width:62px;margin-left:4px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:8px;padding:4px 6px;color:var(--text);outline:0}
+.mt-fl .seg{flex:1}
+.mt-fl .seg button{padding:5px 7px;font-size:11.5px}
+.mt-rng{flex-wrap:nowrap}
+.mt-rng > span{width:74px;flex:none}
+.mt-rng input[type=range]{flex:1;min-width:0;accent-color:var(--free)}
+.mt-rng b{width:44px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums}
+.mt-rng .icon-btn{width:30px;height:28px;border-radius:9px}
+.mt-rng .icon-btn.off{color:var(--danger)}
+.mt-ta{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text);font:13px/1.45 var(--font);outline:0;resize:vertical}
+.mt-gone{margin-top:8px;color:var(--warn)}
+.mt-dev{width:100%;margin-bottom:12px;justify-content:flex-start;white-space:normal;height:auto;min-height:40px;padding:8px 12px;text-align:left}
+.mt-elist{display:flex;flex-direction:column;gap:6px}
+.mt-er{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;text-align:left;padding:8px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:12.5px}
+.mt-er.on{border-color:var(--free)}
+.mt-er b{width:24px;height:24px;border-radius:99px;display:grid;place-items:center;background:var(--panel3);font-size:12px}
+.mt-er.on b{background:var(--free);color:var(--ink)}
+.mt-er span{min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mt-er i{display:block;font-style:normal;font-size:11px;color:var(--muted)}
+.mt-er small{color:var(--muted);font-variant-numeric:tabular-nums}
+/* «Озвучка»: само «Эхо» в рамке */
+.ehw{position:relative;min-height:320px;background:#0b0b0f}
+.ehw iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+.eh-ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim)}
+.eh-ph .ic{width:40px;height:40px}
+.eh-card.col{flex-direction:column;align-items:stretch}
+.eh-ps{display:block;font:11.5px/1.5 var(--mono);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:9px;padding:8px;overflow-wrap:anywhere;color:var(--text)}
+.eh-chars{display:flex;flex-direction:column;gap:6px}
+.eh-chr{display:grid;grid-template-columns:36px 1fr auto;gap:9px;align-items:center;padding:6px 8px;border-radius:11px;background:var(--panel2);border:1px solid var(--line)}
+.eh-chr img,.eh-chr .vc-ph{width:36px;height:36px;border-radius:9px;object-fit:cover;display:grid;place-items:center;background:var(--panel3);font-style:normal}
+.eh-chr span{min-width:0;display:flex;flex-direction:column}
+.eh-chr b{font-size:13px}
+.eh-chr small{font-size:11.5px;color:var(--muted)}
+.eh-chr .btn.small{margin-top:0}
+.eh-busy{margin-top:8px;font-size:12px;color:var(--text2)}
+@media (max-width:900px){
+  .mtw{padding:0;margin-bottom:12px}
+  .mtw-view{flex:none;height:36vh;min-height:200px}
+  #mtZoom{width:70px}
+  .ehw{height:calc(100dvh - var(--top) - var(--sat) - var(--nav) - 230px);min-height:420px;margin:0 -16px 12px;border-block:1px solid var(--line)}
+}
 /* разделов больше пяти — в две строки по четыре */
 #createMode{flex-wrap:wrap}
 #createMode button{flex:1 1 calc(25% - 2px);font-size:11.5px}
@@ -1573,6 +1611,34 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
     <div class="ext-strip" id="extStrip"></div>
     <div class="hub-jobs" id="hubJobs"></div>
     <div class="grid" id="grid"></div>
+  </section>
+  <!-- «Монтаж» и «Озвучка»: на ПК — здесь, вместо галереи; на телефоне — переезжают в саму вкладку -->
+  <section class="work" id="work">
+    <div class="mtw" id="mtWork">
+      <div class="mtw-view"><div class="mt-stage empty" id="mtStage"><video playsinline preload="auto"></video><video playsinline preload="auto"></video><i class="mt-dim"></i><canvas></canvas><span class="mt-ph">🎞</span></div></div>
+      <div class="mtw-bar">
+        <button class="icon-btn" data-mt-home title="В начало (Home)">⏮</button><button class="icon-btn mtw-play" data-mt-play title="Смотреть (пробел)">▶</button><span id="mtTime">0:00.0 / 0:00</span>
+        <span class="mtw-sep"></span>
+        <button class="btn small" data-mt-split title="Разрезать по бегунку (S)">✂ Разрезать</button><button class="icon-btn" data-mt-del-sel title="Удалить выделенное (Delete)">🗑</button>
+        <span class="mtw-sep"></span>
+        <button class="btn small" data-mt-add>＋ Видео</button><button class="btn small" data-mt-padd>＋ Фото</button><button class="btn small" data-mt-tadd>＋ Титр</button>
+        <span class="mtw-menu"><button class="btn small" data-mt-aadd>＋ Звук</button><span class="mtw-pop hidden" id="mtAudMenu"><button class="btn small" data-mt-aud-file>🎵 Свой MP3</button><button class="btn small" data-mt-aud-echo>🎙 Озвучка «Эхо»</button></span></span>
+        <span class="mtw-grow"></span>
+        <button class="icon-btn" data-mt-zoom="-1" title="Мельче">−</button><input type="range" id="mtZoom" min="0" max="100" value="30" aria-label="Масштаб"><button class="icon-btn" data-mt-zoom="1" title="Крупнее">＋</button><button class="icon-btn" data-mt-fit title="Весь ролик">↔</button>
+      </div>
+      <div class="mtw-tl">
+        <div class="mtw-heads"><i></i><b>🎞</b><b>🖼</b><b>T</b><b>🎵</b></div>
+        <div class="mtw-scroll" id="mtScroll"><div class="mtw-inner" id="mtInner">
+          <div class="mtw-ruler" id="mtRuler"></div>
+          <div class="mtw-track v" id="mtTrV"></div>
+          <div class="mtw-track p" id="mtTrP"></div>
+          <div class="mtw-track t" id="mtTrT"></div>
+          <div class="mtw-track a" id="mtTrA"></div>
+          <div class="mtw-head" id="mtHeadLine"></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="ehw" id="echoWork"></div>
   </section>
 </main>
 
@@ -4435,6 +4501,40 @@ function mtDrawTitles(ctx, W, H, titles, T) {
   }
 }
 
+/* ---- фото поверх видео (пользователь 2026-10-08: «возможность наложения фотографий на видео») ---- */
+const MT_PH_POS = [['full', 'Весь кадр'], ['center', 'Центр'], ['tl', '↖'], ['tr', '↗'], ['bl', '↙'], ['br', '↘']];
+const mtImgs = new Map();   // id картинки галереи → <img>, готовая к рисованию в просмотре
+function mtImg(id) {
+  if (!mtImgs.has(id)) {
+    const it = items.find(x => x.id === id && x.blob), img = it ? new Image() : null;
+    if (img) { img.onload = () => { img._ok = true; if (cl.mode === 'edit') mtShow(mtPv.t); }; img.src = urlOf(it.blob); }
+    mtImgs.set(id, img);
+  }
+  const im = mtImgs.get(id);
+  return im?._ok ? im : null;
+}
+function mtPhotoBox(o, W, H, iw, ih) {
+  if (o.pos === 'full') { const k = Math.max(W / iw, H / ih); return [(W - iw * k) / 2, (H - ih * k) / 2, iw * k, ih * k]; }
+  const side = Math.min(W, H) * (o.size ?? 0.6), k = side / Math.max(iw, ih), w = iw * k, h = ih * k, m = Math.min(W, H) * 0.04;
+  const x = /l$/.test(o.pos) ? m : /r$/.test(o.pos) ? W - w - m : (W - w) / 2;
+  const y = /^t/.test(o.pos) ? m : /^b/.test(o.pos) ? H - h - m : (H - h) / 2;
+  return [x, y, w, h];
+}
+function mtDrawPhotos(ctx, W, H, photos, T, get = mtImg) {
+  for (const o of photos || []) {
+    const u = T - (o.at || 0), v = (o.at || 0) + (o.dur || 3) - T;
+    if (u < 0 || v <= 0) continue;
+    const img = get(o.id);
+    if (!img) continue;
+    const f = o.fade ?? 0.3, [x, y, w, h] = mtPhotoBox(o, W, H, img.naturalWidth || img.width, img.naturalHeight || img.height);
+    ctx.save();
+    ctx.globalAlpha = (o.opacity ?? 1) * Math.min(1, f ? u / f : 1, f ? v / f : 1);
+    if (o.pos !== 'full') { ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = Math.min(W, H) * 0.025; }
+    ctx.drawImage(img, x, y, w, h);
+    ctx.restore();
+  }
+}
+
 // кадр из середины клипа: миниатюра на таймлайне и «глаза» ИИ-монтажёра. По одному видео за раз — не перегружать браузер
 const mtThumbs = new Map();
 let mtThumbQ = Promise.resolve();
@@ -4503,7 +4603,7 @@ function mtShow(T) {
     if (!s) { v.style.opacity = 0; if (!v.paused) v.pause(); continue; }
     const on = vis.includes(s), loc = Math.min(s.b, s.a + Math.max(0, T - s.start)), look = on ? mtLook(s, Math.min(T, s.end - 1e-3)) : {alpha: 0, dim: 0, gain: 0};
     v.style.opacity = look.alpha; v.style.zIndex = on ? 1 + vis.indexOf(s) : 0;
-    v.muted = !p?.audio || !!s.c.mute; v.volume = look.gain;
+    v.muted = !p?.audio || !!s.c.mute; v.volume = Math.min(1, look.gain * (s.c.vol ?? 1));
     if (on) dim = Math.max(dim, look.dim);
     if (on && mtPv.playing && T < total) {
       if (Math.abs(v.currentTime - loc) > 0.3) v.currentTime = loc;
@@ -4520,14 +4620,39 @@ function mtShow(T) {
   if (cv.width !== cw || cv.height !== chh) { cv.width = cw; cv.height = chh; }
   const ctx = cv.getContext('2d');
   ctx.clearRect(0, 0, cw, chh);
+  mtDrawPhotos(ctx, cw, chh, p?.photos, T);
   mtDrawTitles(ctx, cw, chh, p?.titles, T);
-  const seek = $('#mtSeek');
-  if (seek) { seek.max = Math.max(0.1, total); if (document.activeElement !== seek) seek.value = T; }
   const tl = $('#mtTime');
-  if (tl) tl.textContent = `${mtClock(T)} / ${mtClock(total)}`;
-  const pb = $('#mtCreate [data-mt-play]');
+  if (tl) tl.textContent = `${mtClock(T)}.${Math.floor((T % 1) * 10)} / ${mtClock(total)}`;
+  const pb = $('#mtWork [data-mt-play]');
   if (pb) pb.textContent = mtPv.playing ? '⏸' : '▶';
-  $$('#mtCreate .mt-clip').forEach(el => el.classList.toggle('now', vis.some(s => s.c.k === el.dataset.mtK)));
+  mtHead();
+  mtAudSync(T);
+  // при просмотре бегунок не уходит за край таймлайна
+  const sc = $('#mtScroll'), x = T * mtPps();
+  if (mtPv.playing && sc && (x < sc.scrollLeft || x > sc.scrollLeft + sc.clientWidth - 30)) sc.scrollLeft = Math.max(0, x - 40);
+}
+// звуковая дорожка в просмотре: свой <audio> на каждый звук, подстраивается под часы
+const mtAudEl = new Map();
+function mtAudSync(T) {
+  const live = new Set();
+  for (const a of mt.p?.audios || []) {
+    if (T < a.at || T >= a.at + mtALen(a)) continue;
+    let el = mtAudEl.get(a.k);
+    if (!el) {
+      if (!mtAud.has(a.src)) { mtAudGet(a.src).then(() => mtPv.playing && mtShow(mtPv.t)); continue; }
+      const c = mtAud.get(a.src);
+      if (!c) continue;
+      el = new Audio(c.url); el.preload = 'auto';
+      mtAudEl.set(a.k, el);
+    }
+    live.add(a.k);
+    el.volume = Math.max(0, Math.min(1, mtAudGain(a, T)));
+    const want = (a.a || 0) + (T - a.at);
+    if (mtPv.playing) { if (Math.abs(el.currentTime - want) > 0.3) el.currentTime = want; if (el.paused) el.play().catch(() => {}); }
+    else if (!el.paused) el.pause();
+  }
+  for (const [k, el] of mtAudEl) if (!live.has(k) && !el.paused) el.pause();
 }
 function mtTick(now) {
   mtPv.raf = 0;
@@ -4554,71 +4679,303 @@ function mtPause() {
   if (mtPv.raf) cancelAnimationFrame(mtPv.raf);
   mtPv.raf = 0;
   $$('#mtStage video').forEach(v => v.pause());
+  mtAudEl.forEach(el => el.pause());
   mtShow(mtPv.t);
 }
 const mtSeekTo = T => { mtPv.t = Math.max(0, Math.min(T, mtTotal(mtPv.segs))); mtShow(mtPv.t); };
 
-/* ---- панель «Монтаж» ---- */
+/* ---- «Монтаж»: просмотр и таймлайн (пользователь 2026-10-08: «должен быть таймлайн, все дела»; «прямо в монтаже —
+   музыка, переходы, обрезать, разрезать, укоротить»). Дорожки: видео (клипы друг за другом — тянуть края: обрезать;
+   ✂ — разрезать по бегунку; ◆ между клипами — переход), титры, звук (музыка из файла, озвучка «Эхо»).
+   На ПК — справа вместо галереи, на телефоне — в самой вкладке. Звук дорожки хранится в базе галереи (в галерее не виден) ---- */
+const MTW = $('#mtWork');
+mt.sel = null;   // выделено на таймлайне: {t: 'v' | 't' | 'a', k}
+mt.zoom = ls.get('freefield.mt.zoom', null);   // пикселей на секунду; null — уместить весь ролик
+const mtALen = a => Math.max(0.3, (a.b ?? a.dur ?? 1) - (a.a || 0));
+const mtTEnd = p => Math.max(mtTotal(mtSegs(p)), ...[...(p.titles || []), ...(p.photos || [])].map(t => (t.at || 0) + (t.dur || 3)), ...(p.audios || []).map(a => a.at + mtALen(a)), 0);
+function mtPps() {
+  if (mt.zoom) return mt.zoom;
+  const w = ($('#mtScroll')?.clientWidth || 600) - 24;
+  return Math.max(4, Math.min(240, w / Math.max(8, mtTEnd(mt.p) + 1)));
+}
+const mtSel = () => { const p = mt.p, s = mt.sel; if (!p || !s) return null;
+  return s.t === 'v' ? p.clips.find(c => c.k === s.k) : s.t === 't' ? p.titles?.find(x => x.k === s.k) : s.t === 'p' ? p.photos?.find(x => x.k === s.k) : p.audios?.find(x => x.k === s.k); };
+// дорожки по рядам: что перекрывается по времени — на соседний ряд
+function mtLanes(list, len) {
+  const ends = [];
+  return list.map(x => { const at = x.at || 0; let i = ends.findIndex(e => e <= at + 1e-3); if (i < 0) i = ends.length; ends[i] = at + len(x); return i; });
+}
+const mtThumbUrl = new Map();
+function mtTl() {
+  const p = mt.p, inner = $('#mtInner');
+  if (!p || !inner) return;
+  const segs = mtPv.segs, pps = mtPps(), end = mtTEnd(p) + 4, sel = mt.sel;
+  inner.style.width = Math.max(($('#mtScroll').clientWidth || 0) - 2, Math.ceil(end * pps)) + 'px';
+  // линейка: шаг подписей — чтобы не налезали
+  const step = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find(s => s * pps >= 56) || 600;
+  let rl = '';
+  for (let t = 0; t <= end; t += step) rl += `<i style="left:${t * pps}px">${mtClock(t)}</i>`;
+  $('#mtRuler').innerHTML = rl;
+  // видео
+  const drag = mtDrag?.kind === 'v' && mtDrag.moved && mtDrag.mode === 'move' ? mtDrag : null;
+  $('#mtTrV').innerHTML = segs.map(s => {
+    const c = s.c, it = s.it, th = mtThumbUrl.get(it.id) || (it.posterBlob ? urlOf(it.posterBlob) : '');
+    if (!mtThumbUrl.has(it.id) && !it.posterBlob) mtThumb(it).then(d => { if (d && !mtThumbUrl.has(it.id)) { mtThumbUrl.set(it.id, d); mtTl(); } });
+    const left = drag?.k === c.k ? drag.ghost * pps : s.start * pps;
+    return `<div class="tl-b v ${sel?.k === c.k ? 'sel' : ''} ${drag?.k === c.k ? 'drag' : ''}" data-tl="v" data-k="${c.k}" style="left:${left}px;width:${Math.max(6, s.len * pps)}px;${th ? `--th:url(${th})` : ''}" title="${esc(it.prompt)}">
+      <i class="tl-h l" data-h="l"></i><span>#${s.n} · ${mtFmt(s.len)}${c.mute ? ' 🔇' : ''}</span><i class="tl-h r" data-h="r"></i></div>`;
+  }).join('') + segs.slice(1).map(s => {   // ◆ переход между клипами: нажать — следующий вид (склейка → плавно → через чёрное)
+    const x = s.inK === 'fade' ? s.start + s.inD / 2 : s.start, tr = MT_TR.find(t => t[0] === (s.c.tr || 'cut'));
+    return `<button class="tl-x ${s.inK}" data-tlx="${s.c.k}" style="left:${x * pps}px" title="Переход: ${tr[2]} — нажмите, чтобы сменить">${tr[1]}</button>`;
+  }).join('') + (drag ? `<i class="tl-ins" style="left:${drag.insX * pps}px"></i>` : '') + (segs.length ? '' : '<button class="tl-empty" data-mt-add>＋ Видео из галереи</button>');
+  // фото, титры и звук — по рядам
+  const ph = p.photos || [], pLane = mtLanes(ph, x => x.dur || 3);
+  $('#mtTrP').style.setProperty('--rows', Math.max(1, ...pLane.map(i => i + 1)));
+  $('#mtTrP').innerHTML = ph.map((o, i) => { const it = items.find(x => x.id === o.id);
+    return `<div class="tl-b p ${sel?.k === o.k ? 'sel' : ''}" data-tl="p" data-k="${o.k}" style="left:${(o.at || 0) * pps}px;width:${Math.max(6, (o.dur || 3) * pps)}px;--row:${pLane[i]};${it?.blob ? `--th:url(${urlOf(it.blob)})` : ''}" title="${esc(it?.prompt || 'фото')}">
+      <i class="tl-h l" data-h="l"></i><span>🖼 ${esc(MT_PH_POS.find(x => x[0] === o.pos)?.[1] || '')}</span><i class="tl-h r" data-h="r"></i></div>`; }).join('');
+  const tl = p.titles || [], tLane = mtLanes(tl, t => t.dur || 3), au = p.audios || [], aLane = mtLanes(au, mtALen);
+  const box = $('#mtWork .mtw-tl'), rows = l => Math.max(1, ...l.map(i => i + 1));   // подписи дорожек — той же высоты
+  box.style.setProperty('--rp', rows(pLane)); box.style.setProperty('--rt', rows(tLane)); box.style.setProperty('--ra', rows(aLane));
+  $('#mtTrT').style.setProperty('--rows', Math.max(1, ...tLane.map(i => i + 1)));
+  $('#mtTrT').innerHTML = tl.map((t, i) => `<div class="tl-b t ${sel?.k === t.k ? 'sel' : ''}" data-tl="t" data-k="${t.k}" style="left:${(t.at || 0) * pps}px;width:${Math.max(6, (t.dur || 3) * pps)}px;--row:${tLane[i]}" title="${esc(t.text)}">
+      <i class="tl-h l" data-h="l"></i><span data-noicon>${esc(t.text || 'Титр')}</span><i class="tl-h r" data-h="r"></i></div>`).join('');
+  $('#mtTrA').style.setProperty('--rows', Math.max(1, ...aLane.map(i => i + 1)));
+  $('#mtTrA').innerHTML = au.map((a, i) => `<div class="tl-b a ${sel?.k === a.k ? 'sel' : ''}" data-tl="a" data-k="${a.k}" style="left:${a.at * pps}px;width:${Math.max(6, mtALen(a) * pps)}px;--row:${aLane[i]}" title="${esc(a.name)}">
+      <i class="tl-h l" data-h="l"></i><span data-noicon>${a.voice ? '🎙' : '🎵'} ${esc(a.name)}</span><i class="tl-h r" data-h="r"></i></div>`).join('');
+  mtHead();
+}
+const mtHead = () => { const h = $('#mtHeadLine'); if (h) h.style.left = mtPv.t * mtPps() + 'px'; };
+
+/* ---- перетаскивание на таймлайне: края — обрезать, середина — переставить (видео) или сдвинуть (титры, звук); пусто — бегунок.
+   На телефоне: первое касание выделяет, тянуть — следующим (иначе таймлайн не прокрутить пальцем) ---- */
+let mtDrag = null;
+const mtSnap = (T, pps, except) => {   // прилипание к бегунку, началу, стыкам клипов, краям титров и звука
+  const p = mt.p, pts = [0, mtPv.t, ...mtPv.segs.flatMap(s => [s.start, s.end]), ...[...(p.titles || []), ...(p.photos || [])].filter(x => x.k !== except).flatMap(x => [x.at, x.at + x.dur]),
+    ...(p.audios || []).filter(x => x.k !== except).flatMap(x => [x.at, x.at + mtALen(x)])];
+  let best = T, d = 8 / pps;
+  for (const x of pts) if (Math.abs(x - T) < d) { d = Math.abs(x - T); best = x; }
+  return best;
+};
+function mtTlDown(e) {
+  if (e.button > 0 || e.target.closest('.tl-x, .tl-empty')) return;
+  const inner = $('#mtInner'), pps = mtPps(), r = inner.getBoundingClientRect(), T = Math.max(0, (e.clientX - r.left) / pps);
+  const blk = e.target.closest('.tl-b'), h = e.target.closest('.tl-h');
+  if (!blk) {
+    if (e.target.closest('.mtw-ruler') || e.pointerType !== 'touch') { if (!e.target.closest('.mtw-ruler')) mt.sel = null; mtDrag = {mode: 'seek'}; mtSeekTo(T); renderMtEdit(); mtTl(); }
+    else return;
+  } else {
+    const kind = blk.dataset.tl, k = blk.dataset.k, was = mt.sel?.k === k;
+    mt.sel = {t: kind, k};
+    const o = mtSel();
+    if (e.pointerType === 'touch' && !was && !h) { renderMtEdit(); return mtTl(); }
+    mtDrag = {mode: h ? 'trim-' + h.dataset.h : 'move', kind, k, x0: e.clientX, T0: T, o0: JSON.parse(JSON.stringify(o)), moved: false};
+    if (kind === 'v') { const s = mtPv.segs.find(s => s.c.k === k); mtDrag.full = mtLen(s.it); mtDrag.s0 = {start: s.start, len: s.len}; }
+    renderMtEdit();
+  }
+  inner.setPointerCapture(e.pointerId);
+  e.preventDefault();
+}
+function mtTlMove(e) {
+  const g = mtDrag;
+  if (!g) return;
+  const pps = mtPps(), r = $('#mtInner').getBoundingClientRect(), T = Math.max(0, (e.clientX - r.left) / pps);
+  if (g.mode === 'seek') { if (mtPv.playing) mtPause(); return mtSeekTo(T); }
+  if (!g.moved && Math.abs(e.clientX - g.x0) < 4) return;
+  g.moved = true;
+  const dx = (e.clientX - g.x0) / pps, o = mtSel(), z = g.o0;
+  if (!o) return;
+  if (g.kind === 'v') {
+    const full = g.full, b0 = z.b ?? full;
+    if (g.mode === 'trim-l') o.a = Math.round(Math.min(Math.max(0, (z.a || 0) + dx), b0 - 0.3) * 20) / 20;
+    else if (g.mode === 'trim-r') { const b = Math.round(Math.min(full, Math.max((z.a || 0) + 0.3, b0 + dx)) * 20) / 20; o.b = b >= full - 0.05 ? null : b; }
+    else {   // переставить: куда встанет — по середине соседних клипов
+      g.ghost = Math.max(0, g.s0.start + dx);
+      const mid = g.ghost + g.s0.len / 2, others = mtPv.segs.filter(s => s.c.k !== g.k);
+      const idx = others.filter(s => s.start + s.len / 2 < mid).length;
+      g.to = idx; g.insX = idx < others.length ? others[idx].start : others.length ? others.at(-1).end : 0;
+      return mtTl();
+    }
+    mtPvSync();
+    const s = mtPv.segs.find(s => s.c.k === g.k);
+    if (s) mtSeekTo(g.mode === 'trim-l' ? s.start : s.end - 0.04);
+  } else if (g.kind === 't' || g.kind === 'p') {
+    if (g.mode === 'move') o.at = Math.max(0, mtSnap(z.at + dx, pps, o.k));
+    else if (g.mode === 'trim-r') o.dur = Math.max(0.5, mtSnap(z.at + z.dur + dx, pps, o.k) - z.at);
+    else { const at = Math.min(z.at + z.dur - 0.5, Math.max(0, mtSnap(z.at + dx, pps, o.k))); o.dur = z.dur - (at - z.at); o.at = at; }
+    o.at = Math.round(o.at * 20) / 20; o.dur = Math.round(o.dur * 20) / 20;
+    mtShow(mtPv.t);
+  } else {
+    const dur = o.dur ?? 1, b0 = z.b ?? dur;
+    if (g.mode === 'move') o.at = Math.max(0, mtSnap(z.at + dx, pps, o.k));
+    else if (g.mode === 'trim-r') { const b = Math.min(dur, Math.max(z.a + 0.3, mtSnap(z.at + (b0 - z.a) + dx, pps, o.k) - z.at + z.a)); o.b = b >= dur - 0.05 ? null : b; }
+    else { const da = Math.min(b0 - 0.3 - z.a, Math.max(-z.a, -z.at, mtSnap(z.at + dx, pps, o.k) - z.at)); o.a = z.a + da; o.at = z.at + da; }
+    o.at = Math.round(o.at * 20) / 20;
+  }
+  mtTl();
+}
+function mtTlUp() {
+  const g = mtDrag;
+  mtDrag = null;
+  if (!g || g.mode === 'seek') return;
+  const p = mt.p;
+  if (g.moved && g.kind === 'v' && g.mode === 'move' && g.to != null) {
+    const i = p.clips.findIndex(c => c.k === g.k), [c] = p.clips.splice(i, 1);
+    // место среди видимых клипов → место в списке проекта
+    const vis = mtSegs(p).map(s => s.c), before = vis[g.to];
+    p.clips.splice(before ? p.clips.indexOf(before) : p.clips.length, 0, c);
+  }
+  if (!g.moved && g.kind === 'v') mtSeekTo(g.T0);
+  if (g.moved) { mt.save(); updateGenButton(); }
+  mtPvSync(); mtTl(); renderMtEdit();
+}
+
+/* ---- правка: разрезать по бегунку, удалить, дублировать, переход ---- */
+function mtSplit() {
+  const p = mt.p, T = mtPv.t, s0 = mtSel();
+  if (s0 && (mt.sel.t === 't' || mt.sel.t === 'p') && T > s0.at + 0.2 && T < s0.at + s0.dur - 0.2) {
+    const list = mt.sel.t === 't' ? p.titles : p.photos;
+    list.splice(list.indexOf(s0) + 1, 0, {...s0, k: uid(), at: T, dur: s0.at + s0.dur - T}); s0.dur = T - s0.at;
+  } else if (s0 && mt.sel.t === 'a' && T > s0.at + 0.2 && T < s0.at + mtALen(s0) - 0.2) {
+    const cut = s0.a + (T - s0.at);
+    p.audios.splice(p.audios.indexOf(s0) + 1, 0, {...s0, k: uid(), at: T, a: cut, fadeIn: 0}); s0.b = cut; s0.fadeOut = 0;
+  } else {
+    const s = [...mtPv.segs].reverse().find(s => T >= s.start && T < s.end);
+    if (!s) return toast('Поставьте бегунок на клип', {type: 'err'});
+    const cut = Math.round((s.a + (T - s.start)) * 100) / 100;
+    if (cut - s.a < 0.3 || s.b - cut < 0.3) return toast('Слишком близко к краю клипа', {type: 'err'});
+    const c = s.c, c2 = {...c, k: uid(), a: cut, tr: 'cut'};
+    c.b = cut;
+    p.clips.splice(p.clips.indexOf(c) + 1, 0, c2);
+    mt.sel = {t: 'v', k: c2.k};
+  }
+  mt.save(); mtRefresh();
+}
+function mtDelSel() {
+  const p = mt.p, s = mt.sel;
+  if (!s) return;
+  if (s.t === 'v') p.clips = p.clips.filter(c => c.k !== s.k);
+  else if (s.t === 't') p.titles = p.titles.filter(x => x.k !== s.k);
+  else if (s.t === 'p') p.photos = p.photos.filter(x => x.k !== s.k);
+  else p.audios = p.audios.filter(x => x.k !== s.k);
+  mt.sel = null; mt.save(); mtRefresh();
+}
+function mtDup() {
+  const p = mt.p, s = mt.sel, o = mtSel();
+  if (!o) return;
+  if (s.t === 'v') { const c = {...o, k: uid(), tr: 'cut'}; p.clips.splice(p.clips.indexOf(o) + 1, 0, c); mt.sel = {t: 'v', k: c.k}; }
+  else if (s.t === 't' || s.t === 'p') { const t = {...o, k: uid(), at: o.at + o.dur}; (s.t === 't' ? p.titles : p.photos).push(t); mt.sel = {t: s.t, k: t.k}; }
+  else { const a = {...o, k: uid(), at: o.at + mtALen(o)}; p.audios.push(a); mt.sel = {t: 'a', k: a.k}; }
+  mt.save(); mtRefresh();
+}
+
+/* ---- звук на дорожке: музыка из файла, озвучка «Эхо». Файл — в базе галереи (в галерее не виден), в проекте — ссылка ---- */
+const mtAud = new Map();   // src → {blob, url}
+async function mtAudGet(src) {
+  if (!mtAud.has(src)) {
+    const rec = await DB.req('readonly', s => s.get(src)).catch(() => null);
+    mtAud.set(src, rec?.blob ? {blob: rec.blob, url: urlOf(rec.blob)} : null);
+  }
+  return mtAud.get(src);
+}
+async function mtAddAudio(blob, name, o = {}) {
+  let dur = 0;
+  try { dur = (await decodeAudio(blob)).duration; } catch { return toast(`«${name}»: не получилось прочитать звук`, {type: 'err'}); }
+  const p = mtProj(), src = 'mtaud-' + uid();
+  await DB.put({id: src, kind: 'mt-audio', blob, name, dur, createdAt: Date.now()});
+  mtAud.set(src, {blob, url: urlOf(blob)});
+  const a = {k: uid(), src, name: String(name).slice(0, 80), dur: Math.round(dur * 100) / 100, at: Math.round((o.at ?? mtPv.t) * 20) / 20, a: 0, b: null,
+    vol: o.vol ?? 1, fadeIn: o.fadeIn ?? 0, fadeOut: o.fadeOut ?? 0, ...(o.voice && {voice: true})};
+  (p.audios ||= []).push(a);
+  mt.sel = {t: 'a', k: a.k};
+  mt.save(); mtRefresh();
+  return a;
+}
+async function mtAudioFile() {
+  const fs = await pickFile('audio/*,video/*', true);
+  for (const f of fs || []) await mtAddAudio(f, f.name.replace(/\.\w+$/, ''), {at: (mt.p.audios || []).length ? mtPv.t : 0, vol: 0.7, fadeOut: 1.5});
+}
+async function mtAudioEcho() {
+  await echoEnsure();
+  if (eh.state !== 'ok') return toast(eh.state === 'old' ? 'Программа Freefield на компьютере старая — обновите её (вкладка «Озвучка»)' : eh.state === 'nohub' ? 'Озвучка «Эхо» — с программой Freefield на компьютере' : eh.err || '«Эхо» не запустилось', {type: 'err', ms: 8000});
+  try { mtPick.takes = await echoApi('/history'); } catch (e) { return toast(e.message, {type: 'err'}); }
+  mtOpenPick('echo');
+}
+// громкость звука дорожки в момент T: громкость × нарастание × затухание
+function mtAudGain(a, T) {
+  const u = T - a.at, v = a.at + mtALen(a) - T;
+  return (a.vol ?? 1) * Math.min(1, a.fadeIn ? u / a.fadeIn : 1, a.fadeOut ? v / a.fadeOut : 1);
+}
+
+/* ---- панель «Монтаж»: проект, вкладки, свойства выделенного на таймлайне, формат ---- */
 function renderMt() {
   const root = $('#mtCreate');
   if (!root) return;
   const p = mtProj();
-  if (!$('#mtStage')) {
-    root.innerHTML = `<div class="mt-proj" id="mtHead"></div>
-      <div class="mt-player"><div class="mt-stage empty" id="mtStage"><video playsinline preload="auto"></video><video playsinline preload="auto"></video><i class="mt-dim"></i><canvas></canvas><span class="mt-ph">🎞</span></div>
-        <div class="mt-ctl"><button class="icon-btn" data-mt-play title="Смотреть">▶</button><input type="range" id="mtSeek" min="0" max="1" step="0.01" value="0" aria-label="Время"><span id="mtTime">0:00 / 0:00</span></div></div>
+  p.titles ||= []; p.audios ||= []; p.photos ||= [];
+  if (!$('#mtHead')) root.innerHTML = `<div class="mt-proj" id="mtHead"></div><div id="mtSlot"></div>
       <div class="seg mt-tabs"><button data-mt-tab="edit">🎞 Монтаж</button><button data-mt-tab="chat">✦ ИИ-монтажёр</button></div>
-      <div id="mtProg"></div>
-      <div id="mtBody"></div>`;
-  }
+      <div id="mtProg"></div><div id="mtBody"></div>`;
   $('#mtHead').innerHTML = `<select data-mt-proj aria-label="Проект">${mt.projects.map(x => `<option value="${x.id}" ${x.id === p.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="__new">＋ Новый проект</option></select>
     <button class="icon-btn" data-mt-rename title="Переименовать">✎</button><button class="icon-btn" data-mt-del title="Удалить проект (видео в галерее останутся)">🗑</button>`;
+  workMount();
   const [W, H] = mtOutDims(p);
   $('#mtStage').style.setProperty('--r', W / H);
   $$('#mtCreate [data-mt-tab]').forEach(b => b.classList.toggle('on', b.dataset.mtTab === mt.tab));
   renderMtProg();
   if (mt.tab === 'chat') renderMtChat(); else renderMtEdit();
   mtPvSync();
+  mtTl();
+  $('#mtZoom').value = mtZoomVal();
 }
 function renderMtProg() {
   const el = $('#mtProg');
   if (el) el.innerHTML = mt.job ? `<div class="mt-prog"><div class="mt-bar"><i style="width:${Math.round(mt.job.pct * 100)}%"></i></div><span>${esc(mt.job.text)}</span><button class="btn small" data-mt-stop>Отменить</button></div>` : '';
 }
+const mtNum = (key, k, v, min, max, step = 0.1) => `<input type="number" data-mt-f="${key}" data-k="${k}" value="${Math.round(v * 100) / 100}" min="${min}" ${max != null ? `max="${max}"` : ''} step="${step}">`;
 function renderMtEdit() {
-  const p = mt.p, segs = mtSegs(p), bySeg = new Map(segs.map(s => [s.c, s]));
-  const seg = (key, list, cur) => `<div class="seg">${list.map(([v, t]) => `<button data-mt-${key}="${v}" class="${cur === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-  const clips = p.clips.map((c, i) => {
-    const s = bySeg.get(c), it = s?.it;
-    const tr = i ? `<div class="mt-tr" title="Переход">${MT_TR.map(([v, ico, t]) => `<button data-mt-tr="${v}" data-k="${c.k}" class="${(c.tr || 'cut') === v ? 'on' : ''}" title="${t}">${ico} ${t}</button>`).join('')}</div>` : '';
-    if (!it) return tr + `<div class="mt-clip gone" data-mt-k="${c.k}"><div class="mt-th"></div><div class="mt-cb"><div class="mt-ct"><b>#${i + 1}</b> видео удалено из галереи</div></div><button class="icon-btn" data-mt-rm="${c.k}" title="Убрать">✕</button></div>`;
-    const full = mtLen(it);
-    return tr + `<div class="mt-clip" data-mt-k="${c.k}">
-      <img class="mt-th" data-mt-thumb="${it.id}" alt="" data-mt-at="${c.k}" title="Показать">
-      <div class="mt-cb">
-        <div class="mt-ct"><b>#${i + 1}</b><span class="mt-len" data-mt-len="${c.k}">${mtFmt(s.len)}</span><span class="mt-cp" data-noicon title="${esc(it.prompt)}">${esc(it.prompt)}</span></div>
-        <div class="mt-trim" style="--a:${s.a / full};--b:${s.b / full}"><input type="range" min="0" max="${full}" step="0.1" value="${s.a}" data-mt-a="${c.k}" aria-label="Начало"><input type="range" min="0" max="${full}" step="0.1" value="${s.b}" data-mt-b="${c.k}" aria-label="Конец"></div>
-        <div class="mt-ca"><button class="icon-btn" data-mt-up="${c.k}" title="Раньше" ${i ? '' : 'disabled'}>↑</button><button class="icon-btn" data-mt-down="${c.k}" title="Позже" ${i < p.clips.length - 1 ? '' : 'disabled'}>↓</button><button class="icon-btn ${c.mute ? 'off' : ''}" data-mt-mute="${c.k}" title="${c.mute ? 'Включить звук клипа' : 'Без звука'}">${c.mute ? '🔇' : '🔊'}</button><button class="icon-btn" data-mt-dup="${c.k}" title="Повторить клип">⧉</button><button class="icon-btn" data-mt-rm="${c.k}" title="Убрать из проекта">✕</button></div>
-      </div></div>`;
-  }).join('');
-  const titles = (p.titles || []).map(t => `<div class="mt-title" data-mt-tk="${t.k}">
-      <textarea rows="1" data-mt-tt="${t.k}" placeholder="Текст титра">${esc(t.text || '')}</textarea>
-      <div class="mt-trow"><label>с <input type="number" min="0" step="0.1" value="${t.at || 0}" data-mt-tat="${t.k}"></label><label>на <input type="number" min="0.5" step="0.1" value="${t.dur || 3}" data-mt-tdur="${t.k}"> с</label>
-        ${MT_POS.map(([v, n]) => `<button class="chip ${((t.pos || 'bottom') === v) ? 'on' : ''}" data-mt-tpos="${v}" data-k="${t.k}">${n}</button>`).join('')}<button class="icon-btn" data-mt-trm="${t.k}" title="Убрать титр">✕</button></div></div>`).join('');
-  $('#mtBody').innerHTML = `
-    <div class="block-head"><span class="lbl">Клипы <small id="mtSum">${segs.length ? `${segs.length} · ${mtFmt(mtTotal(segs))}` : ''}</small></span><button class="btn small" data-mt-add>＋ Из галереи</button></div>
-    <div class="mt-clips">${clips || '<button class="mt-empty" data-mt-add>＋ Видео из галереи</button>'}</div>
-    <div class="block-head"><span class="lbl">Титры</span><button class="btn small" data-mt-tadd>＋ Титр</button></div>
-    <div class="mt-titles">${titles}</div>
+  const body = $('#mtBody');
+  if (!body || mt.tab !== 'edit') return;
+  const p = mt.p, s = mt.sel, o = mtSel(), seg = (key, list, cur, k = '') => `<div class="seg">${list.map(([v, t]) => `<button data-mt-${key}="${v}" ${k ? `data-k="${k}"` : ''} class="${cur === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  let sel = '';
+  if (o && s.t === 'v') {
+    const sg = mtPv.segs.find(x => x.c === o), it = sg?.it, full = it ? mtLen(it) : 0;
+    sel = `<div class="block-head"><span class="lbl">Клип #${sg?.n || '—'} <small id="mtSelLen">${sg ? mtFmt(sg.len) : ''}</small></span></div>
+      <div class="mt-sp1" data-noicon>${esc(it?.prompt || 'видео удалено из галереи')}</div>
+      <div class="mt-fl"><label>Начало ${mtNum('a', o.k, o.a || 0, 0, full)}</label><label>Конец ${mtNum('b', o.k, o.b ?? full, 0.3, full)}</label><span>из ${mtFmt(full)}</span></div>
+      ${sg && sg.n > 1 ? `<div class="mt-fl"><span>Переход</span>${seg('tr', MT_TR.map(([v, i, t]) => [v, `${i} ${t}`]), o.tr || 'cut', o.k)}</div>
+        ${(o.tr || 'cut') !== 'cut' ? `<div class="mt-fl mt-rng"><span>Длина</span><input type="range" min="0.2" max="2" step="0.1" value="${o.td || 0.6}" data-mt-f="td" data-k="${o.k}"><b>${String(o.td || 0.6).replace('.', ',')} с</b></div>` : ''}` : ''}
+      <div class="mt-fl mt-rng"><button class="icon-btn ${o.mute ? 'off' : ''}" data-mt-mute="${o.k}" title="${o.mute ? 'Включить звук клипа' : 'Без звука'}">${o.mute ? '🔇' : '🔊'}</button><input type="range" min="0" max="1.5" step="0.05" value="${o.vol ?? 1}" data-mt-f="vol" data-k="${o.k}" ${o.mute ? 'disabled' : ''}><b>${Math.round((o.vol ?? 1) * 100)}%</b></div>`;
+  } else if (o && s.t === 't') {
+    sel = `<div class="block-head"><span class="lbl">Титр</span></div>
+      <textarea class="mt-ta" rows="2" data-mt-f="text" data-k="${o.k}" placeholder="Текст титра">${esc(o.text || '')}</textarea>
+      <div class="mt-fl"><label>С ${mtNum('at', o.k, o.at || 0, 0)}</label><label>На ${mtNum('dur', o.k, o.dur || 3, 0.5)} с</label></div>
+      <div class="mt-fl">${seg('pos', MT_POS, o.pos || 'bottom', o.k)}</div>`;
+  } else if (o && s.t === 'p') {
+    sel = `<div class="block-head"><span class="lbl">🖼 Фото поверх видео</span></div>
+      <div class="mt-fl"><label>С ${mtNum('at', o.k, o.at || 0, 0)}</label><label>На ${mtNum('dur', o.k, o.dur || 3, 0.5)} с</label></div>
+      <div class="mt-fl">${seg('ppos', MT_PH_POS, o.pos || 'center', o.k)}</div>
+      ${o.pos !== 'full' ? `<div class="mt-fl mt-rng"><span>Размер</span><input type="range" min="0.15" max="1" step="0.05" value="${o.size ?? 0.6}" data-mt-f="size" data-k="${o.k}"><b>${Math.round((o.size ?? 0.6) * 100)}%</b></div>` : ''}
+      <div class="mt-fl mt-rng"><span>Видимость</span><input type="range" min="0.1" max="1" step="0.05" value="${o.opacity ?? 1}" data-mt-f="opacity" data-k="${o.k}"><b>${Math.round((o.opacity ?? 1) * 100)}%</b></div>
+      <div class="mt-fl"><label>Появление ${mtNum('fade', o.k, o.fade ?? 0.3, 0, 3, 0.1)} с</label></div>`;
+  } else if (o && s.t === 'a') {
+    sel = `<div class="block-head"><span class="lbl">${o.voice ? '🎙 Озвучка' : '🎵 Звук'}</span></div>
+      <div class="mt-sp1" data-noicon>${esc(o.name)}</div>
+      <div class="mt-fl"><label>С ${mtNum('at', o.k, o.at, 0)}</label><label>Из файла ${mtNum('a', o.k, o.a || 0, 0, o.dur)}</label><label>до ${mtNum('b', o.k, o.b ?? o.dur, 0.3, o.dur)}</label></div>
+      <div class="mt-fl mt-rng"><span>Громкость</span><input type="range" min="0" max="1.5" step="0.05" value="${o.vol ?? 1}" data-mt-f="vol" data-k="${o.k}"><b>${Math.round((o.vol ?? 1) * 100)}%</b></div>
+      <div class="mt-fl"><label>Нарастание ${mtNum('fadeIn', o.k, o.fadeIn || 0, 0, 10, 0.5)} с</label><label>Затухание ${mtNum('fadeOut', o.k, o.fadeOut || 0, 0, 10, 0.5)} с</label></div>`;
+  }
+  const gone = p.clips.filter(c => !mtItem(c)).length;
+  body.innerHTML = `${sel ? `<div class="mt-selbox">${sel}<div class="mt-fl"><button class="btn small" data-mt-split title="Разрезать по бегунку (S)">✂ Разрезать</button><button class="btn small" data-mt-dup>⧉ Повторить</button><button class="btn small" data-mt-del-sel>🗑 Удалить</button></div></div>` : ''}
+    ${gone ? `<div class="mt-fl mt-gone">${gone} ${plur(gone, 'клип удалён', 'клипа удалены', 'клипов удалены')} из галереи <button class="btn small" data-mt-gone>Убрать</button></div>` : ''}
     <div class="block-head"><span class="lbl">Кадр</span></div>
     ${seg('aspect', MT_ASPECT, p.aspect || 'auto')}
-    <div class="mt-row2">${seg('fit', [['cover', 'Заполнить'], ['contain', 'Целиком']], p.fit || 'cover')}<label class="mt-chk"><input type="checkbox" data-mt-audio ${p.audio ? 'checked' : ''}> Звук</label></div>`;
-  mtFillThumbs($('#mtBody'));
+    <div class="mt-row2">${seg('fit', [['cover', 'Заполнить'], ['contain', 'Целиком']], p.fit || 'cover')}<label class="mt-chk"><input type="checkbox" data-mt-audio ${p.audio ? 'checked' : ''}> Звук клипов</label></div>`;
 }
-// правка без полной перерисовки (обрезка ползунком): длины, итог, плеер
-function mtRefresh(full = true) {
+// после правки: длины, таймлайн, просмотр, свойства
+function mtRefresh() {
   if (cl.mode !== 'edit') return;
-  if (full && mt.tab === 'edit') renderMtEdit();
-  mtPvSync();
+  mtPvSync(); mtTl(); renderMtEdit();
   updateGenButton();
 }
 function mtAddItems(ids, quiet) {
@@ -4631,23 +4988,180 @@ function mtAddItems(ids, quiet) {
   if (!quiet) toast(`🎞 В монтаж «${p.name}»: ${add.length} ${plur(add.length, 'видео', 'видео', 'видео')}`, {type: 'ok', ...(cl.mode !== 'edit' && {action: 'Открыть', onAction: () => { setView('create'); setCreateMode('edit'); }})});
   return add.length;
 }
+// масштаб: ползунок 0…100 ↔ 4…400 пикселей на секунду
+const mtZoomVal = () => Math.round(Math.log(mtPps() / 4) / Math.log(100) * 100);
+function mtZoomSet(v) { mt.zoom = Math.round(4 * Math.pow(100, Math.max(0, Math.min(100, v)) / 100) * 10) / 10; ls.set('freefield.mt.zoom', mt.zoom); mtTl(); $('#mtZoom').value = mtZoomVal(); }
+
+/* ---- обработчики: панель ---- */
+$('#mtCreate').addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const d = b.dataset, p = mt.p, o = mtSel();
+  if (d.mtTab) { mt.tab = d.mtTab; mt.save(); return renderMt(); }
+  if ('mtStop' in d) { if (mt.job) mt.job.stop = true; return; }
+  if ('mtRename' in d) { const n = prompt('Название проекта', p.name); if (n?.trim()) { p.name = n.trim().slice(0, 80); mt.save(); renderMt(); } return; }
+  if ('mtDel' in d) {
+    if (!confirm(`Удалить проект «${p.name}»? Видео в галерее останутся.`)) return;
+    mt.projects = mt.projects.filter(x => x !== p); mt.cur = mt.projects[0]?.id || null; mt.sel = null; mt.save(); mtPause(); renderMt(); return updateGenButton();
+  }
+  if ('mtSplit' in d) return mtSplit();
+  if ('mtDup' in d) return mtDup();
+  if ('mtDelSel' in d) return mtDelSel();
+  if ('mtGone' in d) { p.clips = p.clips.filter(c => mtItem(c)); mt.save(); return mtRefresh(); }
+  if (d.mtTr && o) { o.tr = d.mtTr; o.td = o.td || 0.6; }
+  else if (d.mtMute && o) o.mute = !o.mute;
+  else if (d.mtPos && o) o.pos = d.mtPos;
+  else if (d.mtPpos && o) o.pos = d.mtPpos;
+  else if (d.mtAspect) { p.aspect = d.mtAspect; mt.save(); return renderMt(); }
+  else if (d.mtFit) p.fit = d.mtFit;
+  else return;
+  mt.save(); mtRefresh();
+});
+$('#mtCreate').addEventListener('input', e => {
+  const el = e.target, f = el.dataset.mtF, o = mtSel();
+  if (!f || !o || o.k !== el.dataset.k) return;
+  const v = f === 'text' ? el.value.slice(0, 200) : +el.value, p = mt.p, s = mt.sel;
+  if (f !== 'text' && !Number.isFinite(v)) return;
+  if (s.t === 'v') {
+    const full = mtLen(mtItem(o));
+    if (f === 'a') o.a = Math.max(0, Math.min(v, (o.b ?? full) - 0.3));
+    else if (f === 'b') { const b = Math.max((o.a || 0) + 0.3, Math.min(v, full)); o.b = b >= full - 0.05 ? null : b; }
+    else if (f === 'td') { o.td = v; el.nextElementSibling.textContent = String(v).replace('.', ',') + ' с'; }
+    else if (f === 'vol') { o.vol = v; el.nextElementSibling.textContent = Math.round(v * 100) + '%'; }
+    mtPvSync();
+    const sg = mtPv.segs.find(x => x.c === o);
+    if (sg && (f === 'a' || f === 'b')) { mtSeekTo(f === 'a' ? sg.start : sg.end - 0.04); $('#mtSelLen').textContent = mtFmt(sg.len); }
+  } else if (s.t === 't' || s.t === 'p') {
+    if (f === 'text') o.text = v; else if (f === 'at') o.at = Math.max(0, v); else if (f === 'dur') o.dur = Math.max(0.5, v);
+    else if (f === 'fade') o.fade = Math.max(0, v);
+    else if (f === 'size' || f === 'opacity') { o[f] = v; el.nextElementSibling.textContent = Math.round(v * 100) + '%'; }
+    if (!(mtPv.t >= o.at && mtPv.t < o.at + o.dur)) mtSeekTo(o.at + Math.min(0.5, o.dur / 2)); else mtShow(mtPv.t);
+  } else {
+    if (f === 'at') o.at = Math.max(0, v);
+    else if (f === 'a') o.a = Math.max(0, Math.min(v, (o.b ?? o.dur) - 0.3));
+    else if (f === 'b') { const b = Math.max((o.a || 0) + 0.3, Math.min(v, o.dur)); o.b = b >= o.dur - 0.05 ? null : b; }
+    else if (f === 'vol') { o.vol = v; el.nextElementSibling.textContent = Math.round(v * 100) + '%'; }
+    else if (f === 'fadeIn' || f === 'fadeOut') o[f] = Math.max(0, v);
+  }
+  mtTl();
+  updateGenButton();
+  clearTimeout(mt.saveT); mt.saveT = setTimeout(() => mt.save(), 400);
+});
+$('#mtCreate').addEventListener('change', e => {
+  const el = e.target, d = el.dataset, p = mt.p;
+  if ('mtProj' in d) {
+    mtPause();
+    if (el.value === '__new') { const n = prompt('Название проекта', `Проект ${mt.projects.length + 1}`); if (n === null) return renderMt(); mtNew(n.trim().slice(0, 80) || undefined); }
+    else { mt.cur = el.value; mt.save(); }
+    mtPv.t = 0; mt.sel = null;
+    renderMt(); return updateGenButton();
+  }
+  if ('mtAudio' in d) { p.audio = el.checked; mt.save(); return mtShow(mtPv.t); }
+  if (d.mtF) { mt.save(); mtRefresh(); }
+});
+
+/* ---- обработчики: просмотр и таймлайн ---- */
+MTW.addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const d = b.dataset, p = mtProj();
+  if ('mtPlay' in d) return mtPv.playing ? mtPause() : mtPlay();
+  if ('mtHome' in d) { mtPause(); return mtSeekTo(0); }
+  if ('mtAdd' in d) return mtOpenPick();
+  if ('mtSplit' in d) return mtSplit();
+  if ('mtDelSel' in d) return mtDelSel();
+  if ('mtTadd' in d) {   // новый титр — с того места, где сейчас бегунок
+    const t = {k: uid(), text: 'Титр', at: Math.round(mtPv.t * 10) / 10, dur: 3, pos: 'bottom'};
+    p.titles.push(t); mt.sel = {t: 't', k: t.k}; mt.save(); mtRefresh();
+    if (isMobile()) $('#mtBody')?.scrollIntoView({block: 'nearest'});
+    return $('#mtBody [data-mt-f="text"]')?.select();
+  }
+  if ('mtPadd' in d) return mtOpenPick('photo');
+  if ('mtAadd' in d) return $('#mtAudMenu').classList.toggle('hidden');
+  if ('mtAudFile' in d) { $('#mtAudMenu').classList.add('hidden'); return mtAudioFile(); }
+  if ('mtAudEcho' in d) { $('#mtAudMenu').classList.add('hidden'); return mtAudioEcho(); }
+  if (d.mtZoom) return mtZoomSet(+$('#mtZoom').value + 12 * +d.mtZoom);
+  if ('mtFit' in d) { mt.zoom = null; ls.del('freefield.mt.zoom'); mtTl(); $('#mtZoom').value = mtZoomVal(); return; }
+  if (d.tlx) {   // ◆ переход: склейка → плавно → через чёрное
+    const c = p.clips.find(x => x.k === d.tlx), i = MT_TR.findIndex(t => t[0] === (c.tr || 'cut'));
+    c.tr = MT_TR[(i + 1) % MT_TR.length][0]; c.td = c.td || 0.6;
+    mt.sel = {t: 'v', k: c.k}; mt.save(); mtRefresh();
+    const s = mtPv.segs.find(x => x.c === c);
+    return s && mtSeekTo(Math.max(0, s.start - 0.8));
+  }
+});
+MTW.addEventListener('input', e => { if (e.target.id === 'mtZoom') mtZoomSet(+e.target.value); });
+$('#mtInner').addEventListener('pointerdown', mtTlDown);
+$('#mtInner').addEventListener('pointermove', mtTlMove);
+$('#mtInner').addEventListener('pointerup', mtTlUp);
+$('#mtInner').addEventListener('pointercancel', mtTlUp);
+// Ctrl + колёсико — масштаб таймлайна
+$('#mtScroll').addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); mtZoomSet(+$('#mtZoom').value - Math.sign(e.deltaY) * 6); }, {passive: false});
+// клавиши: пробел — смотреть, S — разрезать, Delete — удалить, ← → — кадр (с Shift — секунда), Home — в начало
+document.addEventListener('keydown', e => {
+  if (cl.mode !== 'edit' || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable]') || !$$('.sheet').every(x => x.classList.contains('hidden'))) return;
+  const k = e.key;
+  if (k === ' ') { e.preventDefault(); return mtPv.playing ? mtPause() : mtPlay(); }
+  if (k === 's' || k === 'S' || k === 'ы' || k === 'Ы') { e.preventDefault(); return mtSplit(); }
+  if ((k === 'Delete' || k === 'Backspace') && mt.sel) { e.preventDefault(); return mtDelSel(); }
+  if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); if (mtPv.playing) mtPause(); return mtSeekTo(mtPv.t + (k === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 1 : 1 / 30)); }
+  if (k === 'Home') { e.preventDefault(); return mtSeekTo(0); }
+});
+addEventListener('resize', () => { if (cl.mode === 'edit' && !mt.zoom) mtTl(); });
 
 /* ---- «＋ Из галереи»: выбрать видео по порядку ---- */
-const mtPick = {sel: [], mode: 'clips', onPick: null};   // clips — видео в проект; att — картинки и видео в чат «ИИ-монтажёра»; dub — один ролик под озвучку
-const mtPickList = () => items.filter(x => (x.type === 'video' || mtPick.mode === 'att' && x.type === 'image') && x.status === 'done' && x.blob);
-function mtOpenPick(mode = 'clips', onPick = null) {
-  mtPick.sel = []; mtPick.mode = mode; mtPick.onPick = onPick;
-  $('#mtSheet h2').textContent = mode === 'att' ? '📎 В чат: картинки и видео' : mode === 'dub' ? '🎬 На какой ролик' : '🎞 Видео в монтаж';
+const mtPick = {sel: [], mode: 'clips', takes: []};   // clips — видео в проект; photo — фото поверх видео; att — в чат «ИИ-монтажёра»; echo — озвучки «Эхо»
+const mtPickList = () => items.filter(x => (mtPick.mode === 'photo' ? x.type === 'image' : x.type === 'video' || mtPick.mode === 'att' && x.type === 'image') && x.status === 'done' && x.blob);
+// видео и фото с устройства (галерея телефона, папка компьютера) → в галерею Freefield, дальше — как обычные
+async function mtImportFiles(files) {
+  const out = [];
+  for (const f of files || []) {
+    const kind = /^video\//.test(f.type) ? 'video' : /^image\//.test(f.type) ? 'image' : null;
+    if (!kind) continue;
+    const d = kind === 'video' ? await videoDims(f) : await dims(f);
+    const duration = kind === 'video' ? await new Promise(res => { const v = document.createElement('video'); v.preload = 'metadata';
+      v.onloadedmetadata = () => res(Math.round(v.duration * 10) / 10 || null); v.onerror = () => res(null); v.src = urlOf(f); }) : undefined;
+    const name = (f.name || (kind === 'video' ? 'видео' : 'фото')).replace(/\.\w+$/, '');
+    const it = {id: uid(), type: kind, status: 'done', statusText: '', createdAt: Date.now(), importedAt: Date.now(), prompt: name, userPrompt: name, finalPrompt: name,
+      model: 'dev:upload', tier: 'free', modelTitle: '📱 С устройства', seed: 0, cost: 0, source: 'text', aspect: d && d[0] < d[1] ? '9:16' : d && d[0] === d[1] ? '1:1' : '16:9',
+      w: d?.[0] || 1280, h: d?.[1] || 720, ...(kind === 'video' && {duration}), blob: f};
+    items.push(it);
+    await DB.put(it);
+    out.push(it);
+  }
+  items.sort((a, b) => b.createdAt - a.createdAt);
+  render();
+  return out;
+}
+// фото поверх видео — с бегунка, по 3 с одно за другим
+function mtAddPhotos(ids) {
+  const p = mtProj();
+  let at = Math.round(mtPv.t * 10) / 10, last = null;
+  for (const id of ids) { last = {k: uid(), id, at, dur: 3, pos: 'center', size: 0.6, opacity: 1, fade: 0.3}; (p.photos ||= []).push(last); at += 3; }
+  if (last) mt.sel = {t: 'p', k: last.k};
+  mt.save(); mtRefresh();
+}
+function mtOpenPick(mode = 'clips') {
+  mtPick.sel = []; mtPick.mode = mode;
+  $('#mtSheet h2').textContent = mode === 'att' ? '📎 В чат: картинки и видео' : mode === 'echo' ? '🎙 Озвучка из «Эхо»' : mode === 'photo' ? '🖼 Фото поверх видео' : '🎞 Видео в монтаж';
   renderMtPick();
   $$('.sheet').forEach(x => x.classList.add('hidden'));
   $('#mtSheet').classList.remove('hidden');
 }
 function renderMtPick() {
-  const att = mtPick.mode === 'att', vids = mtPickList(), inP = new Set(att ? [] : (mt.p?.clips || []).map(c => c.id)), n = mtPick.sel.length;
-  $('#mtPickBody').innerHTML = vids.length ? `<div class="mt-pick">${vids.map(it => { const k = mtPick.sel.indexOf(it.id) + 1;
+  if (mtPick.mode === 'echo') {   // озвучки «Эхо» — новые сверху
+    const n = mtPick.sel.length;
+    $('#mtPickBody').innerHTML = mtPick.takes.length ? `<div class="mt-elist">${mtPick.takes.map(t => { const k = mtPick.sel.indexOf(t.id) + 1;
+      return `<button class="mt-er ${k ? 'on' : ''}" data-mt-pi="${esc(t.id)}">${k ? `<b>${k}</b>` : '<b>＋</b>'}<span data-noicon><i>${esc(t.voice_name)}${t.favorite ? ' ★' : ''} · ${esc(echoEmoName(t.emotion).toLowerCase())}</i>${esc(t.text)}</span><small>${mtFmt(t.duration)}</small></button>`; }).join('')}</div>
+      <div class="mt-pick-go"><button class="btn primary" data-mt-pick-go ${n ? '' : 'disabled'}>＋ На звуковую дорожку${n ? ' ' + n : ''}</button></div>`
+      : '<p class="mt-none">В «Эхо» пока нет озвучек — сделайте их во вкладке «Озвучка»</p>';
+    return;
+  }
+  const att = mtPick.mode === 'att', ph = mtPick.mode === 'photo', vids = mtPickList(), inP = new Set(att || ph ? [] : (mt.p?.clips || []).map(c => c.id)), n = mtPick.sel.length;
+  $('#mtPickBody').innerHTML = `<button class="btn mt-dev" data-mt-dev>📱 С устройства — ${ph ? 'фото' : att ? 'фото или видео' : 'видео'} из галереи телефона или с компьютера</button>` + (vids.length ? `<div class="mt-pick">${vids.map(it => { const k = mtPick.sel.indexOf(it.id) + 1;
     return `<button class="mt-pi ${k ? 'on' : ''}" data-mt-pi="${it.id}" title="${esc(it.prompt)}">${it.type === 'image' ? `<img src="${urlOf(it.blob)}" alt="" loading="lazy">` : `<img data-mt-thumb="${it.id}" alt="">`}${k ? `<b>${k}</b>` : ''}${inP.has(it.id) ? '<i>в проекте</i>' : ''}${it.type === 'video' ? `<span>${mtFmt(mtLen(it))}</span>` : ''}</button>`; }).join('')}</div>
-    <div class="mt-pick-go"><button class="btn primary" data-mt-pick-go ${n ? '' : 'disabled'}>${att ? '📎 Приложить' : mtPick.mode === 'dub' ? '🎬 Наложить озвучку' : '＋ Добавить'}${n && mtPick.mode !== 'dub' ? ' ' + n : ''}</button>${att || mtPick.mode === 'dub' ? '' : '<button class="btn" data-mt-pick-all>Все по порядку</button>'}</div>`
-    : `<p class="mt-none">В галерее пока нет ${att ? 'картинок и видео' : 'видео'}</p>`;
+    <div class="mt-pick-go"><button class="btn primary" data-mt-pick-go ${n ? '' : 'disabled'}>${att ? '📎 Приложить' : '＋ Добавить'}${n ? ' ' + n : ''}</button>${att || ph ? '' : '<button class="btn" data-mt-pick-all>Все по порядку</button>'}</div>`
+    : `<p class="mt-none">В галерее Freefield пока нет ${ph ? 'фото' : att ? 'картинок и видео' : 'видео'}</p>`);
   mtFillThumbs($('#mtPickBody'));
 }
 
@@ -4660,12 +5174,31 @@ async function mtFps(segs) {
   const snap = [24, 25, 30].reduce((a, b) => Math.abs(b - best) < Math.abs(a - best) ? b : a, 30);
   return best ? Math.min(30, best > 31 ? 30 : snap) : 30;
 }
-async function mtMixAudio(segs, total, M) {
+async function mtMixAudio(segs, total, M, p) {
   const SR = 48000, ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * SR)), SR);
   let any = false;
+  // звуковая дорожка: музыка, озвучка — со своей громкостью, нарастанием и затуханием
+  for (const a of p.audios || []) {
+    if (a.at >= total) continue;
+    const c = await mtAudGet(a.src);
+    if (!c) continue;
+    let buf;
+    try { buf = await ctx.decodeAudioData(await c.blob.arrayBuffer()); } catch { continue; }
+    const len = Math.min(mtALen(a), total - a.at, buf.duration - (a.a || 0));
+    if (len <= 0) continue;
+    const g = ctx.createGain(), vol = a.vol ?? 1, fi = Math.min(a.fadeIn || 0, len / 2), fo = Math.min(a.fadeOut || 0, len / 2);
+    g.connect(ctx.destination);
+    g.gain.setValueAtTime(fi ? 0 : vol, a.at);
+    if (fi) g.gain.linearRampToValueAtTime(vol, a.at + fi);
+    if (fo) { g.gain.setValueAtTime(vol, a.at + len - fo); g.gain.linearRampToValueAtTime(0, a.at + len); }
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(g);
+    src.start(a.at, a.a || 0, len);
+    any = true;
+  }
   for (const s of segs) {
     const at = s._in.at;
-    if (s.c.mute || !at || !(await at.canDecode().catch(() => false))) continue;
+    if (!p.audio || s.c.mute || !at || !(await at.canDecode().catch(() => false))) continue;
     const g = ctx.createGain(), vol = s.c.vol ?? 1;
     g.connect(ctx.destination);
     g.gain.setValueAtTime(s.inK !== 'cut' ? 0 : vol, s.start);
@@ -4705,7 +5238,7 @@ async function mtExport(p = mt.p) {
     const vcodec = await M.getFirstEncodableVideoCodec(['avc', 'vp9', 'av1', 'vp8'], {width: W, height: H});
     if (!vcodec) throw new Error(`браузер не умеет кодировать видео ${W}×${H}`);
     step(0.02, 'Звук…');
-    const mix = p.audio ? await mtMixAudio(segs, total, M) : null;
+    const mix = p.audio || p.audios?.length ? await mtMixAudio(segs, total, M, p) : null;
     const acodec = mix ? await M.getFirstEncodableAudioCodec(['aac', 'opus'], {numberOfChannels: 2, sampleRate: 48000}) : null;
     output = new M.Output({format: new M.Mp4OutputFormat({fastStart: 'in-memory'}), target: new M.BufferTarget()});
     const canvas = document.createElement('canvas');
@@ -4724,6 +5257,8 @@ async function mtExport(p = mt.p) {
       return new M.CanvasSink(s._in.vt, {width: W, height: H, fit: p.fit === 'contain' ? 'contain' : 'cover', poolSize: 4}).canvasesAtTimestamps(ts);
     };
     let poster = null;
+    const bitmaps = new Map();   // фото поверх видео — готовыми к рисованию
+    for (const o of p.photos || []) if (!bitmaps.has(o.id)) { const it = items.find(x => x.id === o.id); if (it?.blob) bitmaps.set(o.id, await createImageBitmap(it.blob).catch(() => null)); }
     for (let n = 0; n < N; n++) {
       if (job.stop) throw Object.assign(new Error('склейка отменена'), {cancel: true});
       const T = n / fps;
@@ -4744,6 +5279,7 @@ async function mtExport(p = mt.p) {
       // клип кончился: его кадры выбраны все — дочитываем генератор до конца, чтобы библиотека сама закрыла декодер
       for (const [s, L] of live) if ((n + 1) / fps >= s.end - 1e-6) { live.delete(s); const r = await L.it.next().catch(() => ({done: true})); if (!r.done) await L.it.return?.().catch(() => {}); }
       if (dim) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, W, H); }
+      mtDrawPhotos(ctx, W, H, p.photos, T, id => bitmaps.get(id));
       mtDrawTitles(ctx, W, H, p.titles, T);
       if (!poster && T >= Math.min(1, total / 2)) poster = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
       await vsrc.add(T, 1 / fps);
@@ -4800,95 +5336,38 @@ async function mtGo() {
   }
 }
 
-$('#mtCreate').addEventListener('click', async e => {
-  const b = e.target.closest('button, [data-mt-at]');
-  if (!b) return;
-  const d = b.dataset, p = mt.p, clip = k => p?.clips.find(c => c.k === k), ttl = k => p?.titles.find(t => t.k === k);
-  if ('mtPlay' in d) return mtPv.playing ? mtPause() : mtPlay();
-  if (d.mtTab) { mt.tab = d.mtTab; mt.save(); return renderMt(); }
-  if ('mtStop' in d) { if (mt.job) mt.job.stop = true; return; }
-  if ('mtRename' in d) { const n = prompt('Название проекта', p.name); if (n?.trim()) { p.name = n.trim().slice(0, 80); mt.save(); renderMt(); } return; }
-  if ('mtDel' in d) {
-    if (!confirm(`Удалить проект «${p.name}»? Видео в галерее останутся.`)) return;
-    mt.projects = mt.projects.filter(x => x !== p); mt.cur = mt.projects[0]?.id || null; mt.save(); mtPause(); renderMt(); return updateGenButton();
-  }
-  if ('mtAdd' in d) return mtOpenPick();
-  if (d.mtAt) { const s = mtPv.segs.find(s => s.c.k === d.mtAt); if (s) mtSeekTo(s.start + 0.01); return; }
-  if (d.mtTr) { const c = clip(d.k); c.tr = d.mtTr; c.td = c.td || 0.6; }
-  else if (d.mtUp || d.mtDown) {
-    const i = p.clips.findIndex(c => c.k === (d.mtUp || d.mtDown)), j = d.mtUp ? i - 1 : i + 1;
-    if (i < 0 || j < 0 || j >= p.clips.length) return;
-    [p.clips[i], p.clips[j]] = [p.clips[j], p.clips[i]];
-  }
-  else if (d.mtMute) { const c = clip(d.mtMute); c.mute = !c.mute; }
-  else if (d.mtDup) { const i = p.clips.findIndex(c => c.k === d.mtDup); p.clips.splice(i + 1, 0, {...p.clips[i], k: uid(), tr: 'cut'}); }
-  else if (d.mtRm) p.clips = p.clips.filter(c => c.k !== d.mtRm);
-  else if ('mtTadd' in d) {   // новый титр — с того места, где сейчас плеер
-    (p.titles ||= []).push({k: uid(), text: '', at: Math.round(mtPv.t * 10) / 10, dur: 3, pos: 'bottom'});
-    mt.save(); mtRefresh();
-    return $$('#mtBody [data-mt-tt]').at(-1)?.focus();
-  }
-  else if (d.mtTpos) ttl(d.k).pos = d.mtTpos;
-  else if (d.mtTrm) p.titles = p.titles.filter(t => t.k !== d.mtTrm);
-  else if (d.mtAspect) p.aspect = d.mtAspect;
-  else if (d.mtFit) p.fit = d.mtFit;
-  else return;
-  mt.save();
-  if (d.mtAspect) renderMt(); else mtRefresh();
-});
-$('#mtCreate').addEventListener('input', e => {
-  const el = e.target, d = el.dataset, p = mt.p;
-  if (!p) return;
-  if ('mtA' in d || 'mtB' in d) {
-    const c = p.clips.find(x => x.k === (d.mtA || d.mtB)), it = c && mtItem(c);
-    if (!it) return;
-    const full = mtLen(it), v = +el.value, wrap = el.parentElement;
-    if ('mtA' in d) c.a = Math.min(v, (c.b ?? full) - 0.3); else c.b = Math.max(v, (c.a || 0) + 0.3) >= full - 0.05 ? null : Math.max(v, (c.a || 0) + 0.3);
-    el.value = 'mtA' in d ? c.a : c.b ?? full;
-    wrap.style.setProperty('--a', (c.a || 0) / full); wrap.style.setProperty('--b', (c.b ?? full) / full);
-    mtPvSync();
-    const s = mtPv.segs.find(s => s.c === c);
-    if (s) { $(`#mtBody [data-mt-len="${c.k}"]`).textContent = mtFmt(s.len); mtSeekTo('mtA' in d ? s.start : s.end - 0.05); }
-    const sum = $('#mtSum');
-    if (sum) sum.textContent = `${mtPv.segs.length} · ${mtFmt(mtTotal(mtPv.segs))}`;
-    return updateGenButton();
-  }
-  if (el.id === 'mtSeek') { if (mtPv.playing) mtPause(); return mtSeekTo(+el.value); }
-  const t = p.titles?.find(x => x.k === (d.mtTt || d.mtTat || d.mtTdur));
-  if (t) {
-    if ('mtTt' in d) t.text = el.value.slice(0, 200);
-    if ('mtTat' in d) t.at = Math.max(0, +el.value || 0);
-    if ('mtTdur' in d) t.dur = Math.max(0.5, +el.value || 3);
-    if (!('mtTt' in d) || !(mtPv.t >= t.at && mtPv.t < t.at + t.dur)) mtSeekTo(t.at + 0.4); else mtShow(mtPv.t);
-    clearTimeout(mt.saveT); mt.saveT = setTimeout(() => mt.save(), 400);
-  }
-});
-$('#mtCreate').addEventListener('change', e => {
-  const el = e.target, d = el.dataset, p = mt.p;
-  if ('mtProj' in d) {
-    mtPause();
-    if (el.value === '__new') { const n = prompt('Название проекта', `Проект ${mt.projects.length + 1}`); if (n === null) return renderMt(); mtNew(n.trim().slice(0, 80) || undefined); }
-    else { mt.cur = el.value; mt.save(); }
-    mtPv.t = 0;
-    renderMt(); return updateGenButton();
-  }
-  if ('mtAudio' in d) { p.audio = el.checked; mt.save(); return mtShow(mtPv.t); }
-  if ('mtA' in d || 'mtB' in d) { mt.save(); mtRefresh(); }
-});
 $('#mtSheet').addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.dataset.mtPi) {
     const i = mtPick.sel.indexOf(b.dataset.mtPi);
-    if (i >= 0) mtPick.sel.splice(i, 1); else if (mtPick.mode === 'dub') mtPick.sel = [b.dataset.mtPi]; else mtPick.sel.push(b.dataset.mtPi);
+    if (i >= 0) mtPick.sel.splice(i, 1); else mtPick.sel.push(b.dataset.mtPi);
     return renderMtPick();
   }
   if ('mtPickAll' in b.dataset) { mtPick.sel = mtPickList().map(x => x.id).reverse(); return renderMtPick(); }   // старые — раньше
+  if ('mtDev' in b.dataset) {   // с устройства: сразу в галерею Freefield и туда, куда выбирали
+    const mode = mtPick.mode, got = await mtImportFiles(await pickFile(mode === 'photo' ? 'image/*' : mode === 'att' ? 'image/*,video/*' : 'video/*', true));
+    if (!got.length) return;
+    closeSheets();
+    if (mode === 'att') { for (const it of got) await mtAttach(it.blob, it.prompt, it); return; }
+    if (mode === 'photo') return mtAddPhotos(got.map(x => x.id));
+    const n = mtAddItems(got.map(x => x.id), true);
+    return toast(`🎞 С устройства: ${n} видео — в монтаже и в галерее`, {type: 'ok'});
+  }
   if ('mtPickGo' in b.dataset) {
     const sel = [...mtPick.sel];
     closeSheets();
     if (mtPick.mode === 'att') { for (const id of sel) { const it = items.find(x => x.id === id); if (it?.blob) await mtAttach(it.blob, (it.prompt || '').slice(0, 60) || 'из галереи', it); } return; }
-    if (mtPick.mode === 'dub') return sel[0] && mtPick.onPick?.(sel[0]);
+    if (mtPick.mode === 'photo') return mtAddPhotos(sel);
+    if (mtPick.mode === 'echo') {   // озвучки — одна за другой с бегунка
+      let at = mtPv.t;
+      for (const id of sel) {
+        const t = mtPick.takes.find(x => x.id === id);
+        try { const a = await mtAddAudio(await echoBlob(t), `${t.voice_name}: ${t.text}`, {at, voice: true}); if (a) at = a.at + mtALen(a); }
+        catch (er) { toast('Не получилось взять озвучку: ' + er.message, {type: 'err'}); }
+      }
+      return;
+    }
     const n = mtAddItems(sel, true);
     toast(`🎞 Добавлено ${n} ${plur(n, 'видео', 'видео', 'видео')}`, {type: 'ok'});
   }
@@ -5145,13 +5624,17 @@ document.addEventListener('paste', e => {
   if (fs.length) { e.preventDefault(); fs.forEach(f => mtAttach(f, f.name || 'из буфера')); }
 });
 
-/* ---- «🎙 Озвучка» — «Эхо»: клон голоса персонажа и озвучка текста его голосом (пользователь 2026-10-08, файл «ЭХО-для-FREEFIELD.md»).
-   «Эхо» — отдельная программа пользователя на этом компьютере (http://127.0.0.1:7865, видеокарта, бесплатно); приложение ходит к ней
-   через хаб Freefield с тем же ключом (/api/echo/...) — и на ПК, и с телефона по Wi-Fi. Связка: имя персонажа = имя голоса в «Эхо» ---- */
+/* ---- «🎙 Озвучка» — «Эхо», часть Freefield (пользователь 2026-10-08: «Эхо должно стать частью Freefield, а не отдельным
+   приложением»; «в Озвучке не меняй дизайн Эхо, оставь как есть»). Во вкладке — сам интерфейс «Эхо» как есть;
+   программа Freefield на компьютере запускает «Эхо» сама, без окна — и когда вкладку открыли с телефона.
+   На ПК — прямо http://127.0.0.1:7865, с телефона — через программу Freefield (порт 5181, тот же ключ).
+   Слева — связка с персонажами: имя персонажа = имя голоса в «Эхо», клон голоса из его образца ---- */
 const ECHO_EMO = [['neutral', 'Как в образце'], ['calm', 'Спокойно'], ['happy', 'Радостно'], ['excited', 'Восторженно'], ['sad', 'Грустно'], ['serious', 'Серьёзно']];
 const echoEmoName = e => (ECHO_EMO.find(x => x[0] === e) || ECHO_EMO[0])[1];
 const echoUrl = p => hubLink.url('/api/echo' + p);   // p: '/api/…' или '/files/outputs/<id>.mp3'
 const echoKey = n => String(n || '').trim().toLowerCase();
+const UPDATE_PS = 'irm https://raw.githubusercontent.com/zuevilia808-collab/freefield/main/pc/update.ps1 | iex';
+const hubHas = f => (hubLink.info?.features || []).includes(f);
 async function echoApi(p, body, method) {
   const noHub = () => Object.assign(new Error('нет связи с программой Freefield на компьютере'), {hub: true});
   if (!(await hubReady())) throw noHub();
@@ -5160,8 +5643,8 @@ async function echoApi(p, body, method) {
   let r;
   try { r = await fetch(echoUrl('/api' + p), opt); } catch { throw noHub(); }
   const d = await r.json().catch(() => ({}));
-  if (r.status === 503 && d.echo_down) throw Object.assign(new Error(d.error), {down: true});
-  if (r.status === 404 && d.error === 'нет такого запроса') throw new Error('обновите программу Freefield на компьютере (файлы из pc/mcp) — в ней нет связи с «Эхо»');
+  if (r.status === 503 && d.echo_down) throw Object.assign(new Error('«Эхо» не запущено'), {down: true});
+  if (r.status === 404 && d.error === 'нет такого запроса') throw Object.assign(new Error('программа Freefield на компьютере старая — обновите её'), {old: true});
   if (!r.ok) throw new Error((typeof d.detail === 'string' ? d.detail : '') || d.error || '«Эхо»: ошибка ' + r.status);
   return d;
 }
@@ -5176,264 +5659,176 @@ async function echoJob(job, onMsg) {
   return job.result;
 }
 const eh = {
-  state: null,   // null — не проверяли; ok; down — «Эхо» не запущено; nohub — нет программы Freefield на компьютере; err
-  err: '', model: '', status: null, voices: [], history: [], at: 0,
-  voice: ls.get('freefield.echo.voice', ''),   // имя голоса = имя персонажа
-  text: ls.get('freefield.echo.text', ''),
-  o: {emotion: 'neutral', intensity: 0.7, takes: 1, speed: 1, ...ls.get('freefield.echo.opts', {})},
-  list: ls.get('freefield.echo.list', 'voice'),   // озвучки: этого голоса · все · ★
-  busy: '', pct: null, cloneEmo: 'neutral', cloneOpen: false, up: null,
-  save() { ls.set('freefield.echo.voice', this.voice); ls.set('freefield.echo.text', this.text); ls.set('freefield.echo.opts', this.o); ls.set('freefield.echo.list', this.list); },
+  state: null,   // null — не проверяли; ok; starting — Freefield запускает «Эхо»; down — не запустилось; old — программа на ПК старая; nohub — нет программы
+  err: '', model: '', voices: [], at: 0, busy: '', cloneEmo: 'neutral', updating: false, src: '',
 };
 const echoSamples = name => eh.voices.filter(v => echoKey(v.name) === echoKey(name));
-const echoChar = name => vc.chars.find(c => echoKey(c.name) === echoKey(name)) || null;
-const echoLang = name => echoChar(name)?.lang === 'en' ? 'english' : 'russian';
-// голоса для выбора: персонажи Freefield и голоса «Эхо» без персонажа
-function echoNames() {
-  const out = new Map();
-  for (const c of vc.chars) if (c.name?.trim()) out.set(echoKey(c.name), c.name.trim());
-  for (const v of eh.voices) if (!out.has(echoKey(v.name))) out.set(echoKey(v.name), v.name);
-  if (eh.voice && !out.has(echoKey(eh.voice))) out.set(echoKey(eh.voice), eh.voice);
-  return [...out.values()];
+// «Эхо» готово? Нет — запускаем (программа Freefield делает это сама, без окна) и ждём, пока ответит
+let echoEnsuring = null;
+function echoEnsure() {
+  echoEnsuring ||= (async () => {
+    if (!(await hubReady())) { eh.state = 'nohub'; return echoShow(); }
+    if (!hubHas('echo-start')) { eh.state = 'old'; return echoShow(); }
+    try {
+      const h = await echoApi('/health');
+      eh.model = h.model || ''; eh.state = 'ok';
+    } catch (e) {
+      if (!e.down) { eh.state = e.old ? 'old' : e.hub ? 'nohub' : 'down'; eh.err = e.message; return echoShow(); }
+      eh.state = 'starting'; echoShow();
+      const r = await fetch(hubLink.url('/api/echo-start'), {method: 'POST'}).then(x => x.json()).catch(() => ({ok: false, error: 'нет связи с программой Freefield'}));
+      if (!r.ok) { eh.state = 'down'; eh.err = r.error; return echoShow(); }
+      for (let i = 0; i < 75 && eh.state === 'starting'; i++) {
+        await new Promise(res => setTimeout(res, 2000));
+        try { const h = await echoApi('/health'); eh.model = h.model || ''; eh.state = 'ok'; } catch {}
+      }
+      if (eh.state !== 'ok') { eh.state = 'down'; eh.err = '«Эхо» не ответило за 2,5 минуты после запуска'; return echoShow(); }
+    }
+    eh.voices = await echoApi('/voices').catch(() => []);
+    eh.at = Date.now();
+    echoShow();
+  })().finally(() => { echoEnsuring = null; });
+  return echoEnsuring;
 }
-async function echoRefresh(quiet) {
-  try {
-    const h = await echoApi('/health');
-    eh.model = h.model || '';
-    [eh.status, eh.voices, eh.history] = await Promise.all([echoApi('/status').catch(() => null), echoApi('/voices'), echoApi('/history')]);
-    eh.state = 'ok'; eh.err = ''; eh.at = Date.now();
-    if (!eh.voice) eh.voice = echoNames()[0] || '';
-  } catch (e) { eh.state = e.down ? 'down' : e.hub ? 'nohub' : 'err'; eh.err = e.message; }
-  if (!quiet && cl.mode === 'voice') renderEcho();
-  if (!$('#voiceSheet').classList.contains('hidden') && vcUi.view === 'char') echoCharFill();
-  updateGenButton();
+// адрес интерфейса «Эхо»: на компьютере — напрямую, с телефона — через программу Freefield
+function echoSrc() {
+  if (hubLink.onPc() || hubLink.pcSite()) return `http://127.0.0.1:${hubLink.info?.echoPort || 7865}/`;
+  return `http://${location.hostname}:${hubLink.info?.echoUi || 5181}/?k=${encodeURIComponent(hubLink.key)}`;
 }
-const echoSeg = (key, list, cur) => `<div class="seg">${list.map(([v, t]) => `<button data-eh-${key}="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-function echoTakeHTML(t) {
-  return `<div class="eh-take">
-    <button class="icon-btn eh-play" data-eh-play="${esc(t.id)}" title="Слушать">▶</button>
-    <div class="eh-tb"><div class="eh-tt" data-noicon>${esc(t.text)}</div><small>${esc(t.voice_name)} · ${esc(echoEmoName(t.emotion))}${t.emotion_natural ? ' · живой образец' : t.emotion !== 'neutral' && t.intensity ? ` · ${Math.round(t.intensity * 100)}%` : ''} · ${mtFmt(t.duration)}${t.takes > 1 ? ` · вариант ${t.take}/${t.takes}` : ''}</small></div>
-    <div class="eh-ta"><button class="icon-btn ${t.favorite ? 'on' : ''}" data-eh-tfav="${esc(t.id)}" title="${t.favorite ? 'Убрать из избранного' : 'В избранное'}">${t.favorite ? '★' : '☆'}</button><button class="icon-btn" data-eh-save="${esc(t.id)}" title="Скачать MP3">⤓</button><button class="icon-btn" data-eh-dub="${esc(t.id)}" title="На ролик из галереи (звук ролика заменится)">🎬</button><button class="icon-btn" data-eh-tdel="${esc(t.id)}" title="Удалить">🗑</button></div></div>`;
+function echoStatusHTML() {
+  if (eh.state === 'ok') return '';
+  if (eh.state === 'old') return `<div class="eh-card col"><b>Программа Freefield на компьютере старая — в ней нет «Эхо»</b>
+    ${hubHas('update') ? `<button class="btn small primary" data-eh-update ${eh.updating ? 'disabled' : ''}>${eh.updating ? '⏳ Обновляю…' : '⟳ Обновить программу'}</button>`
+      : `<span>Один раз: на компьютере откройте PowerShell (Пуск → «PowerShell») и вставьте строку:</span><code class="eh-ps" data-noicon>${esc(UPDATE_PS)}</code><button class="btn small" data-eh-copy-ps>📋 Копировать строку</button>`}
+    <span>Потом закройте Claude Desktop полностью (значок у часов → «Выход») и откройте снова.</span><button class="btn small" data-eh-recheck>↻ Проверить снова</button></div>`;
+  if (eh.state === 'nohub') return `<div class="eh-card">💻 Нужна программа Freefield на компьютере — откройте Freefield с компьютера или по его Wi-Fi-ссылке <button class="btn small" data-eh-recheck>↻</button></div>`;
+  if (eh.state === 'starting' || eh.state === null) return '<div class="eh-card">⏳ Запускаю «Эхо» на компьютере — первая загрузка модели до минуты</div>';
+  return `<div class="eh-card">⚠ ${esc(eh.err || '«Эхо» не запустилось')} <button class="btn small" data-eh-recheck>↻ Ещё раз</button></div>`;
 }
+function echoCharsHTML() {
+  if (eh.state !== 'ok' || !vc.chars.length) return '';
+  return `<div class="block-head"><span class="lbl">Голоса персонажей</span><button class="icon-btn" data-eh-open title="«Эхо» в отдельном окне">↗</button></div>
+    <div class="eh-chars">${vc.chars.map(c => { const s = echoSamples(c.name);
+      return `<div class="eh-chr">${vcThumb(c)}<span><b>${esc(c.name)}</b><small>${s.length ? [...new Set(s.map(v => echoEmoName(v.emotion || 'neutral').toLowerCase()))].join(', ') : 'нет голоса'}</small></span>
+        ${c.sample ? `<button class="btn small" data-eh-clone="${esc(c.id)}" ${eh.busy ? 'disabled' : ''} title="Клон голоса из образца персонажа">${s.length ? '＋ Образец' : 'Сделать голос'}</button>` : ''}</div>`; }).join('')}</div>
+    ${eh.busy ? `<div class="eh-busy">⏳ ${esc(eh.busy)}</div>` : ''}`;
+}
+// вкладка: слева — состояние и голоса персонажей; интерфейс «Эхо» — справа (на телефоне — в самой вкладке)
 function renderEcho() {
   const root = $('#echoCreate');
   if (!root) return;
-  if (eh.state === null) { root.innerHTML = '<div class="eh-card">⏳ Проверяю «Эхо»…</div>'; echoRefresh(); return; }
-  if (eh.state !== 'ok') {
-    root.innerHTML = `<div class="eh-card">${eh.state === 'down' ? '🎙 Запусти ярлык «Эхо — озвучка» на рабочем столе' : eh.state === 'nohub' ? '💻 Нужна программа Freefield на компьютере — откройте Freefield с компьютера или по его Wi-Fi-ссылке' : '⚠ ' + esc(eh.err)}
-      <button class="btn small" data-eh-recheck>↻ Проверить снова</button></div>`;
-    return;
-  }
-  const name = eh.voice, samples = echoSamples(name), has = samples.length, live = new Set(samples.map(v => v.emotion || 'neutral'));
-  const ch = echoChar(name), fav = samples.some(v => v.favorite), o = eh.o, natural = live.has(o.emotion) && o.emotion !== 'neutral';
-  const names = echoNames();
-  const clone = !has || eh.cloneOpen ? `<div class="eh-clone">
-      <div class="eh-row"><span>${has ? 'Живая эмоция — как говорит в образце' : 'Как говорит в образце'}</span><select data-eh-clone-emo aria-label="Эмоция в образце">${ECHO_EMO.map(([v, t]) => `<option value="${v}" ${eh.cloneEmo === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
-      <div class="eh-row">${ch?.sample ? '<button class="btn small primary" data-eh-clone-char>🎙 Из образца персонажа</button>' : ''}<button class="btn small" data-eh-clone-file>📁 Видео или аудио</button></div>
-      ${eh.up ? `<div class="eh-row" data-noicon><span>${esc(eh.up.name)} · ${mtFmt(eh.up.duration)}</span><label>с <input type="number" min="0" step="0.5" value="${eh.up.start}" data-eh-up-start></label><label>по <input type="number" min="1.5" step="0.5" value="${eh.up.end}" data-eh-up-end></label><button class="btn small primary" data-eh-clone-go>Сделать голос</button></div>` : ''}</div>` : '';
-  root.innerHTML = `
-    ${eh.model && eh.model !== 'ready' ? `<div class="eh-card">${eh.model === 'loading' ? '⏳ Модель «Эхо» загружается — 30–60 с' : '⚠ Модель «Эхо»: ошибка'} <button class="btn small" data-eh-recheck>↻</button></div>` : ''}
-    <div class="block-head"><span class="lbl">Голос</span><button class="btn small" data-eh-new>＋ Новый голос</button></div>
-    <div class="chips eh-voices">${names.map(n => { const s = echoSamples(n); return `<button class="chip ${echoKey(n) === echoKey(name) ? 'on' : ''} ${s.length ? '' : 'none'}" data-eh-voice="${esc(n)}">${s.some(v => v.favorite) ? '★ ' : ''}${esc(n)}${s.length ? '' : ' · нет голоса'}</button>`; }).join('') || '<span class="eh-none">Создайте персонажа в «Персонажах» или новый голос</span>'}</div>
-    ${name ? `<div class="eh-have">${has ? `<span>${[...live].map(echoEmoName).join(' · ')}</span><button class="icon-btn ${fav ? 'on' : ''}" data-eh-vfav title="${fav ? 'Убрать голос из избранного' : 'Голос в избранное'}">${fav ? '★' : '☆'}</button><button class="icon-btn" data-eh-more title="Живая эмоция: ещё образец этого голоса">＋</button><button class="icon-btn" data-eh-vdel title="Удалить голос из «Эхо»">🗑</button>` : '<span>Голоса в «Эхо» ещё нет</span>'}</div>${clone}` : ''}
-    <div class="block-head"><span class="lbl">Текст</span><span class="eh-count" id="ehCount">${eh.text.length}/5000</span></div>
-    <textarea class="vc-in eh-text" id="ehText" rows="4" maxlength="5000" placeholder="Что сказать голосом ${esc(name || 'персонажа')}">${esc(eh.text)}</textarea>
-    <div class="block-head"><span class="lbl">Эмоция</span></div>
-    <div class="chips eh-emo">${ECHO_EMO.map(([v, t]) => `<button class="chip ${o.emotion === v ? 'on' : ''}" data-eh-emo="${v}" title="${live.has(v) && v !== 'neutral' ? 'Есть живой образец этой эмоции' : ''}">${t}${live.has(v) && v !== 'neutral' ? '<i class="eh-dot"></i>' : ''}</button>`).join('')}</div>
-    ${o.emotion !== 'neutral' && !natural ? `<div class="eh-row eh-range"><span>Сила</span><input type="range" min="20" max="100" step="5" value="${Math.round(o.intensity * 100)}" data-eh-int><b id="ehInt">${Math.round(o.intensity * 100)}%</b></div>` : ''}
-    <div class="eh-row eh-range"><span>Темп</span><input type="range" min="0.8" max="1.3" step="0.05" value="${o.speed}" data-eh-speed><b id="ehSpeed">×${String(o.speed).replace('.', ',')}</b></div>
-    <div class="eh-row"><span>Вариантов</span>${echoSeg('takes', [[1, '1'], [2, '2'], [3, '3']], o.takes)}</div>
-    <div id="ehProg">${echoProgHTML()}</div>
-    <div class="block-head"><span class="lbl">Озвучки</span>${echoSeg('list', [['voice', 'Этот голос'], ['all', 'Все'], ['fav', '★']], eh.list)}</div>
-    <div class="eh-takes" id="ehTakes"></div>`;
-  renderEchoTakes();
+  // каркас — один раз: рамка с «Эхо» на телефоне живёт в #ehSlot, перерисовка её бы перезагружала
+  if (!$('#ehSlot')) root.innerHTML = '<div id="ehStatus"></div><div id="ehSlot"></div><div id="ehChars"></div>';
+  if (eh.state === null || eh.state === 'ok' && Date.now() - eh.at > 60000) echoEnsure();
+  workMount();
+  echoShow();
 }
-function renderEchoTakes() {
-  const box = $('#ehTakes');
+function echoShow() {
+  if (cl.mode === 'voice') {
+    const st = $('#ehStatus'), ch = $('#ehChars');
+    if (st) st.innerHTML = echoStatusHTML();
+    if (ch) ch.innerHTML = echoCharsHTML();
+    echoFrame();
+  }
+  if (!$('#voiceSheet').classList.contains('hidden') && vcUi.view === 'char') echoCharFill();
+}
+// сам «Эхо» — в рамке; адрес меняем, только когда «Эхо» готово (иначе рамка покажет ошибку соединения)
+function echoFrame() {
+  const box = $('#echoWork');
   if (!box) return;
-  const list = eh.history.filter(t => eh.list === 'fav' ? t.favorite : eh.list === 'all' || echoKey(t.voice_name) === echoKey(eh.voice));
-  box.innerHTML = list.map(echoTakeHTML).join('') || '<div class="eh-none">Пока пусто</div>';
+  const ok = eh.state === 'ok', src = ok ? echoSrc() : '';
+  box.classList.toggle('on', ok);
+  let fr = box.querySelector('iframe');
+  if (!ok) { if (fr) { fr.remove(); eh.src = ''; } box.innerHTML = '<div class="eh-ph">🎙</div>'; return; }
+  if (fr && eh.src === src) return;
+  box.innerHTML = '';
+  fr = document.createElement('iframe');
+  fr.title = 'Эхо — озвучка';
+  fr.allow = 'microphone; autoplay; clipboard-read; clipboard-write';
+  fr.src = eh.src = src;
+  box.append(fr);
 }
-// голос в «Эхо»: образец персонажа (blob) или уже загруженный файл (up: id, start, end) → отрезок → голос под именем.
-// Тот же name с другой эмоцией = живой образец эмоции
-async function echoClone(name, emotion, {blob, fname, up}) {
-  if (!up) {
-    const fd = new FormData();
-    fd.append('file', blob, fname);
-    const u = await echoApi('/upload', fd);
-    up = {id: u.id, duration: u.duration, start: 0, end: 20};
-  }
-  const start = Math.max(0, up.start || 0), end = Math.min(up.end ?? 20, up.duration || Infinity, start + 30);
-  if (end - start < 1.5) throw new Error('нужен отрезок от 1,5 до 30 с');
-  const v = await echoJob(await echoApi('/voice', {upload_id: up.id, start, end, clean: true}), echoProgress);
-  return echoApi(`/voices/${encodeURIComponent(v.id)}/save`, {name, emotion});
-}
-// ход работы «Эхо» — в полоску прогресса (поле текста не перерисовываем: курсор остаётся)
-function echoProgress(msg, pct) {
-  eh.busy = msg || '«Эхо» работает…'; eh.pct = pct ?? null;
-  const pr = $('#ehProg');
-  if (pr) pr.innerHTML = echoProgHTML(); else if (cl.mode === 'voice') renderEcho();
-  echoCharNote(eh.busy); updateGenButton();
-}
-const echoProgHTML = () => eh.busy ? `<div class="mt-prog"><div class="mt-bar"><i style="width:${Math.round((eh.pct > 1 ? eh.pct / 100 : eh.pct ?? 0.1) * 100)}%"></i></div><span>${esc(eh.busy)}</span></div>` : '';
-async function echoCloneFrom(name, src, emotion = eh.cloneEmo) {
-  if (eh.busy) return;
-  if (!name) return toast('Сначала имя голоса — имя персонажа', {type: 'err'});
-  eh.busy = 'Делаю клон голоса…'; eh.pct = null;
-  if (cl.mode === 'voice') renderEcho();
-  try {
-    const v = src.sample ? await echoClone(name, emotion, {blob: dataBlob(src.sample), fname: 'voice.' + ((/^data:audio\/(\w+)/.exec(src.sample) || [])[1] || 'wav').replace('mpeg', 'mp3')})
-      : await echoClone(name, emotion, {up: src.up});
-    eh.up = null; eh.cloneOpen = false; eh.voice = v.name || name; eh.save();
-    toast(`🎙 Голос «${v.name || name}» (${echoEmoName(v.emotion || emotion).toLowerCase()}) сохранён в «Эхо»`, {type: 'ok', ms: 6000});
-  } catch (e) { toast('Голос не сделан: ' + e.message, {type: 'err', ms: 9000}); if (e.down || e.hub) eh.state = e.down ? 'down' : 'nohub'; }
-  eh.busy = ''; eh.pct = null;
-  await echoRefresh();
-}
-// файл (видео или аудио) → в «Эхо»; дальше выбрать отрезок
-async function echoUpload(f) {
-  if (!f) return;
-  eh.busy = 'Загружаю в «Эхо»…'; renderEcho();
+// голос персонажа в «Эхо» из его образца: загрузка → отрезок (до 20 с) → голос под его именем; другая эмоция — живой образец
+async function echoCloneChar(c, emotion = eh.cloneEmo) {
+  if (eh.busy || !c?.sample) return;
+  eh.busy = `Делаю голос «${c.name}»…`; echoShow();
   try {
     const fd = new FormData();
-    fd.append('file', f, f.name || 'voice');
+    fd.append('file', dataBlob(c.sample), 'voice.' + ((/^data:audio\/(\w+)/.exec(c.sample) || [])[1] || 'wav').replace('mpeg', 'mp3'));
     const up = await echoApi('/upload', fd);
-    eh.up = {id: up.id, name: f.name || up.name || 'файл', duration: up.duration || 0, start: 0, end: Math.min(up.duration || 12, 12)};
-  } catch (e) { toast('Не загрузилось: ' + e.message, {type: 'err', ms: 8000}); }
+    const end = Math.min(up.duration || 20, 20);
+    if (end < 1.5) throw new Error('образец короче 1,5 с');
+    const v = await echoJob(await echoApi('/voice', {upload_id: up.id, start: 0, end, clean: true}), m => { eh.busy = m; echoShow(); });
+    await echoApi(`/voices/${encodeURIComponent(v.id)}/save`, {name: c.name, emotion});
+    toast(`🎙 Голос «${c.name}» (${echoEmoName(emotion).toLowerCase()}) — в «Эхо»`, {type: 'ok', ms: 6000});
+    const fr = $('#echoWork iframe');
+    if (fr) fr.src = fr.src;   // новый голос виден в «Эхо» сразу
+  } catch (e) { toast('Голос не сделан: ' + e.message, {type: 'err', ms: 9000}); }
   eh.busy = '';
-  renderEcho();
+  eh.voices = await echoApi('/voices').catch(() => eh.voices);
+  eh.at = Date.now();
+  echoShow();
 }
-async function echoGo() {
-  const name = eh.voice, o = eh.o, text = ($('#ehText')?.value ?? eh.text).trim();
-  const body = {voice: name, text, emotion: o.emotion, intensity: o.intensity, takes: o.takes, speed: o.speed, language: echoLang(name)};
-  if (peek.on) return peekShow('Озвучка', {prompts: [['Что сделает «Эхо» на этом компьютере', [`Голос: «${name || '—'}» (имя персонажа = имя голоса в «Эхо»)`,
-      `Эмоция: ${echoEmoName(o.emotion)}${o.emotion === 'neutral' ? '' : echoSamples(name).some(v => v.emotion === o.emotion) ? ' — живой образец этой эмоции' : ` — обработка интонации, сила ${Math.round(o.intensity * 100)}%`}`,
-      `Вариантов: ${o.takes} · темп ×${o.speed} · язык: ${body.language}`, 'Клон голоса Qwen3-TTS на видеокарте этого компьютера, бесплатно; готовое — MP3 и WAV в «Эхо»'].join('\n')]],
-    request: {куда: 'программа Freefield на компьютере → «Эхо»: POST /api/echo/api/speak', body}});
-  if (eh.busy) return;
-  if (eh.state !== 'ok') { await echoRefresh(); if (eh.state !== 'ok') return toast(eh.state === 'down' ? 'Запусти ярлык «Эхо — озвучка» на рабочем столе' : eh.err, {type: 'err', ms: 8000}); }
-  if (!name) return toast('Выберите голос', {type: 'err'});
-  if (!echoSamples(name).length) return toast(`У «${name}» ещё нет голоса в «Эхо» — сделайте клон`, {type: 'err', ms: 7000});
-  if (!text) { toast('Впишите текст', {type: 'err'}); return $('#ehText')?.focus(); }
-  eh.text = text; eh.save();
-  eh.busy = 'Озвучиваю…'; eh.pct = null;
-  renderEcho(); updateGenButton();
+// обновить программу на компьютере из репозитория (если она уже умеет)
+async function hubUpdate() {
+  eh.updating = true; echoShow();
   try {
-    const takes = await echoJob(await echoApi('/speak', body), echoProgress);
-    toast(`🎙 Готово: ${takes?.length || 1} ${plur(takes?.length || 1, 'вариант', 'варианта', 'вариантов')} голосом «${name}»`, {type: 'ok'});
-    eh.list = eh.list === 'fav' ? 'voice' : eh.list;
-  } catch (e) { toast('Не озвучено: ' + e.message, {type: 'err', ms: 9000}); }
-  eh.busy = ''; eh.pct = null;
-  await echoRefresh();
-  if (eh.history[0]) echoPlay(eh.history[0].id);
+    const r = await fetch(hubLink.url('/api/update'), {method: 'POST'});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'ошибка ' + r.status);
+    toast(j.changed?.length ? `Обновлено файлов: ${j.changed.length}. Закройте Claude Desktop полностью (значок у часов → «Выход») и откройте снова` : 'Программа уже новейшая', {type: 'ok', ms: 12000});
+  } catch (e) { toast('Не обновилось: ' + e.message, {type: 'err', ms: 9000}); }
+  eh.updating = false; echoShow();
 }
-// слушать и скачать: файл берём через хаб (сайт с GitHub не может просто вставить адрес компьютера в <audio>)
-const echoBlobs = new Map();
-let echoAudio = null;
-async function echoBlob(t) {
-  if (!/^\/?files\/[\w./-]+$/.test(t.mp3 || '')) throw new Error('у озвучки нет файла');
-  if (!echoBlobs.has(t.id)) {
-    const r = await fetch(echoUrl('/' + t.mp3.replace(/^\//, '')));
-    if (!r.ok) throw new Error(r.status === 503 ? '«Эхо» не запущено' : 'файл не скачался: ' + r.status);
-    echoBlobs.set(t.id, await r.blob());
-  }
-  return echoBlobs.get(t.id);
-}
-async function echoPlay(id) {
-  const t = eh.history.find(x => x.id === id);
-  if (!t) return;
-  echoAudio ||= new Audio();
-  const btn = () => $(`#echoCreate [data-eh-play="${CSS.escape(id)}"]`);
-  if (echoAudio.dataset.id === id && !echoAudio.paused) { echoAudio.pause(); return; }
-  try {
-    const url = urlOf(await echoBlob(t));
-    $$('#echoCreate .eh-play').forEach(b => { b.textContent = '▶'; });
-    echoAudio.dataset.id = id;
-    if (echoAudio.src !== url) echoAudio.src = url;
-    echoAudio.onplay = () => { const b = btn(); if (b) b.textContent = '⏸'; };
-    echoAudio.onpause = echoAudio.onended = () => { const b = btn(); if (b) b.textContent = '▶'; };
-    await echoAudio.play();
-  } catch (e) { toast('Не играет: ' + e.message, {type: 'err'}); }
-}
-// озвучка → на ролик из галереи: звук ролика заменяется (та же сборка, что у «🎙 Заменить голос»)
-async function echoDub(t, itemId) {
-  const it = items.find(x => x.id === itemId);
-  if (!it?.blob) return;
-  toast('🎬 Собираю ролик с озвучкой…', {ms: 3000});
-  try {
-    await revoiceSave(it, await decodeAudio(await echoBlob(t)), `Эхо · ${t.voice_name}`);
-    toast(`Готово: ролик с голосом «${t.voice_name}» — в галерее 🎉`, {type: 'ok', ms: 7000});
-  } catch (e) { toast('Не получилось: ' + e.message, {type: 'err', ms: 8000}); }
-}
-
 $('#echoCreate').addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b || b.disabled) return;
-  const d = b.dataset, find = id => eh.history.find(x => x.id === id);
-  if ('ehRecheck' in d) { eh.state = null; return renderEcho(); }
-  if (d.ehVoice) { eh.voice = d.ehVoice; eh.up = null; eh.cloneOpen = false; eh.save(); return renderEcho(); }
-  if ('ehNew' in d) { const n = prompt('Имя голоса — лучше как у персонажа'); if (n?.trim()) { eh.voice = n.trim().slice(0, 60); eh.cloneOpen = true; eh.save(); renderEcho(); } return; }
-  if ('ehMore' in d) { eh.cloneOpen = !eh.cloneOpen; return renderEcho(); }
-  if ('ehCloneChar' in d) return echoCloneFrom(eh.voice, {sample: echoChar(eh.voice)?.sample});
-  if ('ehCloneFile' in d) return echoUpload(await pickFile('audio/*,video/*'));
-  if ('ehCloneGo' in d) return echoCloneFrom(eh.voice, {up: eh.up});
-  if ('ehVfav' in d) {
-    const s = echoSamples(eh.voice);
-    try { await echoApi(`/voices/${encodeURIComponent(s[0].id)}/favorite`, {favorite: !s.some(v => v.favorite)}); } catch (er) { toast(er.message, {type: 'err'}); }
-    return echoRefresh();
-  }
-  if ('ehVdel' in d) {
-    if (!confirm(`Удалить голос «${eh.voice}» из «Эхо» со всеми образцами? Озвучки останутся.`)) return;
-    try { await echoApi(`/voices/${encodeURIComponent(echoSamples(eh.voice)[0].id)}?group=true`, null, 'DELETE'); } catch (er) { toast(er.message, {type: 'err'}); }
-    return echoRefresh();
-  }
-  if (d.ehEmo) { eh.o.emotion = d.ehEmo; eh.save(); return renderEcho(); }
-  if (d.ehTakes) { eh.o.takes = +d.ehTakes; eh.save(); return renderEcho(); }
-  if (d.ehList) { eh.list = d.ehList; eh.save(); $$('#echoCreate [data-eh-list]').forEach(x => x.classList.toggle('on', x === b)); return renderEchoTakes(); }
-  if (d.ehPlay) return echoPlay(d.ehPlay);
-  if (d.ehTfav) {
-    const t = find(d.ehTfav);
-    try { Object.assign(t, await echoApi(`/history/${encodeURIComponent(t.id)}/favorite`, {favorite: !t.favorite})); } catch (er) { toast(er.message, {type: 'err'}); }
-    return renderEchoTakes();
-  }
-  if (d.ehSave) { const t = find(d.ehSave); try { await saveFile(await echoBlob(t), `озвучка-${t.voice_name}-${t.id}.mp3`.replace(/[\\/:*?"<>|]+/g, '-')); } catch (er) { toast(er.message, {type: 'err'}); } return; }
-  if (d.ehTdel) {
-    if (!confirm('Удалить эту озвучку?')) return;
-    try { await echoApi(`/history/${encodeURIComponent(d.ehTdel)}`, null, 'DELETE'); eh.history = eh.history.filter(x => x.id !== d.ehTdel); } catch (er) { toast(er.message, {type: 'err'}); }
-    return renderEchoTakes();
-  }
-  if (d.ehDub) { const t = find(d.ehDub); return mtOpenPick('dub', id => echoDub(t, id)); }
+  const d = b.dataset;
+  if ('ehRecheck' in d) { eh.state = null; await hubLink.refresh?.(); return renderEcho(); }
+  if ('ehUpdate' in d) return hubUpdate();
+  if ('ehCopyPs' in d) return toast(await clCopyText(UPDATE_PS) ? 'Строка скопирована — вставьте её в PowerShell на компьютере' : 'Не удалось скопировать', {type: 'ok', ms: 7000});
+  if ('ehOpen' in d) return window.open(echoSrc(), '_blank', 'noopener');
+  if (d.ehClone) return echoCloneChar(vc.char(d.ehClone));
 });
-$('#echoCreate').addEventListener('input', e => {
-  const el = e.target, d = el.dataset;
-  if (el.id === 'ehText') { eh.text = el.value; $('#ehCount').textContent = `${el.value.length}/5000`; clearTimeout(eh.t); eh.t = setTimeout(() => eh.save(), 400); return; }
-  if ('ehInt' in d) { eh.o.intensity = +el.value / 100; $('#ehInt').textContent = el.value + '%'; return eh.save(); }
-  if ('ehSpeed' in d) { eh.o.speed = Math.round(+el.value * 100) / 100; $('#ehSpeed').textContent = '×' + String(eh.o.speed).replace('.', ','); return eh.save(); }
-  if (eh.up && ('ehUpStart' in d || 'ehUpEnd' in d)) { eh.up['ehUpStart' in d ? 'start' : 'end'] = Math.max(0, +el.value || 0); }
-});
-$('#echoCreate').addEventListener('change', e => { if ('ehCloneEmo' in e.target.dataset) eh.cloneEmo = e.target.value; });
 
-/* ---- у персонажа: «🎙 Голос в Эхо» — есть ли голос, сделать клон из его образца, озвучить текст ---- */
-function echoCharNote(t) { const n = $('#vcBody [data-eh-note]'); if (n) n.textContent = t || ''; }
-async function echoCharFill() {
+/* ---- у персонажа: «🎙 Голос в «Эхо»» — есть ли голос, сделать из его образца, открыть «Озвучку» ---- */
+function echoCharFill() {
   const box = $('#vcBody #ehChar'), d = vcUi.edit;
   if (!box || !d) return;
-  if (eh.state === null || Date.now() - eh.at > 30000 && eh.state === 'ok') { box.innerHTML = '⏳ проверяю «Эхо»…'; return echoRefresh(true); }
-  if (eh.state !== 'ok') { box.innerHTML = `<span>${eh.state === 'down' ? '«Эхо» не запущено — ярлык «Эхо — озвучка» на рабочем столе' : esc(eh.err)}</span><button class="btn small" data-eh-recheck>↻ Проверить снова</button>`; return; }
+  if (eh.state === null || eh.state === 'ok' && Date.now() - eh.at > 30000) { box.innerHTML = '⏳ проверяю «Эхо»…'; echoEnsure(); return; }
+  if (eh.state !== 'ok') {
+    box.innerHTML = `<span>${eh.state === 'starting' ? '⏳ запускаю «Эхо»…' : eh.state === 'old' ? 'Программа Freefield на компьютере старая — обновите её (вкладка «Озвучка»)' : esc(eh.err || '«Эхо» недоступно')}</span>${eh.state === 'starting' ? '' : '<button class="btn small" data-eh-recheck>↻</button>'}`;
+    return;
+  }
   const name = (d.name || '').trim(), s = name ? echoSamples(name) : [];
   box.innerHTML = `<span>${!name ? 'Сначала имя персонажа' : s.length ? 'Есть: ' + [...new Set(s.map(v => echoEmoName(v.emotion || 'neutral').toLowerCase()))].join(', ') : 'Нет'}</span>
-    ${name && d.sample ? `<select data-eh-ch-emo aria-label="Эмоция в образце">${ECHO_EMO.map(([v, t]) => `<option value="${v}" ${eh.cloneEmo === v ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="btn small" data-eh-ch-clone ${eh.busy ? 'disabled' : ''}>${s.length ? '＋ Эмоция из образца' : 'Сделать клон голоса'}</button>` : ''}
-    ${name && s.length ? '<button class="btn small" data-eh-ch-speak>🎙 Озвучить текст</button>' : ''}<i data-eh-note>${esc(eh.busy)}</i>`;
+    ${name && d.sample ? `<select data-eh-ch-emo aria-label="Как говорит в образце">${ECHO_EMO.map(([v, t]) => `<option value="${v}" ${eh.cloneEmo === v ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="btn small" data-eh-ch-clone ${eh.busy ? 'disabled' : ''}>${s.length ? '＋ Образец эмоции' : 'Сделать голос'}</button>` : ''}
+    ${name ? '<button class="btn small" data-eh-ch-open>🎙 Озвучка</button>' : ''}<i>${esc(eh.busy)}</i>`;
 }
 $('#voiceSheet').addEventListener('click', async e => {
   const b = e.target.closest('#vcBody #ehChar button');
   if (!b || b.disabled) return;
-  const d = vcUi.edit, name = (d?.name || '').trim();
+  const d = vcUi.edit;
   if ('ehRecheck' in b.dataset) { eh.state = null; return echoCharFill(); }
-  if ('ehChClone' in b.dataset) { await echoCloneFrom(name, {sample: d.sample}); return echoCharFill(); }
-  if ('ehChSpeak' in b.dataset) { eh.voice = name; eh.save(); closeSheets(); setView('create'); return setCreateMode('voice'); }
+  if ('ehChClone' in b.dataset) return echoCloneChar({...d, name: (d.name || '').trim()});
+  if ('ehChOpen' in b.dataset) { closeSheets(); setView('create'); return setCreateMode('voice'); }
 });
 $('#voiceSheet').addEventListener('change', e => { if ('ehChEmo' in e.target.dataset) eh.cloneEmo = e.target.value; });
+// MP3 озвучки «Эхо» — для звуковой дорожки «Монтажа»
+async function echoBlob(t) {
+  if (!/^\/?files\/[\w./-]+$/.test(t.mp3 || '')) throw new Error('у озвучки нет файла');
+  const r = await fetch(echoUrl('/' + t.mp3.replace(/^\//, '')));
+  if (!r.ok) throw new Error(r.status === 503 ? '«Эхо» не запущено' : 'файл не скачался: ' + r.status);
+  return r.blob();
+}
+
+/* ---- правая часть экрана во вкладках «Монтаж» и «Озвучка»: на ПК — вместо галереи, на телефоне — в самой вкладке ---- */
+function workMount() {
+  const mob = isMobile(), work = $('#work');
+  const place = (el, panelSlot) => { const to = mob ? panelSlot : work; if (el && to && el.parentElement !== to) to.append(el); };
+  place($('#echoWork'), $('#ehSlot'));
+  place($('#mtWork'), $('#mtSlot'));
+}
+matchMedia('(max-width: 900px)').addEventListener?.('change', () => { if (cl.mode === 'voice' || cl.mode === 'edit') workMount(); });
 
 // ⟨/⟩ для разработчика: большая кнопка вкладки проходит свой обычный путь, но перед отправкой показывает промпт и запрос
 const peek = {on: false};
@@ -5723,15 +6118,7 @@ function renderVideoOptions() {
 }
 
 function updateGenButton() {
-  if (cl.mode === 'voice') {
-    const btn = $('#genBtn');
-    btn.classList.remove('paid');
-    btn.disabled = !!eh.busy;
-    $('#genLabel').textContent = eh.busy ? '⏳ «Эхо» работает…' : '🎙 Озвучить';
-    $('#genSub').textContent = eh.voice ? `голосом ${eh.voice}` : 'на этом компьютере';
-    $('#etaLine').textContent = '';
-    return;
-  }
+  if (cl.mode === 'voice') return;   // в «Озвучке» большой кнопки нет — всё в самом «Эхо»
   if (cl.mode === 'edit') {
     const btn = $('#genBtn'), segs = mtSegs(), n = segs.length;
     btn.classList.remove('paid');
@@ -6951,7 +7338,6 @@ function setCreateMode(m) {
   const prev = cl.mode;
   cl.mode = ['scn', 'write', 'chars', '3d', 'edit', 'voice'].includes(m) ? m : 'one';
   if (prev === 'edit' && cl.mode !== 'edit') mtPause();
-  if (prev === 'voice' && cl.mode !== 'voice') echoAudio?.pause();
   if (cl.mode === 'scn' && prev !== 'scn') { const t = scnTrim(cl.scn); if (t.length !== cl.scn.length) { cl.scn = t; cl.sel = null; cl.save(); } }
   ls.set('freefield.create.cm', cl.mode);
   document.body.dataset.cm = cl.mode;
@@ -6962,7 +7348,7 @@ function setCreateMode(m) {
   else if (cl.mode === 'chars') renderChars();
   else if (cl.mode === '3d') renderM3dPanel();
   else if (cl.mode === 'edit') renderMt();
-  else if (cl.mode === 'voice') { if (eh.state !== 'ok' || Date.now() - eh.at > 30000) eh.state = null; renderEcho(); }
+  else if (cl.mode === 'voice') renderEcho();
   else setAssetSvc(asset.svc);
   styleSync();
   updateGenButton();
@@ -6980,7 +7366,7 @@ async function scnGo(own) {
   return (await hubReady()) ? clSend(own) : scnPhone(own);
 }
 // большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
-function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'voice' ? echoGo() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
+function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'voice' ? echoEnsure() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
 
 /* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
