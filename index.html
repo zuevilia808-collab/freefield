@@ -398,6 +398,126 @@ body[data-cm="3d"] .only-3d{display:block}
 #m3dCreate .block-head:first-child{margin-top:0}
 .m3d-main .asset-slot img{height:200px;object-fit:contain;background:#14171d}
 .m3d-main .asset-slot{cursor:pointer;min-height:120px;justify-items:center;align-content:center}
+/* «Монтаж»: видео из галереи → один ролик; «ИИ-монтажёр» — чат */
+.only-edit{display:none}
+body[data-cm=edit] .panel-scroll > :not(.only-edit):not(.keep-edit){display:none}
+body[data-cm=edit] .only-edit{display:block}
+#mtCreate .block-head{margin:16px 0 8px}
+#mtCreate .block-head .btn.small{margin-top:0}
+#mtSum{text-transform:none;letter-spacing:0;font-weight:600;color:var(--text2);margin-left:4px}
+.mt-proj{display:flex;gap:6px;align-items:center;margin-bottom:10px}
+.mt-proj select{flex:1;min-width:0;height:36px;background:var(--panel3);border:1px solid var(--line2);border-radius:11px;color:var(--text);padding:0 9px;font:600 13px var(--font)}
+.mt-stage{--r:.5625;position:relative;width:min(100%,calc(300px * var(--r)));aspect-ratio:var(--r);margin:0 auto;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.mt-stage video,.mt-stage canvas,.mt-dim{position:absolute;inset:0;width:100%;height:100%;display:block}
+.mt-stage video{opacity:0;object-fit:cover}
+.mt-dim{background:#000;opacity:0;pointer-events:none;z-index:5}
+.mt-stage canvas{z-index:6;pointer-events:none}
+.mt-ph{position:absolute;inset:0;display:none;place-items:center;font-size:30px;color:var(--dim)}
+.mt-ph .ic{width:34px;height:34px}
+.mt-stage.empty .mt-ph{display:grid}
+.mt-ctl{display:flex;align-items:center;gap:8px;margin-top:8px}
+.mt-ctl input[type=range]{flex:1;min-width:0;accent-color:var(--free)}
+#mtTime{font:600 11.5px var(--mono);font-variant-numeric:tabular-nums;color:var(--text2);white-space:nowrap}
+.mt-tabs{margin-top:10px}
+.mt-prog{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11.5px;color:var(--text2)}
+.mt-prog .btn.small{margin-top:0}
+.mt-bar{flex:1;min-width:40px;height:6px;border-radius:9px;background:var(--panel3);overflow:hidden}
+.mt-bar i{display:block;height:100%;background:var(--free);transition:width .3s}
+.mt-prog span{white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.mt-clips,.mt-titles{display:flex;flex-direction:column;gap:6px}
+.mt-clip{display:grid;grid-template-columns:54px 1fr;gap:9px;padding:7px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);transition:border-color .2s}
+.mt-clip.now{border-color:rgba(212,255,58,.5)}
+.mt-clip.gone{grid-template-columns:54px 1fr auto;align-items:center;opacity:.6}
+.mt-th{width:54px;height:72px;object-fit:cover;border-radius:8px;background:#14171d;cursor:pointer;display:block}
+.mt-cb{min-width:0;display:flex;flex-direction:column;gap:5px}
+.mt-ct{display:flex;gap:6px;align-items:baseline;font-size:12px;min-width:0}
+.mt-ct b{font-family:var(--display);font-size:11.5px}
+.mt-len{color:var(--free);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mt-cp{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mt-trim{--a:0;--b:1;position:relative;height:22px}
+.mt-trim::before,.mt-trim::after{content:'';position:absolute;top:9px;height:4px;border-radius:4px}
+.mt-trim::before{left:0;right:0;background:var(--panel4)}
+.mt-trim::after{left:calc(var(--a) * 100%);right:calc((1 - var(--b)) * 100%);background:var(--free)}
+.mt-trim input{position:absolute;left:0;top:0;width:100%;height:22px;margin:0;background:none;-webkit-appearance:none;appearance:none;pointer-events:none;z-index:1}
+.mt-trim input::-webkit-slider-runnable-track{height:22px;background:none}
+.mt-trim input::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:12px;height:20px;margin-top:1px;border-radius:5px;background:#fff;border:2px solid var(--free-d);cursor:ew-resize}
+.mt-trim input::-moz-range-track{background:none}
+.mt-trim input::-moz-range-thumb{pointer-events:auto;width:9px;height:17px;border-radius:5px;background:#fff;border:2px solid var(--free-d);cursor:ew-resize}
+.mt-ca{display:flex;gap:4px}
+.mt-ca .icon-btn,.mt-clip.gone .icon-btn,.mt-trow .icon-btn{width:30px;height:28px;border-radius:9px;font-size:13px}
+.mt-ca .icon-btn .ic{width:14px;height:14px}
+.mt-ca .icon-btn.off{color:var(--danger)}
+.mt-ca .icon-btn:disabled{opacity:.3}
+.mt-tr{display:flex;gap:4px;justify-content:center}
+.mt-tr button{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:99px;color:var(--muted);border:1px dashed var(--line2);background:none}
+.mt-tr button .ic{width:12px;height:12px}
+.mt-tr button.on{color:var(--text);border-style:solid;border-color:rgba(212,255,58,.45);background:rgba(212,255,58,.08)}
+.mt-empty{width:100%;padding:22px;border-radius:12px;border:1px dashed var(--line2);color:var(--muted);background:none;font-weight:600}
+.mt-title{padding:7px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.mt-title textarea,.mt-ask textarea{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text);font:13px/1.45 var(--font);outline:0;resize:vertical}
+.mt-title textarea:focus,.mt-ask textarea:focus{border-color:rgba(212,255,58,.45)}
+.mt-trow{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:12px;color:var(--text2)}
+.mt-trow input{width:52px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:8px;padding:3px 6px;color:var(--text);outline:0}
+.mt-trow .chip{height:26px;padding:0 8px;font-size:11.5px}
+.mt-trow .chip.on{color:var(--text);border-color:rgba(212,255,58,.45)}
+.mt-trow .icon-btn{margin-left:auto}
+.mt-row2{display:flex;gap:8px;align-items:center;margin-top:8px}
+.mt-row2 .seg{flex:1}
+.mt-chk{display:flex;gap:6px;align-items:center;font-size:12.5px;white-space:nowrap}
+.mt-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.mt-pi{position:relative;aspect-ratio:9/14;border-radius:10px;overflow:hidden;background:#14171d;border:2px solid transparent;padding:0}
+.mt-pi img{width:100%;height:100%;object-fit:cover;display:block}
+.mt-pi.on{border-color:var(--free)}
+.mt-pi b{position:absolute;top:5px;left:5px;min-width:22px;height:22px;border-radius:99px;background:var(--free);color:var(--ink);font-size:12px;display:grid;place-items:center}
+.mt-pi i{position:absolute;top:5px;right:5px;font-style:normal;font-size:10px;padding:1px 5px;border-radius:6px;background:rgba(0,0,0,.65)}
+.mt-pi span{position:absolute;bottom:4px;right:5px;font-size:10.5px;font-weight:700;background:rgba(0,0,0,.6);padding:1px 5px;border-radius:6px}
+.mt-pick-go{position:sticky;bottom:-1px;display:flex;gap:8px;padding:12px 0 2px;background:linear-gradient(transparent,var(--panel) 35%)}
+.mt-none{color:var(--muted)}
+.mt-key{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mt-chat{display:flex;flex-direction:column;gap:8px;max-height:48vh;min-height:110px;overflow-y:auto;padding:12px 2px 4px}
+.mt-msg{max-width:92%;padding:9px 11px;border-radius:14px;font-size:13px;line-height:1.45;overflow-wrap:break-word}
+.mt-msg.me{align-self:flex-end;background:rgba(212,255,58,.11);border:1px solid rgba(212,255,58,.25);border-bottom-right-radius:5px;white-space:pre-wrap}
+.mt-msg.ai{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:5px}
+.mt-msg.first{color:var(--text2)}
+.mt-msg.err{border-color:rgba(255,93,98,.45)}
+.mt-msg small{display:block;margin-top:5px;font-size:10.5px;color:var(--muted)}
+.mt-did{margin-top:7px;font-size:12px;color:var(--free)}
+.mt-scenes{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.mt-scenes details{background:rgba(0,0,0,.25);border-radius:9px;padding:6px 8px}
+.mt-scenes summary{cursor:pointer;font-size:12.5px}
+.mt-sp{margin-top:6px;font-size:11.5px;color:var(--text2);display:flex;flex-direction:column;gap:2px}
+.mt-sa{display:flex;gap:6px;flex-wrap:wrap}
+.mt-sa .btn.small{margin-top:4px}
+.mt-msg.busy{display:flex;gap:4px;padding:12px 14px}
+.mt-msg.busy i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:mtDot 1s infinite}
+.mt-msg.busy i:nth-child(2){animation-delay:.15s}
+.mt-msg.busy i:nth-child(3){animation-delay:.3s}
+@keyframes mtDot{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.mt-ask{display:flex;gap:6px;margin-top:8px;align-items:stretch}
+.mt-ask [data-mt-attach]{width:42px}
+.mt-att{display:flex;flex-wrap:wrap;gap:6px}
+.mt-att:not(:empty){margin-top:8px}
+.mt-a,.mt-ma span{position:relative;width:46px;height:46px;border-radius:9px;overflow:hidden;background:#14171d;border:1px solid var(--line);flex:none}
+.mt-a img,.mt-ma img{width:100%;height:100%;object-fit:cover;display:block}
+.mt-a i,.mt-ma i{position:absolute;left:3px;bottom:2px;font-style:normal;font-size:10px;text-shadow:0 1px 3px #000}
+.mt-a i .ic,.mt-ma i .ic{width:11px;height:11px}
+.mt-a button{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:6px;background:rgba(0,0,0,.65);font-size:10px;display:grid;place-items:center;padding:0}
+.mt-a button .ic{width:10px;height:10px}
+.mt-ma{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:6px}
+.mt-ma span{width:40px;height:40px}
+.mt-attm{display:flex;gap:6px;margin-top:6px}
+.mt-attm.hidden{display:none}
+.mt-script{margin-top:8px;background:rgba(0,0,0,.25);border-radius:10px;padding:8px 10px}
+.mt-script summary{cursor:pointer;font-weight:700;font-size:13px}
+.mt-script > div{margin-top:6px;font-size:12.5px;line-height:1.55;color:var(--text2);max-height:42vh;overflow:auto}
+.mt-ask textarea{flex:1;min-width:0;resize:none}
+.mt-ask .btn{flex:none;width:46px;height:auto;padding:0}
+.mt-quick{margin-top:8px}
+.mt-quick .chip{height:auto;min-height:28px;padding:4px 9px;font-size:11.5px}
+.mt-who{margin-top:8px;font-size:11.5px;color:var(--muted)}
+/* разделов больше пяти — в две строки по четыре */
+#createMode{flex-wrap:wrap}
+#createMode button{flex:1 1 calc(25% - 2px);font-size:11.5px}
 /* ⟨/⟩ — промпт и запрос для разработчика */
 .gen-row{display:flex;gap:8px;align-items:stretch}
 .gen-row .gen-btn{flex:1;width:auto}
@@ -1229,7 +1349,8 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 <symbol id="i-send" viewBox="0 0 24 24"><path d="M21.5 2.5 14.8 21l-3.5-8.3L3 9.2z"/><path d="m21.5 2.5-10.2 10.2"/></symbol>
 <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M21.5 12.5h-5.5l-2 3h-4l-2-3H2.5"/><path d="M5.5 5h13l3 7.5v5A2.5 2.5 0 0 1 19 20H5a2.5 2.5 0 0 1-2.5-2.5v-5z"/></symbol>
 <symbol id="i-shirt" viewBox="0 0 24 24"><path d="M8.5 3 4 5.5 2.5 10l3.5 1.5V21h12v-9.5l3.5-1.5L20 5.5 15.5 3a3.5 3.5 0 0 1-7 0z"/></symbol>
-<symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 7.5 12 2.5 3 7.5v9l9 5 9-5z"/><path d="m3 7.5 9 5 9-5M12 12.5v9"/></symbol>
+<symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M7.5 3v18M16.5 3v18M3 7.5h4.5M3 12h18M3 16.5h4.5M16.5 7.5H21M16.5 16.5H21"/></symbol>
+<symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.8"/><circle cx="6" cy="18" r="2.8"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/></symbol>
 </svg>
 
 <header class="topbar">
@@ -1254,16 +1375,18 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <aside class="panel">
     <div class="panel-scroll">
 
-      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d" id="createMode">
+      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit" id="createMode">
         <button data-cm="one" class="on" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Создание ассетов</span></button>
         <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Создание сценария</span></button>
         <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео сервисы</span></button>
         <button data-cm="chars" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
         <button data-cm="3d" title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
+        <button data-cm="edit" title="Монтаж: видео из галереи — в один длинный ролик; ИИ-монтажёр пишет сценарий и монтирует сам"><svg class="ic"><use href="#i-film"/></svg><span>Монтаж</span></button>
       </div>
       <section class="only-write" id="writeCreate"></section>
       <section class="only-chars" id="charsCreate"></section>
       <section class="only-3d" id="m3dCreate"></section>
+      <section class="only-edit" id="mtCreate"></section>
       <input type="file" id="writeFile" accept="image/*" hidden>
       <section class="only-scn" id="scnCreate"></section>
       <section class="only-asset" id="assetCreate"></section>
@@ -1449,6 +1572,14 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <div class="sheet-panel">
     <div class="sheet-head"><h2 id="peekTitle">⟨/⟩</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
     <div class="sheet-body" id="peekBody"></div>
+  </div>
+</div>
+
+<!-- «Монтаж» → «＋ Из галереи»: видео по порядку выбора -->
+<div class="sheet hidden" id="mtSheet">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2>🎞 Видео в монтаж</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-body" id="mtPickBody"></div>
   </div>
 </div>
 
@@ -1649,7 +1780,7 @@ const ICON_OF = {
   '✅': ['check-circle', 'c-ok'], '❌': ['x-circle', 'c-danger'], '⏱': 'timer', '🎉': ['party', 'c-lime'], '📂': 'folder', '📁': 'folder', '📥': 'inbox',
   '🗑': 'trash', '🔗': 'link', '↪': 'reroute', '🪟': 'window', '✳': 'asterisk', '⚙': 'settings', '🤗': 'smile', '💎': 'gem', '♾': 'infinity', '🐢': 'clock',
   '🗓': 'calendar', '📷': 'camera', '🔊': 'volume', '🎙': 'mic', '🎤': 'mic', '🎭': 'users', '⭐': ['star', 'c-lime'], '▶': 'play', '⏸': 'pause', '💡': ['bulb', 'c-warn'], '🚀': 'rocket', '↔': 'arrows-h',
-  '🤖': 'bot', '💬': 'chat', '📐': 'ruler', '⬆': 'share', '📦': 'package', '✕': 'x', '＋': 'plus', '✓': 'check', '⤓': 'download', '✦': 'sparkle', '▦': 'grid',
+  '🤖': 'bot', '💬': 'chat', '📐': 'ruler', '⬆': 'share', '📦': 'package', '✕': 'x', '＋': 'plus', '✓': 'check', '⤓': 'download', '✦': 'sparkle', '▦': 'grid', '🎞': 'film', '✂': 'scissors',
 };
 const ICON_SRC = '(' + Object.keys(ICON_OF).sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?';
 const ICON_RE = new RegExp(ICON_SRC, 'gu'), ICON_TEST = new RegExp(ICON_SRC, 'u');
@@ -3566,6 +3697,7 @@ function cardHTML(it) {
         ${it.type === 'image' ? '<button class="act wide" data-act="animate" title="Сделать видео из этой картинки">🎬 Оживить</button>' : ''}
         ${it.type === 'image' ? '<button class="act" data-act="to3d" title="🧊 3D-модель из этой картинки (на компьютере)">🧊</button>' : ''}
         ${it.type === 'video' ? '<button class="act" data-act="revoice" title="Заменить голос — на образец голоса персонажа">🎙</button>' : ''}
+        ${it.type === 'video' && it.blob ? '<button class="act" data-act="to-mt" title="🎞 В монтаж — добавить в текущий проект">🎞</button>' : ''}
         <button class="act" data-act="variation" title="Ещё вариант">↻</button>
         <button class="act" data-act="reuse" title="Повторить с этими настройками">✎</button>
         <button class="act" data-act="download" title="Скачать">⤓</button>
@@ -3786,6 +3918,8 @@ async function doAction(act, it, el) {
     case 'revoice': closeLB(); openRevoice(it); break;
     case 'to-char': closeLB(); openToChar(it); break;
     case 'to3d': closeLB(); m3dFromItem(it); break;
+    case 'to-mt': mtAddItems([it.id]); break;
+    case 'open-mt': closeLB(); mt.cur = it.mt; mt.tab = 'edit'; mt.save(); setView('create'); setCreateMode('edit'); break;
     case 'upscale': closeLB(); openUp(it); break;
     case 'open3d': openLB(it.id); break;
     case 'paste-clip':
@@ -3923,7 +4057,7 @@ function showLB() {
     ['Стоимость', it.tier === 'paid' ? (it.cost != null ? '≈ ' + fmtUSD(it.cost) : 'по факту') : 'Бесплатно'],
     ['Размер', `${it.w} × ${it.h}`],
     ['Seed', it.seed],
-    ...(it.type === 'video' ? [['Движение', byId(MOTIONS, it.motion).name], ['Длительность', it.duration + ' с']] : []),
+    ...(it.type === 'video' ? [...(it.motion ? [['Движение', byId(MOTIONS, it.motion).name]] : []), ['Длительность', it.duration + ' с']] : []),
     ...(it.res ? [['Качество', it.res]] : []),
     ...(it.style && it.style !== 'none' ? [['Стиль', styleOf(it.style).name]] : []),
     ...(it.voiceOf ? [['Голос', it.voiceOf]] : []),
@@ -3942,6 +4076,8 @@ function showLB() {
       ${it.type === 'image' && it.blob ? '<button data-act="to3d" title="Сделать 3D-модель из этой картинки — на компьютере, бесплатно">🧊 3D-модель</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="upscale" title="Увеличить в 2 или 4 раза — на компьютере, бесплатно">🔍 Увеличить</button>' : ''}
       ${it.type === 'video' ? '<button data-act="revoice" title="Сделать голос ровно как в образце персонажа">🎙 Заменить голос</button>' : ''}
+      ${it.type === 'video' && it.blob ? '<button data-act="to-mt" title="Добавить в текущий проект монтажа">🎞 В монтаж</button>' : ''}
+      ${it.mt && mt.projects.some(x => x.id === it.mt) ? '<button data-act="open-mt" title="Открыть проект, из которого склеено это видео">🎞 Открыть проект</button>' : ''}
       <button data-act="download">⤓ Скачать</button>
       <button data-act="variation">↻ Вариант</button>
       <button data-act="reuse">✎ Повторить</button>
@@ -4157,6 +4293,804 @@ $('#m3dBody').addEventListener('click', e => {
   if (b.dataset.m3dFactor) { m3d.opts.factor = +b.dataset.m3dFactor; ls.set('freefield.m3d.opts', m3d.opts); return renderUp(); }
   if (b.hasAttribute('data-up-go')) return upGo(b);
   if (b.hasAttribute('data-up-peek')) return upGo(b, true);
+});
+
+/* ---- «Монтаж»: видео из галереи → один длинный ролик (пользователь 2026-10-08: «складывать видео из галереи в один проект
+   для создания длинного видео из видео по 10 секунд»). Проект — порядок клипов, обрезка, переходы, титры; хранится
+   в localStorage (только ссылки на видео галереи). Склейка — здесь, в браузере (WebCodecs через Mediabunny): видео никуда не уходят ---- */
+const MT_TR = [['cut', '✂', 'Склейка'], ['fade', '◐', 'Плавно'], ['black', '●', 'Через чёрное']];
+const MT_POS = [['top', 'Сверху'], ['center', 'Центр'], ['bottom', 'Снизу']];
+const MT_ASPECT = [['auto', 'Как у видео'], ['9:16', '9:16'], ['16:9', '16:9'], ['1:1', '1:1']];
+const mt = {
+  projects: ls.get('freefield.mt.projects', []),
+  cur: ls.get('freefield.mt.cur', null),
+  tab: ls.get('freefield.mt.tab', 'edit'),   // «🎞 Монтаж» или «✦ ИИ-монтажёр»
+  job: null,                                 // идёт склейка: {pct, text, stop}
+  busy: false,                               // ИИ думает
+  get p() { return this.projects.find(p => p.id === this.cur) || this.projects[0] || null; },
+  save() {
+    const p = this.p;
+    if (p) p.updated = Date.now();
+    ls.set('freefield.mt.projects', this.projects); ls.set('freefield.mt.cur', p?.id || null); ls.set('freefield.mt.tab', this.tab);
+  },
+};
+function mtNew(name) {
+  const p = {id: uid(), name: name || `Проект ${mt.projects.length + 1}`, aspect: 'auto', fit: 'cover', audio: true, clips: [], titles: [], chat: [], created: Date.now()};
+  mt.projects.unshift(p); mt.cur = p.id; mt.save();
+  return p;
+}
+const mtProj = () => mt.p || mtNew();
+const mtItem = c => items.find(x => x.id === c.id && x.type === 'video' && x.blob);
+const mtLen = it => it?._dur || it?.duration || 10;   // _dur — настоящая длина файла (узнаём, когда берём кадр)
+const mtFmt = s => { s = Math.max(0, s || 0); return s < 59.95 ? `${String(Math.round(s * 10) / 10).replace('.', ',')} с` : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
+const mtClock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const clamp01 = x => Math.max(0, Math.min(1, x));
+
+// Таймлайн: клипы друг за другом; «Плавно» — наплыв (клипы перекрываются), «Через чёрное» — затемнение и появление
+function mtSegs(p = mt.p) {
+  const segs = [];
+  let t = 0;
+  for (const c of p?.clips || []) {
+    const it = mtItem(c);
+    if (!it) continue;
+    const full = mtLen(it), a = Math.min(Math.max(0, c.a || 0), Math.max(0, full - 0.3));
+    const b = Math.max(a + 0.3, Math.min(c.b ?? full, full)), len = b - a, prev = segs.at(-1);
+    const kind = prev ? c.tr || 'cut' : 'cut', d = kind === 'cut' ? 0 : Math.min(c.td || 0.6, len / 2, prev.len / 2);
+    const start = kind === 'fade' ? t - d : t;
+    const s = {c, it, a, b, len, start, end: start + len, inK: kind, inD: d, outK: 'cut', outD: 0, n: segs.length + 1};
+    if (prev && kind !== 'cut') { prev.outK = kind; prev.outD = d; }
+    segs.push(s);
+    t = s.end;
+  }
+  return segs;
+}
+const mtTotal = segs => segs.length ? segs.at(-1).end : 0;
+const mtOn = (s, T) => T >= s.start - 1e-6 && T < s.end - 1e-6;
+// как клип выглядит в момент T: прозрачность (наплыв), затемнение (через чёрное) и громкость
+function mtLook(s, T) {
+  const u = T - s.start, v = s.end - T;
+  let alpha = 1, dim = 0, gain = 1;
+  if (s.inK !== 'cut' && u < s.inD) { gain = u / s.inD; if (s.inK === 'fade') alpha = u / s.inD; else dim = 1 - u / s.inD; }
+  if (s.outK !== 'cut' && v < s.outD) { gain = Math.min(gain, v / s.outD); if (s.outK === 'black') dim = Math.max(dim, 1 - v / s.outD); }
+  return {alpha: clamp01(alpha), dim: clamp01(dim), gain: clamp01(gain)};
+}
+// размер готового ролика: формат проекта (или первого клипа), короткая сторона — как у самого чёткого клипа, но не больше 1080
+function mtOutDims(p = mt.p, segs = mtSegs(p)) {
+  const it0 = segs[0]?.it;
+  const r = p?.aspect && p.aspect !== 'auto' ? (([a, b]) => a / b)(p.aspect.split(':').map(Number)) : it0 ? (it0.w || 9) / (it0.h || 16) : 9 / 16;
+  const short = Math.min(1080, Math.max(360, ...segs.map(s => Math.min(s.it.w || 720, s.it.h || 1280))));
+  const ev = x => Math.max(2, Math.round(x / 2) * 2);
+  return r < 1 ? [ev(short), ev(short / r)] : [ev(short * r), ev(short)];
+}
+// титры: по центру, белым с обводкой; в предпросмотре и в готовом ролике рисуются одинаково
+function mtDrawTitles(ctx, W, H, titles, T) {
+  for (const t of titles || []) {
+    const text = String(t.text || '').trim(), u = T - (t.at || 0), v = (t.at || 0) + (t.dur || 3) - T;
+    if (!text || u < 0 || v <= 0) continue;
+    const fs = Math.round(Math.min(W, H) * 0.062), lh = fs * 1.2;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, u / 0.3, v / 0.3);
+    ctx.font = `800 ${fs}px system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    const lines = [];
+    for (const para of text.split('\n')) {
+      let line = '';
+      for (const w of para.split(/\s+/)) {
+        const tryL = line ? line + ' ' + w : w;
+        if (line && ctx.measureText(tryL).width > W * 0.86) { lines.push(line); line = w; } else line = tryL;
+      }
+      lines.push(line);
+    }
+    const bh = lh * lines.length, top = t.pos === 'top' ? H * 0.12 : t.pos === 'center' ? (H - bh) / 2 : H * 0.8 - bh;
+    ctx.lineWidth = fs * 0.18; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.fillStyle = '#fff';
+    lines.forEach((l, i) => { const y = top + lh * (i + 0.5); ctx.strokeText(l, W / 2, y); ctx.fillText(l, W / 2, y); });
+    ctx.restore();
+  }
+}
+
+// кадр из середины клипа: миниатюра на таймлайне и «глаза» ИИ-монтажёра. По одному видео за раз — не перегружать браузер
+const mtThumbs = new Map();
+let mtThumbQ = Promise.resolve();
+function mtThumb(it) {
+  if (!mtThumbs.has(it.id)) mtThumbs.set(it.id, mtThumbQ = mtThumbQ.then(() => new Promise(res => {
+    const v = document.createElement('video');
+    let over = false;
+    const done = d => { if (over) return; over = true; clearTimeout(tm); v.removeAttribute('src'); v.load(); res(d); };
+    const tm = setTimeout(() => done(null), 15000);
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    v.onloadedmetadata = () => { if (v.duration && isFinite(v.duration)) it._dur = Math.round(v.duration * 100) / 100; v.currentTime = Math.min((v.duration || 1) / 2, 4); };
+    v.onseeked = () => {
+      const k = 256 / Math.max(v.videoWidth || 1, v.videoHeight || 1), c = document.createElement('canvas');
+      c.width = Math.max(2, Math.round(v.videoWidth * k)); c.height = Math.max(2, Math.round(v.videoHeight * k));
+      try { c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); done(c.toDataURL('image/jpeg', 0.8)); } catch { done(null); }
+    };
+    v.onerror = () => done(null);
+    v.src = urlOf(it.blob);
+  })));
+  return mtThumbs.get(it.id);
+}
+function mtFillThumbs(root) {
+  root?.querySelectorAll('img[data-mt-thumb]:not([src])').forEach(img => {
+    const it = items.find(x => x.id === img.dataset.mtThumb);
+    if (!it?.blob) return;
+    if (it.posterBlob) img.src = urlOf(it.posterBlob);
+    mtThumb(it).then(d => {
+      if (d && !it.posterBlob) img.src = d;
+      // настоящая длина файла не та, что записана, — таймлайн пересчитать (один раз на видео)
+      if (it._dur && !it._durSeen) { it._durSeen = true; if (Math.abs(it._dur - (it.duration || 0)) > 0.05 && mt.p?.clips.some(c => c.id === it.id)) mtRefresh(); }
+    });
+  });
+}
+
+/* ---- предпросмотр: два слоя <video> (для наплыва), затемнение и титры поверх; часы — свои, видео подстраиваются ---- */
+const mtPv = {t: 0, playing: false, raf: 0, last: 0, segs: []};
+function mtPvSync() {
+  mtPv.segs = mtSegs();
+  mtPv.t = Math.min(mtPv.t, mtTotal(mtPv.segs));
+  mtShow(mtPv.t);
+}
+function mtShow(T) {
+  const stage = $('#mtStage');
+  if (!stage) return;
+  const p = mt.p, segs = mtPv.segs, total = mtTotal(segs), vids = [...stage.querySelectorAll('video')];
+  stage.classList.toggle('empty', !segs.length);
+  let vis = segs.filter(s => mtOn(s, T));
+  if (!vis.length && segs.length && T >= total) vis = [segs.at(-1)];   // конец — последний кадр
+  const next = segs.find(s => s.start > T && s.start - T < 1.5 && !vis.includes(s));   // следующий — загружаем заранее
+  const want = [...vis, ...(next ? [next] : [])], use = new Map();
+  for (const s of want) { const v = vids.find(v => v._seg?.c === s.c && !use.has(v)); if (v) use.set(v, s); }
+  for (const s of want) {
+    if ([...use.values()].includes(s)) continue;
+    const v = vids.find(v => !use.has(v));
+    if (!v) break;
+    use.set(v, s);
+    const url = urlOf(s.it.blob);
+    if (v._url !== url) { v._url = url; v.src = url; }
+    v.currentTime = s.a;
+  }
+  let dim = 0;
+  for (const v of vids) {
+    const s = use.get(v);
+    v._seg = s || null;
+    v.style.objectFit = p?.fit === 'contain' ? 'contain' : 'cover';
+    if (!s) { v.style.opacity = 0; if (!v.paused) v.pause(); continue; }
+    const on = vis.includes(s), loc = Math.min(s.b, s.a + Math.max(0, T - s.start)), look = on ? mtLook(s, Math.min(T, s.end - 1e-3)) : {alpha: 0, dim: 0, gain: 0};
+    v.style.opacity = look.alpha; v.style.zIndex = on ? 1 + vis.indexOf(s) : 0;
+    v.muted = !p?.audio || !!s.c.mute; v.volume = look.gain;
+    if (on) dim = Math.max(dim, look.dim);
+    if (on && mtPv.playing && T < total) {
+      if (Math.abs(v.currentTime - loc) > 0.3) v.currentTime = loc;
+      if (v.paused) v.play().catch(() => {});
+    } else {
+      if (!v.paused) v.pause();
+      const want = on ? loc : s.a;
+      if (Math.abs(v.currentTime - want) > 0.04) v.currentTime = want;
+    }
+  }
+  stage.querySelector('.mt-dim').style.opacity = dim;
+  const cv = stage.querySelector('canvas'), dpr = Math.min(2, devicePixelRatio || 1);
+  const cw = Math.round(stage.clientWidth * dpr), chh = Math.round(stage.clientHeight * dpr);
+  if (cv.width !== cw || cv.height !== chh) { cv.width = cw; cv.height = chh; }
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cw, chh);
+  mtDrawTitles(ctx, cw, chh, p?.titles, T);
+  const seek = $('#mtSeek');
+  if (seek) { seek.max = Math.max(0.1, total); if (document.activeElement !== seek) seek.value = T; }
+  const tl = $('#mtTime');
+  if (tl) tl.textContent = `${mtClock(T)} / ${mtClock(total)}`;
+  const pb = $('#mtCreate [data-mt-play]');
+  if (pb) pb.textContent = mtPv.playing ? '⏸' : '▶';
+  $$('#mtCreate .mt-clip').forEach(el => el.classList.toggle('now', vis.some(s => s.c.k === el.dataset.mtK)));
+}
+function mtTick(now) {
+  mtPv.raf = 0;
+  if (!mtPv.playing || !$('#mtStage')?.isConnected || cl.mode !== 'edit') return mtPause();
+  const dt = Math.min(0.25, (now - mtPv.last) / 1000);
+  mtPv.last = now;
+  // видео ещё грузится — часы ждут его
+  const waiting = [...$$('#mtStage video')].some(v => v._seg && mtOn(v._seg, mtPv.t) && v.readyState < 3);
+  if (!waiting) mtPv.t += dt;
+  const total = mtTotal(mtPv.segs);
+  if (mtPv.t >= total) { mtPv.t = total; mtPv.playing = false; }
+  mtShow(mtPv.t);
+  if (mtPv.playing) mtPv.raf = requestAnimationFrame(mtTick);
+}
+function mtPlay() {
+  if (!mtPv.segs.length) return;
+  if (mtPv.t >= mtTotal(mtPv.segs) - 0.05) mtPv.t = 0;
+  mtPv.playing = true; mtPv.last = performance.now();
+  if (!mtPv.raf) mtPv.raf = requestAnimationFrame(mtTick);
+  mtShow(mtPv.t);
+}
+function mtPause() {
+  mtPv.playing = false;
+  if (mtPv.raf) cancelAnimationFrame(mtPv.raf);
+  mtPv.raf = 0;
+  $$('#mtStage video').forEach(v => v.pause());
+  mtShow(mtPv.t);
+}
+const mtSeekTo = T => { mtPv.t = Math.max(0, Math.min(T, mtTotal(mtPv.segs))); mtShow(mtPv.t); };
+
+/* ---- панель «Монтаж» ---- */
+function renderMt() {
+  const root = $('#mtCreate');
+  if (!root) return;
+  const p = mtProj();
+  if (!$('#mtStage')) {
+    root.innerHTML = `<div class="mt-proj" id="mtHead"></div>
+      <div class="mt-player"><div class="mt-stage empty" id="mtStage"><video playsinline preload="auto"></video><video playsinline preload="auto"></video><i class="mt-dim"></i><canvas></canvas><span class="mt-ph">🎞</span></div>
+        <div class="mt-ctl"><button class="icon-btn" data-mt-play title="Смотреть">▶</button><input type="range" id="mtSeek" min="0" max="1" step="0.01" value="0" aria-label="Время"><span id="mtTime">0:00 / 0:00</span></div></div>
+      <div class="seg mt-tabs"><button data-mt-tab="edit">🎞 Монтаж</button><button data-mt-tab="chat">✦ ИИ-монтажёр</button></div>
+      <div id="mtProg"></div>
+      <div id="mtBody"></div>`;
+  }
+  $('#mtHead').innerHTML = `<select data-mt-proj aria-label="Проект">${mt.projects.map(x => `<option value="${x.id}" ${x.id === p.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="__new">＋ Новый проект</option></select>
+    <button class="icon-btn" data-mt-rename title="Переименовать">✎</button><button class="icon-btn" data-mt-del title="Удалить проект (видео в галерее останутся)">🗑</button>`;
+  const [W, H] = mtOutDims(p);
+  $('#mtStage').style.setProperty('--r', W / H);
+  $$('#mtCreate [data-mt-tab]').forEach(b => b.classList.toggle('on', b.dataset.mtTab === mt.tab));
+  renderMtProg();
+  if (mt.tab === 'chat') renderMtChat(); else renderMtEdit();
+  mtPvSync();
+}
+function renderMtProg() {
+  const el = $('#mtProg');
+  if (el) el.innerHTML = mt.job ? `<div class="mt-prog"><div class="mt-bar"><i style="width:${Math.round(mt.job.pct * 100)}%"></i></div><span>${esc(mt.job.text)}</span><button class="btn small" data-mt-stop>Отменить</button></div>` : '';
+}
+function renderMtEdit() {
+  const p = mt.p, segs = mtSegs(p), bySeg = new Map(segs.map(s => [s.c, s]));
+  const seg = (key, list, cur) => `<div class="seg">${list.map(([v, t]) => `<button data-mt-${key}="${v}" class="${cur === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const clips = p.clips.map((c, i) => {
+    const s = bySeg.get(c), it = s?.it;
+    const tr = i ? `<div class="mt-tr" title="Переход">${MT_TR.map(([v, ico, t]) => `<button data-mt-tr="${v}" data-k="${c.k}" class="${(c.tr || 'cut') === v ? 'on' : ''}" title="${t}">${ico} ${t}</button>`).join('')}</div>` : '';
+    if (!it) return tr + `<div class="mt-clip gone" data-mt-k="${c.k}"><div class="mt-th"></div><div class="mt-cb"><div class="mt-ct"><b>#${i + 1}</b> видео удалено из галереи</div></div><button class="icon-btn" data-mt-rm="${c.k}" title="Убрать">✕</button></div>`;
+    const full = mtLen(it);
+    return tr + `<div class="mt-clip" data-mt-k="${c.k}">
+      <img class="mt-th" data-mt-thumb="${it.id}" alt="" data-mt-at="${c.k}" title="Показать">
+      <div class="mt-cb">
+        <div class="mt-ct"><b>#${i + 1}</b><span class="mt-len" data-mt-len="${c.k}">${mtFmt(s.len)}</span><span class="mt-cp" data-noicon title="${esc(it.prompt)}">${esc(it.prompt)}</span></div>
+        <div class="mt-trim" style="--a:${s.a / full};--b:${s.b / full}"><input type="range" min="0" max="${full}" step="0.1" value="${s.a}" data-mt-a="${c.k}" aria-label="Начало"><input type="range" min="0" max="${full}" step="0.1" value="${s.b}" data-mt-b="${c.k}" aria-label="Конец"></div>
+        <div class="mt-ca"><button class="icon-btn" data-mt-up="${c.k}" title="Раньше" ${i ? '' : 'disabled'}>↑</button><button class="icon-btn" data-mt-down="${c.k}" title="Позже" ${i < p.clips.length - 1 ? '' : 'disabled'}>↓</button><button class="icon-btn ${c.mute ? 'off' : ''}" data-mt-mute="${c.k}" title="${c.mute ? 'Включить звук клипа' : 'Без звука'}">${c.mute ? '🔇' : '🔊'}</button><button class="icon-btn" data-mt-dup="${c.k}" title="Повторить клип">⧉</button><button class="icon-btn" data-mt-rm="${c.k}" title="Убрать из проекта">✕</button></div>
+      </div></div>`;
+  }).join('');
+  const titles = (p.titles || []).map(t => `<div class="mt-title" data-mt-tk="${t.k}">
+      <textarea rows="1" data-mt-tt="${t.k}" placeholder="Текст титра">${esc(t.text || '')}</textarea>
+      <div class="mt-trow"><label>с <input type="number" min="0" step="0.1" value="${t.at || 0}" data-mt-tat="${t.k}"></label><label>на <input type="number" min="0.5" step="0.1" value="${t.dur || 3}" data-mt-tdur="${t.k}"> с</label>
+        ${MT_POS.map(([v, n]) => `<button class="chip ${((t.pos || 'bottom') === v) ? 'on' : ''}" data-mt-tpos="${v}" data-k="${t.k}">${n}</button>`).join('')}<button class="icon-btn" data-mt-trm="${t.k}" title="Убрать титр">✕</button></div></div>`).join('');
+  $('#mtBody').innerHTML = `
+    <div class="block-head"><span class="lbl">Клипы <small id="mtSum">${segs.length ? `${segs.length} · ${mtFmt(mtTotal(segs))}` : ''}</small></span><button class="btn small" data-mt-add>＋ Из галереи</button></div>
+    <div class="mt-clips">${clips || '<button class="mt-empty" data-mt-add>＋ Видео из галереи</button>'}</div>
+    <div class="block-head"><span class="lbl">Титры</span><button class="btn small" data-mt-tadd>＋ Титр</button></div>
+    <div class="mt-titles">${titles}</div>
+    <div class="block-head"><span class="lbl">Кадр</span></div>
+    ${seg('aspect', MT_ASPECT, p.aspect || 'auto')}
+    <div class="mt-row2">${seg('fit', [['cover', 'Заполнить'], ['contain', 'Целиком']], p.fit || 'cover')}<label class="mt-chk"><input type="checkbox" data-mt-audio ${p.audio ? 'checked' : ''}> Звук</label></div>`;
+  mtFillThumbs($('#mtBody'));
+}
+// правка без полной перерисовки (обрезка ползунком): длины, итог, плеер
+function mtRefresh(full = true) {
+  if (cl.mode !== 'edit') return;
+  if (full && mt.tab === 'edit') renderMtEdit();
+  mtPvSync();
+  updateGenButton();
+}
+function mtAddItems(ids, quiet) {
+  const p = mtProj();
+  const add = ids.map(id => items.find(x => x.id === id)).filter(it => it?.type === 'video' && it.blob && it.status === 'done');
+  for (const it of add) p.clips.push({k: uid(), id: it.id, a: 0, b: null, tr: 'cut'});
+  mt.save();
+  if (cl.mode === 'edit') renderMt();
+  updateGenButton();
+  if (!quiet) toast(`🎞 В монтаж «${p.name}»: ${add.length} ${plur(add.length, 'видео', 'видео', 'видео')}`, {type: 'ok', ...(cl.mode !== 'edit' && {action: 'Открыть', onAction: () => { setView('create'); setCreateMode('edit'); }})});
+  return add.length;
+}
+
+/* ---- «＋ Из галереи»: выбрать видео по порядку ---- */
+const mtPick = {sel: [], mode: 'clips'};   // clips — видео в проект; att — картинки и видео в чат «ИИ-монтажёра»
+const mtPickList = () => items.filter(x => (x.type === 'video' || mtPick.mode === 'att' && x.type === 'image') && x.status === 'done' && x.blob);
+function mtOpenPick(mode = 'clips') {
+  mtPick.sel = []; mtPick.mode = mode;
+  $('#mtSheet h2').textContent = mode === 'att' ? '📎 В чат: картинки и видео' : '🎞 Видео в монтаж';
+  renderMtPick();
+  $$('.sheet').forEach(x => x.classList.add('hidden'));
+  $('#mtSheet').classList.remove('hidden');
+}
+function renderMtPick() {
+  const att = mtPick.mode === 'att', vids = mtPickList(), inP = new Set(att ? [] : (mt.p?.clips || []).map(c => c.id)), n = mtPick.sel.length;
+  $('#mtPickBody').innerHTML = vids.length ? `<div class="mt-pick">${vids.map(it => { const k = mtPick.sel.indexOf(it.id) + 1;
+    return `<button class="mt-pi ${k ? 'on' : ''}" data-mt-pi="${it.id}" title="${esc(it.prompt)}">${it.type === 'image' ? `<img src="${urlOf(it.blob)}" alt="" loading="lazy">` : `<img data-mt-thumb="${it.id}" alt="">`}${k ? `<b>${k}</b>` : ''}${inP.has(it.id) ? '<i>в проекте</i>' : ''}${it.type === 'video' ? `<span>${mtFmt(mtLen(it))}</span>` : ''}</button>`; }).join('')}</div>
+    <div class="mt-pick-go"><button class="btn primary" data-mt-pick-go ${n ? '' : 'disabled'}>${att ? '📎 Приложить' : '＋ Добавить'}${n ? ' ' + n : ''}</button>${att ? '' : '<button class="btn" data-mt-pick-all>Все по порядку</button>'}</div>`
+    : `<p class="mt-none">В галерее пока нет ${att ? 'картинок и видео' : 'видео'}</p>`;
+  mtFillThumbs($('#mtPickBody'));
+}
+
+/* ---- склейка: кадры перекодируются в один MP4 (H.264 + AAC, где браузер умеет; иначе VP9 / Opus) ---- */
+async function mtFps(segs) {
+  let best = 0;
+  for (const s of segs) {
+    try { const st = await s._in.vt.computePacketStats(90); best = Math.max(best, st.averagePacketRate || 0); } catch {}
+  }
+  const snap = [24, 25, 30].reduce((a, b) => Math.abs(b - best) < Math.abs(a - best) ? b : a, 30);
+  return best ? Math.min(30, best > 31 ? 30 : snap) : 30;
+}
+async function mtMixAudio(segs, total, M) {
+  const SR = 48000, ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * SR)), SR);
+  let any = false;
+  for (const s of segs) {
+    const at = s._in.at;
+    if (s.c.mute || !at || !(await at.canDecode().catch(() => false))) continue;
+    const g = ctx.createGain(), vol = s.c.vol ?? 1;
+    g.connect(ctx.destination);
+    g.gain.setValueAtTime(s.inK !== 'cut' ? 0 : vol, s.start);
+    if (s.inK !== 'cut') g.gain.linearRampToValueAtTime(vol, s.start + s.inD);
+    if (s.outK !== 'cut') { g.gain.setValueAtTime(vol, s.end - s.outD); g.gain.linearRampToValueAtTime(0, s.end); }
+    for await (const {buffer, timestamp} of new M.AudioBufferSink(at).buffers(Math.max(0, s.a - 0.1), s.b)) {
+      const when = s.start + (timestamp - s.a);
+      if (when >= s.end || when + buffer.duration <= s.start) continue;
+      const src = ctx.createBufferSource();
+      src.buffer = buffer; src.connect(g);
+      if (when < s.start) src.start(s.start, s.start - when); else src.start(when);
+      src.stop(s.end);
+      any = true;
+    }
+  }
+  return any ? ctx.startRendering() : null;
+}
+async function mtExport(p = mt.p) {
+  const segs = mtSegs(p);
+  if (!segs.length) throw new Error('добавьте видео из галереи');
+  if (typeof VideoEncoder === 'undefined' || typeof OfflineAudioContext === 'undefined') throw new Error('этот браузер не умеет собирать видео — откройте Freefield в Google Chrome или Microsoft Edge');
+  const job = mt.job = {pct: 0, text: 'Загружаю библиотеку склейки…', stop: false};
+  const step = (pct, text) => { job.pct = pct; job.text = text; renderMtProg(); updateGenButton(); };
+  renderMtProg(); updateGenButton();
+  const M = await mediabunny();   // та же библиотека, что у «🎙 Заменить голос»
+  const opened = [], live = new Map();
+  let output = null;
+  try {
+    for (const s of segs) {
+      const input = new M.Input({source: new M.BlobSource(s.it.blob), formats: M.ALL_FORMATS});
+      opened.push(input);
+      const vt = await input.getPrimaryVideoTrack();
+      if (!vt || !(await vt.canDecode())) throw new Error(`клип #${s.n}: браузер не читает это видео (${vt?.codec || 'нет картинки'}) — откройте Freefield в Google Chrome`);
+      s._in = {vt, at: await input.getPrimaryAudioTrack(), t0: await vt.getFirstTimestamp().catch(() => 0)};
+    }
+    const [W, H] = mtOutDims(p, segs), fps = await mtFps(segs), total = mtTotal(segs), N = Math.max(1, Math.round(total * fps));
+    const vcodec = await M.getFirstEncodableVideoCodec(['avc', 'vp9', 'av1', 'vp8'], {width: W, height: H});
+    if (!vcodec) throw new Error(`браузер не умеет кодировать видео ${W}×${H}`);
+    step(0.02, 'Звук…');
+    const mix = p.audio ? await mtMixAudio(segs, total, M) : null;
+    const acodec = mix ? await M.getFirstEncodableAudioCodec(['aac', 'opus'], {numberOfChannels: 2, sampleRate: 48000}) : null;
+    output = new M.Output({format: new M.Mp4OutputFormat({fastStart: 'in-memory'}), target: new M.BufferTarget()});
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const vsrc = new M.CanvasSource(canvas, {codec: vcodec, quality: M.QUALITY_HIGH, keyFrameInterval: 2});
+    output.addVideoTrack(vsrc, {frameRate: fps});
+    let asrc = null;
+    if (mix && acodec) { asrc = new M.AudioBufferSource({codec: acodec, quality: M.QUALITY_HIGH}); output.addAudioTrack(asrc); }
+    await output.start();
+    if (asrc) { await asrc.add(mix); asrc.close(); }
+    // кадры каждого клипа — по порядку, ровно в те моменты, когда клип виден
+    const frames = s => {
+      const ts = [];
+      for (let n = Math.max(0, Math.floor(s.start * fps) - 1); n / fps < s.end + 1 / fps; n++) if (mtOn(s, n / fps)) ts.push(Math.max(s._in.t0, s.a + (n / fps - s.start)));
+      return new M.CanvasSink(s._in.vt, {width: W, height: H, fit: p.fit === 'contain' ? 'contain' : 'cover', poolSize: 4}).canvasesAtTimestamps(ts);
+    };
+    let poster = null;
+    for (let n = 0; n < N; n++) {
+      if (job.stop) throw Object.assign(new Error('склейка отменена'), {cancel: true});
+      const T = n / fps;
+      ctx.globalAlpha = 1; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      let dim = 0;
+      for (const s of segs) {
+        if (!mtOn(s, T)) continue;
+        if (!live.has(s)) live.set(s, {it: frames(s), last: null});
+        const L = live.get(s), r = await L.it.next();
+        if (r.value) L.last = r.value.canvas;
+        if (!L.last) continue;
+        const look = mtLook(s, T);
+        ctx.globalAlpha = look.alpha;
+        ctx.drawImage(L.last, 0, 0, W, H);
+        ctx.globalAlpha = 1;
+        dim = Math.max(dim, look.dim);
+      }
+      // клип кончился: его кадры выбраны все — дочитываем генератор до конца, чтобы библиотека сама закрыла декодер
+      for (const [s, L] of live) if ((n + 1) / fps >= s.end - 1e-6) { live.delete(s); const r = await L.it.next().catch(() => ({done: true})); if (!r.done) await L.it.return?.().catch(() => {}); }
+      if (dim) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, W, H); }
+      mtDrawTitles(ctx, W, H, p.titles, T);
+      if (!poster && T >= Math.min(1, total / 2)) poster = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+      await vsrc.add(T, 1 / fps);
+      if (n % 10 === 0) step(0.05 + 0.93 * n / N, `Кадры ${n} из ${N} · ${mtClock(T)} / ${mtClock(total)}`);
+    }
+    vsrc.close();
+    step(0.99, 'Сохраняю…');
+    await output.finalize();
+    const blob = new Blob([output.target.buffer], {type: 'video/mp4'});
+    return {blob, poster, W, H, total, fps, vcodec, acodec, n: segs.length};
+  } catch (e) {
+    for (const L of live.values()) await L.it.return?.().catch(() => {});
+    if (output && output.state !== 'finalized' && output.state !== 'canceled') await output.cancel().catch(() => {});
+    throw e;
+  } finally {
+    opened.forEach(i => { try { i.dispose(); } catch {} });
+    segs.forEach(s => delete s._in);
+    mt.job = null;
+    renderMtProg(); updateGenButton();
+  }
+}
+// большая кнопка «🎞 Склеить видео» → готовый ролик в галерею
+async function mtGo() {
+  const p = mtProj();
+  if (peek.on) {
+    if (mt.tab === 'chat') return mtAsk($('#mtAskIn')?.value || '', true);
+    const segs = mtSegs(p), [W, H] = mtOutDims(p, segs);
+    return peekShow('Монтаж', {prompts: [['Что соберётся (в этом браузере, видео никуда не уходят)', [
+      `${W}×${H}, ${mtFmt(mtTotal(segs))}, кадр: ${p.fit === 'contain' ? 'целиком' : 'заполнить'}, звук клипов: ${p.audio ? 'да' : 'нет'}`,
+      'Кодеки: видео H.264 (нет в браузере — VP9/AV1), звук AAC (нет — Opus); MP4; библиотека Mediabunny с cdn.jsdelivr.net',
+      ...segs.map(s => `#${s.n} ${mtClock(s.start)}–${mtClock(s.end)} · из клипа ${s.a.toFixed(1)}–${s.b.toFixed(1)} с${s.inK !== 'cut' ? ` · вход: ${MT_TR.find(x => x[0] === s.inK)[2].toLowerCase()} ${s.inD.toFixed(1)} с` : ''}${s.c.mute ? ' · без звука' : ''} · ${s.it.prompt.slice(0, 80)}`),
+      ...(p.titles || []).map(t => `Титр ${mtClock(t.at || 0)} на ${t.dur || 3} с (${MT_POS.find(x => x[0] === (t.pos || 'bottom'))[1].toLowerCase()}): ${t.text}`)].join('\n')]],
+      request: {проект: {...p, chat: `${p.chat?.length || 0} сообщений`}}});
+  }
+  if (mt.job) return;
+  if (!mtSegs(p).length) { toast('Добавьте видео из галереи', {type: 'err'}); return mtOpenPick(); }
+  mtPause();
+  try {
+    const r = await mtExport(p);
+    const it0 = mtSegs(p)[0]?.it;
+    const item = {id: uid(), type: 'video', status: 'done', statusText: '', createdAt: Date.now(), importedAt: Date.now(),
+      prompt: `Монтаж: ${p.name}`, userPrompt: `Монтаж: ${p.name}`, finalPrompt: `Монтаж: ${p.name}`, model: 'mt:montage', tier: 'free',
+      modelTitle: `🎞 Монтаж · ${r.n} ${plur(r.n, 'клип', 'клипа', 'клипов')}`, seed: 0, cost: 0, source: 'text',
+      aspect: p.aspect !== 'auto' ? p.aspect : it0?.aspect || (r.W < r.H ? '9:16' : '16:9'), w: r.W, h: r.H, duration: Math.round(r.total * 10) / 10,
+      blob: r.blob, posterBlob: r.poster || null, mt: p.id};
+    items.push(item);
+    items.sort((a, b) => b.createdAt - a.createdAt);
+    await DB.put(item);
+    render();
+    toast(`🎞 Готово: «${p.name}», ${mtFmt(r.total)} — в галерее`, {type: 'ok', ms: 8000, action: '⤓ Скачать', onAction: () => saveFile(r.blob, `freefield-montage-${p.name.replace(/[^\wа-яё-]+/gi, '-').slice(0, 40)}.mp4`)});
+    if (isMobile()) setView('gallery');
+  } catch (e) {
+    toast(e.cancel ? 'Склейка отменена' : 'Не склеилось: ' + e.message, {type: e.cancel ? '' : 'err', ms: 9000});
+  }
+}
+
+$('#mtCreate').addEventListener('click', async e => {
+  const b = e.target.closest('button, [data-mt-at]');
+  if (!b) return;
+  const d = b.dataset, p = mt.p, clip = k => p?.clips.find(c => c.k === k), ttl = k => p?.titles.find(t => t.k === k);
+  if ('mtPlay' in d) return mtPv.playing ? mtPause() : mtPlay();
+  if (d.mtTab) { mt.tab = d.mtTab; mt.save(); return renderMt(); }
+  if ('mtStop' in d) { if (mt.job) mt.job.stop = true; return; }
+  if ('mtRename' in d) { const n = prompt('Название проекта', p.name); if (n?.trim()) { p.name = n.trim().slice(0, 80); mt.save(); renderMt(); } return; }
+  if ('mtDel' in d) {
+    if (!confirm(`Удалить проект «${p.name}»? Видео в галерее останутся.`)) return;
+    mt.projects = mt.projects.filter(x => x !== p); mt.cur = mt.projects[0]?.id || null; mt.save(); mtPause(); renderMt(); return updateGenButton();
+  }
+  if ('mtAdd' in d) return mtOpenPick();
+  if (d.mtAt) { const s = mtPv.segs.find(s => s.c.k === d.mtAt); if (s) mtSeekTo(s.start + 0.01); return; }
+  if (d.mtTr) { const c = clip(d.k); c.tr = d.mtTr; c.td = c.td || 0.6; }
+  else if (d.mtUp || d.mtDown) {
+    const i = p.clips.findIndex(c => c.k === (d.mtUp || d.mtDown)), j = d.mtUp ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= p.clips.length) return;
+    [p.clips[i], p.clips[j]] = [p.clips[j], p.clips[i]];
+  }
+  else if (d.mtMute) { const c = clip(d.mtMute); c.mute = !c.mute; }
+  else if (d.mtDup) { const i = p.clips.findIndex(c => c.k === d.mtDup); p.clips.splice(i + 1, 0, {...p.clips[i], k: uid(), tr: 'cut'}); }
+  else if (d.mtRm) p.clips = p.clips.filter(c => c.k !== d.mtRm);
+  else if ('mtTadd' in d) {   // новый титр — с того места, где сейчас плеер
+    (p.titles ||= []).push({k: uid(), text: '', at: Math.round(mtPv.t * 10) / 10, dur: 3, pos: 'bottom'});
+    mt.save(); mtRefresh();
+    return $$('#mtBody [data-mt-tt]').at(-1)?.focus();
+  }
+  else if (d.mtTpos) ttl(d.k).pos = d.mtTpos;
+  else if (d.mtTrm) p.titles = p.titles.filter(t => t.k !== d.mtTrm);
+  else if (d.mtAspect) p.aspect = d.mtAspect;
+  else if (d.mtFit) p.fit = d.mtFit;
+  else return;
+  mt.save();
+  if (d.mtAspect) renderMt(); else mtRefresh();
+});
+$('#mtCreate').addEventListener('input', e => {
+  const el = e.target, d = el.dataset, p = mt.p;
+  if (!p) return;
+  if ('mtA' in d || 'mtB' in d) {
+    const c = p.clips.find(x => x.k === (d.mtA || d.mtB)), it = c && mtItem(c);
+    if (!it) return;
+    const full = mtLen(it), v = +el.value, wrap = el.parentElement;
+    if ('mtA' in d) c.a = Math.min(v, (c.b ?? full) - 0.3); else c.b = Math.max(v, (c.a || 0) + 0.3) >= full - 0.05 ? null : Math.max(v, (c.a || 0) + 0.3);
+    el.value = 'mtA' in d ? c.a : c.b ?? full;
+    wrap.style.setProperty('--a', (c.a || 0) / full); wrap.style.setProperty('--b', (c.b ?? full) / full);
+    mtPvSync();
+    const s = mtPv.segs.find(s => s.c === c);
+    if (s) { $(`#mtBody [data-mt-len="${c.k}"]`).textContent = mtFmt(s.len); mtSeekTo('mtA' in d ? s.start : s.end - 0.05); }
+    const sum = $('#mtSum');
+    if (sum) sum.textContent = `${mtPv.segs.length} · ${mtFmt(mtTotal(mtPv.segs))}`;
+    return updateGenButton();
+  }
+  if (el.id === 'mtSeek') { if (mtPv.playing) mtPause(); return mtSeekTo(+el.value); }
+  const t = p.titles?.find(x => x.k === (d.mtTt || d.mtTat || d.mtTdur));
+  if (t) {
+    if ('mtTt' in d) t.text = el.value.slice(0, 200);
+    if ('mtTat' in d) t.at = Math.max(0, +el.value || 0);
+    if ('mtTdur' in d) t.dur = Math.max(0.5, +el.value || 3);
+    if (!('mtTt' in d) || !(mtPv.t >= t.at && mtPv.t < t.at + t.dur)) mtSeekTo(t.at + 0.4); else mtShow(mtPv.t);
+    clearTimeout(mt.saveT); mt.saveT = setTimeout(() => mt.save(), 400);
+  }
+});
+$('#mtCreate').addEventListener('change', e => {
+  const el = e.target, d = el.dataset, p = mt.p;
+  if ('mtProj' in d) {
+    mtPause();
+    if (el.value === '__new') { const n = prompt('Название проекта', `Проект ${mt.projects.length + 1}`); if (n === null) return renderMt(); mtNew(n.trim().slice(0, 80) || undefined); }
+    else { mt.cur = el.value; mt.save(); }
+    mtPv.t = 0;
+    renderMt(); return updateGenButton();
+  }
+  if ('mtAudio' in d) { p.audio = el.checked; mt.save(); return mtShow(mtPv.t); }
+  if ('mtA' in d || 'mtB' in d) { mt.save(); mtRefresh(); }
+});
+$('#mtSheet').addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.mtPi) { const i = mtPick.sel.indexOf(b.dataset.mtPi); if (i >= 0) mtPick.sel.splice(i, 1); else mtPick.sel.push(b.dataset.mtPi); return renderMtPick(); }
+  if ('mtPickAll' in b.dataset) { mtPick.sel = mtPickList().map(x => x.id).reverse(); return renderMtPick(); }   // старые — раньше
+  if ('mtPickGo' in b.dataset) {
+    const sel = [...mtPick.sel];
+    closeSheets();
+    if (mtPick.mode === 'att') { for (const id of sel) { const it = items.find(x => x.id === id); if (it?.blob) await mtAttach(it.blob, (it.prompt || '').slice(0, 60) || 'из галереи', it); } return; }
+    const n = mtAddItems(sel, true);
+    toast(`🎞 Добавлено ${n} ${plur(n, 'видео', 'видео', 'видео')}`, {type: 'ok'});
+  }
+});
+
+/* ---- «✦ ИИ-монтажёр»: чат в «Монтаже» (пользователь 2026-10-08: «чат с ИИ, который умеет писать сценарии и выполнять автомонтаж»).
+   Сценарий — по тому, что дали: картинкам, инфографике, видео или просто по промпту, без деления на 10-секундные сцены
+   (пользователь 2026-10-08). Промпты для видео — по просьбе, по одному на клип. Автомонтаж — порядок, обрезка, переходы, титры.
+   ИИ видит описания клипов и кадр из середины каждого; вложенное видео Gemini получает целиком, Claude — кадрами ---- */
+const MT_QUICK = ['Напиши сценарий по вложениям', 'Собери ролик из клипов проекта', 'Обрежь лишнее в начале и в конце клипов', 'Сделай плавные переходы', 'Добавь титры'];
+const MT_PROMPTS_ASK = 'Сделай по этому сценарию промпты для видео — по одному на каждый клип';
+const mtWho = () => wr.ai === 'gemini' && wallet.gemini ? 'gemini' : wr.ai === 'claude' && wallet.anthropic ? 'claude' : wallet.anthropic ? 'claude' : wallet.gemini ? 'gemini' : null;
+mt.att = [];   // вложения к следующему сообщению: {k, kind: 'image' | 'video', name, blob, thumb, prompt?}
+// кадры из видео в моменты at (доли длины) — для Claude и для миниатюр
+function mtGrab(blob, at = [0.5], max = 512) {
+  return new Promise(res => {
+    const v = document.createElement('video'), out = [];
+    let i = 0, over = false;
+    const done = () => { if (over) return; over = true; clearTimeout(tm); v.removeAttribute('src'); v.load(); res(out); };
+    const tm = setTimeout(done, 20000);
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    v.onloadedmetadata = () => { out.dur = v.duration; v.currentTime = (v.duration || 1) * at[0]; };
+    v.onseeked = () => {
+      const k = Math.min(1, max / Math.max(v.videoWidth || 1, v.videoHeight || 1)), c = document.createElement('canvas');
+      c.width = Math.max(2, Math.round(v.videoWidth * k)); c.height = Math.max(2, Math.round(v.videoHeight * k));
+      try { c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); out.push([v.currentTime, c.toDataURL('image/jpeg', 0.85)]); } catch {}
+      if (++i < at.length) v.currentTime = (v.duration || 1) * at[i]; else done();
+    };
+    v.onerror = done;
+    v.src = urlOf(blob);
+  });
+}
+async function mtAttach(blob, name, from) {
+  const kind = /^video\//.test(blob?.type) ? 'video' : /^image\//.test(blob?.type) ? 'image' : null;
+  if (!kind) return toast('Можно картинку или видео', {type: 'err'});
+  if (mt.att.length >= 8) return toast('Не больше 8 вложений в одном сообщении', {type: 'err'});
+  const thumb = kind === 'image' ? await blobDataUrl(await downscale(blob, 160)).catch(() => null) : (await mtGrab(blob, [0.5], 160))[0]?.[1] || null;
+  mt.att.push({k: uid(), kind, name: name || (kind === 'video' ? 'видео' : 'картинка'), blob, thumb, prompt: from?.prompt || ''});
+  if (mt.tab !== 'chat') { mt.tab = 'chat'; mt.save(); renderMt(); } else renderMtAtt();
+}
+function renderMtAtt() {
+  const el = $('#mtAtt');
+  if (el) el.innerHTML = mt.att.map(a => `<span class="mt-a" title="${esc(a.name)}">${a.thumb ? `<img src="${a.thumb}" alt="">` : ''}${a.kind === 'video' ? '<i>▶</i>' : ''}<button data-mt-att-rm="${a.k}" title="Убрать">✕</button></span>`).join('');
+}
+const mtMime = b => b.type === 'video/quicktime' ? 'video/mov' : b.type;
+// что видит ИИ: вложения (a1…), проект (c1…), видео галереи вне проекта (g1…), кадры, персонаж, разговор
+async function mtBrief(p, text, who, frames = true) {
+  const sec = cl.seconds || 10, ch = vc.char(wr.char), lang = ch?.lang === 'en' ? 'English' : 'Russian';
+  const segs = mtSegs(p), bySeg = new Map(segs.map(s => [s.c, s])), refs = new Map(), media = [];
+  const inP = new Set(p.clips.map(c => c.id));
+  const gal = items.filter(x => x.type === 'video' && x.status === 'done' && x.blob && !inP.has(x.id) && !x.mt).slice(0, 30);
+  const line = (it, extra) => `${mtFmt(mtLen(it)).replace(' с', ' s')}${extra} — "${String(it.prompt || '').replace(/\s+/g, ' ').slice(0, 400)}"`;
+  const clipLines = p.clips.map((c, i) => {
+    const it = mtItem(c), s = bySeg.get(c);
+    refs.set('c' + (i + 1), {id: c.id});
+    return it ? `c${i + 1} — file ${line(it, `, used ${s.a.toFixed(1)}–${s.b.toFixed(1)} s, transition in: ${c.tr || 'cut'}${c.mute ? ', muted' : ''}, on the timeline ${s.start.toFixed(1)}–${s.end.toFixed(1)} s`)}` : `c${i + 1} — (deleted, ignore)`;
+  });
+  const galLines = gal.map((it, i) => { refs.set('g' + (i + 1), {id: it.id}); return `g${i + 1} — ${line(it, '')}`; });
+  // вложения: картинка — целиком (до 1600 px); видео — Gemini целиком со звуком (пока влезает в запрос), Claude — 4 кадра
+  let bytes = 0;
+  const attLines = [];
+  for (const [i, a] of mt.att.entries()) {
+    const ref = 'a' + (i + 1);
+    if (a.kind === 'image') {
+      attLines.push(`${ref} — picture "${a.name}"${a.prompt ? ` (made from the prompt: "${a.prompt.slice(0, 200)}")` : ''}`);
+      media.push([`ATTACHMENT ${ref} — PICTURE:`, frames ? await blobDataUrl(await downscale(a.blob, 1600)) : null]);
+    } else if (who === 'gemini' && bytes + a.blob.size < 14e6) {
+      bytes += a.blob.size;
+      attLines.push(`${ref} — video "${a.name}" (the whole file with sound is attached)${a.prompt ? `, made from the prompt: "${a.prompt.slice(0, 200)}"` : ''}`);
+      media.push([`ATTACHMENT ${ref} — VIDEO:`, frames ? (await blobDataUrl(new Blob([a.blob], {type: mtMime(a.blob)}))) : null]);
+    } else {
+      const fr = frames ? await mtGrab(a.blob, [0.1, 0.37, 0.63, 0.9], 768) : [[0], [0], [0], [0]];
+      attLines.push(`${ref} — video "${a.name}"${fr.dur ? `, ${fr.dur.toFixed(1)} s` : ''} (4 frames attached, no sound)${a.prompt ? `, made from the prompt: "${a.prompt.slice(0, 200)}"` : ''}`);
+      fr.forEach(([t, d], k) => media.push([`ATTACHMENT ${ref} — VIDEO FRAME ${k + 1} of 4${t ? ` at ${t.toFixed(1)} s` : ''}:`, d || null]));
+    }
+  }
+  if (frames) {
+    const want = [...p.clips.slice(0, 16).map((c, i) => ['c' + (i + 1), mtItem(c)]), ...gal.slice(0, 10).map((it, i) => ['g' + (i + 1), it])].filter(x => x[1]);
+    for (const [ref, it] of want) { const d = await mtThumb(it); if (d) media.push([`FRAME ${ref} (middle of the clip):`, d]); }
+  } else media.push(...[...p.clips.slice(0, 16).map((c, i) => [`FRAME c${i + 1}`]), ...gal.slice(0, 10).map((x, i) => [`FRAME g${i + 1}`])]);
+  const sys = `You are the AI screenwriter and video editor ("ИИ-монтажёр") inside Freefield — an app where a user generates short AI video clips (Google Flow / Veo, Google Vids, Dola, Arena; one clip is at most about ${sec} s) and edits them into one long video right in the browser.
+Depending on what the user asks, you do one or more of these:
+1. WRITE A SCRIPT from whatever the user gives you: attached pictures (photos, character sheets, infographics — read every text, number and fact on them and build the story on them), attached videos (what happens and what is said in them), the project clips, or just the user's text prompt. Write a complete, ready-to-shoot scenario in Russian (spoken lines and on-screen text in ${lang}): a title, then the scenes in order — for each scene: what we see (place, characters, action, camera), what is said word for word (voice-over or dialogue) and on-screen text, with approximate timing. The structure and length follow the user's request and the material — do not cut the story into fixed-length pieces. Put it in "script".
+2. MAKE VIDEO PROMPTS only when the user asks for prompts, clips or to generate the video: split the script into AI clips of at most ${sec} s each and write one prompt per clip in the user's reference format — these labeled lines, one per line, all filled in:
+${refLabels().map(l => l + ': …').join('\n')}
+On-screen text and spoken lines in ${lang}, everything else in English; a spoken line must fit its clip (about 2.3 words per second). Every clip is generated separately, so repeat the key appearance details of the characters and places in every prompt. Put them in "scenes".
+3. EDIT THE MONTAGE (auto-edit): choose, order and trim the clips, set transitions and titles to make a coherent, engaging long video. Use the clip descriptions and frames. Cut dead air and typical AI artifacts at clip edges (often the first 0.3–0.8 s and the last 0.5–1 s), drop duplicates and failed takes, keep the story order. Transitions: "cut" for continuous action, "fade" for a change of time or place, "black" for a chapter break. Titles: short (up to 6 words), only where they help. Put it in "edit".
+Answer with ONLY one JSON object, no markdown:
+{"reply": "short answer to the user in Russian, 1–3 sentences",
+ "script": {"title": "…", "text": "the whole scenario as plain text with line breaks"},
+ "scenes": [{"title": "short clip name in Russian", "seconds": 8, "prompt": "the filled reference prompt"}],
+ "edit": {"clips": [{"ref": "c1", "start": 0.4, "end": 9.2, "transition": "cut", "mute": false}],
+          "titles": [{"text": "…", "at": 0, "dur": 3, "pos": "bottom"}],
+          "aspect": "auto", "fit": "cover"}}
+Rules: include "script", "scenes" and "edit" only when needed; a question gets just "reply". In "edit", "clips" is the complete new timeline in order; "ref" is "c<N>" (a clip of the project, can be used twice) or "g<N>" (a gallery video not yet in the project) — never "a<N>" and never refs that are not listed; "start"/"end" are seconds inside that clip; "transition" is into this clip from the previous one ("cut" | "fade" | "black"); title "at" is seconds on the final timeline, "pos" is "top" | "center" | "bottom"; "aspect" is "auto" | "9:16" | "16:9" | "1:1"; "fit" is "cover" | "contain".`;
+  const hist = (p.chat || []).filter(m => !m.err).slice(-12).map(m => `${m.role === 'user' ? 'User' : 'Editor'}: ${m.text || ''}${m.att?.length ? ` [attached: ${m.att.map(a => a.kind + ' "' + a.name + '"').join(', ')}]` : ''}${m.script ? `\n[script "${m.script.title}":\n${String(m.script.text).slice(0, 3000)}]` : ''}${m.scenes ? ` [wrote ${m.scenes.length} video prompts: ${m.scenes.map(s => s.title).join('; ')}]` : ''}${m.edit ? ` [edited the montage: ${m.edit}]` : ''}`).join('\n');
+  const user = `${attLines.length ? `ATTACHED TO THIS MESSAGE:\n${attLines.join('\n')}\n` : ''}PROJECT "${p.name}": aspect ${p.aspect || 'auto'}, fit ${p.fit || 'cover'}, clip sound ${p.audio ? 'on' : 'off'}, total ${mtTotal(segs).toFixed(1)} s.
+TIMELINE NOW:
+${clipLines.join('\n') || '(empty)'}
+TITLES NOW: ${(p.titles || []).length ? p.titles.map(t => `"${t.text}" at ${t.at} s for ${t.dur} s (${t.pos || 'bottom'})`).join('; ') : 'none'}
+GALLERY VIDEOS NOT IN THE PROJECT (newest first):
+${galLines.join('\n') || '(none)'}
+${ch ? `MAIN CHARACTER: ${ch.name}${ch.about ? ' — ' + ch.about.slice(0, 300) : ''}; speaks ${lang}.\n` : ''}${hist ? `CONVERSATION SO FAR:\n${hist}\n` : ''}USER NOW: ${text}`;
+  return {sys, user, media, refs};
+}
+const mtParse = t => { const s = String(t || '').replace(/```(?:json)?/g, ''), i = s.indexOf('{'), j = s.lastIndexOf('}'); try { return i >= 0 ? JSON.parse(s.slice(i, j + 1)) : null; } catch { return null; } };
+// правка от ИИ → в проект; прежнее состояние — для «↶ Отменить»
+function mtApply(p, edit, refs) {
+  const snap = JSON.parse(JSON.stringify({clips: p.clips, titles: p.titles || [], aspect: p.aspect, fit: p.fit})), done = [];
+  const num = (v, d) => v != null && v !== '' && Number.isFinite(+v) ? +v : d;
+  if (Array.isArray(edit.clips)) {
+    const out = [];
+    for (const x of edit.clips) {
+      const it = items.find(i => i.id === refs.get(String(x?.ref || '').trim().toLowerCase())?.id && i.blob);
+      if (!it) continue;
+      const full = mtLen(it), a = Math.min(Math.max(0, num(x.start, 0)), Math.max(0, full - 0.3)), b = Math.min(full, Math.max(a + 0.3, num(x.end, full)));
+      out.push({k: uid(), id: it.id, a: Math.round(a * 10) / 10, b: b >= full - 0.05 ? null : Math.round(b * 10) / 10,
+        tr: MT_TR.some(t => t[0] === x.transition) ? x.transition : 'cut', td: 0.6, mute: !!x.mute});
+    }
+    if (out.length) { p.clips = out; done.push(`${out.length} ${plur(out.length, 'клип', 'клипа', 'клипов')}`); }
+  }
+  if (Array.isArray(edit.titles)) {
+    p.titles = edit.titles.filter(t => String(t?.text || '').trim()).slice(0, 30).map(t => ({k: uid(), text: String(t.text).trim().slice(0, 200),
+      at: Math.max(0, Math.round(num(t.at, 0) * 10) / 10), dur: Math.min(30, Math.max(0.5, num(t.dur, 3))), pos: MT_POS.some(x => x[0] === t.pos) ? t.pos : 'bottom'}));
+    done.push(p.titles.length ? `${p.titles.length} ${plur(p.titles.length, 'титр', 'титра', 'титров')}` : 'без титров');
+  }
+  if (MT_ASPECT.some(a => a[0] === edit.aspect) && edit.aspect !== p.aspect) { p.aspect = edit.aspect; done.push('формат ' + edit.aspect); }
+  if (['cover', 'contain'].includes(edit.fit) && edit.fit !== p.fit) { p.fit = edit.fit; done.push(edit.fit === 'contain' ? 'кадр целиком' : 'кадр заполнен'); }
+  return done.length ? {snap, text: done.join(', ') + ' · ' + mtFmt(mtTotal(mtSegs(p)))} : null;
+}
+function mtNeedKey() {
+  mt.tab = 'chat'; mt.save();
+  if (cl.mode === 'edit') renderMt();
+  toast('Нужен ИИ: подключите Gemini — бесплатно (или ключ Claude в «Создании сценария»)', {type: 'err', ms: 8000});
+}
+async function mtAsk(text, dry) {
+  const p = mtProj();
+  text = String(text || '').trim() || (dry ? '(ваше сообщение)' : mt.att.length ? 'Напиши сценарий по вложениям' : '');
+  if (!text) return toast('Напишите, что сделать с роликом', {type: 'err'});
+  const who = mtWho();
+  if (dry) {
+    const {sys, user, media} = await mtBrief(p, text, who, false);
+    return peekShow('ИИ-монтажёр', {prompts: [['Системный промпт', sys], ['Сообщение (вместе с вложениями и кадрами клипов)', user]],
+      request: {ИИ: who ? WRITERS[who].name : 'нет ключа — Gemini (бесплатно) или Claude', вложения_и_кадры: media.map(m => m[0]), отправка: who === 'claude' ? 'api.anthropic.com/v1/messages' : 'generativelanguage.googleapis.com (Gemini)'}});
+  }
+  if (!who) return mtNeedKey();
+  if (mt.busy) return;
+  const att = mt.att;
+  (p.chat ||= []).push({role: 'user', text: text.slice(0, 4000), at: Date.now(), ...(att.length && {att: att.map(a => ({kind: a.kind, name: a.name, thumb: a.thumb}))})});
+  mt.busy = true;
+  mt.save();
+  const box = $('#mtAskIn');
+  if (box) box.value = '';
+  renderMtChat();
+  try {
+    const {sys, user, media, refs} = await mtBrief(p, text, who);
+    const r = who === 'claude' ? await writeClaude(sys, user, media) : await writeGemini(sys, user, media);
+    mt.att = [];
+    const j = mtParse(r.text);
+    const msg = {role: 'ai', text: String(j?.reply || (j ? '' : r.text)).slice(0, 4000), at: Date.now(), by: r.by};
+    if (j?.script?.text) msg.script = {title: String(j.script.title || 'Сценарий').slice(0, 120), text: String(j.script.text).slice(0, 20000)};
+    if (Array.isArray(j?.scenes) && j.scenes.length) msg.scenes = j.scenes.filter(s => s?.prompt).slice(0, 30).map(s => ({title: String(s.title || '').slice(0, 80), sec: +s.seconds || null, prompt: fillBlocks(String(s.prompt))}));
+    const ed = j?.edit && typeof j.edit === 'object' ? mtApply(p, j.edit, refs) : null;
+    if (ed) { msg.edit = ed.text; msg.undo = ed.snap; }
+    if (!msg.text && !msg.script && !msg.scenes && !msg.edit) msg.text = 'Готово.';
+    p.chat.push(msg);
+  } catch (e) {
+    p.chat.push({role: 'ai', text: 'Не получилось: ' + e.message, err: true, at: Date.now()});
+    mt.retry = text;   // текст — обратно в поле: отправить ещё раз
+  } finally {
+    p.chat = p.chat.slice(-60);
+    mt.busy = false;
+    mt.save();
+    if (cl.mode === 'edit') renderMt();
+    if (mt.retry && $('#mtAskIn')) $('#mtAskIn').value = mt.retry;
+    mt.retry = null;
+    updateGenButton();
+  }
+}
+function renderMtChat() {
+  const body = $('#mtBody');
+  if (!body || mt.tab !== 'chat') return;
+  const p = mtProj(), who = mtWho(), msgs = p.chat || [];
+  const lastEdit = msgs.findLastIndex(m => m.undo);
+  const atts = m => m.att?.length ? `<div class="mt-ma">${m.att.map(a => `<span title="${esc(a.name)}">${a.thumb ? `<img src="${a.thumb}" alt="">` : ''}${a.kind === 'video' ? '<i>▶</i>' : ''}</span>`).join('')}</div>` : '';
+  const bubble = (m, i) => m.role === 'user' ? `<div class="mt-msg me">${atts(m)}<div data-noicon>${esc(m.text)}</div></div>`
+    : `<div class="mt-msg ai ${m.err ? 'err' : ''}">${m.text ? `<div data-noicon>${esc(m.text).replace(/\n/g, '<br>')}</div>` : ''}
+      ${m.script ? `<details class="mt-script" open><summary>📜 ${esc(m.script.title)}</summary><div data-noicon>${esc(m.script.text).replace(/\n/g, '<br>')}</div></details>
+        <div class="mt-sa"><button class="btn small" data-mt-scopy="${i}">📋 Копировать</button><button class="btn small" data-mt-prompts="${i}">🎬 Промпты для видео</button></div>` : ''}
+      ${m.edit ? `<div class="mt-did">✓ Смонтировал: ${esc(m.edit)}${i === lastEdit ? ` <button class="wr-link" data-mt-undo="${i}">↶ Отменить</button>` : ''}</div>` : ''}
+      ${m.scenes ? `<div class="mt-scenes">${m.scenes.map((s, k) => `<details><summary><b>${k + 1}.</b> ${esc(s.title || 'Клип ' + (k + 1))}${s.sec ? ` · ${s.sec} с` : ''}</summary><div class="mt-sp" data-noicon>${blocksHTML(s.prompt)}</div></details>`).join('')}
+        <div class="mt-sa"><button class="btn small primary" data-mt-scn="${i}">🎬 В «Видео сервисы» · ${m.scenes.length}</button><button class="btn small" data-mt-copy="${i}">📋 Копировать</button></div></div>` : ''}
+      ${m.by ? `<small>${esc(m.by)}</small>` : ''}</div>`;
+  body.innerHTML = `
+    ${who ? '' : `<div class="mt-key"><button class="btn primary" data-mt-gemini>✦ Подключить Gemini — бесплатно</button><button class="btn" data-mt-paste>📋 Вставить ключ</button></div>`}
+    <div class="mt-chat" id="mtChat">${msgs.map(bubble).join('') || '<div class="mt-msg ai first">Пришлите картинки, инфографику, видео 📎 или просто опишите идею — напишу сценарий. Скажите «собери ролик» — сам расставлю клипы проекта, обрежу лишнее, сделаю переходы и титры.</div>'}
+      ${mt.busy ? '<div class="mt-msg ai busy"><i></i><i></i><i></i></div>' : ''}</div>
+    <div class="mt-att" id="mtAtt"></div>
+    <div class="mt-ask"><button class="btn" data-mt-attach title="Приложить картинку, инфографику или видео" ${mt.busy ? 'disabled' : ''}>📎</button><textarea id="mtAskIn" rows="2" placeholder="Идея, вопрос или что смонтировать…" ${mt.busy ? 'disabled' : ''}></textarea><button class="btn primary" data-mt-send title="Отправить (Enter)" ${mt.busy ? 'disabled' : ''}>➤</button></div>
+    <div class="mt-attm hidden" id="mtAttMenu"><button class="chip" data-mt-att-file>💻 С компьютера</button><button class="chip" data-mt-att-gal>🖼 Из галереи</button></div>
+    <div class="chips mt-quick">${MT_QUICK.map(q => `<button class="chip" data-mt-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+    ${who ? `<div class="mt-who">${WRITERS[who].ico} ${WRITERS[who].name}${msgs.length ? ' · <button class="wr-link" data-mt-clear>Очистить чат</button>' : ''}</div>` : ''}`;
+  renderMtAtt();
+  const chat = $('#mtChat');
+  chat.scrollTop = chat.scrollHeight;
+}
+// промпты → «Видео сервисы» (как написаны, формат — как у проекта; персонаж из «Создания сценария» — с его развёрткой и голосом)
+function mtToScn(m) {
+  const p = mt.p, ch = vc.char(wr.char), aspect = p?.aspect && p.aspect !== 'auto' ? p.aspect : '9:16';
+  let added = 0;
+  for (const s of m.scenes || []) {
+    const scn = {...blankScn(), kind: 'video', prompt: s.prompt, aspect, fixed: true, ...(ch?.sheet && {sheet: ch.sheet}), ...(ch && {char: ch.id, voice: ch.voice})};
+    const empty = cl.scn.findIndex(scnEmpty);
+    if (empty >= 0) cl.scn[empty] = scn; else if (cl.scn.length < CL_MAX) cl.scn.push(scn); else break;
+    added++;
+  }
+  if (!added) return toast(`Уже ${CL_MAX} сценариев — уберите лишние в «Видео сервисах»`, {type: 'err'});
+  cl.save();
+  setCreateMode('scn');
+  toast(`🎬 В «Видео сервисы»: ${added} ${plur(added, 'промпт', 'промпта', 'промптов')}${added < m.scenes.length ? ` из ${m.scenes.length} — больше ${CL_MAX} за раз нельзя, остальные отправьте следующим заходом` : ''}. Готовые видео добавьте в монтаж кнопкой 🎞`, {type: 'ok', ms: 9000});
+}
+$('#mtCreate').addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const d = b.dataset, p = mt.p;
+  if ('mtSend' in d) return mtAsk($('#mtAskIn')?.value);
+  if (d.mtQ) { const box = $('#mtAskIn'); if (box) { box.value = d.mtQ; box.focus(); } return; }
+  if ('mtAttach' in d) return $('#mtAttMenu')?.classList.toggle('hidden');
+  if ('mtAttFile' in d) { $('#mtAttMenu')?.classList.add('hidden'); for (const f of await pickFile('image/*,video/*', true)) await mtAttach(f, f.name); return; }
+  if ('mtAttGal' in d) { $('#mtAttMenu')?.classList.add('hidden'); return mtOpenPick('att'); }
+  if (d.mtAttRm) { mt.att = mt.att.filter(a => a.k !== d.mtAttRm); return renderMtAtt(); }
+  if ('mtGemini' in d) return geminiOpen();
+  if ('mtPaste' in d) return geminiPaste();
+  if ('mtClear' in d) { if (confirm('Очистить чат этого проекта?')) { p.chat = []; mt.save(); renderMtChat(); } return; }
+  if (d.mtUndo) { const m = p.chat[+d.mtUndo]; if (!m?.undo) return; Object.assign(p, m.undo); delete m.undo; m.edit += ' (отменено)'; mt.save(); return renderMt(); }
+  if (d.mtScn) return mtToScn(p.chat[+d.mtScn]);
+  if (d.mtPrompts) return mtAsk(MT_PROMPTS_ASK);
+  if (d.mtScopy) { const m = p.chat[+d.mtScopy]; return toast(await clCopyText(`${m.script.title}\n\n${m.script.text}`) ? 'Сценарий скопирован' : 'Не удалось скопировать', {type: 'ok'}); }
+  if (d.mtCopy) { const m = p.chat[+d.mtCopy]; return toast(await clCopyText(m.scenes.map((s, i) => `Клип ${i + 1}. ${s.title}\n${s.prompt}`).join('\n\n')) ? 'Промпты скопированы' : 'Не удалось скопировать', {type: 'ok'}); }
+});
+$('#mtCreate').addEventListener('keydown', e => {
+  if (e.target.id === 'mtAskIn' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); mtAsk(e.target.value); }
+});
+// картинку или видео можно перетащить в чат или вставить (Ctrl+V)
+$('#mtCreate').addEventListener('dragover', e => { if (mt.tab === 'chat') e.preventDefault(); });
+$('#mtCreate').addEventListener('drop', async e => {
+  if (mt.tab !== 'chat') return;
+  e.preventDefault();
+  for (const f of [...(e.dataTransfer?.files || [])].filter(f => /^(image|video)\//.test(f.type))) await mtAttach(f, f.name);
+});
+document.addEventListener('paste', e => {
+  if (cl.mode !== 'edit' || mt.tab !== 'chat') return;
+  const fs = [...(e.clipboardData?.files || [])].filter(f => /^(image|video)\//.test(f.type));
+  if (fs.length) { e.preventDefault(); fs.forEach(f => mtAttach(f, f.name || 'из буфера')); }
 });
 
 // ⟨/⟩ для разработчика: большая кнопка вкладки проходит свой обычный путь, но перед отправкой показывает промпт и запрос
@@ -4447,6 +5381,15 @@ function renderVideoOptions() {
 }
 
 function updateGenButton() {
+  if (cl.mode === 'edit') {
+    const btn = $('#genBtn'), segs = mtSegs(), n = segs.length;
+    btn.classList.remove('paid');
+    btn.disabled = false;
+    $('#genLabel').textContent = mt.job ? `⏳ Склеиваю… ${Math.round(mt.job.pct * 100)}%` : n ? '🎞 Склеить видео' : '🎞 Добавьте видео';
+    $('#genSub').textContent = n ? `${n} ${plur(n, 'клип', 'клипа', 'клипов')} · ${mtFmt(mtTotal(segs))}` : 'из галереи';
+    $('#etaLine').textContent = '';
+    return;
+  }
   if (cl.mode === '3d') {
     const btn = $('#genBtn');
     btn.classList.remove('paid');
@@ -4531,6 +5474,7 @@ function setMode(mode) {
   saveSettings();
 }
 function setView(v) {
+  if (v !== 'create' && mtPv.playing) mtPause();   // ушли в галерею — предпросмотр «Монтажа» не играет за кадром
   state.view = v;
   document.body.dataset.view = v;
   $$('#bottomNav [data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === v));
@@ -5654,7 +6598,8 @@ async function refToScenario(blob) {
 }
 function setCreateMode(m) {
   const prev = cl.mode;
-  cl.mode = ['scn', 'write', 'chars', '3d'].includes(m) ? m : 'one';
+  cl.mode = ['scn', 'write', 'chars', '3d', 'edit'].includes(m) ? m : 'one';
+  if (prev === 'edit' && cl.mode !== 'edit') mtPause();
   if (cl.mode === 'scn' && prev !== 'scn') { const t = scnTrim(cl.scn); if (t.length !== cl.scn.length) { cl.scn = t; cl.sel = null; cl.save(); } }
   ls.set('freefield.create.cm', cl.mode);
   document.body.dataset.cm = cl.mode;
@@ -5664,6 +6609,7 @@ function setCreateMode(m) {
   else if (cl.mode === 'write') renderWrite();
   else if (cl.mode === 'chars') renderChars();
   else if (cl.mode === '3d') renderM3dPanel();
+  else if (cl.mode === 'edit') renderMt();
   else setAssetSvc(asset.svc);
   styleSync();
   updateGenButton();
@@ -5681,7 +6627,7 @@ async function scnGo(own) {
   return (await hubReady()) ? clSend(own) : scnPhone(own);
 }
 // большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
-function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
+function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
 
 /* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
@@ -7766,13 +8712,15 @@ function jsonWhole(t) {
   return list;
 }
 
-const b64 = d => { const m = /^data:(image\/[\w+]+);base64,(.+)$/.exec(d || ''); if (!m) throw new Error('картинка не прочиталась — загрузите её снова'); return {mime: m[1], data: m[2]}; };
-async function writeClaude(sys, user) {
+const b64 = d => { const m = /^data:((?:image|video)\/[\w.+-]+);base64,(.+)$/.exec(d || ''); if (!m) throw new Error('картинка не прочиталась — загрузите её снова'); return {mime: m[1], data: m[2]}; };
+// media — свои картинки с подписями [[подпись, data URL], …] (ИИ-монтажёр); без них — ячейки «Создания сценария»
+async function writeClaude(sys, user, media) {
   const img = d => { const x = b64(d); return {type: 'image', source: {type: 'base64', media_type: x.mime, data: x.data}}; };
   const r = await timedFetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {'content-type': 'application/json', 'x-api-key': wallet.anthropic, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
-    body: JSON.stringify({model: wr.claudeModel, max_tokens: 12000, system: sys, messages: [{role: 'user', content: [
+    body: JSON.stringify({model: wr.claudeModel, max_tokens: 12000, system: sys, messages: [{role: 'user', content: media ? [
+      ...media.flatMap(([t, d]) => [{type: 'text', text: t}, img(d)]), {type: 'text', text: user}] : [
       {type: 'text', text: 'IMAGE 1 — INFOGRAPHIC:'}, img(wr.info), {type: 'text', text: 'IMAGE 2 — CHARACTER TURNAROUND SHEET:'}, img(wr.sheet),
       ...wr.locs.slice(0, wr.count).flatMap((d, i) => [{type: 'text', text: `IMAGE ${i + 3} — CHARACTER IN LOCATION (scenario ${i + 1}):`}, img(d)]), {type: 'text', text: user}]}]}),
   }, 300000);
@@ -7787,9 +8735,9 @@ async function writeClaude(sys, user) {
   }
   return {text: (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n'), cut: j.stop_reason === 'max_tokens', by: 'Claude ' + (CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1].split(' — ')[0] || wr.claudeModel)};
 }
-async function writeGemini(sys, user) {
+async function writeGemini(sys, user, media) {
   const part = d => { const x = b64(d); return {inline_data: {mime_type: x.mime, data: x.data}}; };
-  const req = {systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [
+  const req = {systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: media ? [...media.flatMap(([t, d]) => [{text: t}, part(d)]), {text: user}] : [
     {text: 'IMAGE 1 — INFOGRAPHIC:'}, part(wr.info), {text: 'IMAGE 2 — CHARACTER TURNAROUND SHEET:'}, part(wr.sheet),
     ...wr.locs.slice(0, wr.count).flatMap((d, i) => [{text: `IMAGE ${i + 3} — CHARACTER IN LOCATION (scenario ${i + 1}):`}, part(d)]), {text: user}]}],
     generationConfig: {temperature: 1, responseMimeType: 'application/json'}};
@@ -8028,6 +8976,7 @@ function writerState(id) {
   return ['ok', '✓ всегда доступно'];
 }
 function renderWriteAi() {
+  if (cl.mode === 'edit') renderMtChat();   // ключ ИИ появился или удалён — чат «ИИ-монтажёра» тоже
   const el = $('#writeAi');
   if (!el) return;
   const who = writerNow();
