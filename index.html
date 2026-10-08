@@ -515,6 +515,51 @@ body[data-cm=edit] .only-edit{display:block}
 .mt-quick{margin-top:8px}
 .mt-quick .chip{height:auto;min-height:28px;padding:4px 9px;font-size:11.5px}
 .mt-who{margin-top:8px;font-size:11.5px;color:var(--muted)}
+/* «Озвучка» — «Эхо» */
+.only-voice{display:none}
+body[data-cm=voice] .panel-scroll > :not(.only-voice):not(.keep-voice){display:none}
+body[data-cm=voice] .only-voice{display:block}
+#echoCreate .block-head{margin:16px 0 8px}
+#echoCreate .block-head:first-child{margin-top:0}
+#echoCreate .block-head .btn.small{margin-top:0}
+#echoCreate .block-head .seg button{padding:4px 9px;font-size:11.5px}
+.eh-card{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);font-size:13px;margin-bottom:10px}
+.eh-card .btn.small{margin-top:0}
+.eh-voices .chip.on{color:var(--text);border-color:rgba(212,255,58,.5);background:rgba(212,255,58,.08)}
+.eh-voices .chip.none{opacity:.6}
+.eh-have{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--text2)}
+.eh-have span{flex:1;min-width:0}
+.eh-have .icon-btn,.eh-ta .icon-btn{width:30px;height:28px;border-radius:9px;font-size:13px}
+.eh-have .icon-btn.on,.eh-ta .icon-btn.on{color:var(--free)}
+.eh-clone{margin-top:8px;padding:9px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:flex;flex-direction:column;gap:7px}
+.eh-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--text2)}
+.eh-row .btn.small{margin-top:0}
+.eh-row select{background:var(--panel3);border:1px solid var(--line2);border-radius:9px;color:var(--text);padding:5px 7px;font:600 12px var(--font)}
+.eh-row input[type=number]{width:58px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:8px;padding:3px 6px;color:var(--text);outline:0}
+.eh-range{margin-top:8px;flex-wrap:nowrap}
+.eh-range span{width:68px;flex:none}
+.eh-range input{flex:1;min-width:0;accent-color:var(--free)}
+.eh-range b{width:44px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
+#echoCreate > .eh-row{margin-top:8px}
+#echoCreate > .eh-row > span{width:68px;flex:none}
+.eh-count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.eh-text{resize:vertical;min-height:84px}
+.eh-emo .chip{position:relative}
+.eh-emo .chip.on{color:var(--text);border-color:rgba(212,255,58,.5);background:rgba(212,255,58,.08)}
+.eh-dot{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--free)}
+.eh-takes{display:flex;flex-direction:column;gap:6px}
+.eh-take{display:grid;grid-template-columns:auto 1fr;gap:6px 9px;padding:8px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);align-items:center}
+.eh-play{width:34px;height:34px}
+.eh-tb{min-width:0}
+.eh-tt{font-size:12.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.eh-tb small{display:block;margin-top:2px;font-size:11px;color:var(--muted)}
+.eh-ta{grid-column:2;display:flex;gap:4px}
+.eh-none{font-size:12.5px;color:var(--muted)}
+.eh-ch{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--text2)}
+.eh-ch .btn.small{margin-top:0}
+.eh-ch select{background:var(--panel3);border:1px solid var(--line2);border-radius:9px;color:var(--text);padding:5px 7px;font:600 12px var(--font)}
+.eh-ch i{font-style:normal;color:var(--muted);font-size:11.5px;width:100%}
+.eh-ch i:empty{display:none}
 /* разделов больше пяти — в две строки по четыре */
 #createMode{flex-wrap:wrap}
 #createMode button{flex:1 1 calc(25% - 2px);font-size:11.5px}
@@ -1375,18 +1420,20 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <aside class="panel">
     <div class="panel-scroll">
 
-      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit" id="createMode">
+      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit keep-voice" id="createMode">
         <button data-cm="one" class="on" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Создание ассетов</span></button>
         <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Создание сценария</span></button>
         <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео сервисы</span></button>
         <button data-cm="chars" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
         <button data-cm="3d" title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
+        <button data-cm="voice" title="Озвучка голосом персонажа — «Эхо» на этом компьютере: клон голоса, эмоции, варианты"><svg class="ic"><use href="#i-mic"/></svg><span>Озвучка</span></button>
         <button data-cm="edit" title="Монтаж: видео из галереи — в один длинный ролик; ИИ-монтажёр пишет сценарий и монтирует сам"><svg class="ic"><use href="#i-film"/></svg><span>Монтаж</span></button>
       </div>
       <section class="only-write" id="writeCreate"></section>
       <section class="only-chars" id="charsCreate"></section>
       <section class="only-3d" id="m3dCreate"></section>
       <section class="only-edit" id="mtCreate"></section>
+      <section class="only-voice" id="echoCreate"></section>
       <input type="file" id="writeFile" accept="image/*" hidden>
       <section class="only-scn" id="scnCreate"></section>
       <section class="only-asset" id="assetCreate"></section>
@@ -4586,11 +4633,11 @@ function mtAddItems(ids, quiet) {
 }
 
 /* ---- «＋ Из галереи»: выбрать видео по порядку ---- */
-const mtPick = {sel: [], mode: 'clips'};   // clips — видео в проект; att — картинки и видео в чат «ИИ-монтажёра»
+const mtPick = {sel: [], mode: 'clips', onPick: null};   // clips — видео в проект; att — картинки и видео в чат «ИИ-монтажёра»; dub — один ролик под озвучку
 const mtPickList = () => items.filter(x => (x.type === 'video' || mtPick.mode === 'att' && x.type === 'image') && x.status === 'done' && x.blob);
-function mtOpenPick(mode = 'clips') {
-  mtPick.sel = []; mtPick.mode = mode;
-  $('#mtSheet h2').textContent = mode === 'att' ? '📎 В чат: картинки и видео' : '🎞 Видео в монтаж';
+function mtOpenPick(mode = 'clips', onPick = null) {
+  mtPick.sel = []; mtPick.mode = mode; mtPick.onPick = onPick;
+  $('#mtSheet h2').textContent = mode === 'att' ? '📎 В чат: картинки и видео' : mode === 'dub' ? '🎬 На какой ролик' : '🎞 Видео в монтаж';
   renderMtPick();
   $$('.sheet').forEach(x => x.classList.add('hidden'));
   $('#mtSheet').classList.remove('hidden');
@@ -4599,7 +4646,7 @@ function renderMtPick() {
   const att = mtPick.mode === 'att', vids = mtPickList(), inP = new Set(att ? [] : (mt.p?.clips || []).map(c => c.id)), n = mtPick.sel.length;
   $('#mtPickBody').innerHTML = vids.length ? `<div class="mt-pick">${vids.map(it => { const k = mtPick.sel.indexOf(it.id) + 1;
     return `<button class="mt-pi ${k ? 'on' : ''}" data-mt-pi="${it.id}" title="${esc(it.prompt)}">${it.type === 'image' ? `<img src="${urlOf(it.blob)}" alt="" loading="lazy">` : `<img data-mt-thumb="${it.id}" alt="">`}${k ? `<b>${k}</b>` : ''}${inP.has(it.id) ? '<i>в проекте</i>' : ''}${it.type === 'video' ? `<span>${mtFmt(mtLen(it))}</span>` : ''}</button>`; }).join('')}</div>
-    <div class="mt-pick-go"><button class="btn primary" data-mt-pick-go ${n ? '' : 'disabled'}>${att ? '📎 Приложить' : '＋ Добавить'}${n ? ' ' + n : ''}</button>${att ? '' : '<button class="btn" data-mt-pick-all>Все по порядку</button>'}</div>`
+    <div class="mt-pick-go"><button class="btn primary" data-mt-pick-go ${n ? '' : 'disabled'}>${att ? '📎 Приложить' : mtPick.mode === 'dub' ? '🎬 Наложить озвучку' : '＋ Добавить'}${n && mtPick.mode !== 'dub' ? ' ' + n : ''}</button>${att || mtPick.mode === 'dub' ? '' : '<button class="btn" data-mt-pick-all>Все по порядку</button>'}</div>`
     : `<p class="mt-none">В галерее пока нет ${att ? 'картинок и видео' : 'видео'}</p>`;
   mtFillThumbs($('#mtPickBody'));
 }
@@ -4831,12 +4878,17 @@ $('#mtCreate').addEventListener('change', e => {
 $('#mtSheet').addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b) return;
-  if (b.dataset.mtPi) { const i = mtPick.sel.indexOf(b.dataset.mtPi); if (i >= 0) mtPick.sel.splice(i, 1); else mtPick.sel.push(b.dataset.mtPi); return renderMtPick(); }
+  if (b.dataset.mtPi) {
+    const i = mtPick.sel.indexOf(b.dataset.mtPi);
+    if (i >= 0) mtPick.sel.splice(i, 1); else if (mtPick.mode === 'dub') mtPick.sel = [b.dataset.mtPi]; else mtPick.sel.push(b.dataset.mtPi);
+    return renderMtPick();
+  }
   if ('mtPickAll' in b.dataset) { mtPick.sel = mtPickList().map(x => x.id).reverse(); return renderMtPick(); }   // старые — раньше
   if ('mtPickGo' in b.dataset) {
     const sel = [...mtPick.sel];
     closeSheets();
     if (mtPick.mode === 'att') { for (const id of sel) { const it = items.find(x => x.id === id); if (it?.blob) await mtAttach(it.blob, (it.prompt || '').slice(0, 60) || 'из галереи', it); } return; }
+    if (mtPick.mode === 'dub') return sel[0] && mtPick.onPick?.(sel[0]);
     const n = mtAddItems(sel, true);
     toast(`🎞 Добавлено ${n} ${plur(n, 'видео', 'видео', 'видео')}`, {type: 'ok'});
   }
@@ -5092,6 +5144,296 @@ document.addEventListener('paste', e => {
   const fs = [...(e.clipboardData?.files || [])].filter(f => /^(image|video)\//.test(f.type));
   if (fs.length) { e.preventDefault(); fs.forEach(f => mtAttach(f, f.name || 'из буфера')); }
 });
+
+/* ---- «🎙 Озвучка» — «Эхо»: клон голоса персонажа и озвучка текста его голосом (пользователь 2026-10-08, файл «ЭХО-для-FREEFIELD.md»).
+   «Эхо» — отдельная программа пользователя на этом компьютере (http://127.0.0.1:7865, видеокарта, бесплатно); приложение ходит к ней
+   через хаб Freefield с тем же ключом (/api/echo/...) — и на ПК, и с телефона по Wi-Fi. Связка: имя персонажа = имя голоса в «Эхо» ---- */
+const ECHO_EMO = [['neutral', 'Как в образце'], ['calm', 'Спокойно'], ['happy', 'Радостно'], ['excited', 'Восторженно'], ['sad', 'Грустно'], ['serious', 'Серьёзно']];
+const echoEmoName = e => (ECHO_EMO.find(x => x[0] === e) || ECHO_EMO[0])[1];
+const echoUrl = p => hubLink.url('/api/echo' + p);   // p: '/api/…' или '/files/outputs/<id>.mp3'
+const echoKey = n => String(n || '').trim().toLowerCase();
+async function echoApi(p, body, method) {
+  const noHub = () => Object.assign(new Error('нет связи с программой Freefield на компьютере'), {hub: true});
+  if (!(await hubReady())) throw noHub();
+  const opt = body instanceof FormData ? {method: 'POST', body}
+    : {method: method || (body ? 'POST' : 'GET'), headers: body ? {'Content-Type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined};
+  let r;
+  try { r = await fetch(echoUrl('/api' + p), opt); } catch { throw noHub(); }
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 503 && d.echo_down) throw Object.assign(new Error(d.error), {down: true});
+  if (r.status === 404 && d.error === 'нет такого запроса') throw new Error('обновите программу Freefield на компьютере (файлы из pc/mcp) — в ней нет связи с «Эхо»');
+  if (!r.ok) throw new Error((typeof d.detail === 'string' ? d.detail : '') || d.error || '«Эхо»: ошибка ' + r.status);
+  return d;
+}
+// долгие операции «Эхо» — задача: опрашиваем, пока queued / running (видеокарта одна — задачи по очереди)
+async function echoJob(job, onMsg) {
+  while (job.status === 'queued' || job.status === 'running') {
+    onMsg?.(job.message || '«Эхо» работает…', job.progress);
+    await new Promise(r => setTimeout(r, 800));
+    job = await echoApi('/jobs/' + encodeURIComponent(job.id));
+  }
+  if (job.status === 'error') throw new Error(job.error || '«Эхо»: ошибка');
+  return job.result;
+}
+const eh = {
+  state: null,   // null — не проверяли; ok; down — «Эхо» не запущено; nohub — нет программы Freefield на компьютере; err
+  err: '', model: '', status: null, voices: [], history: [], at: 0,
+  voice: ls.get('freefield.echo.voice', ''),   // имя голоса = имя персонажа
+  text: ls.get('freefield.echo.text', ''),
+  o: {emotion: 'neutral', intensity: 0.7, takes: 1, speed: 1, ...ls.get('freefield.echo.opts', {})},
+  list: ls.get('freefield.echo.list', 'voice'),   // озвучки: этого голоса · все · ★
+  busy: '', pct: null, cloneEmo: 'neutral', cloneOpen: false, up: null,
+  save() { ls.set('freefield.echo.voice', this.voice); ls.set('freefield.echo.text', this.text); ls.set('freefield.echo.opts', this.o); ls.set('freefield.echo.list', this.list); },
+};
+const echoSamples = name => eh.voices.filter(v => echoKey(v.name) === echoKey(name));
+const echoChar = name => vc.chars.find(c => echoKey(c.name) === echoKey(name)) || null;
+const echoLang = name => echoChar(name)?.lang === 'en' ? 'english' : 'russian';
+// голоса для выбора: персонажи Freefield и голоса «Эхо» без персонажа
+function echoNames() {
+  const out = new Map();
+  for (const c of vc.chars) if (c.name?.trim()) out.set(echoKey(c.name), c.name.trim());
+  for (const v of eh.voices) if (!out.has(echoKey(v.name))) out.set(echoKey(v.name), v.name);
+  if (eh.voice && !out.has(echoKey(eh.voice))) out.set(echoKey(eh.voice), eh.voice);
+  return [...out.values()];
+}
+async function echoRefresh(quiet) {
+  try {
+    const h = await echoApi('/health');
+    eh.model = h.model || '';
+    [eh.status, eh.voices, eh.history] = await Promise.all([echoApi('/status').catch(() => null), echoApi('/voices'), echoApi('/history')]);
+    eh.state = 'ok'; eh.err = ''; eh.at = Date.now();
+    if (!eh.voice) eh.voice = echoNames()[0] || '';
+  } catch (e) { eh.state = e.down ? 'down' : e.hub ? 'nohub' : 'err'; eh.err = e.message; }
+  if (!quiet && cl.mode === 'voice') renderEcho();
+  if (!$('#voiceSheet').classList.contains('hidden') && vcUi.view === 'char') echoCharFill();
+  updateGenButton();
+}
+const echoSeg = (key, list, cur) => `<div class="seg">${list.map(([v, t]) => `<button data-eh-${key}="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+function echoTakeHTML(t) {
+  return `<div class="eh-take">
+    <button class="icon-btn eh-play" data-eh-play="${esc(t.id)}" title="Слушать">▶</button>
+    <div class="eh-tb"><div class="eh-tt" data-noicon>${esc(t.text)}</div><small>${esc(t.voice_name)} · ${esc(echoEmoName(t.emotion))}${t.emotion_natural ? ' · живой образец' : t.emotion !== 'neutral' && t.intensity ? ` · ${Math.round(t.intensity * 100)}%` : ''} · ${mtFmt(t.duration)}${t.takes > 1 ? ` · вариант ${t.take}/${t.takes}` : ''}</small></div>
+    <div class="eh-ta"><button class="icon-btn ${t.favorite ? 'on' : ''}" data-eh-tfav="${esc(t.id)}" title="${t.favorite ? 'Убрать из избранного' : 'В избранное'}">${t.favorite ? '★' : '☆'}</button><button class="icon-btn" data-eh-save="${esc(t.id)}" title="Скачать MP3">⤓</button><button class="icon-btn" data-eh-dub="${esc(t.id)}" title="На ролик из галереи (звук ролика заменится)">🎬</button><button class="icon-btn" data-eh-tdel="${esc(t.id)}" title="Удалить">🗑</button></div></div>`;
+}
+function renderEcho() {
+  const root = $('#echoCreate');
+  if (!root) return;
+  if (eh.state === null) { root.innerHTML = '<div class="eh-card">⏳ Проверяю «Эхо»…</div>'; echoRefresh(); return; }
+  if (eh.state !== 'ok') {
+    root.innerHTML = `<div class="eh-card">${eh.state === 'down' ? '🎙 Запусти ярлык «Эхо — озвучка» на рабочем столе' : eh.state === 'nohub' ? '💻 Нужна программа Freefield на компьютере — откройте Freefield с компьютера или по его Wi-Fi-ссылке' : '⚠ ' + esc(eh.err)}
+      <button class="btn small" data-eh-recheck>↻ Проверить снова</button></div>`;
+    return;
+  }
+  const name = eh.voice, samples = echoSamples(name), has = samples.length, live = new Set(samples.map(v => v.emotion || 'neutral'));
+  const ch = echoChar(name), fav = samples.some(v => v.favorite), o = eh.o, natural = live.has(o.emotion) && o.emotion !== 'neutral';
+  const names = echoNames();
+  const clone = !has || eh.cloneOpen ? `<div class="eh-clone">
+      <div class="eh-row"><span>${has ? 'Живая эмоция — как говорит в образце' : 'Как говорит в образце'}</span><select data-eh-clone-emo aria-label="Эмоция в образце">${ECHO_EMO.map(([v, t]) => `<option value="${v}" ${eh.cloneEmo === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div class="eh-row">${ch?.sample ? '<button class="btn small primary" data-eh-clone-char>🎙 Из образца персонажа</button>' : ''}<button class="btn small" data-eh-clone-file>📁 Видео или аудио</button></div>
+      ${eh.up ? `<div class="eh-row" data-noicon><span>${esc(eh.up.name)} · ${mtFmt(eh.up.duration)}</span><label>с <input type="number" min="0" step="0.5" value="${eh.up.start}" data-eh-up-start></label><label>по <input type="number" min="1.5" step="0.5" value="${eh.up.end}" data-eh-up-end></label><button class="btn small primary" data-eh-clone-go>Сделать голос</button></div>` : ''}</div>` : '';
+  root.innerHTML = `
+    ${eh.model && eh.model !== 'ready' ? `<div class="eh-card">${eh.model === 'loading' ? '⏳ Модель «Эхо» загружается — 30–60 с' : '⚠ Модель «Эхо»: ошибка'} <button class="btn small" data-eh-recheck>↻</button></div>` : ''}
+    <div class="block-head"><span class="lbl">Голос</span><button class="btn small" data-eh-new>＋ Новый голос</button></div>
+    <div class="chips eh-voices">${names.map(n => { const s = echoSamples(n); return `<button class="chip ${echoKey(n) === echoKey(name) ? 'on' : ''} ${s.length ? '' : 'none'}" data-eh-voice="${esc(n)}">${s.some(v => v.favorite) ? '★ ' : ''}${esc(n)}${s.length ? '' : ' · нет голоса'}</button>`; }).join('') || '<span class="eh-none">Создайте персонажа в «Персонажах» или новый голос</span>'}</div>
+    ${name ? `<div class="eh-have">${has ? `<span>${[...live].map(echoEmoName).join(' · ')}</span><button class="icon-btn ${fav ? 'on' : ''}" data-eh-vfav title="${fav ? 'Убрать голос из избранного' : 'Голос в избранное'}">${fav ? '★' : '☆'}</button><button class="icon-btn" data-eh-more title="Живая эмоция: ещё образец этого голоса">＋</button><button class="icon-btn" data-eh-vdel title="Удалить голос из «Эхо»">🗑</button>` : '<span>Голоса в «Эхо» ещё нет</span>'}</div>${clone}` : ''}
+    <div class="block-head"><span class="lbl">Текст</span><span class="eh-count" id="ehCount">${eh.text.length}/5000</span></div>
+    <textarea class="vc-in eh-text" id="ehText" rows="4" maxlength="5000" placeholder="Что сказать голосом ${esc(name || 'персонажа')}">${esc(eh.text)}</textarea>
+    <div class="block-head"><span class="lbl">Эмоция</span></div>
+    <div class="chips eh-emo">${ECHO_EMO.map(([v, t]) => `<button class="chip ${o.emotion === v ? 'on' : ''}" data-eh-emo="${v}" title="${live.has(v) && v !== 'neutral' ? 'Есть живой образец этой эмоции' : ''}">${t}${live.has(v) && v !== 'neutral' ? '<i class="eh-dot"></i>' : ''}</button>`).join('')}</div>
+    ${o.emotion !== 'neutral' && !natural ? `<div class="eh-row eh-range"><span>Сила</span><input type="range" min="20" max="100" step="5" value="${Math.round(o.intensity * 100)}" data-eh-int><b id="ehInt">${Math.round(o.intensity * 100)}%</b></div>` : ''}
+    <div class="eh-row eh-range"><span>Темп</span><input type="range" min="0.8" max="1.3" step="0.05" value="${o.speed}" data-eh-speed><b id="ehSpeed">×${String(o.speed).replace('.', ',')}</b></div>
+    <div class="eh-row"><span>Вариантов</span>${echoSeg('takes', [[1, '1'], [2, '2'], [3, '3']], o.takes)}</div>
+    <div id="ehProg">${echoProgHTML()}</div>
+    <div class="block-head"><span class="lbl">Озвучки</span>${echoSeg('list', [['voice', 'Этот голос'], ['all', 'Все'], ['fav', '★']], eh.list)}</div>
+    <div class="eh-takes" id="ehTakes"></div>`;
+  renderEchoTakes();
+}
+function renderEchoTakes() {
+  const box = $('#ehTakes');
+  if (!box) return;
+  const list = eh.history.filter(t => eh.list === 'fav' ? t.favorite : eh.list === 'all' || echoKey(t.voice_name) === echoKey(eh.voice));
+  box.innerHTML = list.map(echoTakeHTML).join('') || '<div class="eh-none">Пока пусто</div>';
+}
+// голос в «Эхо»: образец персонажа (blob) или уже загруженный файл (up: id, start, end) → отрезок → голос под именем.
+// Тот же name с другой эмоцией = живой образец эмоции
+async function echoClone(name, emotion, {blob, fname, up}) {
+  if (!up) {
+    const fd = new FormData();
+    fd.append('file', blob, fname);
+    const u = await echoApi('/upload', fd);
+    up = {id: u.id, duration: u.duration, start: 0, end: 20};
+  }
+  const start = Math.max(0, up.start || 0), end = Math.min(up.end ?? 20, up.duration || Infinity, start + 30);
+  if (end - start < 1.5) throw new Error('нужен отрезок от 1,5 до 30 с');
+  const v = await echoJob(await echoApi('/voice', {upload_id: up.id, start, end, clean: true}), echoProgress);
+  return echoApi(`/voices/${encodeURIComponent(v.id)}/save`, {name, emotion});
+}
+// ход работы «Эхо» — в полоску прогресса (поле текста не перерисовываем: курсор остаётся)
+function echoProgress(msg, pct) {
+  eh.busy = msg || '«Эхо» работает…'; eh.pct = pct ?? null;
+  const pr = $('#ehProg');
+  if (pr) pr.innerHTML = echoProgHTML(); else if (cl.mode === 'voice') renderEcho();
+  echoCharNote(eh.busy); updateGenButton();
+}
+const echoProgHTML = () => eh.busy ? `<div class="mt-prog"><div class="mt-bar"><i style="width:${Math.round((eh.pct > 1 ? eh.pct / 100 : eh.pct ?? 0.1) * 100)}%"></i></div><span>${esc(eh.busy)}</span></div>` : '';
+async function echoCloneFrom(name, src, emotion = eh.cloneEmo) {
+  if (eh.busy) return;
+  if (!name) return toast('Сначала имя голоса — имя персонажа', {type: 'err'});
+  eh.busy = 'Делаю клон голоса…'; eh.pct = null;
+  if (cl.mode === 'voice') renderEcho();
+  try {
+    const v = src.sample ? await echoClone(name, emotion, {blob: dataBlob(src.sample), fname: 'voice.' + ((/^data:audio\/(\w+)/.exec(src.sample) || [])[1] || 'wav').replace('mpeg', 'mp3')})
+      : await echoClone(name, emotion, {up: src.up});
+    eh.up = null; eh.cloneOpen = false; eh.voice = v.name || name; eh.save();
+    toast(`🎙 Голос «${v.name || name}» (${echoEmoName(v.emotion || emotion).toLowerCase()}) сохранён в «Эхо»`, {type: 'ok', ms: 6000});
+  } catch (e) { toast('Голос не сделан: ' + e.message, {type: 'err', ms: 9000}); if (e.down || e.hub) eh.state = e.down ? 'down' : 'nohub'; }
+  eh.busy = ''; eh.pct = null;
+  await echoRefresh();
+}
+// файл (видео или аудио) → в «Эхо»; дальше выбрать отрезок
+async function echoUpload(f) {
+  if (!f) return;
+  eh.busy = 'Загружаю в «Эхо»…'; renderEcho();
+  try {
+    const fd = new FormData();
+    fd.append('file', f, f.name || 'voice');
+    const up = await echoApi('/upload', fd);
+    eh.up = {id: up.id, name: f.name || up.name || 'файл', duration: up.duration || 0, start: 0, end: Math.min(up.duration || 12, 12)};
+  } catch (e) { toast('Не загрузилось: ' + e.message, {type: 'err', ms: 8000}); }
+  eh.busy = '';
+  renderEcho();
+}
+async function echoGo() {
+  const name = eh.voice, o = eh.o, text = ($('#ehText')?.value ?? eh.text).trim();
+  const body = {voice: name, text, emotion: o.emotion, intensity: o.intensity, takes: o.takes, speed: o.speed, language: echoLang(name)};
+  if (peek.on) return peekShow('Озвучка', {prompts: [['Что сделает «Эхо» на этом компьютере', [`Голос: «${name || '—'}» (имя персонажа = имя голоса в «Эхо»)`,
+      `Эмоция: ${echoEmoName(o.emotion)}${o.emotion === 'neutral' ? '' : echoSamples(name).some(v => v.emotion === o.emotion) ? ' — живой образец этой эмоции' : ` — обработка интонации, сила ${Math.round(o.intensity * 100)}%`}`,
+      `Вариантов: ${o.takes} · темп ×${o.speed} · язык: ${body.language}`, 'Клон голоса Qwen3-TTS на видеокарте этого компьютера, бесплатно; готовое — MP3 и WAV в «Эхо»'].join('\n')]],
+    request: {куда: 'программа Freefield на компьютере → «Эхо»: POST /api/echo/api/speak', body}});
+  if (eh.busy) return;
+  if (eh.state !== 'ok') { await echoRefresh(); if (eh.state !== 'ok') return toast(eh.state === 'down' ? 'Запусти ярлык «Эхо — озвучка» на рабочем столе' : eh.err, {type: 'err', ms: 8000}); }
+  if (!name) return toast('Выберите голос', {type: 'err'});
+  if (!echoSamples(name).length) return toast(`У «${name}» ещё нет голоса в «Эхо» — сделайте клон`, {type: 'err', ms: 7000});
+  if (!text) { toast('Впишите текст', {type: 'err'}); return $('#ehText')?.focus(); }
+  eh.text = text; eh.save();
+  eh.busy = 'Озвучиваю…'; eh.pct = null;
+  renderEcho(); updateGenButton();
+  try {
+    const takes = await echoJob(await echoApi('/speak', body), echoProgress);
+    toast(`🎙 Готово: ${takes?.length || 1} ${plur(takes?.length || 1, 'вариант', 'варианта', 'вариантов')} голосом «${name}»`, {type: 'ok'});
+    eh.list = eh.list === 'fav' ? 'voice' : eh.list;
+  } catch (e) { toast('Не озвучено: ' + e.message, {type: 'err', ms: 9000}); }
+  eh.busy = ''; eh.pct = null;
+  await echoRefresh();
+  if (eh.history[0]) echoPlay(eh.history[0].id);
+}
+// слушать и скачать: файл берём через хаб (сайт с GitHub не может просто вставить адрес компьютера в <audio>)
+const echoBlobs = new Map();
+let echoAudio = null;
+async function echoBlob(t) {
+  if (!/^\/?files\/[\w./-]+$/.test(t.mp3 || '')) throw new Error('у озвучки нет файла');
+  if (!echoBlobs.has(t.id)) {
+    const r = await fetch(echoUrl('/' + t.mp3.replace(/^\//, '')));
+    if (!r.ok) throw new Error(r.status === 503 ? '«Эхо» не запущено' : 'файл не скачался: ' + r.status);
+    echoBlobs.set(t.id, await r.blob());
+  }
+  return echoBlobs.get(t.id);
+}
+async function echoPlay(id) {
+  const t = eh.history.find(x => x.id === id);
+  if (!t) return;
+  echoAudio ||= new Audio();
+  const btn = () => $(`#echoCreate [data-eh-play="${CSS.escape(id)}"]`);
+  if (echoAudio.dataset.id === id && !echoAudio.paused) { echoAudio.pause(); return; }
+  try {
+    const url = urlOf(await echoBlob(t));
+    $$('#echoCreate .eh-play').forEach(b => { b.textContent = '▶'; });
+    echoAudio.dataset.id = id;
+    if (echoAudio.src !== url) echoAudio.src = url;
+    echoAudio.onplay = () => { const b = btn(); if (b) b.textContent = '⏸'; };
+    echoAudio.onpause = echoAudio.onended = () => { const b = btn(); if (b) b.textContent = '▶'; };
+    await echoAudio.play();
+  } catch (e) { toast('Не играет: ' + e.message, {type: 'err'}); }
+}
+// озвучка → на ролик из галереи: звук ролика заменяется (та же сборка, что у «🎙 Заменить голос»)
+async function echoDub(t, itemId) {
+  const it = items.find(x => x.id === itemId);
+  if (!it?.blob) return;
+  toast('🎬 Собираю ролик с озвучкой…', {ms: 3000});
+  try {
+    await revoiceSave(it, await decodeAudio(await echoBlob(t)), `Эхо · ${t.voice_name}`);
+    toast(`Готово: ролик с голосом «${t.voice_name}» — в галерее 🎉`, {type: 'ok', ms: 7000});
+  } catch (e) { toast('Не получилось: ' + e.message, {type: 'err', ms: 8000}); }
+}
+
+$('#echoCreate').addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b || b.disabled) return;
+  const d = b.dataset, find = id => eh.history.find(x => x.id === id);
+  if ('ehRecheck' in d) { eh.state = null; return renderEcho(); }
+  if (d.ehVoice) { eh.voice = d.ehVoice; eh.up = null; eh.cloneOpen = false; eh.save(); return renderEcho(); }
+  if ('ehNew' in d) { const n = prompt('Имя голоса — лучше как у персонажа'); if (n?.trim()) { eh.voice = n.trim().slice(0, 60); eh.cloneOpen = true; eh.save(); renderEcho(); } return; }
+  if ('ehMore' in d) { eh.cloneOpen = !eh.cloneOpen; return renderEcho(); }
+  if ('ehCloneChar' in d) return echoCloneFrom(eh.voice, {sample: echoChar(eh.voice)?.sample});
+  if ('ehCloneFile' in d) return echoUpload(await pickFile('audio/*,video/*'));
+  if ('ehCloneGo' in d) return echoCloneFrom(eh.voice, {up: eh.up});
+  if ('ehVfav' in d) {
+    const s = echoSamples(eh.voice);
+    try { await echoApi(`/voices/${encodeURIComponent(s[0].id)}/favorite`, {favorite: !s.some(v => v.favorite)}); } catch (er) { toast(er.message, {type: 'err'}); }
+    return echoRefresh();
+  }
+  if ('ehVdel' in d) {
+    if (!confirm(`Удалить голос «${eh.voice}» из «Эхо» со всеми образцами? Озвучки останутся.`)) return;
+    try { await echoApi(`/voices/${encodeURIComponent(echoSamples(eh.voice)[0].id)}?group=true`, null, 'DELETE'); } catch (er) { toast(er.message, {type: 'err'}); }
+    return echoRefresh();
+  }
+  if (d.ehEmo) { eh.o.emotion = d.ehEmo; eh.save(); return renderEcho(); }
+  if (d.ehTakes) { eh.o.takes = +d.ehTakes; eh.save(); return renderEcho(); }
+  if (d.ehList) { eh.list = d.ehList; eh.save(); $$('#echoCreate [data-eh-list]').forEach(x => x.classList.toggle('on', x === b)); return renderEchoTakes(); }
+  if (d.ehPlay) return echoPlay(d.ehPlay);
+  if (d.ehTfav) {
+    const t = find(d.ehTfav);
+    try { Object.assign(t, await echoApi(`/history/${encodeURIComponent(t.id)}/favorite`, {favorite: !t.favorite})); } catch (er) { toast(er.message, {type: 'err'}); }
+    return renderEchoTakes();
+  }
+  if (d.ehSave) { const t = find(d.ehSave); try { await saveFile(await echoBlob(t), `озвучка-${t.voice_name}-${t.id}.mp3`.replace(/[\\/:*?"<>|]+/g, '-')); } catch (er) { toast(er.message, {type: 'err'}); } return; }
+  if (d.ehTdel) {
+    if (!confirm('Удалить эту озвучку?')) return;
+    try { await echoApi(`/history/${encodeURIComponent(d.ehTdel)}`, null, 'DELETE'); eh.history = eh.history.filter(x => x.id !== d.ehTdel); } catch (er) { toast(er.message, {type: 'err'}); }
+    return renderEchoTakes();
+  }
+  if (d.ehDub) { const t = find(d.ehDub); return mtOpenPick('dub', id => echoDub(t, id)); }
+});
+$('#echoCreate').addEventListener('input', e => {
+  const el = e.target, d = el.dataset;
+  if (el.id === 'ehText') { eh.text = el.value; $('#ehCount').textContent = `${el.value.length}/5000`; clearTimeout(eh.t); eh.t = setTimeout(() => eh.save(), 400); return; }
+  if ('ehInt' in d) { eh.o.intensity = +el.value / 100; $('#ehInt').textContent = el.value + '%'; return eh.save(); }
+  if ('ehSpeed' in d) { eh.o.speed = Math.round(+el.value * 100) / 100; $('#ehSpeed').textContent = '×' + String(eh.o.speed).replace('.', ','); return eh.save(); }
+  if (eh.up && ('ehUpStart' in d || 'ehUpEnd' in d)) { eh.up['ehUpStart' in d ? 'start' : 'end'] = Math.max(0, +el.value || 0); }
+});
+$('#echoCreate').addEventListener('change', e => { if ('ehCloneEmo' in e.target.dataset) eh.cloneEmo = e.target.value; });
+
+/* ---- у персонажа: «🎙 Голос в Эхо» — есть ли голос, сделать клон из его образца, озвучить текст ---- */
+function echoCharNote(t) { const n = $('#vcBody [data-eh-note]'); if (n) n.textContent = t || ''; }
+async function echoCharFill() {
+  const box = $('#vcBody #ehChar'), d = vcUi.edit;
+  if (!box || !d) return;
+  if (eh.state === null || Date.now() - eh.at > 30000 && eh.state === 'ok') { box.innerHTML = '⏳ проверяю «Эхо»…'; return echoRefresh(true); }
+  if (eh.state !== 'ok') { box.innerHTML = `<span>${eh.state === 'down' ? '«Эхо» не запущено — ярлык «Эхо — озвучка» на рабочем столе' : esc(eh.err)}</span><button class="btn small" data-eh-recheck>↻ Проверить снова</button>`; return; }
+  const name = (d.name || '').trim(), s = name ? echoSamples(name) : [];
+  box.innerHTML = `<span>${!name ? 'Сначала имя персонажа' : s.length ? 'Есть: ' + [...new Set(s.map(v => echoEmoName(v.emotion || 'neutral').toLowerCase()))].join(', ') : 'Нет'}</span>
+    ${name && d.sample ? `<select data-eh-ch-emo aria-label="Эмоция в образце">${ECHO_EMO.map(([v, t]) => `<option value="${v}" ${eh.cloneEmo === v ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="btn small" data-eh-ch-clone ${eh.busy ? 'disabled' : ''}>${s.length ? '＋ Эмоция из образца' : 'Сделать клон голоса'}</button>` : ''}
+    ${name && s.length ? '<button class="btn small" data-eh-ch-speak>🎙 Озвучить текст</button>' : ''}<i data-eh-note>${esc(eh.busy)}</i>`;
+}
+$('#voiceSheet').addEventListener('click', async e => {
+  const b = e.target.closest('#vcBody #ehChar button');
+  if (!b || b.disabled) return;
+  const d = vcUi.edit, name = (d?.name || '').trim();
+  if ('ehRecheck' in b.dataset) { eh.state = null; return echoCharFill(); }
+  if ('ehChClone' in b.dataset) { await echoCloneFrom(name, {sample: d.sample}); return echoCharFill(); }
+  if ('ehChSpeak' in b.dataset) { eh.voice = name; eh.save(); closeSheets(); setView('create'); return setCreateMode('voice'); }
+});
+$('#voiceSheet').addEventListener('change', e => { if ('ehChEmo' in e.target.dataset) eh.cloneEmo = e.target.value; });
 
 // ⟨/⟩ для разработчика: большая кнопка вкладки проходит свой обычный путь, но перед отправкой показывает промпт и запрос
 const peek = {on: false};
@@ -5381,6 +5723,15 @@ function renderVideoOptions() {
 }
 
 function updateGenButton() {
+  if (cl.mode === 'voice') {
+    const btn = $('#genBtn');
+    btn.classList.remove('paid');
+    btn.disabled = !!eh.busy;
+    $('#genLabel').textContent = eh.busy ? '⏳ «Эхо» работает…' : '🎙 Озвучить';
+    $('#genSub').textContent = eh.voice ? `голосом ${eh.voice}` : 'на этом компьютере';
+    $('#etaLine').textContent = '';
+    return;
+  }
   if (cl.mode === 'edit') {
     const btn = $('#genBtn'), segs = mtSegs(), n = segs.length;
     btn.classList.remove('paid');
@@ -6598,8 +6949,9 @@ async function refToScenario(blob) {
 }
 function setCreateMode(m) {
   const prev = cl.mode;
-  cl.mode = ['scn', 'write', 'chars', '3d', 'edit'].includes(m) ? m : 'one';
+  cl.mode = ['scn', 'write', 'chars', '3d', 'edit', 'voice'].includes(m) ? m : 'one';
   if (prev === 'edit' && cl.mode !== 'edit') mtPause();
+  if (prev === 'voice' && cl.mode !== 'voice') echoAudio?.pause();
   if (cl.mode === 'scn' && prev !== 'scn') { const t = scnTrim(cl.scn); if (t.length !== cl.scn.length) { cl.scn = t; cl.sel = null; cl.save(); } }
   ls.set('freefield.create.cm', cl.mode);
   document.body.dataset.cm = cl.mode;
@@ -6610,6 +6962,7 @@ function setCreateMode(m) {
   else if (cl.mode === 'chars') renderChars();
   else if (cl.mode === '3d') renderM3dPanel();
   else if (cl.mode === 'edit') renderMt();
+  else if (cl.mode === 'voice') { if (eh.state !== 'ok' || Date.now() - eh.at > 30000) eh.state = null; renderEcho(); }
   else setAssetSvc(asset.svc);
   styleSync();
   updateGenButton();
@@ -6627,7 +6980,7 @@ async function scnGo(own) {
   return (await hubReady()) ? clSend(own) : scnPhone(own);
 }
 // большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
-function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
+function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'voice' ? echoGo() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
 
 /* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
@@ -7388,6 +7741,7 @@ function renderVoices() {
   $('#vcTitle').textContent = v === 'series' ? `Серия роликов · ${vc.char(vcUi.serChar)?.name || ''}` : v === 'scripts' ? 'Готовые сценарии' : v === 'tochar' ? 'В персонажа' : v === 'revoice' ? 'Заменить голос' : v === 'char' ? (vc.char(vcUi.edit?.id) ? 'Персонаж' : 'Новый персонаж') : v === 'pick' ? 'Кто говорит' : 'Персонажи и голоса';
   $('#vcFor').textContent = v === 'pick' ? `сценарий ${vcUi.i + 1}` : '';
   body.innerHTML = v === 'series' ? serHTML() : v === 'scripts' ? scrHTML() : v === 'tochar' ? vcToCharHTML() : v === 'revoice' ? vcRevoiceHTML() : v === 'char' ? vcCharHTML() : v === 'pick' ? vcPickHTML() : vcListHTML();
+  if (v === 'char') echoCharFill();
 }
 function vcListHTML() {
   return `<p class="set-p">Голос персонажа — голос, сохранённый во Flow: его слушают и выбирают в самом Flow, и он одинаковый во всех роликах (@Voice). По желанию — точный образец (своя запись или файл): по нему Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает таким голос любого готового видео.</p>
@@ -7425,6 +7779,7 @@ function vcCharHTML() {
       <div class="vc-src"><button class="btn small" data-vc-sample>📁 ${d.sample ? 'Другой файл' : 'Файл с голосом'}</button>${recBtn('sample', d.sample ? 'Записать заново' : 'Записать свой голос')}</div>${recPanel('sample')}
       <div class="vc-url"><input class="vc-in" data-vc-url placeholder="или прямая ссылка на файл .mp3 / .wav / .m4a" inputmode="url"><button class="btn small" data-vc-url-go>Взять</button></div>
       <div class="hint vc-note">Образец — ваша запись (тихая комната, телефон в 20–30 см) или файл с хорошим голосом, например скачанный с ElevenLabs. С ним Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает голос готового видео ровно таким.</div></div>
+    <div class="vc-opt"><span>🎙 Голос в «Эхо» — озвучка текста его голосом</span><div class="eh-ch" id="ehChar"></div></div>
     <div class="vc-foot"><button class="btn free" data-vc-save>${old ? 'Сохранить' : 'Создать персонажа'}</button>
       ${old ? '<button class="btn" data-vc-export title="Файл персонажа — перенести на другое устройство или сохранить копию">📤 Экспорт</button><button class="btn danger" data-vc-del>🗑 Удалить</button>' : ''}<button class="btn" data-vc-back>${vcUi.from === 'write' || vcUi.from === 'chars' ? 'Отмена' : 'Назад'}</button></div>`;
 }
