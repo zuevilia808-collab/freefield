@@ -258,6 +258,7 @@ function pickFile(accept, multiple = false) {   // multiple — массив ф�
     const i = document.createElement('input');
     i.type = 'file'; i.accept = accept; i.multiple = multiple;
     i.onchange = () => res(multiple ? [...i.files] : i.files[0] || null);
+    i.oncancel = () => res(multiple ? [] : null);
     i.click();
   });
 }

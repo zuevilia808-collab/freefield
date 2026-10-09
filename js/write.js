@@ -272,6 +272,8 @@ async function writeClaude(sys, user, media) {
   }
   return {text: (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n'), cut: j.stop_reason === 'max_tokens', by: 'Claude ' + (CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1].split(' — ')[0] || wr.claudeModel)};
 }
+// ИИ-писатель для «Создания сценария», «Серии» и ИИ-монтажёра: who — 'claude' или 'gemini'
+const aiWrite = (who, sys, user, media) => who === 'claude' ? writeClaude(sys, user, media) : writeGemini(sys, user, media);
 async function writeGemini(sys, user, media) {
   const part = d => { const x = b64(d); return {inline_data: {mime_type: x.mime, data: x.data}}; };
   const req = {systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: media ? [...media.flatMap(([t, d]) => [{text: t}, part(d)]), {text: user}] : [
@@ -291,7 +293,7 @@ async function writeGemini(sys, user, media) {
     for (const pause of [2000, 6000, 0]) {
       r = await timedFetch(`${GEMINI_API}/${model}:generateContent`, {method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini}, body}, 300000);
       if (r.status < 500 || !pause) break;
-      await new Promise(res => setTimeout(res, pause));
+      await sleep(pause);
     }
     if (r.status === 404 || r.status === 429 || r.status >= 500) { fails.push(r.status === 429 ? 'quota' : r.status >= 500 ? 'busy' : '404'); continue; }
     if (!r.ok) {
@@ -345,7 +347,7 @@ async function writeGo() {
   }
   if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) {
     toast(`Вставьте ключ ${WRITERS[who].name} — или выберите другой ИИ`, {type: 'err'});
-    return $('#writeCreate [data-wkey-in]')?.focus();
+    return keyInput()?.focus();
   }
   wr.busy = true; wr.note = `${WRITERS[who].name} читает картинки и пишет сценарии…`;
   renderWriteNote(); updateGenButton();
@@ -367,7 +369,7 @@ async function writeRun() {
   const who = writerNow(), {sys, user} = writeBrief();
   if (who === 'chat') throw new Error('ИИ для сценариев не подключён — подключите бесплатный Gemini в «Создании сценария»');
   if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) throw new Error(`нет ключа ${WRITERS[who].name} — вставьте его в «Создании сценария»`);
-  const r = who === 'claude' ? await writeClaude(sys, user) : await writeGemini(sys, user);
+  const r = await aiWrite(who, sys, user);
   const list = parseScenarios(r.text, r.code), voice = wrVoice();
   if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
   return {r, list};
@@ -440,11 +442,11 @@ async function saveGeminiKey(k) {
 }
 async function saveAnthropicKey(k) {
   k = (k || '').trim();
-  if (!k) { wallet.anthropic = ''; ls.del('freefield.anthropic'); renderWriteAi(); updateGenButton(); return toast('Ключ Claude удалён из браузера'); }
+  if (!k) { wallet.anthropic = ''; ls.del('freefield.anthropic'); renderWallet(); renderWriteAi(); updateGenButton(); return toast('Ключ Claude удалён из браузера'); }
   if (!/^sk-ant-/.test(k)) return toast('Ключ Anthropic начинается с sk-ant-', {type: 'err'});
   const r = await timedFetch('https://api.anthropic.com/v1/models?limit=1', {headers: {'x-api-key': k, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'}}, 15000).catch(() => null);
   if (r && (r.status === 401 || r.status === 403)) return toast('Ключ Anthropic не подошёл — проверьте, что скопировали его целиком', {type: 'err'});
-  wallet.anthropic = k; ls.set('freefield.anthropic', k); renderWriteAi(); updateGenButton();
+  wallet.anthropic = k; ls.set('freefield.anthropic', k); renderWallet(); renderWriteAi(); updateGenButton();
   toast(r?.ok ? 'Claude подключён — теперь он пишет сценарии ✳' : 'Ключ сохранён — проверю его при первом сценарии', {type: 'ok'});
 }
 
@@ -519,30 +521,37 @@ function renderWriteAi() {
   const who = writerNow();
   const tile = id => { const w = WRITERS[id], [c, t] = writerState(id);
     return `<button class="wr-ai ${wr.ai === id ? 'on' : ''}" data-wai="${id}"><b><span class="mc-ico" style="background:${w.color}">${esc(w.ico)}</span>${w.name}</b>${w.what}<i class="${c}">${t}</i></button>`; };
-  const keyRow = (id, ph) => `<div class="key-row"><input data-wkey-in="${id}" type="text" placeholder="${ph}" autocomplete="off" spellcheck="false"><button class="btn free" data-wkey-save="${id}">Сохранить</button></div>`;
-  // Gemini без ключа: взять бесплатный ключ в AI Studio и вставить из буфера одной кнопкой — дальше сценарии пишутся здесь
-  const gemSetup = lead => `${lead}<ol class="steps">
-      <li><button class="btn small free" data-wkey-open>🔑 Открыть Google AI Studio</button> и войдите своим Google-аккаунтом</li>
-      <li>Нажмите «Create API key» и скопируйте ключ — он начинается с <code>AQ.</code> (старые — с <code>AIza</code>)</li>
-      <li>Вернитесь сюда: <button class="btn small ${wr.keyWait ? 'free wr-pulse' : ''}" data-wkey-paste>📋 Вставить ключ</button> — или вставьте его в поле:</li></ol>
-    ${keyRow('gemini', 'AQ.… или AIza…')}<div class="hint" style="margin-top:6px">Бесплатно, в пределах дневных лимитов Google. Ключ хранится только в этом браузере и уходит только в Google.</div>`;
   const setup = {
     claude: `${CLAUDE_MODELS.length ? `<select data-wmodel aria-label="Модель Claude">${CLAUDE_MODELS.map(([v, t]) => `<option value="${v}" ${wr.claudeModel === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
-      ${wallet.anthropic ? `✓ Ключ Anthropic сохранён в этом браузере. Оплата — с вашего счёта Anthropic за каждый сценарий. <button class="btn small danger" data-wkey-del="claude">Удалить ключ</button>`
-      : `<ol class="steps"><li>Откройте <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> и войдите.</li>
-          <li>В «Billing» пополните баланс (от $5) — этого хватит на много сценариев.</li><li>«Create Key» → скопируйте ключ (начинается с <code>sk-ant-</code>) и вставьте сюда.</li></ol>
-        ${keyRow('claude', 'sk-ant-…')}<div class="hint" style="margin-top:6px">Ключ хранится только в этом браузере и уходит только в Anthropic.</div>`}`,
-    gemini: wallet.gemini ? `✓ Ключ Gemini сохранён. Пишет Gemini Flash — быстрый и бесплатный; перегружен — Freefield подождёт и повторит. <button class="btn small danger" data-wkey-del="gemini">Удалить ключ</button>`
-      : gemSetup(''),
+      ${keyCardHTML('claude')}`,
+    gemini: keyCardHTML('gemini'),
     chat: 'Задание скопируется в буфер вместе с вашим эталонным промптом. Вставьте его в чат с Gemini, Claude или ChatGPT и приложите картинки — инфографику, развёртку и кадры «персонаж в локации» по порядку (сценарий 1 — первый кадр…). ИИ ответит по вашей структуре: название, Block 1. Photo, Block 2. Video prompt, Block 3. Post caption — каждый блок с кнопкой «копировать».',
   };
   el.innerHTML = `
     <div class="block-head" style="margin-top:14px"><span class="lbl">Кто пишет сценарий</span><span class="hint">${wr.ai === 'auto' ? 'сейчас: ' + WRITERS[who].name : ''}</span></div>
     <div class="wr-ais"><button class="wr-ai auto ${wr.ai === 'auto' ? 'on' : ''}" data-wai="auto"><b>⚡ Авто</b>Лучший из доступных: Claude → Gemini → ИИ в чате</button>
       ${Object.keys(WRITERS).map(tile).join('')}</div>
-    <div class="wr-setup" id="wrSetup">${wrNeedKey() ? gemSetup('<div class="wr-lead">✨ <b>Чтобы ИИ писал сценарии прямо здесь, не выходя из приложения</b> — подключите Gemini: бесплатно, один раз, около минуты.</div>') +
+    <div class="wr-setup" id="wrSetup">${wrNeedKey() ? keyCardHTML('gemini', '<div class="wr-lead">✨ <b>Чтобы ИИ писал сценарии прямо здесь, не выходя из приложения</b> — подключите Gemini: бесплатно, один раз, около минуты.</div>') +
       '<div class="hint" style="margin-top:6px">Без ключа — выберите «ИИ в чате»: задание скопируется, и вставите его в чат с ИИ.</div>' : setup[who]}</div>`;
 }
+// ключ ИИ — один вид везде («Настройки», «Создание сценария»): сохранён — что он даёт и «Удалить»; нет — как получить и поле ввода
+function keyCardHTML(id, lead = '') {
+  const row = ph => `<div class="key-row"><input data-wkey-in="${id}" type="text" placeholder="${ph}" autocomplete="off" spellcheck="false"><button class="btn free" data-wkey-save="${id}">Сохранить</button></div>`;
+  const del = `<button class="btn small danger" data-wkey-del="${id}">Удалить ключ</button>`;
+  if (id === 'claude') return wallet.anthropic ? `✓ Ключ Anthropic сохранён в этом браузере. Оплата — с вашего счёта Anthropic за каждый сценарий. ${del}`
+    : `${lead}<ol class="steps"><li>Откройте <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> и войдите.</li>
+        <li>В «Billing» пополните баланс (от $5) — этого хватит на много сценариев.</li><li>«Create Key» → скопируйте ключ (начинается с <code>sk-ant-</code>) и вставьте сюда.</li></ol>
+      ${row('sk-ant-…')}<div class="hint" style="margin-top:6px">Ключ хранится только в этом браузере и уходит только в Anthropic.</div>`;
+  // Gemini без ключа: взять бесплатный ключ в AI Studio и вставить из буфера одной кнопкой
+  return wallet.gemini ? `✓ Ключ Gemini сохранён: пишет сценарии (Gemini Flash — быстрый и бесплатный; перегружен — Freefield подождёт и повторит) и переводит промпты. ${del}`
+    : `${lead}<ol class="steps">
+      <li><button class="btn small free" data-wkey-open>🔑 Открыть Google AI Studio</button> и войдите своим Google-аккаунтом</li>
+      <li>Нажмите «Create API key» и скопируйте ключ — он начинается с <code>AQ.</code> (старые — с <code>AIza</code>)</li>
+      <li>Вернитесь сюда: <button class="btn small ${wr.keyWait ? 'free wr-pulse' : ''}" data-wkey-paste>📋 Вставить ключ</button> — или вставьте его в поле:</li></ol>
+    ${row('AQ.… или AIza…')}<div class="hint" style="margin-top:6px">Бесплатно, в пределах дневных лимитов Google. Ключ хранится только в этом браузере и уходит только в Google.</div>`;
+}
+// поле ключа, которое сейчас на экране (в «Настройках» или в «Создании сценария»)
+const keyInput = id => $$(`[data-wkey-in${id ? `="${id}"` : ''}]`).find(el => el.offsetParent);
 // «Авто», а ключей нет — не уходим в чат, а предлагаем подключить бесплатный Gemini (пользователь 2026-09-28: писать сценарий в приложении)
 const wrNeedKey = () => wr.ai === 'auto' && writerNow() === 'chat';
 const GEMINI_KEY_URL = 'https://aistudio.google.com/apikey';
@@ -557,7 +566,7 @@ async function geminiPaste() {
   try { t = await navigator.clipboard.readText(); } catch {}
   const k = (String(t).match(GEMINI_KEY_RE) || [])[0];
   if (k) return saveGeminiKey(k);
-  $('#writeCreate [data-wkey-in="gemini"]')?.focus();
+  keyInput('gemini')?.focus();
   toast(t ? 'В буфере не ключ Gemini — скопируйте в AI Studio ключ, он начинается с AQ. или AIza' : 'Не получилось прочитать буфер — вставьте ключ в поле: долгое нажатие → «Вставить»', {type: 'err', ms: 8000});
 }
 // вернулись из AI Studio — подсвечиваем «📋 Вставить ключ»
@@ -662,15 +671,11 @@ function bindWrite() {
       wrLocsSave(); renderWrite(); updateGenButton();
       return toast(`Кадр ${i + 1} убран`, {action: 'Вернуть', onAction: () => { wr.locs.splice(Math.min(i, wr.locs.length), 0, src); wrLocsSave(); renderWrite(); updateGenButton(); }});
     }
-    if (b.dataset.wslot) { wr.pick = b.dataset.wslot; $('#writeFile').multiple = wr.pick === 'loc'; $('#writeFile').value = ''; return $('#writeFile').click(); }
+    if (b.dataset.wslot) { const k = b.dataset.wslot; return pickFile('image/*', k === 'loc').then(f => [].concat(f || []).length && writeAddImage(k, f)); }
     if (b.dataset.wai) { wr.ai = b.dataset.wai; wr.save(); renderWrite(); return updateGenButton(); }
     if (b.dataset.wgo) { setCreateMode(b.dataset.wgo); return $('.panel-scroll')?.scrollTo({top: 0, behavior: 'smooth'}); }
     if (b.dataset.wcount) { wr.count = +b.dataset.wcount; wr.save(); renderWrite(); return updateGenButton(); }
     if (b.dataset.wsec) { cl.seconds = +b.dataset.wsec; cl.save(); return renderWrite(); }
-    if (b.dataset.wkeySave) { const v = box.querySelector(`[data-wkey-in="${b.dataset.wkeySave}"]`)?.value; return b.dataset.wkeySave === 'claude' ? saveAnthropicKey(v) : saveGeminiKey(v); }
-    if (b.hasAttribute('data-wkey-open')) return geminiOpen();
-    if (b.hasAttribute('data-wkey-paste')) return geminiPaste();
-    if (b.dataset.wkeyDel) return b.dataset.wkeyDel === 'claude' ? saveAnthropicKey('') : saveGeminiKey('');
     const list = wr.result?.scenarios || [];
     const pick = v => v === 'all' ? list : [list[+v]].filter(Boolean);
     if (b.dataset.wasset) return writeAssets(pick(b.dataset.wasset));
@@ -687,9 +692,17 @@ function bindWrite() {
   });
   // инструкцию можно свернуть — запоминаем (toggle не всплывает, ловим на погружении)
   box.addEventListener('toggle', e => { if (e.target.matches('.wr-howto')) ls.set('freefield.write.howto', e.target.open); }, true);
-  box.addEventListener('keydown', e => { if (e.target.matches('[data-wkey-in]') && e.key === 'Enter') { e.preventDefault(); box.querySelector(`[data-wkey-save="${e.target.dataset.wkeyIn}"]`)?.click(); } });
+  // ключи ИИ — где бы ни был их блок
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-wkey-save], [data-wkey-open], [data-wkey-paste], [data-wkey-del]');
+    if (!b) return;
+    if (b.dataset.wkeySave) { const v = b.closest('.key-row')?.querySelector('[data-wkey-in]')?.value; return b.dataset.wkeySave === 'claude' ? saveAnthropicKey(v) : saveGeminiKey(v); }
+    if (b.hasAttribute('data-wkey-open')) return geminiOpen();
+    if (b.hasAttribute('data-wkey-paste')) return geminiPaste();
+    if (b.dataset.wkeyDel) return b.dataset.wkeyDel === 'claude' ? saveAnthropicKey('') : saveGeminiKey('');
+  });
+  document.addEventListener('keydown', e => { if (e.target.matches?.('[data-wkey-in]') && e.key === 'Enter') { e.preventDefault(); e.target.closest('.key-row')?.querySelector('[data-wkey-save]')?.click(); } });
   box.addEventListener('change', e => { if (e.target.matches('[data-wmodel]')) { wr.claudeModel = e.target.value; wr.save(); updateGenButton(); } });
-  $('#writeFile').addEventListener('change', e => writeAddImage(wr.pick, [...e.target.files]));
   // перетаскивание картинки на нужную ячейку
   const over = e => e.target.closest?.('[data-wslot]');
   box.addEventListener('dragover', e => { const z = over(e); if (z) { e.preventDefault(); z.classList.add('drag'); } });
@@ -821,6 +834,13 @@ async function scnPhone(own) {
   return ok;
 }
 
+// фото сценария: референс-кадр или развёртка героя (key) из файла
+async function scnPickRef(i, key) {
+  const file = await pickFile('image/*'), s = cl.scn[i];
+  if (!file || !s) return;
+  try { s[key] = await refDataUrl(file); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
+  cl.save(); renderScn(); updateGenButton();
+}
 function bindClaude() {
   const idx = e => +e.target.closest('.scn')?.dataset.i;
   const plan = () => {
@@ -855,12 +875,6 @@ function bindClaude() {
       Object.assign(cl.scn[idx(e)], site === 'auto' ? {service: 'auto', model: null} : {service: site, model});
       cl.save(); renderScn(); updateGenButton();   // у другого сервиса — свои форматы
     }
-  });
-  $('#scnFile').addEventListener('change', async e => {
-    const file = e.target.files[0], s = cl.scn[cl.refFor];
-    if (!file || !s) return;
-    try { s[cl.refKey || 'ref'] = await refDataUrl(file); } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
-    cl.save(); renderScn(); updateGenButton();
   });
   $('#createMode').addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (b) setCreateMode(b.dataset.cm); });
   const onClick = e => {
@@ -898,12 +912,12 @@ function bindClaude() {
     else if (b.dataset.accOpen) return accAction('open', null, b, +b.dataset.accOpen);
     else if (b.dataset.accClose) return accAction('close', null, b, +b.dataset.accClose);
     else if (b.hasAttribute('data-ref-add') && wr.locs.length) cl.pickFor = idx(e);   // сначала — кадры из «Создания сценария»
-    else if (b.hasAttribute('data-ref-add') || b.hasAttribute('data-ref-file')) { cl.pickFor = null; cl.refFor = idx(e); cl.refKey = 'ref'; $('#scnFile').value = ''; renderScn(); return $('#scnFile').click(); }
+    else if (b.hasAttribute('data-ref-add') || b.hasAttribute('data-ref-file')) { const i = idx(e); cl.pickFor = null; renderScn(); return scnPickRef(i, 'ref'); }
     else if (b.dataset.locPick) { cl.scn[idx(e)].ref = wr.locs[+b.dataset.locPick]; cl.pickFor = null; }
     else if (b.hasAttribute('data-pick-x')) cl.pickFor = null;
     else if (b.hasAttribute('data-ref-rm')) delete cl.scn[idx(e)].ref;
     else if (b.hasAttribute('data-sheet-add')) {   // развёртка — та, что загружена в «Создании сценария»; её нет — выбрать файл
-      if (!wr.sheet) { cl.refFor = idx(e); cl.refKey = 'sheet'; $('#scnFile').value = ''; return $('#scnFile').click(); }
+      if (!wr.sheet) return scnPickRef(idx(e), 'sheet');
       cl.scn[idx(e)].sheet = wr.sheet;
     }
     else if (b.hasAttribute('data-sheet-rm')) delete cl.scn[idx(e)].sheet;

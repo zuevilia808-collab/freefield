@@ -262,6 +262,15 @@ const hubLink = {
     btn.textContent = '🔄 Забрать всё из сервисов';
   },
 };
+// связь с программой Freefield на ПК — одним описанием для всех разделов: ok, denied (ключ сменился), down (компьютер по Wi-Fi
+// не отвечает), pc-off (сайт с GitHub на компьютере, программа не отвечает), none (компьютера нет — телефон без связки)
+function pcStatus() {
+  if (hubLink.ok) return {k: 'ok', icon: '🟢', text: 'Приложение подключено к компьютеру'};
+  if (hubLink.denied) return {k: 'denied', icon: '🔑', text: 'Ключ связи сменился — отсканируйте новый QR-код: на компьютере во Freefield кнопка «📱 На телефон»'};
+  if (hubLink.key && hubLink.local()) return {k: 'down', icon: '🔴', text: 'Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi'};
+  if (hubLink.pcSite()) return {k: 'pc-off', icon: '💻', text: 'Программа Freefield на этом компьютере не отвечает — откройте Claude Desktop'};
+  return {k: 'none', icon: '', text: ''};
+}
 
 // Модели для сценариев: [сервис, ключ модели, название, цена/длина, кредиты Flow или баллы Dola]
 const SCN_MODELS = {

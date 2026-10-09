@@ -358,8 +358,6 @@ function bindControls() {
   }));
 
   // settings
-  document.addEventListener('click', e => { const b = e.target.closest('[data-eye]'); if (b) $('#' + b.dataset.eye).classList.toggle('show'); });
-  $('#geminiSave').addEventListener('click', () => saveGeminiKey($('#geminiInput').value));
 
   // keyboard
   document.addEventListener('keydown', e => {

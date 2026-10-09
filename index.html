@@ -165,10 +165,8 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
       <section class="only-3d" id="m3dCreate"></section>
       <section class="only-edit" id="mtCreate"></section>
       <section class="only-voice" id="echoCreate"></section>
-      <input type="file" id="writeFile" accept="image/*" hidden>
       <section class="only-scn" id="scnCreate"></section>
       <section class="only-asset" id="assetCreate"></section>
-      <input type="file" id="assetFile" accept="image/*" multiple hidden>
 
       <section>
         <div class="block-head">
@@ -195,7 +193,6 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
         </div>
       </section>
       <section class="only-scn" id="scnLive"></section>
-      <input type="file" id="scnFile" accept="image/*" hidden>
       <section class="only-asset" id="assetOpts"></section>
 
     </div>
@@ -330,9 +327,6 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
     <div class="sheet-body" id="vcBody"></div>
   </div>
 </div>
-<input type="file" id="vcFile" accept="image/*" hidden>
-<input type="file" id="vcAudio" accept="audio/*,video/*" hidden>
-<input type="file" id="charFile" hidden>
 
 <!-- «Видео сервисы» → «💳 Проверить баланс»: какие сервисы проверить и на сколько сценариев хватит -->
 <div class="sheet hidden" id="tokSheet">
@@ -381,21 +375,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
   <div class="sheet-panel">
     <div class="sheet-head"><h2>Настройки</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
     <div class="sheet-body">
-      <div class="set-card" id="geminiSection">
-        <div class="set-card-head"><span class="mc-ico" style="background:linear-gradient(135deg,#4285f4,#9b72cb,#d96570);color:#fff">✦</span>
-          <div><b>Google Gemini — сценарии и перевод бесплатно</b><div class="hint" id="geminiStatus"></div></div></div>
-        <p class="set-p">Вход через ваш Google-аккаунт на сайте Google. Gemini пишет сценарии в «Создании сценария» и точнее переводит промпты на английский — как есть, ничего не добавляя. Бесплатно в рамках лимитов Google.</p>
-        <ol class="steps">
-          <li>Откройте <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> и войдите своим Google-аккаунтом.</li>
-          <li>Нажмите «Create API key» и скопируйте ключ.</li>
-          <li>Вставьте его сюда.</li>
-        </ol>
-        <div class="key-row">
-          <input id="geminiInput" type="text" placeholder="AQ.… или AIza…" autocomplete="off" spellcheck="false">
-          <button class="btn" data-eye="geminiInput" title="Показать/скрыть">👁</button>
-          <button class="btn free" id="geminiSave">Сохранить</button>
-        </div>
-      </div>
+      <div id="setKeys"></div>
 
       <div class="set-h">📲 Приложение</div>
       <button class="btn" id="installOpen">📲 Установить Freefield на телефон или компьютер</button>
