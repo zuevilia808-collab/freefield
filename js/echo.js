@@ -275,7 +275,7 @@ function exSelShow() {
 function exVoiceHTML() {
   const head = exHead(2, 'Голос', 'Проверь, что получилось, и сохрани голос, чтобы не вырезать его снова');
   const v = ex.voice, groups = exGroups();
-  const body = v ? `<div class="ehx-player"><button class="ehx-play" data-ehx-play="v:${esc(v.id)}" data-src="${esc(v.url || '')}">${ic('play')}</button>
+  const body = ex.mtv ? `<p class="ehx-empty">⏳ ${esc(ex.mtv)}</p>` : v ? `<div class="ehx-player"><button class="ehx-play" data-ehx-play="v:${esc(v.id)}" data-src="${esc(v.url || '')}">${ic('play')}</button>
       ${exWave('v:' + v.id, v.url, 120)}<small>${esc(ex.vName.trim() || v.name || 'новый голос')} · ${exT(v.duration)}</small></div>
     <div class="ehx-lbl"><b>Что звучит в отрезке</b> — исправь ошибки, от этого зависит похожесть</div>
     <textarea class="ehx-in" rows="2" data-ehx-f="vText" placeholder="Текст, который звучит в образце">${esc(ex.vText)}</textarea>
@@ -414,6 +414,28 @@ async function exFromMontage(line, wav) {
     exRender();
     toast(l.text ? '🎞 Реплика распознана — выберите голос и нажмите «Озвучить»' : 'Реплику не распознать — впишите текст сами', {type: l.text ? 'ok' : 'err', ms: 7000});
   } catch (e) { Object.assign(l, {busy: '', err: 'реплика не распознана: ' + e.message}); exLineShow(); }
+}
+// голос клипа из «Монтажа» → карточка «Голос»: вписать имя и сохранить в «Мои голоса»
+async function exVoiceFromMontage(wav, from) {
+  if (ex.mtv) return toast('Голос из монтажа уже вырезается — подождите', {type: 'err'});
+  const show = n => { ex.mtv = n; exRender('voice'); };
+  show(`Голос из монтажа (${from}): запускаю «Эхо»…`);
+  $('#ehxVoice')?.scrollIntoView({block: 'start', behavior: 'smooth'});
+  await echoEnsure();
+  if (eh.state !== 'ok') { show(''); return toast('«Эхо» не запустилось: ' + (eh.err || 'нужна программа Freefield на компьютере'), {type: 'err', ms: 9000}); }
+  try {
+    show(`Голос из монтажа (${from}): отправляю в «Эхо»…`);
+    const fd = new FormData();
+    fd.append('file', wav, 'voice.wav');
+    const up = await echoApi('/upload', fd);
+    const v = await echoJob(await echoApi('/voice', {upload_id: up.id, start: 0, end: +Math.min(up.duration || 15, 15).toFixed(2), clean: false}),
+      (m, pr) => show(`Голос из монтажа (${from}): ${exProg(m, pr)}`));
+    Object.assign(ex, {voice: v, vText: v.text || '', vName: '', vEmo: v.emotion || 'neutral', mtv: ''});
+    exRender();
+    $('#ehxVoice')?.scrollIntoView({block: 'start', behavior: 'smooth'});
+    $('#echoWork [data-ehx-f="vName"]')?.focus();
+    toast('Голос из монтажа готов — впишите имя (например, имя персонажа) и нажмите «Сохранить»', {type: 'ok', ms: 9000});
+  } catch (er) { show(''); toast('Голос не вырезан: ' + er.message, {type: 'err', ms: 9000}); }
 }
 // озвучка → в монтаж вместо голоса клипа
 async function exToMontage(t) {

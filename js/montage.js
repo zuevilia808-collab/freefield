@@ -739,6 +739,7 @@ function mtVoxHTML(o) {
     <div class="block-head"><span class="lbl">Другой голос</span></div>
     <div class="mt-fl"><button class="btn small primary" data-mt-to-echo ${busy ? 'disabled' : ''}>🎙 Переозвучить в «Озвучке»</button></div>
     <p class="hint">«Озвучка» распознает реплику — выберите голос, озвучьте и нажмите «→ В монтаж».</p>
+    <div class="mt-fl"><button class="btn small" data-mt-voice-save ${busy ? 'disabled' : ''} title="Голос этого клипа — в «Мои голоса» «Озвучки»: им можно озвучить любой текст">💾 Голос — в «Мои голоса»</button></div>
     ${chars.length ? `<div class="mt-fl"><select data-mt-vcchar aria-label="Персонаж">${chars.map(c => `<option value="${c.id}" ${c.id === mt.vcChar ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
       <button class="btn small" data-mt-vc ${busy ? 'disabled' : ''} title="Seed-VC: тот же текст и интонации, голос — как в образце персонажа">🎧 Голосом персонажа</button></div>` : ''}
     ${busy ? `<div class="mt-note" id="mtVoxNote">⏳ ${esc(mt.voxJob.note)}</div>` : ''}
@@ -804,6 +805,22 @@ async function mtToEcho(c) {
   mtPause();
   setView('create'); setCreateMode('voice');
   exFromMontage(line, wav);
+}
+// «💾 Голос — в „Мои голоса“» (пользователь 2026-10-09: «использовать голос, который вытаскиваем из видео»): речь клипа (до 15 с) →
+// «Озвучка» вырезает из неё голос, как из ролика; остаётся вписать имя и «Сохранить»
+async function mtVoiceSave(c) {
+  const s = mtPv.segs.find(x => x.c === c);
+  if (!s) return;
+  const vb = await mtSrcP(mtSepSrc(c.id, 'voice'));
+  if (!vb) return toast('Голос клипа не найден — отделите его снова', {type: 'err'});
+  let [from, to] = mtSpeech(vb, s.a, s.b);
+  if (to - from < 3) { from = s.a; to = s.b; }
+  if (to - from < 1.5) return toast('Речи в клипе меньше 1,5 с — голос из неё не сохранить', {type: 'err'});
+  to = Math.min(to, from + 15);
+  const wav = wavBlob(await audioMono(vb, 24000, from, to - from));
+  mtPause();
+  setView('create'); setCreateMode('voice');
+  exVoiceFromMontage(wav, `«${mt.p.name}», клип #${s.n}`);
 }
 // «→ В монтаж» из «Озвучки»: озвучка без тишины по краям, по длине — как исходная реплика (растягиваем без смены высоты)
 async function mtTakeIn(line, blob, name) {
@@ -934,6 +951,7 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtSep' in d && o) return mtSep(o);
   if ('mtGsel' in d && o) { mt.sel = {t: 'g', k: o.k}; renderMtEdit(); return mtTl(); }
   if ('mtToEcho' in d && o) return mtToEcho(o);
+  if ('mtVoiceSave' in d && o) return mtVoiceSave(o);
   if ('mtVc' in d && o) return mtVc(o);
   if ('mtGplay' in d && o) { const sg = mtPv.segs.find(x => x.c === o); if (sg) { mtSeekTo(sg.start); mtPlay(); } return; }
   if ('mtVorig' in d && o?.vox) { delete o.vox.take; mt.save(); mtRefresh(); return mtFxChanged(o); }
