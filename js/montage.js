@@ -37,7 +37,9 @@ const mtFmt = s => { s = Math.max(0, s || 0); return s < 59.95 ? `${String(Math.
 const mtClock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const clamp01 = x => Math.max(0, Math.min(1, x));
 
-// Таймлайн: клипы друг за другом; «Плавно» — наплыв (клипы перекрываются), «Через чёрное» — затемнение и появление
+// Таймлайн: клипы друг за другом; «Плавно» — наплыв (клипы перекрываются), «Через чёрное» — затемнение и появление.
+// Клип, который передвинули (пользователь 2026-10-09: «передвигать видео по таймлайну без привязки к началу»), стоит на своём
+// месте c.at: между клипами может быть пусто (чёрный кадр) или они накладываются; переход — только у клипов встык
 function mtSegs(p = mt.p) {
   const segs = [];
   let t = 0;
@@ -46,16 +48,17 @@ function mtSegs(p = mt.p) {
     if (!it) continue;
     const full = mtLen(it), a = Math.min(Math.max(0, c.a || 0), Math.max(0, full - 0.3));
     const b = Math.max(a + 0.3, Math.min(c.b ?? full, full)), len = b - a, prev = segs.at(-1);
-    const kind = prev ? c.tr || 'cut' : 'cut', d = kind === 'cut' ? 0 : Math.min(c.td || 0.6, len / 2, prev.len / 2);
-    const start = kind === 'fade' ? t - d : t;
-    const s = {c, it, a, b, len, start, end: start + len, inK: kind, inD: d, outK: 'cut', outD: 0, n: segs.length + 1};
+    const base = c.at != null ? Math.max(0, c.at) : t, adj = !!prev && Math.abs(base - prev.end) < 0.05;
+    const kind = adj ? c.tr || 'cut' : 'cut', d = kind === 'cut' ? 0 : Math.min(c.td || 0.6, len / 2, prev.len / 2);
+    const start = kind === 'fade' ? base - d : base;
+    const s = {c, it, a, b, len, start, base, adj, end: start + len, inK: kind, inD: d, outK: 'cut', outD: 0, n: segs.length + 1};
     if (prev && kind !== 'cut') { prev.outK = kind; prev.outD = d; }
     segs.push(s);
     t = s.end;
   }
   return segs;
 }
-const mtTotal = segs => segs.length ? segs.at(-1).end : 0;
+const mtTotal = segs => segs.length ? Math.max(...segs.map(s => s.end)) : 0;
 const mtOn = (s, T) => T >= s.start - 1e-6 && T < s.end - 1e-6;
 // как клип выглядит в момент T: прозрачность (наплыв), затемнение (через чёрное) и громкость
 function mtLook(s, T) {
@@ -302,7 +305,7 @@ function mtSounds(p, segs) {
   for (const s of segs) {
     const c = s.c;
     if (!c.sep || !p.audio || c.mute) continue;
-    out.push({src: mtSepSrc(c.id, 'rest'), when: s.start, off: s.a, dur: s.len, vol: c.vol ?? 1, seg: s});
+    out.push({src: mtSepSrc(c.id, 'rest') + (c.vox?.even === false ? '' : '|even'), when: s.start, off: s.a, dur: s.len, vol: c.vol ?? 1, seg: s});
     const v = c.vox || {}, w = mtVoxWin(c, s);
     if (w) out.push({src: w.src, fx: v.fx, when: w.when, off: w.off, dur: w.dur, vol: v.vol ?? 1, seg: s});
   }
@@ -311,8 +314,10 @@ function mtSounds(p, segs) {
 // где на таймлайне звучит голос клипа: исходный (время файла = время видео) или новая озвучка (с начала реплики)
 function mtVoxWin(c, s) {
   const t = c.vox?.take, at = t ? t.at : 0, src = t ? t.src : mtSepSrc(c.id, 'voice'), len = t ? t.dur : Infinity;
-  const from = Math.max(s.a, at), to = Math.min(s.b, at + len);
-  return to - from > 0.02 ? {src, when: s.start + (from - s.a), off: from - at, dur: to - from, at} : null;
+  const from = Math.max(s.a, at), to = Math.min(s.b, at + len), sh = c.vox?.shift || 0;
+  let when = s.start + (from - s.a) + sh, off = from - at, dur = to - from;
+  if (when < 0) { off -= when; dur += when; when = 0; }   // сдвинут левее начала ролика — начало голоса не звучит
+  return dur > 0.02 ? {src, when, off, dur, at} : null;
 }
 function mtGainAt(x, T) {
   if (x.seg) return mtLook(x.seg, Math.min(T, x.seg.end - 1e-3)).gain * x.vol;
@@ -349,7 +354,36 @@ function mtBufGet(key, make) {
   }));
   return mtBufs.get(key);
 }
-const mtSrcP = src => mtBufGet(src, async () => { const c = await mtAudGet(src); return c ? decodeAudio(c.blob) : null; });
+const mtSrcP = src => mtBufGet(src, async () => {
+  if (src.endsWith('|even')) { const r = src.slice(0, -5), [rb, vb] = await Promise.all([mtSrcP(r), mtSrcP(r.replace(/-rest$/, '-voice'))]); return rb && vb ? mtEven(rb, vb) : rb; }
+  const c = await mtAudGet(src); return c ? decodeAudio(c.blob) : null;
+});
+// Фон не глохнет под голосом (пользователь 2026-10-09: «без голоса фон, музыка всё равно заглушается»): сервисы сводят ролик так,
+// что музыка под репликой тише в 4–6 раз; голос убрали — осталась приглушённая музыка. Поднимаем фон под речью до его громкости
+// там, где никто не говорит (середина), не больше чем в 4 раза, плавно. Нет куска без слов — не с чем сравнить, фон как есть
+function mtEven(r, v) {
+  const sr = r.sampleRate, fr = Math.round(sr * 0.05), n = Math.floor(Math.min(r.length, Math.round(v.length * sr / v.sampleRate)) / fr);
+  if (n < 20) return r;
+  const vd = v.getChannelData(0), vk = v.sampleRate / sr, rc = Array.from({length: r.numberOfChannels}, (_, i) => r.getChannelData(i));
+  const rms = (d, i, k = 1) => { let s = 0, m = 0; for (let j = Math.floor(i * fr * k), e = Math.min(d.length, Math.floor((i + 1) * fr * k)); j < e; j += 2) { s += d[j] * d[j]; m++; } return m ? Math.sqrt(s / m) : 0; };
+  const ev = [], er = [];
+  for (let i = 0; i < n; i++) { ev.push(rms(vd, i, vk)); er.push(rc.reduce((a, d) => a + rms(d, i), 0) / rc.length); }
+  const vmax = Math.max(...ev);
+  if (vmax < 1e-4) return r;
+  const sp = ev.map(x => x > vmax * 0.12), near = sp.map((_, i) => sp.slice(Math.max(0, i - 6), i + 7).some(Boolean));   // речь ± 0,3 с
+  const quiet = er.filter((_, i) => !near[i]).sort((a, b) => a - b);
+  if (quiet.length < 10) return r;
+  const target = quiet[Math.floor(quiet.length / 2)];
+  const avg = (a, w) => a.map((_, i) => { let s = 0, k = 0; for (let j = Math.max(0, i - w); j <= Math.min(a.length - 1, i + w); j++) { s += a[j]; k++; } return s / k; });
+  const sm = avg(er, 5), g = avg(sm.map((x, i) => near[i] ? Math.max(1, Math.min(4, target / Math.max(x, 1e-4))) : 1), 3);
+  if (Math.max(...g) < 1.1) return r;
+  const out = new AudioBuffer({length: r.length, numberOfChannels: rc.length, sampleRate: sr});
+  rc.forEach((d, ch) => {
+    const o = out.getChannelData(ch);
+    for (let i = 0; i < d.length; i++) { const f = i / fr - 0.5, a = Math.max(0, Math.min(n - 1, Math.floor(f))), b = Math.min(n - 1, a + 1), t = Math.max(0, Math.min(1, f - a)); o[i] = d[i] * (g[a] * (1 - t) + g[b] * t); }
+  });
+  return out;
+}
 const mtBufKey = x => vfxIsDef(x.fx) ? x.src : x.src + '|' + vfxKey(x.fx);
 function mtFxP(src, fx) {
   if (vfxIsDef(fx)) return mtSrcP(src);
@@ -471,10 +505,10 @@ function mtTl() {
     return {key: 'v' + c.k, a: {class: `tl-b v ${sel?.k === c.k && sel.t === 'v' ? 'sel' : ''} ${drag?.k === c.k ? 'drag' : ''}`, 'data-tl': 'v', 'data-k': c.k,
       style: `left:${left}px;width:${Math.max(6, s.len * pps)}px;${th ? `--th:url(${th})` : ''}`, title: it.prompt || '',
       html: `<i class="tl-h l" data-h="l"></i><span>#${s.n} · ${mtFmt(s.len)}${c.mute ? ' 🔇' : c.sep ? ' 🗣' : ''}</span><i class="tl-h r" data-h="r"></i>`}};
-  }), ...segs.slice(1).map(s => {   // ◆ переход между клипами: нажать — следующий вид (склейка → плавно → через чёрное)
+  }), ...segs.slice(1).filter(s => s.adj).map(s => {   // ◆ переход между клипами: нажать — следующий вид (склейка → плавно → через чёрное)
     const x = s.inK === 'fade' ? s.start + s.inD / 2 : s.start, tr = MT_TR.find(t => t[0] === (s.c.tr || 'cut'));
     return {key: 'x' + s.c.k, tag: 'button', a: {class: `tl-x ${s.inK}`, 'data-tlx': s.c.k, style: `left:${x * pps}px`, title: `Переход: ${tr[2]} — нажмите, чтобы сменить`, html: tr[1]}};
-  }), ...(drag ? [{key: 'ins', tag: 'i', a: {class: 'tl-ins', style: `left:${drag.insX * pps}px`}}] : []),
+  }),
   ...(segs.length ? [] : [{key: 'empty', tag: 'button', a: {class: 'tl-empty', 'data-mt-add': '', html: '＋ Видео из галереи'}}])]);
   // 🗣 голос клипов, у которых он отделён: блок идёт за клипом (обрезка, перестановка, ✂)
   const gs = segs.filter(s => s.c.sep), box = $('#mtWork .mtw-tl');
@@ -511,7 +545,7 @@ const mtHead = () => mtSet(mtEl.head, 'left', mtPv.t * (mtPv.pps || mtPps()) + '
    На телефоне: первое касание выделяет, тянуть — следующим (иначе таймлайн не прокрутить пальцем) ---- */
 let mtDrag = null;
 const mtSnap = (T, pps, except) => {   // прилипание к бегунку, началу, стыкам клипов, краям титров и звука
-  const p = mt.p, pts = [0, mtPv.t, ...mtPv.segs.flatMap(s => [s.start, s.end]), ...[...(p.titles || []), ...(p.photos || [])].filter(x => x.k !== except).flatMap(x => [x.at, x.at + x.dur]),
+  const p = mt.p, pts = [0, mtPv.t, ...mtPv.segs.filter(s => s.c.k !== except).flatMap(s => [s.start, s.end]), ...[...(p.titles || []), ...(p.photos || [])].filter(x => x.k !== except).flatMap(x => [x.at, x.at + x.dur]),
     ...(p.audios || []).filter(x => x.k !== except).flatMap(x => [x.at, x.at + mtALen(x)])];
   let best = T, d = 8 / pps;
   for (const x of pts) if (Math.abs(x - T) < d) { d = Math.abs(x - T); best = x; }
@@ -527,10 +561,9 @@ function mtTlDown(e) {
   } else {
     const kind = blk.dataset.tl, k = blk.dataset.k, was = mt.sel?.k === k && mt.sel?.t === kind;
     mt.sel = {t: kind, k};
-    if (kind === 'g') { mtSeekTo(T); renderMtEdit(); return mtTl(); }   // голос идёт за клипом — только выделить
     const o = mtSel();
     if (e.pointerType === 'touch' && !was && !h) { renderMtEdit(); return mtTl(); }
-    mtDrag = {mode: h ? 'trim-' + h.dataset.h : 'move', kind, k, x0: e.clientX, T0: T, o0: JSON.parse(JSON.stringify(o)), moved: false};
+    mtDrag = {mode: h && kind !== 'g' ? 'trim-' + h.dataset.h : 'move', kind, k, x0: e.clientX, T0: T, o0: JSON.parse(JSON.stringify(o)), moved: false};
     if (kind === 'v') { const s = mtPv.segs.find(s => s.c.k === k); mtDrag.full = mtLen(s.it); mtDrag.s0 = {start: s.start, len: s.len}; }
     renderMtEdit();
   }
@@ -557,16 +590,18 @@ function mtTlMove1(e) {
     const full = g.full, b0 = z.b ?? full;
     if (g.mode === 'trim-l') o.a = Math.round(Math.min(Math.max(0, (z.a || 0) + dx), b0 - 0.3) * 20) / 20;
     else if (g.mode === 'trim-r') { const b = Math.round(Math.min(full, Math.max((z.a || 0) + 0.3, b0 + dx)) * 20) / 20; o.b = b >= full - 0.05 ? null : b; }
-    else {   // переставить: куда встанет — по середине соседних клипов
-      g.ghost = Math.max(0, g.s0.start + dx);
-      const mid = g.ghost + g.s0.len / 2, others = mtPv.segs.filter(s => s.c.k !== g.k);
-      const idx = others.filter(s => s.start + s.len / 2 < mid).length;
-      g.to = idx; g.insX = idx < others.length ? others[idx].start : others.length ? others.at(-1).end : 0;
+    else {   // передвинуть куда угодно: прилипает началом или концом к стыкам, бегунку, титрам
+      const raw = Math.max(0, g.s0.start + dx), a = mtSnap(raw, pps, g.k), b = mtSnap(raw + g.s0.len, pps, g.k) - g.s0.len;
+      g.ghost = Math.max(0, Math.round((a !== raw ? a : b !== raw ? b : raw) * 20) / 20);
       return mtTl();
     }
     mtPvSync();
     const s = mtPv.segs.find(s => s.c.k === g.k);
     if (s) mtSeekTo(g.mode === 'trim-l' ? s.start : s.end - 0.04);
+  } else if (g.kind === 'g') {   // голос клипа — сдвинуть относительно картинки
+    (o.vox ||= {}).shift = Math.round(((z.vox?.shift || 0) + dx) * 20) / 20;
+    if (Math.abs(o.vox.shift) < 0.05) o.vox.shift = 0;
+    mtPvSync();
   } else if (g.kind === 't' || g.kind === 'p') {
     if (g.mode === 'move') o.at = Math.max(0, mtSnap(z.at + dx, pps, o.k));
     else if (g.mode === 'trim-r') o.dur = Math.max(0.5, mtSnap(z.at + z.dur + dx, pps, o.k) - z.at);
@@ -589,11 +624,11 @@ function mtTlUp() {
   mtDrag = null;
   if (!g || g.mode === 'seek') return;
   const p = mt.p;
-  if (g.moved && g.kind === 'v' && g.mode === 'move' && g.to != null) {
-    const i = p.clips.findIndex(c => c.k === g.k), [c] = p.clips.splice(i, 1);
-    // место среди видимых клипов → место в списке проекта
-    const vis = mtSegs(p).map(s => s.c), before = vis[g.to];
-    p.clips.splice(before ? p.clips.indexOf(before) : p.clips.length, 0, c);
+  if (g.moved && g.kind === 'v' && g.mode === 'move' && g.ghost != null) {
+    // остальные клипы остаются, где стояли: у каждого — своё место; передвинутый — туда, куда отпустили
+    for (const s of mtSegs(p)) s.c.at = Math.round(s.base * 100) / 100;
+    const c = p.clips.find(c => c.k === g.k);
+    if (c) c.at = g.ghost;
   }
   if (!g.moved && g.kind === 'v') mtSeekTo(g.T0);
   if (g.moved) { mt.save(); updateGenButton(); }
@@ -614,7 +649,7 @@ function mtSplit() {
     if (!s) return toast('Поставьте бегунок на клип', {type: 'err'});
     const cut = Math.round((s.a + (T - s.start)) * 100) / 100;
     if (cut - s.a < 0.3 || s.b - cut < 0.3) return toast('Слишком близко к краю клипа', {type: 'err'});
-    const c = s.c, c2 = {...c, k: uid(), a: cut, tr: 'cut', ...(c.vox && {vox: structuredClone(c.vox)})};
+    const c = s.c, c2 = {...c, k: uid(), a: cut, tr: 'cut', ...(c.vox && {vox: structuredClone(c.vox)}), ...(c.at != null && {at: Math.round((s.start + cut - s.a) * 100) / 100})};
     c.b = cut;
     p.clips.splice(p.clips.indexOf(c) + 1, 0, c2);
     mt.sel = {t: 'v', k: c2.k};
@@ -638,7 +673,7 @@ function mtDelSel() {
 function mtDup() {
   const p = mt.p, s = mt.sel, o = mtSel();
   if (!o) return;
-  if (s.t === 'v' || s.t === 'g') { const c = {...o, k: uid(), tr: 'cut', ...(o.vox && {vox: structuredClone(o.vox)})}; p.clips.splice(p.clips.indexOf(o) + 1, 0, c); mt.sel = {t: 'v', k: c.k}; }
+  if (s.t === 'v' || s.t === 'g') { const sg = mtPv.segs.find(x => x.c === o), c = {...o, k: uid(), tr: 'cut', ...(o.vox && {vox: structuredClone(o.vox)}), ...(o.at != null && sg && {at: Math.round(sg.end * 100) / 100})}; p.clips.splice(p.clips.indexOf(o) + 1, 0, c); mt.sel = {t: 'v', k: c.k}; }
   else if (s.t === 't' || s.t === 'p') { const t = {...o, k: uid(), at: o.at + o.dur}; (s.t === 't' ? p.titles : p.photos).push(t); mt.sel = {t: s.t, k: t.k}; }
   else { const a = {...o, k: uid(), at: o.at + mtALen(o)}; p.audios.push(a); mt.sel = {t: 'a', k: a.k}; }
   mt.save(); mtRefresh();
@@ -725,6 +760,8 @@ function mtVoxHTML(o) {
     <div class="mt-sp1" data-noicon>${t ? `${t.kind === 'vc' ? '🎧 Голосом' : '🎙 Озвучка'}: ${esc(t.name)}` : 'Исходный голос из ролика'}</div>
     <div class="mt-fl mt-rng"><span>Голос</span><input type="range" min="0" max="2" step="0.05" value="${v.vol ?? 1}" data-mt-f="vvol" data-k="${o.k}"><b>${Math.round((v.vol ?? 1) * 100)}%</b></div>
     <div class="mt-fl mt-rng"><span>Фон</span><input type="range" min="0" max="1.5" step="0.05" value="${o.vol ?? 1}" data-mt-f="vol" data-k="${o.k}"><b>${Math.round((o.vol ?? 1) * 100)}%</b></div>
+    <div class="mt-fl"><label class="mt-chk" title="Сервисы приглушают музыку под репликой; без голоса это слышно — фон под репликой поднимается до своей обычной громкости"><input type="checkbox" data-mt-even ${v.even === false ? '' : 'checked'}> Фон ровный — не глохнет под голосом</label></div>
+    <div class="mt-fl"><span class="mt-note">${v.shift ? `Голос сдвинут на ${v.shift > 0 ? '+' : ''}${String(v.shift).replace('.', ',')} с` : 'Голос можно тянуть по дорожке «🗣» влево и вправо'}</span>${v.shift ? '<button class="btn small" data-mt-vshift0>↺ На место</button>' : ''}</div>
     <div class="block-head"><span class="lbl">Изменить голос</span>${vfxIsDef(fx) ? '' : '<button class="link-btn" data-mt-fx-reset>Сбросить</button>'}</div>
     <div class="mt-vp">${VFX_PRESETS.map(([id, name]) => `<button class="chip" data-mt-vp="${id}">${name}</button>`).join('')}</div>
     ${mtFxRng(o.k, 'pitch', 'Высота', -12, 12, 1, fx.pitch, mtFxFmt.pitch)}
@@ -935,6 +972,7 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtGsel' in d && o) { mt.sel = {t: 'g', k: o.k}; renderMtEdit(); return mtTl(); }
   if ('mtToEcho' in d && o) return mtToEcho(o);
   if ('mtVoiceSave' in d && o) return mtVoiceSave(o);
+  if ('mtVshift0' in d && o?.vox) { o.vox.shift = 0; mt.save(); return mtRefresh(); }
   if ('mtVc' in d && o) return mtVc(o);
   if ('mtGplay' in d && o) { const sg = mtPv.segs.find(x => x.c === o); if (sg) { mtSeekTo(sg.start); mtPlay(); } return; }
   if ('mtVorig' in d && o?.vox) { delete o.vox.take; mt.save(); mtRefresh(); return mtFxChanged(o); }
@@ -1006,6 +1044,7 @@ $('#mtCreate').addEventListener('change', e => {
     mtPv.t = 0; mt.sel = null;
     renderMt(); return updateGenButton();
   }
+  if ('mtEven' in d) { const c = mtSel(); if (c) { (c.vox ||= {}).even = el.checked; mt.save(); if (mtAE.on) mtAE.plan(); } return; }
   if ('mtAudio' in d) { p.audio = el.checked; mt.save(); if (mtAE.on) mtAE.plan(); return mtShow(mtPv.t); }
   if ('mtVcchar' in d) { mt.vcChar = el.value; return; }
   if (d.mtF) { mt.save(); mtRefresh(); }

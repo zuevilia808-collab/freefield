@@ -130,5 +130,30 @@ await suite('монтаж: без лагов, голос отдельно, эф�
   const k = await p.evaluate(() => { const k = $('#mtTrG .tl-b').dataset.k; mt.sel = {t: 'g', k}; renderMtEdit(); return k; });
   await p.locator('#mtBody [data-mt-unsep]').click();
   t.ok(await p.evaluate(([k, g]) => !mt.p.clips.find(c => c.k === k).sep && $$('#mtTrG .tl-b').length === g - 1, [k, cut.g]), '«Вернуть звук как был» — голос снова в клипе');
+
+  // --- клип — на своё место (не встык), голос — сдвинуть, фон под репликой — не глохнет
+  const free = await p.evaluate(() => {
+    const c = mt.p.clips[0], len = mtPv.segs[0].len;
+    c.at = 3; mtPvSync();
+    const s0 = mtPv.segs[0], total = mtTotal(mtPv.segs);
+    c.at = null; mtPvSync();
+    return {start: s0.start, end: s0.end, len, total};
+  });
+  t.ok(Math.abs(free.start - 3) < 1e-6 && free.total >= free.end, 'клип стоит с 3 с — перед ним пусто, ролик длиннее', free);
+  const shift = await p.evaluate(() => {
+    const c = mt.p.clips.find(c => c.sep) || mt.p.clips[0], s = mtPv.segs.find(x => x.c === c);
+    c.sep = true; c.vox ||= {};
+    const w0 = mtVoxWin(c, s); c.vox.shift = 0.5; const w1 = mtVoxWin(c, s); c.vox.shift = 0;
+    return {d: w0 && w1 ? +(w1.when - w0.when).toFixed(3) : null};
+  });
+  t.ok(shift.d === 0.5, 'голос клипа сдвигается на +0,5 с', shift);
+  const even = await p.evaluate(() => {
+    const sr = 8000, n = sr * 6, r = new AudioBuffer({length: n, numberOfChannels: 1, sampleRate: sr}), v = new AudioBuffer({length: n, numberOfChannels: 1, sampleRate: sr});
+    const rd = r.getChannelData(0), vd = v.getChannelData(0);
+    for (let i = 0; i < n; i++) { const sp = i >= sr * 2 && i < sr * 4; rd[i] = (sp ? 0.02 : 0.1) * Math.sin(i / 3); vd[i] = sp ? 0.3 * Math.sin(i / 7) : 0; }
+    const o = mtEven(r, v).getChannelData(0), lvl = (a, b) => { let s = 0; for (let i = a * sr; i < b * sr; i++) s += o[i] * o[i]; return +Math.sqrt(s / ((b - a) * sr)).toFixed(3); };
+    return {quiet: lvl(0.2, 1.5), speech: lvl(2.6, 3.4)};
+  });
+  t.ok(even.speech > even.quiet * 0.6 && even.speech < even.quiet * 1.2, 'фон под репликой поднят до обычной громкости (был в 5 раз тише)', even);
 });
 hub.close(); echo.close();
