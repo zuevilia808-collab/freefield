@@ -145,6 +145,20 @@ const ex = {
   text: '', emo: 'neutral', intensity: 0.7, lang: 'russian', speed: 1, takes: 1, sel: '', speak: '',   // 3: озвучка
   ...ls.get('freefield.echo.ui', {}),
 };
+// реплики из «Монтажа» в «Готовых озвучках» (пользователь 2026-10-09: «чтобы голосовая запись, которую изменяем, переносилась
+// в „Озвучку“ и появлялась в „Готовых озвучках“ с пометкой „из монтажа“») — файлы в базе приложения, не в «Эхо»
+ex.mtl = null;   // [{id, kind: 'ex-mtl', blob, text, proj, n, dur, created}]
+async function exMtlLoad() {
+  if (ex.mtl) return;
+  ex.mtl = ((await DB.all().catch(() => [])) || []).filter(x => x.kind === 'ex-mtl' && x.blob).sort((a, b) => b.created - a.created);
+}
+async function exMtlAdd(line, wav) {
+  await exMtlLoad();
+  const r = {id: 'exmtl-' + uid(), kind: 'ex-mtl', blob: wav, text: '', proj: line.proj, n: line.n, dur: line.clip || line.dur, created: Date.now()};
+  ex.mtl.unshift(r);
+  DB.put(r).catch(() => {});
+  return r;
+}
 const exSave = () => ls.set('freefield.echo.ui', {text: ex.text, emo: ex.emo, intensity: ex.intensity, lang: ex.lang, speed: ex.speed, takes: ex.takes, sel: ex.sel});
 const exT = s => `${Math.floor((s || 0) / 60)}:${String(Math.floor((s || 0) % 60)).padStart(2, '0')}`;
 const exT1 = s => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
@@ -170,6 +184,7 @@ const exVoiceSaved = () => { const v = ex.voice; return !!v && v.saved !== false
 // берёт его файлом (звук с адреса http страница https сама не играет)
 const exBlobs = new Map();
 async function exMedia(p) {
+  if (/^blob:/.test(p)) return p;
   const u = echoUrl('/' + String(p || '').replace(/^\//, ''));
   if (!hubLink.viaLan) return u;
   if (!exBlobs.has(u)) exBlobs.set(u, fetch(u).then(r => { if (!r.ok) throw new Error('файл не скачался: ' + r.status); return r.blob(); }).then(b => URL.createObjectURL(b)));
@@ -179,7 +194,7 @@ async function exMedia(p) {
 const exPeakCache = new Map(), exPeakDone = new Map();
 function exPeaks(p, n) {
   if (!exPeakCache.has(p)) exPeakCache.set(p, (async () => {
-    const r = await fetch(echoUrl('/' + p.replace(/^\//, '')));
+    const r = await fetch(/^blob:/.test(p) ? p : echoUrl('/' + p.replace(/^\//, '')));
     if (!r.ok) return null;
     const ab = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(await r.arrayBuffer());
     const d = ab.getChannelData(0), step = Math.max(1, Math.floor(d.length / n)), out = [];
@@ -299,10 +314,17 @@ function exSpeakHTML() {
 const exGoShow = () => { const b = $('#ehxGo'); if (b) { b.disabled = !!ex.speak; b.innerHTML = ex.speak ? '⏳ ' + esc(ex.speak) : ic('sparkles') + 'Озвучить'; } };
 // справа: готовые озвучки — слушать, ★, скачать MP3 / WAV, удалить
 function exTakesHTML() {
-  const list = ex.hist.filter(t => !ex.fav || t.favorite);
+  const when = t => { const d = new Date(typeof t.created === 'number' && t.created < 1e12 ? t.created * 1000 : t.created); return isNaN(d) ? 0 : +d; };
+  const list = [...ex.hist, ...(ex.fav ? [] : ex.mtl || [])].filter(t => !ex.fav || t.favorite).sort((a, b) => when(b) - when(a));
+  const mtlHTML = t => { const src = urlOf(t.blob);
+    return `<div class="ehx-take mtl"><div class="ehx-tk"><button class="ehx-play" data-ehx-play="m:${esc(t.id)}" data-src="${esc(src)}">${ic('play')}</button>
+        <div><p><span class="ehx-mtl-tag">🎞 Из монтажа</span> ${t.text ? '«' + esc(t.text) + '»' : ''}</p>${exWave('m:' + t.id, src, 64)}</div></div>
+      <small>«${esc(t.proj || '')}», клип #${t.n} · ${exNum(t.dur || 0)} с · ${exDate(t.created)}</small>
+      <div class="ehx-acts"><button class="ehx-btn ghost sm" data-ehx-mdl="${esc(t.id)}">${ic('download')}WAV</button>
+        <button data-ehx-mdel="${esc(t.id)}" title="Убрать реплику из списка">${ic('trash')}</button></div></div>`; };
   return `<div class="ehx-h"><span class="ehx-logo sm">${EHX_BARS}</span><div><h3>Готовые озвучки</h3><small>Слушай и скачивай</small></div></div>
     <div class="ehx-seg tabs"><button class="${ex.fav ? '' : 'on'}" data-ehx-fav="">Все</button><button class="${ex.fav ? 'on' : ''}" data-ehx-fav="1">${ic('star')}Избранные</button></div>
-    <div class="ehx-takes">${list.length ? list.map(t => `<div class="ehx-take ${ex.fresh.has(t.id) ? 'new' : ''}">
+    <div class="ehx-takes">${list.length ? list.map(t => t.kind === 'ex-mtl' ? mtlHTML(t) : `<div class="ehx-take ${ex.fresh.has(t.id) ? 'new' : ''}">
       <div class="ehx-tk"><button class="ehx-play" data-ehx-play="t:${esc(t.id)}" data-src="${esc(t.mp3 || '')}">${ic('play')}</button>
         <div><p>${esc(t.text || '')}</p>${exWave('t:' + t.id, t.mp3, 64)}</div></div>
       <small>${esc(t.voice_name || '')} · ${exT(t.duration)} · вариант ${t.take || 1}/${t.takes || 1}${t.created ? ' · ' + exDate(t.created) : ''}</small>
@@ -346,7 +368,7 @@ let exTimer = null;
 async function exLoad() {
   if (eh.state !== 'ok') return;
   ex.at = Date.now();
-  const [st, h] = await Promise.all([echoApi('/status').catch(() => null), echoApi('/history').catch(() => null)]);
+  const [st, h] = await Promise.all([echoApi('/status').catch(() => null), echoApi('/history').catch(() => null), exMtlLoad()]);
   if (st) ex.status = st;
   if (Array.isArray(h)) ex.hist = h;
   if (cl.mode === 'voice') exRender();
@@ -361,7 +383,7 @@ ex.line = null;   // {p, proj, k, n, at, dur, text, busy, err, going}
 function exLineHTML() {
   const l = ex.line;
   if (!l) return '';
-  return `<div class="ehx-card ehx-line"><div class="ehx-lh"><b>🎞 Реплика из монтажа</b><span>«${esc(l.proj)}», клип #${l.n} · ${exNum(l.dur)} с</span>
+  return `<div class="ehx-card ehx-line"><div class="ehx-lh"><b>🎞 Реплика из монтажа</b><span>«${esc(l.proj)}», клип #${l.n} · ${exNum(l.clip || l.dur)} с</span>
       <button class="ehx-btn ghost sm" data-ehx-line-x>Отменить</button></div>
     ${l.busy ? `<small>⏳ ${esc(l.busy)}</small>` : l.err ? `<small class="bad">⚠ ${esc(l.err)}</small>`
       : `<p data-noicon>${l.text ? '«' + esc(l.text) + '»' : 'Текст не распознан — впишите его в «Текст озвучки»'}</p>
@@ -370,7 +392,9 @@ function exLineHTML() {
 function exLineShow() { const el = $('#ehxLine'); if (el) el.innerHTML = exLineHTML(); }
 async function exFromMontage(line, wav) {
   ex.line = {...line, text: '', busy: 'Запускаю «Эхо»…', err: ''};
+  const rec = await exMtlAdd(line, wav);
   exLineShow();
+  if (cl.mode === 'voice') exRender('takes');
   await echoEnsure();
   const l = ex.line;
   if (l?.k !== line.k) return;
@@ -383,6 +407,7 @@ async function exFromMontage(line, wav) {
     const v = await echoJob(await echoApi('/voice', {upload_id: up.id, start: 0, end: +Math.min(up.duration || line.dur, 30).toFixed(2), clean: false}),
       (m, pr) => { l.busy = 'Распознаю реплику: ' + exProg(m, pr); exLineShow(); });
     l.text = String(v.text || '').trim(); l.busy = '';
+    if (l.text) { rec.text = l.text; DB.put(rec).catch(() => {}); }
     // голос реплики — в карточке «Голос» (можно сохранить), текст — в «Текст озвучки»
     Object.assign(ex, {voice: v, vText: v.text || '', vName: '', vEmo: v.emotion || 'neutral'});
     if (l.text) { ex.text = l.text; exSave(); }
@@ -515,6 +540,12 @@ function exSelDown(e) {
     }
     if ('ehxLineX' in d) { ex.line = null; return exRender(); }
     if (d.ehxTomt) { const t = take(d.ehxTomt); return t && exToMontage(t); }
+    if (d.ehxMdl) { const t = ex.mtl?.find(x => x.id === d.ehxMdl); return t && saveFile(t.blob, `реплика-${(t.proj || 'монтаж').replace(/[\\/:*?"<>|]+/g, '')}-клип${t.n}.wav`); }
+    if (d.ehxMdel) {
+      if (!confirm('Убрать эту реплику из списка?')) return;
+      ex.mtl = (ex.mtl || []).filter(x => x.id !== d.ehxMdel); DB.del(d.ehxMdel);
+      return exRender('takes');
+    }
     if ('ehxNew' in d) { if (exNow === 'seg') exAud.pause(); ex.up = null; return exRender('src'); }
     if ('ehxClean' in d) { ex.clean = !ex.clean; return exRender('src'); }
     if ('ehxCut' in d) return exCut();

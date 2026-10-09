@@ -70,9 +70,17 @@ function lnkTarget(file) {
 async function launchHidden(file) {
   if (process.platform !== 'win32') return spawn(file, [], {detached: true, stdio: 'ignore'}).unref();
   let t = /\.lnk$/i.test(file) ? await lnkTarget(file) : {target: file, args: '', cwd: path.dirname(file)};
+  // PowerShell ярлык не прочитал (бывает с «—» в имени) — путь к программе есть в самом файле ярлыка открытым текстом
+  if (!t && /\.lnk$/i.test(file)) {
+    const hit = fs.readFileSync(file).toString('latin1').match(/[A-Za-z]:\\[\x20-\x7e]+?\.(?:bat|cmd|exe|vbs)(?=\0)/i);
+    if (hit) t = {target: hit[0], args: '', cwd: path.dirname(hit[0])};
+  }
   if (!t || !fs.existsSync(t.target) || /\.url$/i.test(t.target)) t = {target: file, args: '', cwd: path.dirname(file)};   // как двойной щелчок, но тоже скрыто
   const cwd = t.cwd && fs.existsSync(t.cwd) ? t.cwd : path.dirname(t.target);
-  const cmd = /\.vbs$/i.test(t.target) ? `wscript.exe //B "${t.target}" ${t.args}` : `"${t.target}" ${t.args}`;
+  // --no-browser: «Эхо» не открывает своё окно в Chrome (пользователь 2026-10-09: «открыло само в Google Chrome, я не просил») —
+  // им пользуются из «Озвучки» Freefield
+  const args = /--no-browser/.test(t.args) ? t.args : `${t.args} --no-browser`.trim();
+  const cmd = /\.vbs$/i.test(t.target) ? `wscript.exe //B "${t.target}" ${args}` : `"${t.target}" ${args}`;
   runHidden(cmd.trim(), cwd);
 }
 // WScript.Shell.Run с окном 0 (скрыто), не дожидаясь конца; файл сценария — UTF-16 с BOM (пути с кириллицей)

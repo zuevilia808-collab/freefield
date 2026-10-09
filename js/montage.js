@@ -797,8 +797,10 @@ async function mtToEcho(c) {
   if (to - from < 1.5) { const mid = (from + to) / 2; from = Math.max(s.a, mid - 0.75); to = Math.min(s.b, from + 1.5); }
   if (to - from < 1.5) return toast('Реплика короче 1,5 с — «Озвучке» её не распознать', {type: 'err'});
   to = Math.min(to, from + 30);
-  const wav = wavBlob(await audioMono(vb, 24000, from, to - from));
-  const line = {p: mt.p.id, proj: mt.p.name, k: c.k, n: s.n, at: from, dur: to - from};
+  // в «Озвучку» — весь кусок клипа, ровно той длины, что на таймлайне (пользователь 2026-10-09: «дорожка не 8 секунд, больше»)
+  const clip = Math.min(s.b - s.a, 30);
+  const wav = wavBlob(await audioMono(vb, 24000, s.a, clip));
+  const line = {p: mt.p.id, proj: mt.p.name, k: c.k, n: s.n, at: from, dur: to - from, clip};
   mtPause();
   setView('create'); setCreateMode('voice');
   exFromMontage(line, wav);
