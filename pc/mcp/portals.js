@@ -1043,15 +1043,15 @@ const DOLA_ASKS = /nearest supported duration|I can generate it at|Would you lik
 // она делает видео не Seedance 2.5): на вопрос — новый чат, модель снова выбирается вручную, длина и формат сразу в промпте.
 const dolaNoAsk = (prompt, seconds, aspect) => `${prompt}\n\nВидео: ровно ${seconds} секунд, формат ${aspect}. Ничего не уточняй и не предлагай варианты — сразу генерируй.`;
 
-// видео в Dola — только Seedance 2.5 (пользователь 2026-10-10), какую бы модель ни прислали
+// видео в Dola: по умолчанию Seedance 2.5 (пользователь 2026-10-10); модель всегда выбирается вручную в меню
 export const dolaVideo = o => siteSlot('dola', async () => {
-  o = {...o, model: DOLA_VIDEO_MODELS['seedance-2.5']};
+  o = {...o, model: o.model || DOLA_VIDEO_MODELS['seedance-2.5']};
   for (let attempt = 1; ; attempt++) {
     try { return await dolaVideoRun(o); } catch (e) {
       // «Произошла ошибка» или вопрос вместо генерации — заново в новом чате с ручным выбором модели (до 3 попыток).
       // Отказ по фото человека («защита права на образ») принимаем как есть: Freefield переносит задание на другой сервис
       if (!['retry', 'asked'].includes(e.kind) || attempt >= 3) throw e;
-      o.onStatus(e.kind === 'asked' ? 'Dola переспрашивает — не отвечаю ей, а начинаю новый чат и снова выбираю Seedance 2.5 вручную'
+      o.onStatus(e.kind === 'asked' ? `Dola переспрашивает — не отвечаю ей, а начинаю новый чат и снова выбираю ${o.model.label} вручную`
         : 'Dola ответила «Произошла ошибка» — пробую ещё раз');
       if (e.kind === 'asked') o = {...o, prompt: dolaNoAsk(o.prompt, o.seconds || 10, o.aspect || '9:16')};
     }
@@ -1113,7 +1113,7 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     });
     vids = st.vids;
     const reply = st.reply;
-    // переспросила уже после отправки — тоже не отвечаем, а заново в новом чате с ручным выбором Seedance 2.5
+    // переспросила уже после отправки — тоже не отвечаем, а заново в новом чате с ручным выбором модели
     if (!vids.length && DOLA_ASKS.test(reply.slice(-500)) && !DOLA_STARTED.test(reply.slice(-500))) throw new PortalError(`Dola переспрашивает вместо генерации — «${reply.slice(-160)}»`, 'asked');
     const pts = reply.match(/остал\S* балл\S* на сегодня:\s*(\d+)|points? left today:\s*(\d+)/i);
     if (pts) writeState({dolaPoints: {date: today(), left: +(pts[1] ?? pts[2]), at: Date.now()}});
