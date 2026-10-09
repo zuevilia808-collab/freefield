@@ -21,7 +21,7 @@ await suite('фото: развёртка и инфографика', async t =>
   const cards = await p.evaluate(() => items.filter(i => i.status === 'external').sort((a, b) => a.phone.n - b.phone.n).map(i => i.finalPrompt));
   t.ok(cards.length === 2, 'инфографика: две карточки для сайтов', cards.length);
   t.ok(/Topic: how to save money on groceries/.test(cards[0]) && /"5 простых способов"/.test(cards[0]), 'инфографика: тема и заголовок попали в промпт');
-  t.ok(/Choose yourself/.test(cards[1] || ''), 'инфографика: без темы — модель выбирает сама');
+  t.ok(/choose yourself/i.test(cards[1] || ''), 'инфографика: без темы — модель выбирает сама');
 
   // развёртка: промпт сразу; без фото героя — не уходит, место фото подсвечено
   await p.evaluate(() => { items.length = 0; render(); closeSheets(); setView('create'); }); await sleep(300);

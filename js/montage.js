@@ -960,7 +960,7 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtStop' in d) { if (mt.job) mt.job.stop = true; return; }
   if ('mtRename' in d) { const n = prompt('Название проекта', p.name); if (n?.trim()) { p.name = n.trim().slice(0, 80); mt.save(); renderMt(); } return; }
   if ('mtDel' in d) {
-    if (!confirm(`Удалить проект «${p.name}»? Видео в галерее останутся.`)) return;
+    if (!await askYes(`Удалить проект «${p.name}»? Видео в галерее останутся.`)) return;
     mt.projects = mt.projects.filter(x => x !== p); mt.cur = mt.projects[0]?.id || null; mt.sel = null; mt.save(); mtPause(); renderMt(); return updateGenButton();
   }
   if ('mtSplit' in d) return mtSplit();
@@ -1575,7 +1575,7 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtAttFile' in d) { $('#mtAttMenu')?.classList.add('hidden'); for (const f of await pickFile('image/*,video/*', true)) await mtAttach(f, f.name); return; }
   if ('mtAttGal' in d) { $('#mtAttMenu')?.classList.add('hidden'); return mtOpenPick('att'); }
   if (d.mtAttRm) { mt.att = mt.att.filter(a => a.k !== d.mtAttRm); return renderMtAtt(); }
-  if ('mtClear' in d) { if (confirm('Очистить чат этого проекта?')) { p.chat = []; mt.save(); renderMtChat(); } return; }
+  if ('mtClear' in d) { if (await askYes('Очистить чат этого проекта?')) { p.chat = []; mt.save(); renderMtChat(); } return; }
   if (d.mtUndo) { const m = p.chat[+d.mtUndo]; if (!m?.undo) return; Object.assign(p, m.undo); delete m.undo; m.edit += ' (отменено)'; mt.save(); return renderMt(); }
   if (d.mtScn) return mtToScn(p.chat[+d.mtScn]);
   if (d.mtPrompts) return mtAsk(MT_PROMPTS_ASK);

@@ -572,7 +572,7 @@ function exSelDown(e) {
     if (d.ehxTadd) return exAddToMontage(take(d.ehxTadd) || ex.mtl?.find(x => x.id === d.ehxTadd), b);
     if (d.ehxMdl) { const t = ex.mtl?.find(x => x.id === d.ehxMdl); return t && saveFile(t.blob, `реплика-${(t.proj || 'монтаж').replace(/[\\/:*?"<>|]+/g, '')}-клип${t.n}.wav`); }
     if (d.ehxMdel) {
-      if (!confirm('Убрать эту реплику из списка?')) return;
+      if (!await askYes('Убрать эту реплику из списка?')) return;
       ex.mtl = (ex.mtl || []).filter(x => x.id !== d.ehxMdel); DB.del(d.ehxMdel);
       return exRender('takes');
     }
@@ -588,7 +588,7 @@ function exSelDown(e) {
     }
     if (d.ehxVdel) {
       const g = exGroups().find(x => echoKey(x.name) === echoKey(d.ehxVdel));
-      if (!g || !confirm(`Удалить голос «${g.name}» со всеми образцами?`)) return;
+      if (!g || !await askYes(`Удалить голос «${g.name}» со всеми образцами?`)) return;
       try { await echoApi(`/voices/${encodeURIComponent(g.id)}?group=true`, null, 'DELETE'); } catch (er) { return toast('Не удалилось: ' + er.message, {type: 'err'}); }
       if (ex.voice && echoKey(ex.voice.name) === echoKey(g.name)) ex.voice = null;
       if (echoKey(ex.sel) === echoKey(g.name)) { ex.sel = ''; exSave(); }
@@ -610,7 +610,7 @@ function exSelDown(e) {
       return exRender('takes');
     }
     if (d.ehxTdel) {
-      if (!confirm('Удалить эту озвучку?')) return;
+      if (!await askYes('Удалить эту озвучку?')) return;
       try { await echoApi(`/history/${encodeURIComponent(d.ehxTdel)}`, null, 'DELETE'); ex.hist = ex.hist.filter(t => t.id !== d.ehxTdel); } catch (er) { toast('Не удалилось: ' + er.message, {type: 'err'}); }
       return exRender('takes');
     }

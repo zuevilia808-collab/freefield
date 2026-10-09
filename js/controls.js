@@ -129,9 +129,9 @@ async function addCustomStyle() {
   setStyle(st.id);
   toast(`Стиль «${name}» добавлен${s ? ` и назначен сценарию ${cl.sel + 1}` : ' и выбран'}`, {type: 'ok'});
 }
-function delCustomStyle(id) {
+async function delCustomStyle(id) {
   const st = customStyles.find(s => s.id === id);
-  if (!st || !confirm(`Удалить стиль «${st.name}»?`)) return;
+  if (!st || !await askYes(`Удалить стиль «${st.name}»?`)) return;
   customStyles = customStyles.filter(s => s.id !== id);
   ls.set('freefield.styles.custom', customStyles);
   cl.scn.forEach(s => { if (s.style === id) delete s.style; });

@@ -138,7 +138,7 @@ $('#siteCreate').addEventListener('click', async e => {
   if ('siteColorAdd' in d) { P.colors.push(['#d4ff3a', '#1e293b', '#f97316', '#0ea5e9', '#f5f5f4'][P.colors.length] || '#888888'); site.save(); return renderSite(); }
   if (d.siteColorRm) { P.colors.splice(+d.siteColorRm, 1); site.save(); return renderSite(); }
   if (d.siteDel) {
-    if (!confirm('Удалить задание? Готовые картинки в галерее останутся.')) return;
+    if (!await askYes('Удалить задание? Готовые картинки в галерее останутся.')) return;
     try {
       const r = await fetch(hubLink.url('/api/site/' + d.siteDel), {method: 'DELETE'});
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);

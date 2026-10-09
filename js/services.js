@@ -253,13 +253,25 @@ function useService(id, kind) {
 }
 
 
+// режим для ИИ: открыли с ?ai=1 (запоминается; ?ai=0 — выключить) — без системных окон, которые ИИ не видит
+const aiMode = (() => { const q = new URLSearchParams(location.search).get('ai'); if (q != null) ls.set('freefield.ai', q !== '0'); return () => !!ls.get('freefield.ai', false); })();
 function pickFile(accept, multiple = false) {   // multiple — массив файлов
   return new Promise(res => {
     const i = document.createElement('input');
     i.type = 'file'; i.accept = accept; i.multiple = multiple;
-    i.onchange = () => res(multiple ? [...i.files] : i.files[0] || null);
     i.oncancel = () => res(multiple ? [] : null);
-    i.click();
+    if (!aiMode()) { i.onchange = () => res(multiple ? [...i.files] : i.files[0] || null); return i.click(); }
+    // ИИ кладёт файл прямо в поле (file_upload / setInputFiles) — системное окно не открывается
+    $('.ai-pick')?.remove();
+    const box = document.createElement('div');
+    box.className = 'ai-pick';
+    box.innerHTML = `<b>Файл для загрузки${multiple ? ' (можно несколько)' : ''}</b>`;
+    i.setAttribute('aria-label', 'Файл для загрузки'); i.id = 'aiPick';
+    const x = document.createElement('button'); x.className = 'btn small'; x.textContent = 'Отмена';
+    x.onclick = () => { box.remove(); res(multiple ? [] : null); };
+    i.onchange = () => { box.remove(); res(multiple ? [...i.files] : i.files[0] || null); };
+    box.append(i, x);
+    document.body.append(box);
   });
 }
 

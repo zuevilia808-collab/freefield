@@ -717,6 +717,21 @@ let customStyles = ls.get('freefield.styles.custom', []);
 const allStyles = () => [...STYLES, ...customStyles];
 const styleOf = id => byId(allStyles(), id);
 
+// подтверждение внутри страницы вместо confirm(): системное окно браузера блокирует управление из ИИ (Claude in Chrome)
+// (пользователь 2026-10-09: «Freefield должен быть максимально удобен для нейросети, но с понятным интерфейсом»)
+function askYes(msg, yes = 'Да') {
+  return new Promise(res => {
+    const d = document.createElement('div');
+    d.className = 'ask-yes'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', msg);
+    d.innerHTML = `<div class="ask-box"><p>${esc(msg)}</p><div class="ask-row"><button class="btn danger" data-ask="1">${esc(yes)}</button><button class="btn" data-ask="0">Отмена</button></div></div>`;
+    const done = v => { d.remove(); document.removeEventListener('keydown', key, true); res(v); };
+    const key = e => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+    d.addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (b) done(b.dataset.ask === '1'); else if (e.target === d) done(false); });
+    document.addEventListener('keydown', key, true);
+    document.body.append(d);
+    d.querySelector('[data-ask="1"]').focus();
+  });
+}
 function toast(msg, opts = {}) {
   const t = document.createElement('div'), ms = opts.ms || 4200;
   t.className = 'toast ' + (opts.type || '');

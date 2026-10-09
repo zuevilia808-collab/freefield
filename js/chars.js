@@ -218,7 +218,7 @@ async function vcSaveChar() {
 }
 async function vcDelChar() {
   const c = vc.char(vcUi.edit?.id);
-  if (!c || !confirm(`Удалить персонажа «${c.name}»? Его голос освободится`)) return;
+  if (!c || !await askYes(`Удалить персонажа «${c.name}»? Его голос освободится`)) return;
   vc.chars = vc.chars.filter(x => x.id !== c.id);
   await vc.saveChars();
   if (wr.char === c.id) { wr.char = null; wr.save(); }
@@ -1241,7 +1241,7 @@ function serStart(c) {
   serKick();
 }
 // кнопки окна серии
-function serClick(b) {
+async function serClick(b) {
   const x = b.dataset, c = vc.char(vcUi.serChar), o = vcUi.serSet, j = c && serOf(c.id);
   if (x.serN) { o.n = +x.serN; return renderVoices(); }
   if (x.serFrames) { o.frames = x.serFrames; return renderVoices(); }
@@ -1265,7 +1265,7 @@ function serClick(b) {
     ser.save(); renderVoices(); return serKick();
   }
   if (b.hasAttribute('data-ser-del')) {
-    if (serLive(j) && !confirm('Отменить серию? Уже созданное останется в галерее')) return;
+    if (serLive(j) && !await askYes('Отменить серию? Уже созданное останется в галерее')) return;
     ser.jobs = ser.jobs.filter(y => y !== j); ser.save();
     vcUi.serNew = true; renderVoices(); return renderChars();
   }

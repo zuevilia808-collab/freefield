@@ -291,6 +291,12 @@ body[data-cm=scn] .only-scn,body[data-cm=scn] .panel-scroll > section.keep-scn{d
 .only-write{display:none}
 body[data-cm=write] .panel-scroll > :not(.only-write):not(.keep-write){display:none}
 body[data-cm=write] .only-write{display:block}
+/* подтверждение внутри страницы (askYes) */
+.ask-yes{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:16px}
+.ask-box{max-width:380px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 20px 60px -20px rgba(0,0,0,.8)}
+.ask-box p{font-size:14px;line-height:1.5;margin:0 0 14px}
+.ask-row{display:flex;gap:8px;justify-content:flex-end}
+.ai-pick{position:fixed;right:16px;bottom:16px;z-index:9998;background:var(--panel);border:1px solid var(--free);border-radius:12px;padding:10px;font-size:12px;display:grid;gap:6px}
 /* «🌐 Ассеты для сайта»: проект, исходники-образцы, задания для Claude */
 .only-site{display:none}
 body[data-cm=site] .panel-scroll > :not(.only-site):not(.keep-site){display:none}
