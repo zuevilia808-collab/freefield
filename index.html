@@ -100,7 +100,7 @@ a{color:var(--free);text-underline-offset:3px}
 .ic-dot{width:.62em;height:.62em;vertical-align:.02em;stroke:none;fill:currentColor;filter:drop-shadow(0 0 4px currentColor)}
 .ic.c-ok{color:var(--ok)}.ic.c-danger{color:var(--danger)}.ic.c-warn{color:var(--warn)}.ic.c-lime{color:var(--free)}.ic.c-info{color:var(--info)}
 /* на лаймовых и янтарных кнопках цветные иконки берут цвет текста — иначе лайм на лайме не виден */
-:is(.gen-btn,.btn.free,.btn.primary,.mv-group.on,.hub-fresh,.inst-big,.lb-actions .primary,.ext-actions .primary,.hub-acts [data-use],.pend-actions button:first-child,.ext-auto button,.key-banner button,.tier) .ic{color:inherit!important}
+:is(.gen-btn,.btn.free,.btn.primary,.mv-group.on,.hub-fresh,.inst-big,.lb-actions .primary,.ext-actions .primary,.hub-acts [data-use],.pend-actions button:first-child,.ext-auto button,.tier) .ic{color:inherit!important}
 .ic-hourglass{animation:hg 2.2s var(--ease) infinite;transform-origin:50% 50%}
 @keyframes hg{0%,40%{transform:rotate(0)}55%,95%{transform:rotate(180deg)}100%{transform:rotate(180deg)}}
 .ic-refresh.spinning{animation:rot 1s linear infinite}
@@ -126,8 +126,6 @@ a{color:var(--free);text-underline-offset:3px}
 .wallet:hover{border-color:var(--line3);color:var(--text);background:rgba(255,255,255,.06);transform:translateY(-1px)}
 .wallet:active{transform:scale(.96)}
 .wallet b{color:var(--paid)}
-.install-btn{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:99px;background:var(--lime-grad);color:var(--ink);white-space:nowrap}
-.install-btn:hover{filter:brightness(1.05)}
 .inst-step{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;font-size:13.5px;box-shadow:var(--hl)}
 .inst-step b.n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--lime-grad);color:var(--ink);display:grid;place-items:center;font:800 12px var(--display)}
 .inst-qr{display:grid;justify-items:center;gap:10px;margin:6px 0 16px}
@@ -148,30 +146,16 @@ a{color:var(--free);text-underline-offset:3px}
 .panel{border-right:1px solid var(--line);background:linear-gradient(180deg,rgba(18,18,24,.92),rgba(11,11,15,.96));display:flex;flex-direction:column;min-height:0;position:relative}
 .panel-scroll{flex:1;overflow-y:auto;padding:16px 16px 22px;display:flex;flex-direction:column;gap:22px;scroll-behavior:smooth}
 .block-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
-.lbl,.adv summary{font:700 10.5px/1.2 var(--font);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);display:inline-flex;align-items:center;gap:7px}
+.lbl{font:700 10.5px/1.2 var(--font);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);display:inline-flex;align-items:center;gap:7px}
 .lbl::before{content:"";width:5px;height:5px;border-radius:2px;background:var(--free);box-shadow:0 0 8px rgba(212,255,58,.7);flex:none}
 .hint{font-size:12px;color:var(--dim);line-height:1.4}
 .hint b{color:var(--text);font-weight:600}
 /* раздел плавно появляется при переключении вкладок */
 .only-write,.only-scn,.only-asset,.only-chars,body[data-cm=one] .panel-scroll > section:not(.only-scn):not(.only-write){animation:secIn .42s var(--ease) both}
 @keyframes secIn{from{opacity:0;transform:translateY(8px)}}
-
-/* выбор модели */
-.model-pick{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border-radius:18px;background:var(--card);border:1px solid var(--line);transition:border-color .2s,background .2s,transform .25s var(--spring);position:relative;box-shadow:var(--hl)}
-.model-pick:hover{border-color:var(--line3);transform:translateY(-1px)}
-.model-pick:active{transform:scale(.985)}
-.model-pick.free{box-shadow:var(--hl),inset 0 0 0 1px rgba(212,255,58,.14)}
-.model-pick.paid{box-shadow:var(--hl),inset 0 0 0 1px rgba(255,181,71,.22)}
 .mc-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:700 12.5px var(--display);letter-spacing:-.02em;color:#fff;flex:none;text-shadow:0 1px 4px rgba(0,0,0,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -8px 16px -8px rgba(0,0,0,.35),0 6px 16px -8px rgba(0,0,0,.7);position:relative;overflow:hidden}
 .mc-ico::after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.22),transparent 45%);pointer-events:none}
 .mc-ico .ic{width:56%;height:auto;aspect-ratio:1;stroke-width:2}
-.mp-body{flex:1;min-width:0}
-.mp-top{display:flex;gap:6px;align-items:center;margin-bottom:3px}
-.mp-pub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mp-title{font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mp-price{font-size:12px;color:var(--muted);margin-top:1px}
-.mp-chev{color:var(--text2);font-size:12px;font-weight:600;border:1px solid var(--line2);border-radius:99px;padding:5px 10px;white-space:nowrap;transition:.2s}
-.model-pick:hover .mp-chev{border-color:var(--free);color:var(--free)}
 
 /* промпт */
 .prompt-box{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent),var(--panel2);border:1px solid var(--line);border-radius:16px;transition:border-color .2s,box-shadow .25s;box-shadow:var(--hl)}
@@ -332,30 +316,7 @@ button.vc-item:not(:disabled):hover{border-color:var(--line3)}
 .vc-manual ol{margin-top:8px}
 .ext-voice{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text2)}
 .ext-voice audio{flex:1;min-width:160px;height:34px}
-.mv-desc{margin-top:10px;display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--text2);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;line-height:1.45;box-shadow:var(--hl)}
-.mv-desc .ic{width:18px;height:18px;color:var(--free);margin-top:1px}
-.mv-desc b{color:var(--text)}
-.mv-desc code{display:block;margin-top:4px;font:11.5px/1.45 var(--mono);color:var(--muted)}
-
-/* ---------- загрузка картинки ---------- */
-.dropzone{margin-top:10px;border:1.5px dashed var(--line2);border-radius:16px;min-height:132px;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:12.5px;padding:16px;cursor:pointer;transition:border-color .25s,background .25s,color .25s;position:relative;overflow:hidden;background:radial-gradient(80% 90% at 50% 0%,rgba(212,255,58,.05),transparent 70%)}
-.dropzone:hover,.dropzone.drag{border-color:var(--free);color:var(--text);background:radial-gradient(80% 90% at 50% 0%,rgba(212,255,58,.11),transparent 70%)}
-.dropzone u{color:var(--free);text-decoration:none;font-weight:700}
-.dz-big{width:46px;height:46px;margin:0 auto 10px;border-radius:14px;display:grid;place-items:center;background:rgba(212,255,58,.1);color:var(--free);font-size:22px;box-shadow:0 0 0 1px rgba(212,255,58,.25) inset;transition:transform .35s var(--spring)}
-.dz-big .ic{width:22px;height:22px}
-.dropzone:hover .dz-big{transform:translateY(-3px) scale(1.06)}
-.dz-preview{position:absolute;inset:0;background:#000}
-.dz-preview img{width:100%;height:100%;object-fit:contain}
-.dz-preview .icon-btn{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px)}
 input[type=range]{width:100%;accent-color:var(--free);height:24px}
-
-/* ---------- «Дополнительно» ---------- */
-.adv{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:var(--card);box-shadow:var(--hl)}
-.adv summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between}
-.adv summary::-webkit-details-marker{display:none}
-.adv summary::after{content:"";width:8px;height:8px;border-right:1.8px solid var(--dim);border-bottom:1.8px solid var(--dim);transform:rotate(45deg);transition:transform .3s var(--spring);margin-top:-3px}
-.adv[open] summary::after{transform:rotate(225deg);margin-top:3px}
-.adv-body{display:flex;flex-direction:column;gap:12px;margin-top:12px;animation:secIn .3s var(--ease)}
 .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
 .field input{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:11px;padding:10px 12px;outline:0;transition:border-color .2s,box-shadow .2s}
 .field input:focus{border-color:rgba(212,255,58,.45);box-shadow:0 0 0 3px rgba(212,255,58,.08)}
@@ -378,10 +339,6 @@ input[type=range]{width:100%;accent-color:var(--free);height:24px}
 .model-line{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);margin-top:9px;gap:8px}
 .model-line .ic{width:13px;height:13px}
 #queueInfo{white-space:nowrap;font-variant-numeric:tabular-nums}
-
-body[data-mode=image] .only-video{display:none}
-body[data-mode=video] .only-image{display:none}
-body[data-mode=video][data-vsource=image] .hide-vimg{display:none}
 .only-scn{display:none}
 body[data-cm=scn] .panel-scroll > :not(.only-scn):not(.keep-scn){display:none}
 body[data-cm=scn] .only-scn,body[data-cm=scn] .panel-scroll > section.keep-scn{display:block}
@@ -914,11 +871,9 @@ textarea.vc-in{resize:vertical;min-height:62px}
 .wr-blocks b{color:var(--free);font-weight:700}
 .wr-raw{white-space:pre-wrap;font:12.5px/1.5 var(--font);margin:0;max-height:420px;overflow:auto;user-select:text}
 .wr-card .cl-row .btn.small{margin-top:4px}
-/* «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере; «Другие модели» — прежний генератор */
+/* «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере */
 .only-asset{display:none}
-body[data-cm=one] .only-asset{display:block}
-body[data-cm=one][data-asvc=other] #assetOpts,body[data-cm=one][data-asvc=other] .asset-svc-only{display:none}
-body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only){display:none}
+body[data-cm=one] .only-asset{display:block}#quickSvc{display:none}
 .asset-svcs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .asset-svc{display:grid;gap:5px;justify-items:start;align-content:start;text-align:left;padding:11px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--muted);font-size:11.5px;line-height:1.35;transition:border-color .2s,transform .3s var(--spring),box-shadow .25s;box-shadow:var(--hl)}
 .asset-svc b{color:var(--text);font-size:13px;display:flex;align-items:center;gap:7px;line-height:1.2}
@@ -926,9 +881,6 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .asset-svc:hover{border-color:var(--line3);transform:translateY(-2px)}
 .asset-svc:active{transform:scale(.97)}
 .asset-svc.on{border-color:rgba(212,255,58,.75);box-shadow:0 0 0 1px rgba(212,255,58,.55) inset,0 12px 28px -16px rgba(212,255,58,.6);color:var(--text2);background:radial-gradient(120% 90% at 0% 0%,rgba(212,255,58,.1),transparent 60%),var(--panel2)}
-.asset-other{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin:8px 0 0;padding:4px 0;transition:color .2s}
-.asset-other .ic{width:14px;height:14px}
-.asset-other:hover{color:var(--free)}
 .asset-model{width:100%;margin-top:8px;background:var(--panel3);border:1px solid var(--line2);border-radius:11px;color:var(--text);padding:9px 10px;font:600 12.5px var(--font);cursor:pointer}
 .asset-refs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;padding:9px;border:1.5px dashed var(--line2);border-radius:16px;transition:border-color .2s,background .2s}
 .asset-refs.drag{border-color:var(--free);background:rgba(212,255,58,.05)}
@@ -1056,7 +1008,6 @@ body[data-cm=one]:not([data-asvc=other]) :is(#modelPick,#quickSvc,.adv,.old-only
 .scn-pick [data-loc-pick] img{width:100%;height:100%;object-fit:cover;display:block}
 .scn-pick [data-loc-pick] i{position:absolute;left:2px;bottom:2px;font:800 9px/1 var(--font);font-style:normal;padding:2px 4px;border-radius:5px;background:rgba(0,0,0,.72);color:#fff}
 .wr-card-loc{width:30px;height:30px;object-fit:cover;border-radius:8px;border:1px solid var(--line2);flex:none}
-body[data-mode=video][data-vsource=text] .dropzone{display:none}
 
 /* ---------- галерея ---------- */
 .feed{overflow-y:auto;padding:0 22px 40px;min-height:0;position:relative}
@@ -1133,7 +1084,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 .empty-act:empty{display:none}
 .empty-act a{color:var(--free)}
 
-/* ---------- окна (каталог, настройки…) ---------- */
+/* ---------- окна ---------- */
 .sheet{position:fixed;inset:0;z-index:60;background:rgba(4,4,6,.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;padding:24px;animation:fade .25s ease}
 @keyframes fade{from{opacity:0}}
 .sheet-panel{width:min(560px,100%);max-height:calc(100dvh - 48px);background:linear-gradient(180deg,#15151b,#0f0f13);border:1px solid var(--line2);border-radius:24px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.07) inset,0 50px 120px -20px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.5);animation:rise .45s var(--spring)}
@@ -1144,53 +1095,15 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 .sheet-head h2{font:700 18px var(--display);letter-spacing:-.025em}
 .sheet-head .icon-btn{margin-left:auto}
 .sheet-body{overflow-y:auto;padding:18px 20px 26px}
-.cat-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
-.cat-tools .search{max-width:none;flex:1 1 200px}
-.cat-sec{margin-bottom:28px}
-.cat-sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.cat-sec-head h3{font:700 15px var(--display);letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
-.cat-sec-head p{font-size:12.5px;color:var(--muted)}
-.key-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(90deg,rgba(255,181,71,.1),rgba(255,181,71,.03));border:1px solid rgba(255,181,71,.32);border-radius:14px;padding:11px 13px;margin-bottom:12px;font-size:13px}
-.key-banner button{margin-left:auto;background:var(--amber-grad);color:var(--ink);font-weight:800;padding:8px 13px;border-radius:10px}
-.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:10px}
-.mcard{display:flex;flex-direction:column;gap:9px;text-align:left;padding:14px;border-radius:18px;background:var(--card);border:1.5px solid var(--line);transition:border-color .2s,transform .35s var(--spring),box-shadow .3s;min-width:0;box-shadow:var(--hl)}
-.mcard:hover{border-color:var(--line3);transform:translateY(-3px);box-shadow:var(--hl),0 18px 36px -22px rgba(0,0,0,.9)}
-.mcard:active{transform:scale(.98)}
-.mcard.on{border-color:var(--free);background:radial-gradient(120% 80% at 0% 0%,rgba(212,255,58,.08),transparent 60%),var(--panel2)}
-.mcard.paid.on{border-color:var(--paid);background:radial-gradient(120% 80% at 0% 0%,rgba(255,181,71,.08),transparent 60%),var(--panel2)}
-.mcard.down{opacity:.45}
-.mc-head{display:flex;gap:10px;align-items:center}
-.mc-head .mc-ico{width:38px;height:38px;border-radius:11px;font-size:11.5px}
-.mc-name{flex:1;min-width:0}
-.mc-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mc-pub{font-size:11.5px;color:var(--muted)}
-.mc-desc{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px}
-.mc-tags{display:flex;flex-wrap:wrap;gap:5px}
-.mc-tags span{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:#cfcfd8;background:rgba(255,255,255,.06);padding:3px 8px;border-radius:7px}
-.mc-tags span .ic{width:11px;height:11px}
-.mc-tags span.hot{background:rgba(212,255,58,.12);color:var(--free)}
-.mc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:9px;margin-top:auto}
-.mc-price{font-weight:700;font-size:13px}
-.mcard.free .mc-price{color:var(--free)}
-.mcard.paid .mc-price{color:var(--paid)}
-.mc-price small{font-weight:500;color:var(--muted);font-size:11.5px}
-.mc-credits{font-size:12.5px;display:grid;gap:3px;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:11px;padding:8px 10px}
-.mc-credits .eq{color:var(--free);font-weight:600}
-.mcard.paid .mc-credits .eq{color:var(--paid)}
-.mc-credits .nt{color:var(--muted);font-size:11.5px}
 .tier.site{background:transparent;color:var(--free);box-shadow:inset 0 0 0 1.5px var(--free)}
-.cat-sub{font-size:11.5px;font-weight:700;color:var(--muted);margin:18px 0 10px;text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:7px}
 .health{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
 .health::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dim)}
 .health.healthy::before{background:var(--ok);box-shadow:0 0 8px var(--ok)}
 .health.degraded::before{background:var(--paid);box-shadow:0 0 8px var(--paid)}
 .health.down::before{background:var(--danger);box-shadow:0 0 8px var(--danger)}
-.cat-empty{color:var(--muted);text-align:center;padding:30px}
 
 /* настройки */
 .how{display:grid;gap:8px;margin-bottom:18px}
-.how-row{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text2);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 13px}
-.how-row .tier{margin-top:1px}
 .steps{padding-left:20px;display:grid;gap:6px;font-size:13px;color:var(--text2);margin-bottom:18px}
 .steps li::marker{color:var(--free);font-weight:700}
 .key-row{display:flex;gap:8px}
@@ -1206,11 +1119,6 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 .btn.primary:hover{filter:brightness(1.06)}
 .btn.danger{color:var(--danger)}
 .btn.danger:hover{border-color:rgba(255,93,98,.5);background:rgba(255,93,98,.1)}
-.wallet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
-.wallet-grid div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 13px;box-shadow:var(--hl)}
-.wallet-grid span{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
-.wallet-grid b{font:700 17px var(--display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.set-foot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:16px}
 .set-h{display:flex;align-items:center;gap:9px;font:700 14px var(--display);letter-spacing:-.02em;margin:4px 0 12px}
 .set-h .ic{color:var(--free)}
 .set-h:not(:first-child){margin-top:28px}
@@ -1220,30 +1128,13 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 .set-p{font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.55}
 .set-card .steps{margin-bottom:10px}
 .set-card code{font-family:var(--mono);font-size:.92em;background:var(--panel3);padding:1px 6px;border-radius:6px}
-.set-toggle{margin-top:12px;white-space:normal;align-items:flex-start;line-height:1.4}
 .btn.free{background:var(--lime-grad);color:var(--ink);border-color:transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 10px 26px -14px rgba(212,255,58,.65)}
 .btn.free:hover{filter:brightness(1.05)}
 .btn.small{height:32px;padding:0 11px;font-size:12px;margin-top:8px;border-radius:10px}
 .btn.small .ic{width:14px;height:14px}
 
 .svc-group{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:16px 0 6px}
-.svc-row{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
-.svc-row .mc-ico{width:34px;height:34px;border-radius:10px;font-size:11px}
-.svc-main{flex:1;min-width:0;display:grid;gap:3px;font-size:12.5px}
 .svc-cr{color:var(--text2)}
-.svc-eq{color:var(--free)}
-.svc-row .btn.small{margin-top:0;text-decoration:none;color:var(--text)}
-
-/* быстрый переключатель сервисов */
-.quick-svc{display:flex;flex:none;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:-10px;padding-bottom:2px}
-.quick-svc::-webkit-scrollbar{display:none}
-.qchip{flex:none;display:flex;align-items:center;gap:7px;height:32px;padding:0 11px 0 4px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;transition:color .2s,border-color .2s,transform .2s var(--spring)}
-.qchip .mc-ico{width:24px;height:24px;border-radius:50%;font-size:8px}
-.qchip small{background:var(--panel3);color:var(--text);border-radius:99px;padding:0 6px;font-size:10px}
-.qchip:hover{color:var(--text);border-color:var(--line3)}
-.qchip:active{transform:scale(.95)}
-.qchip.on{border-color:var(--free);color:var(--text);box-shadow:0 0 0 3px rgba(212,255,58,.08)}
-.qchip.add{padding:0 12px;color:var(--free);border-style:dashed}
 /* мои сервисы */
 .hub-intro{font-size:13px;color:var(--text2);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-bottom:6px;line-height:1.5}
 .hub-row{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--line)}
@@ -1476,7 +1367,6 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   .mv-groups{margin:0 -16px 10px}
 }
 @media (min-width:600px) and (max-width:900px){ .style-grid{grid-template-columns:repeat(6,1fr)} .motion-grid{grid-template-columns:repeat(4,minmax(0,1fr))} }
-@media (max-width:420px){ .mgrid{grid-template-columns:1fr} .mc-desc{display:-webkit-box} }
 /* верхняя строка на телефоне: «Профили», MCP, «Мои сервисы», «Лимиты» — теснее, чтобы влезли все */
 @media (max-width:420px){ .top-right{gap:5px} .top-right .wallet{padding:0 9px;height:34px} .brand{gap:8px;font-size:15px} .logo{width:28px;height:28px;border-radius:9px} }
 @media (max-width:360px){ .brand .wordmark{display:none} }
@@ -1484,7 +1374,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
-<body data-mode="image" data-vsource="text" data-view="create">
+<body data-mode="image" data-view="create">
 <!-- иконки Freefield: один стиль (сетка 24, линия 1.85, скруглённые концы); вставляются как <svg class="ic"><use href="#i-…"/></svg> -->
 <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
@@ -1588,8 +1478,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
     <button class="wallet acc-btn" id="accBtn" title="Профили Chrome и аккаунты Google Flow, Dola, Arena: баланс, вход и выход, новый профиль"><svg class="ic"><use href="#i-users"/></svg><span class="wl-text">Профили</span></button>
     <button class="wallet hub-btn" id="mcpBtn" title="Ссылка на MCP-сервер Freefield — подключить Claude Code, Cursor и другие программы"><svg class="ic"><use href="#i-plug"/></svg><span class="wl-text">MCP</span></button>
     <button class="wallet hub-btn" id="hubBtn" title="Мои сервисы с бесплатными кредитами"><svg class="ic"><use href="#i-gift"/></svg><span class="wl-text">Мои сервисы</span></button>
-    <button class="wallet" id="walletBtn" title="Ключи и оплата"><svg class="ic"><use href="#i-card"/></svg><span class="wl-text" id="walletText">Платные модели</span></button>
-    <button class="icon-btn" id="settingsBtn" title="Ключи и оплата"><svg class="ic"><use href="#i-settings"/></svg></button>
+    <button class="icon-btn" id="settingsBtn" title="Настройки"><svg class="ic"><use href="#i-settings"/></svg></button>
   </div>
 </header>
 
@@ -1616,34 +1505,6 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
       <section class="only-asset" id="assetCreate"></section>
       <input type="file" id="assetFile" accept="image/*" multiple hidden>
 
-      <button class="model-pick" id="modelPick" title="Открыть каталог моделей">
-        <span class="mc-ico" id="mpIcon"></span>
-        <div class="mp-body">
-          <div class="mp-top"><span class="tier" id="mpTier"></span><span class="mp-pub" id="mpPub"></span></div>
-          <div class="mp-title" id="mpTitle"></div>
-          <div class="mp-price" id="mpPrice"></div>
-        </div>
-        <span class="mp-chev">Сменить</span>
-      </button>
-      <div class="quick-svc" id="quickSvc"></div>
-
-      <section class="only-video">
-        <div class="block-head"><span class="lbl">Источник</span></div>
-        <div class="seg" id="vSourceSeg">
-          <button data-v="text" class="on"><svg class="ic"><use href="#i-pen"/></svg>Из текста</button>
-          <button data-v="image" title="Оживить картинку: первый кадр видео — ваша картинка"><svg class="ic"><use href="#i-image"/></svg>Из картинки</button>
-        </div>
-        <div class="dropzone" id="dropzone">
-          <input type="file" id="fileInput" accept="image/*" hidden>
-          <div class="dz-empty">
-            <div class="dz-big"><svg class="ic"><use href="#i-upload"/></svg></div>
-            Перетащите картинку, <u>выберите файл</u> или вставьте Ctrl+V<br>
-            <span class="hint">или нажмите «🎬 Оживить» на картинке в галерее</span>
-          </div>
-          <div class="dz-preview hidden" id="dzPreview"><img id="dzImg" alt=""><button class="icon-btn" id="dzClear" title="Убрать"><svg class="ic"><use href="#i-x"/></svg></button></div>
-        </div>
-      </section>
-
       <section>
         <div class="block-head">
           <span class="lbl" id="promptLabel">Промпт</span>
@@ -1659,15 +1520,7 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
         </div>
       </section>
 
-      <!-- движение камеры: группы пресетов и живые 3D-превью (CamPreview в скрипте) -->
-      <section class="only-video">
-        <div class="block-head"><span class="lbl">Движение камеры</span><span class="hint" id="motionName"></span></div>
-        <div class="mv-groups" id="motionGroups"></div>
-        <div class="motion-grid" id="motionGrid"></div>
-        <div class="mv-desc" id="motionDesc"></div>
-      </section>
-
-      <section class="hide-vimg keep-scn">
+      <section class="keep-scn">
         <div class="block-head"><span class="lbl">Стиль</span><span class="hint" id="styleName"></span></div>
         <div class="style-grid" id="styleGrid"></div>
         <div class="style-form" id="styleForm" hidden>
@@ -1679,40 +1532,6 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
       <section class="only-scn" id="scnLive"></section>
       <input type="file" id="scnFile" accept="image/*" hidden>
       <section class="only-asset" id="assetOpts"></section>
-
-      <section class="hide-vimg old-only">
-        <div class="block-head"><span class="lbl">Формат</span></div>
-        <div class="chips" id="aspectChips"></div>
-      </section>
-
-      <section class="only-image old-only">
-        <div class="block-head"><span class="lbl">Количество</span></div>
-        <div class="seg" id="countSeg">
-          <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button>
-        </div>
-      </section>
-
-      <section class="only-video" id="durBlock">
-        <div class="block-head"><span class="lbl">Длительность</span><span class="hint"><b id="durVal">3.5</b> сек</span></div>
-        <div id="durCtl"></div>
-      </section>
-
-      <section class="only-video" id="resBlock">
-        <div class="block-head"><span class="lbl">Качество</span></div>
-        <div class="chips" id="resChips"></div>
-      </section>
-
-      <section class="only-video" id="audioBlock">
-        <label class="toggle" style="justify-content:space-between;color:var(--text)"><span class="lbl" style="background:none;width:auto;height:auto">Звук в видео</span><input type="checkbox" id="audioToggle"><span></span></label>
-      </section>
-
-      <details class="adv">
-        <summary>Дополнительно</summary>
-        <div class="adv-body">
-          <div class="field"><label for="seed">Seed (пусто = случайный)</label><input id="seed" type="number" min="0" placeholder="например, 42"></div>
-          <div class="field"><label for="negative">Чего избегать</label><input id="negative" placeholder="текст, водяные знаки, лишние пальцы"></div>
-        </div>
-      </details>
 
     </div>
     <div class="gen-bar">
@@ -1785,23 +1604,6 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
   <button data-nav="create" class="on"><i><svg class="ic"><use href="#i-sparkle"/></svg></i>Создать</button>
   <button data-nav="gallery"><i><svg class="ic"><use href="#i-grid"/></svg></i>Галерея<span class="nb hidden" id="navBadge"></span></button>
 </nav>
-
-<!-- catalog -->
-<div class="sheet hidden" id="catalogSheet">
-  <div class="sheet-panel wide">
-    <div class="sheet-head">
-      <h2>Модели</h2>
-      <div class="seg" id="catKindSeg"><button data-v="image" class="on">🖼 Картинки</button><button data-v="video">🎬 Видео</button></div>
-      <button class="icon-btn" data-close title="Закрыть">✕</button>
-    </div>
-    <div class="cat-tools">
-      <div class="seg" id="catTierSeg"><button data-v="all" class="on">Все</button><button data-v="free">Бесплатно здесь</button><button data-v="sites">Кредиты на сайтах</button><button data-v="paid">Платные</button></div>
-      <div class="seg" id="catSortSeg"><button data-v="top" class="on">Популярные</button><button data-v="cheap">Дешевле</button><button data-v="new">Новые</button></div>
-      <input class="search" id="catSearch" placeholder="Veo, Seedance, Flux…">
-    </div>
-    <div class="sheet-body" id="catBody"></div>
-  </div>
-</div>
 
 <!-- профили Chrome и аккаунты сервисов -->
 <div class="sheet hidden" id="accSheet">
@@ -1912,27 +1714,8 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
 <!-- settings -->
 <div class="sheet hidden" id="settingsSheet">
   <div class="sheet-panel">
-    <div class="sheet-head"><h2>Лимиты и оплата</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-head"><h2>Настройки</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
     <div class="sheet-body">
-      <div class="set-h"><span class="tier free">Free</span> Бесплатно — как получить больше</div>
-
-      <div class="set-card" id="hfSection">
-        <div class="set-card-head"><span class="mc-ico" style="background:#ffd21e;color:#000;font-size:18px">🤗</span>
-          <div><b>Hugging Face — больше бесплатного GPU</b><div class="hint" id="hfStatus"></div></div></div>
-        <p class="set-p">FLUX и Wan работают на бесплатных GPU Hugging Face. Без входа лимит — <b>2 минуты GPU в день</b>, с бесплатным аккаунтом — <b>5 минут</b> и очередь быстрее. Это официальная возможность Hugging Face.</p>
-        <ol class="steps">
-          <li>Зарегистрируйтесь на <a href="https://huggingface.co/join" target="_blank" rel="noopener">huggingface.co</a> — бесплатно.</li>
-          <li>Откройте <a href="https://huggingface.co/settings/tokens/new?tokenType=read" target="_blank" rel="noopener">создание токена</a>, тип <b>Read</b>, нажмите «Create token».</li>
-          <li>Скопируйте токен (начинается с <code>hf_</code>) и вставьте сюда.</li>
-        </ol>
-        <div class="key-row">
-          <input id="hfInput" type="text" placeholder="hf_…" autocomplete="off" spellcheck="false">
-          <button class="btn" data-eye="hfInput" title="Показать/скрыть">👁</button>
-          <button class="btn free" id="hfSave">Войти</button>
-        </div>
-        <button class="btn danger small hidden" id="hfClear">Выйти из Hugging Face</button>
-      </div>
-
       <div class="set-card" id="geminiSection">
         <div class="set-card-head"><span class="mc-ico" style="background:linear-gradient(135deg,#4285f4,#9b72cb,#d96570);color:#fff">✦</span>
           <div><b>Google Gemini — сценарии и перевод бесплатно</b><div class="hint" id="geminiStatus"></div></div></div>
@@ -1949,56 +1732,6 @@ body[data-mode=video][data-vsource=text] .dropzone{display:none}
         </div>
       </div>
 
-      <div class="set-card">
-        <div class="set-card-head"><span class="mc-ico" style="background:linear-gradient(135deg,#8b5cf6,#4c1d95);color:#fff">AH</span>
-          <div><b>AI Horde — картинки без дневного лимита</b><div class="hint" id="hordeStatus"></div></div></div>
-        <p class="set-p">Видеокарты добровольцев. Необязательный бесплатный ключ с <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a> поднимает вас в очереди.</p>
-        <div class="key-row">
-          <input id="hordeInput" type="text" placeholder="ключ AI Horde (необязательно)" autocomplete="off" spellcheck="false">
-          <button class="btn" data-eye="hordeInput" title="Показать/скрыть">👁</button>
-          <button class="btn free" id="hordeSave">Сохранить</button>
-        </div>
-        <label class="toggle set-toggle"><input type="checkbox" id="autoFallback"><span></span>Когда лимит FLUX кончился — автоматически рисовать через AI Horde</label>
-      </div>
-
-      <div class="set-card" id="svcSection">
-        <div class="set-card-head"><span class="mc-ico" style="background:linear-gradient(135deg,#d4ff3a,#7bc41a);color:#0a0a0c;font-size:17px">🎁</span>
-          <div><b>Бесплатные кредиты на сайтах</b><div class="hint">Вход — вашим аккаунтом на сайте сервиса, пароль никогда не попадает во Freefield</div></div></div>
-        <p class="set-p">Выберите любой из этих сервисов в каталоге моделей: Freefield подготовит промпт, откроет сайт и примет готовую картинку или видео в галерею. Лимиты — на сентябрь 2026, сервисы их меняют.</p>
-        <div id="svcList"></div>
-      </div>
-
-      <div class="set-h"><span class="tier paid">Paid</span> Платно — только за генерацию</div>
-      <div class="how">
-        <div class="how-row"><span class="tier paid">Paid</span><div>Платные модели идут через <b>Pollinations</b>: один ключ на все модели, <b>никаких подписок</b> — списывается только цена каждой генерации. Цена показана на кнопке до запуска.</div></div>
-      </div>
-      <ol class="steps">
-        <li>Откройте <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a> и войдите.</li>
-        <li>Пополните баланс на любую сумму (1 pollen ≈ $1).</li>
-        <li>Создайте ключ — лучше <b>с лимитом бюджета</b> — и вставьте его ниже.</li>
-      </ol>
-      <div class="field">
-        <label for="keyInput">API-ключ Pollinations</label>
-        <div class="key-row">
-          <input id="keyInput" type="text" placeholder="pk_… или sk_…" autocomplete="off" spellcheck="false">
-          <button class="btn" data-eye="keyInput" title="Показать/скрыть">👁</button>
-          <button class="btn primary" id="keySave">Сохранить</button>
-        </div>
-        <div class="hint" style="margin-top:6px">Ключ хранится только в этом браузере и уходит только на gen.pollinations.ai.</div>
-      </div>
-      <div class="wallet-grid">
-        <div><span>Баланс</span><b id="balVal">—</b></div>
-        <div><span>Потрачено сегодня</span><b id="spToday">$0</b></div>
-        <div><span>Потрачено всего</span><b id="spTotal">$0</b></div>
-      </div>
-      <div class="field">
-        <label for="confirmOver">Спрашивать подтверждение, если генерация дороже ($)</label>
-        <input id="confirmOver" type="number" min="0" step="0.05">
-      </div>
-      <div class="set-foot">
-        <button class="btn" id="balRefresh">↻ Обновить баланс</button>
-        <button class="btn danger" id="keyClear">Удалить ключ</button>
-      </div>
       <div class="set-h">📲 Приложение</div>
       <button class="btn" id="installOpen">📲 Установить Freefield на телефон или компьютер</button>
     </div>
@@ -2088,35 +1821,7 @@ iconize(document.body);
 addEventListener('resize', () => segThumbs.schedule());
 document.fonts?.ready.then(() => segThumbs.schedule());
 /* =============================== config =============================== */
-const API = {
-  text:  'https://gen.pollinations.ai/v1/chat/completions',            // бесплатно, без ключа: LLM для улучшения промптов
-  gen:   'https://gen.pollinations.ai',                                // платно по ключу: 60+ моделей, оплата за генерацию
-};
 
-// Бесплатные модели — официальные демо на бесплатных GPU Hugging Face (ZeroGPU), без ключа.
-const FREE_MODELS = [
-  {id: 'free:flux-schnell', kind: 'image', tier: 'free', provider: 'hf', ico: 'BF', title: 'FLUX.1 [schnell]', publisher: 'Black Forest Labs · бесплатный GPU',
-   desc: 'Быстрая бесплатная модель: ~5 с на картинку. Дневной лимит GPU: без входа — немного, с бесплатным аккаунтом Hugging Face — больше.',
-   host: 'https://black-forest-labs-flux-1-schnell.hf.space', endpoint: 'infer',
-   args: (p, w, h, seed) => [p, seed, false, w, h, 4], tags: ['⚡ ~5 с', 'лимит GPU'], credits: 'общий лимит GPU Hugging Face: 2 мин в день без входа, 5 мин — с бесплатным аккаунтом',
-   equiv: '≈ 5–7 картинок в день без входа, ≈ 40 — с аккаунтом HF (≈ 5 с GPU на картинку)',
-   inputs: ['text'], outputs: ['image'], caps: [], health: 'healthy', eta: '≈ 5–20 с'},
-  {id: 'free:flux-dev', kind: 'image', tier: 'free', provider: 'hf', ico: 'BF', title: 'FLUX.1 [dev]', publisher: 'Black Forest Labs · бесплатный GPU',
-   desc: 'Выше качество и детализация, медленнее (~20–40 с) и сильнее тратит дневной лимит GPU.',
-   host: 'https://black-forest-labs-flux-1-dev.hf.space', endpoint: 'infer',
-   args: (p, w, h, seed) => [p, seed, false, w, h, 3.5, 28], tags: ['💎 качество', 'лимит GPU'], credits: 'общий лимит GPU Hugging Face: 2 мин в день без входа, 5 мин — с бесплатным аккаунтом',
-   equiv: '≈ 1–2 картинки в день без входа, ≈ 8–10 — с аккаунтом HF (≈ 25 с GPU на картинку)',
-   inputs: ['text'], outputs: ['image'], caps: [], health: 'healthy', eta: '≈ 20–60 с'},
-  {id: 'free:horde', kind: 'image', tier: 'free', provider: 'horde', ico: 'AH', title: 'AI Horde · SDXL', publisher: 'Сообщество волонтёров',
-   desc: 'Картинки на видеокартах добровольцев: без дневного лимита, но очередь 1–10 минут. С бесплатным ключом AI Horde — быстрее.',
-   tags: ['♾ без лимита', '🐢 очередь'], credits: 'без кредитов и без дневного лимита',
-   equiv: 'сколько угодно картинок, но каждая ждёт в очереди 1–10 минут', inputs: ['text'], outputs: ['image'], caps: [], health: 'healthy', eta: '≈ 1–10 мин'},
-  {id: 'free:wan22', kind: 'video', tier: 'free', provider: 'hf', ico: 'W', title: 'Wan 2.2 Fast', publisher: 'Alibaba · бесплатный GPU',
-   desc: 'Оживляет картинку (или сначала рисует кадр из текста через FLUX). До 5 с, дневной лимит GPU.',
-   host: 'https://zerogpu-aoti-wan2-2-fp8da-aoti-faster.hf.space', endpoint: 'generate_video', tags: ['лимит GPU'], credits: 'общий лимит GPU Hugging Face: 2 мин в день без входа, 5 мин — с бесплатным аккаунтом',
-   equiv: '≈ 1–2 видео в день без входа, ≈ 5–8 — с аккаунтом HF (лимит общий с FLUX)',
-   inputs: ['text', 'image'], outputs: ['video'], caps: ['start_frame'], health: 'healthy', minDur: 1, maxDur: 5, durStep: 0.5, defDur: 3.5, eta: '≈ 1–2 мин'},
-];
 
 // ---------------------------------------------------------------------------
 // Бесплатные кредиты на сайтах сервисов (данные на сентябрь 2026 — сервисы их меняют).
@@ -2227,35 +1932,6 @@ const EXT_MODELS = SERVICES.flatMap(s => ['image', 'video'].filter(k => s[k]).ma
   inputs: ['text'], outputs: [k], caps: [], health: 'healthy', eta: 'вручную на сайте',
   ...(k === 'video' ? {durations: s.video.dur || [5], defDur: (s.video.dur || [5])[0]} : {}),
 })));
-FREE_MODELS.push(...EXT_MODELS);
-
-const HORDE = {
-  api: 'https://aihorde.net/api/v2',
-  agent: 'freefield:0.2:local',
-  models: ['AlbedoBase XL 3.1', 'Juggernaut XL', 'ICBINP XL', 'AlbedoBase XL (SDXL)'],
-};
-
-// показываются первыми в «Популярных»
-const FEATURED = [
-  'google/gemini-3.1-flash-image', 'openai/gpt-image-2', 'black-forest-labs/flux.2-pro', 'bytedance/seedream-5.0-lite',
-  'google/gemini-3-pro-image', 'ideogram-ai/ideogram-v4-turbo', 'x-ai/grok-imagine-image', 'qwen/qwen-image-3',
-  'google/veo-3.1-fast', 'bytedance/seedance-2.0-fast', 'bytedance/seedance-2.5', 'x-ai/grok-imagine-video',
-  'alibaba/wan-2.7', 'minimax/minimax-h3-max-turbo', 'alibaba/wan-2.2-fast', 'prunaai/p-video',
-];
-
-// запасной каталог, если живой не загрузился (цены на сентябрь 2026)
-const FALLBACK_CATALOG = [
-  {name: 'google/gemini-3.1-flash-image', title: 'Nano Banana 2', publisher: 'Google', category: 'image', paid_only: true, input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.0000633'}},
-  {name: 'openai/gpt-image-2', title: 'GPT Image 2', publisher: 'OpenAI', category: 'image', input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.0000225'}},
-  {name: 'black-forest-labs/flux.2-pro', title: 'FLUX.2 Pro', publisher: 'Black Forest Labs', category: 'image', paid_only: true, input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.01125'}, flat_rate: true},
-  {name: 'bytedance/seedream-5.0-lite', title: 'Seedream 5 Lite', publisher: 'ByteDance', category: 'image', paid_only: true, input_modalities: ['text', 'image'], pricing: {completionImageTokens: '0.035'}, flat_rate: true},
-  {name: 'ideogram-ai/ideogram-v4-turbo', title: 'Ideogram v4 Turbo', publisher: 'Ideogram', category: 'image', paid_only: true, input_modalities: ['text'], pricing: {completionImageTokens: '0.03'}, flat_rate: true},
-  {name: 'tongyi-mai/z-image-turbo', title: 'Z-Image Turbo', publisher: 'Alibaba', category: 'image', input_modalities: ['text'], pricing: {completionImageTokens: '0.004'}, flat_rate: true},
-  {name: 'google/veo-3.1-fast', title: 'Veo 3.1 Fast', publisher: 'Google', category: 'video', paid_only: true, input_modalities: ['text', 'image'], video_capabilities: ['start_frame', 'audio_output'], resolutions: ['720p', '1080p'], allowed_durations: [4, 6, 8], default_duration: 4, pricing: {completionVideoSeconds: '0.08', completionAudioSeconds: '0.02'}},
-  {name: 'bytedance/seedance-2.0-fast', title: 'Seedance 2.0 Fast', publisher: 'ByteDance', category: 'video', paid_only: true, input_modalities: ['text', 'image'], min_duration: 4, max_duration: 12, default_duration: 5, pricing: {completionVideoSeconds: '0.07'}},
-  {name: 'x-ai/grok-imagine-video', title: 'Grok Imagine Video', publisher: 'xAI', category: 'video', paid_only: true, input_modalities: ['text', 'image'], min_duration: 1, max_duration: 15, default_duration: 6, pricing: {completionVideoSeconds: '0.07'}},
-  {name: 'alibaba/wan-2.2-fast', title: 'Wan 2.2 Fast', publisher: 'Alibaba', category: 'video', paid_only: true, input_modalities: ['text', 'image'], min_duration: 5, max_duration: 5, default_duration: 5, pricing: {completionVideoSeconds: '0.01'}},
-];
 
 const STYLES = [
   {id:'none',      name:'Без стиля',   emoji:'○',  bg:'linear-gradient(135deg,#2a2a31,#17171b)', suffix:''},
@@ -2735,11 +2411,6 @@ const CamPreview = (() => {
   return {mount, redraw: () => cards.forEach(c => c.W && draw(c, performance.now() / 1000))};
 })();
 
-const ASPECTS = [
-  {id:'1:1',  w:1024, h:1024}, {id:'4:5', w:896, h:1120}, {id:'3:4', w:864, h:1152}, {id:'2:3', w:832, h:1248},
-  {id:'9:16', w:736,  h:1312}, {id:'16:9', w:1312, h:736}, {id:'21:9', w:1344, h:576},
-];
-const VIDEO_ASPECTS = ['16:9', '9:16', '1:1'];
 
 const IDEAS = [
   'Рыжая лиса в заснеженном лесу на рассвете',
@@ -2780,7 +2451,6 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const randSeed = () => Math.floor(Math.random() * 2147483647);
 const byId = (arr, id) => arr.find(x => x.id === id) || arr[0];
 const fmtTime = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const fmtUSD = v => v == null ? '—' : '$' + (v < 0.1 ? +v.toPrecision(2) : v.toFixed(2));
@@ -2836,7 +2506,6 @@ function icoStyle(m) {
   if (m.provider === 'ext') return `background:${m.color};color:#fff`;
   if (m.provider === 'flow') return 'background:linear-gradient(135deg,#1a73e8,#34a853 60%,#fbbc05);color:#fff';
   if (m.provider === 'vids') return 'background:conic-gradient(from 200deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4);color:#fff';
-  if (m.provider === 'horde') return 'background:linear-gradient(135deg,#8b5cf6,#4c1d95);color:#fff';
   if (m.tier === 'free') return 'background:linear-gradient(135deg,#d4ff3a,#7bc41a);color:#0a0a0c;text-shadow:none';
   const h = hue(m.publisher || m.title);
   return `background:linear-gradient(135deg,hsl(${h} 70% 55%),hsl(${(h + 50) % 360} 65% 38%))`;
@@ -2847,20 +2516,6 @@ function initials(m) {
   return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
 }
 
-class Queue {
-  constructor() { this.jobs = []; this.busy = false; }
-  get size() { return this.jobs.length + (this.busy ? 1 : 0); }
-  push(fn) { return new Promise((resolve, reject) => { this.jobs.push({fn, resolve, reject}); this.next(); }); }
-  async next() {
-    if (this.busy || !this.jobs.length) return;
-    const job = this.jobs.shift();
-    this.busy = true;
-    try { job.resolve(await job.fn()); } catch (e) { job.reject(e); }
-    finally { this.busy = false; this.next(); }
-  }
-}
-const freeImageQueue = new Queue();   // анонимный бесплатный API — строго по одному
-const freeVideoQueue = new Queue();   // бесплатный GPU — строго по одному
 
 /* =============================== storage =============================== */
 const DB = {
@@ -2891,174 +2546,36 @@ const DB = {
 
 const SETTINGS_KEY = 'freefield.settings.v2';
 const state = Object.assign({
-  mode: 'image', view: 'create', vSource: 'text',
-  models: {image: 'free:flux-schnell', video: 'free:wan22'},
-  aspects: {image: '1:1', video: '16:9'},
-  style: 'none', count: 1, motion: 'dolly_in', motionGroup: null, duration: 3.5, res: null, audio: false, autoFallback: true,
-  filter: 'all', prompts: {image: '', video: ''}, confirmOver: 0.5,
+  mode: 'image', view: 'create',
+  style: 'none', filter: 'all', prompts: {image: '', video: ''},
 }, ls.get(SETTINGS_KEY, {}));
-// «Авто-улучшение» промптов убрано (пользователь 2026-09-27): промпт уходит как написан, русский — только перевод как есть
-delete state.autoEnhance;
-state.vImage = null;
-function saveSettings() { const {vImage, ...rest} = state; ls.set(SETTINGS_KEY, rest); }
+// убранное: «Авто-улучшение» промптов (2026-09-27), поля «Других моделей» (2026-10-09)
+['autoEnhance', 'aspects', 'vSource', 'models', 'count', 'motion', 'motionGroup', 'duration', 'res', 'audio', 'autoFallback', 'confirmOver'].forEach(k => delete state[k]);
+function saveSettings() { ls.set(SETTINGS_KEY, state); }
 
 let items = [];
-let catalog = [];                   // платные модели (живой каталог)
-const cat = {kind: 'image', tier: 'all', sort: 'top', q: ''};
 
-/* =============================== wallet =============================== */
+/* =============================== ключи =============================== */
+// Ключи — только в этом браузере. «Другие модели» и оплата убраны (пользователь 2026-10-09): их ключи и траты не храним
 const wallet = {
-  key: ls.get('freefield.key', ''),           // Pollinations (платные модели)
-  hf: ls.get('freefield.hf', ''),             // Hugging Face (больше бесплатного GPU)
-  hfUser: ls.get('freefield.hfUser', ''),
-  horde: ls.get('freefield.horde', ''),       // AI Horde (выше в бесплатной очереди)
-  gemini: ls.get('freefield.gemini', ''),     // Google Gemini (бесплатное улучшение промптов, сценарии)
+  gemini: ls.get('freefield.gemini', ''),     // Google Gemini (бесплатно: сценарии, перевод промптов)
   anthropic: ls.get('freefield.anthropic', ''),   // Claude (Anthropic) — пишет сценарии, платно по ключу пользователя
-  balance: null,
-  spend: ls.get('freefield.spend.v1', {total: 0, days: {}}),
-  today() { return new Date().toISOString().slice(0, 10); },
-  add(cost) {
-    if (!cost) return;
-    this.spend.total += cost;
-    const d = this.today();
-    this.spend.days[d] = (this.spend.days[d] || 0) + cost;
-    ls.set('freefield.spend.v1', this.spend);
-    renderWallet();
-    refreshBalance();
-  },
 };
-
-async function refreshBalance() {
-  if (!wallet.key) { wallet.balance = null; return renderWallet(); }
-  try {
-    const r = await fetch(API.gen + '/account/balance', {headers: {Authorization: 'Bearer ' + wallet.key}});
-    if (r.status === 401) { wallet.balance = 'bad'; }
-    else if (r.ok) { const j = await r.json(); wallet.balance = typeof j.balance === 'number' ? j.balance : 'ok'; }
-    else wallet.balance = 'ok';
-  } catch { wallet.balance = 'ok'; }
-  renderWallet();
-}
-
+['key', 'hf', 'hfUser', 'horde', 'spend.v1', 'catalog.v1', 'hfQuotaOut', 'nb21'].forEach(k => ls.del('freefield.' + k));
 function renderWallet() {
-  const b = wallet.balance;
-  let top, bal;
-  $('#hfStatus').textContent = wallet.hfUser
-    ? `✓ Вы вошли как ${wallet.hfUser} — 5 мин GPU в день`
-    : 'Без входа: 2 мин GPU в день — это всего несколько генераций';
-  $('#hfSave').textContent = wallet.hfUser ? 'Обновить' : 'Войти';
-  $('#hfClear').classList.toggle('hidden', !wallet.hf);
-  $('#hordeStatus').textContent = wallet.horde ? '✓ Ключ сохранён — вы выше в очереди' : 'Работает без ключа, очередь 1–10 минут';
   $('#geminiStatus').textContent = wallet.gemini ? '✓ Ключ сохранён — Gemini пишет сценарии и переводит промпты' : 'Не подключено — перевод идёт через бесплатный сервис';
-  if (!wallet.key) { top = 'Лимиты и оплата'; bal = 'нет ключа'; }
-  else if (b === 'bad') { top = 'Ключ не подошёл'; bal = 'ключ неверный'; }
-  else if (typeof b === 'number') { top = `<b>${b.toFixed(2)}</b> pollen`; bal = `${b.toFixed(2)} pollen`; }
-  else { top = 'Ключ добавлен'; bal = 'ключ активен'; }
-  $('#walletText').innerHTML = top;
-  $('#balVal').textContent = bal;
-  $('#spToday').textContent = fmtUSD(wallet.spend.days[wallet.today()] || 0);
-  $('#spTotal').textContent = fmtUSD(wallet.spend.total || 0);
 }
+// модели сайтов (карточки «сделать на сайте», «Мои сервисы»)
+const allModels = () => EXT_MODELS;
 
-/* =============================== models / pricing =============================== */
-function normalize(m) {
-  const kind = m.category === 'video' ? 'video' : 'image';
-  return {
-    id: 'pol:' + m.name, api: m.name, kind, tier: 'paid',
-    title: m.title || m.name.split('/').pop(), publisher: m.publisher || m.name.split('/')[0],
-    desc: m.description || '', pricing: m.pricing || {}, variants: m.pricing_variants || [],
-    defaultRes: m.pricing_default_label || null, flat: !!m.flat_rate,
-    inputs: m.input_modalities || ['text'], outputs: m.output_modalities || [kind],
-    caps: m.video_capabilities || m.capabilities || [], resolutions: m.resolutions || [],
-    durations: m.allowed_durations || null, minDur: m.min_duration, maxDur: m.max_duration,
-    defDur: m.default_duration, durStep: m.duration_step || 1,
-    health: m.health?.status || 'unknown', added: m.added_date || 0,
-    featured: FEATURED.indexOf(m.name), eta: kind === 'video' ? '≈ 1–4 мин' : '≈ 10–40 с',
-  };
-}
 
-async function loadCatalog() {
-  const cached = ls.get('freefield.catalog.v1', null);
-  catalog = (cached?.list || FALLBACK_CATALOG).map(normalize);
-  refreshModelUI();
-  try {
-    const [im, vi] = await Promise.all(['image', 'video'].map(k =>
-      fetch(`${API.gen}/${k}/models`).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)))));
-    const seen = new Set(), list = [];
-    for (const m of [...vi, ...im]) {
-      if (m.community || String(m.name).startsWith('community/')) continue;
-      if (!['image', 'video'].includes(m.category) || seen.has(m.name)) continue;
-      seen.add(m.name); list.push(m);
-    }
-    if (list.length) {
-      ls.set('freefield.catalog.v1', {at: Date.now(), list});
-      catalog = list.map(normalize);
-      refreshModelUI();
-    }
-  } catch { /* остаёмся на кэше/запасном каталоге */ }
-}
 
-const allModels = () => [...FREE_MODELS, ...catalog];
-function currentModel(kind = state.mode) {
-  return allModels().find(m => m.id === state.models[kind]) || FREE_MODELS.find(m => m.kind === kind);
-}
 
-function priceOf(m, res) {
-  const v = res && m.variants.find(v => v.name === res || v.label === res);
-  return (v && v.pricing) || m.pricing || {};
-}
 
-// оценка стоимости одной генерации в pollen (≈ $)
-function estimate(m, o = {}) {
-  if (m.tier === 'free') return 0;
-  const p = priceOf(m, o.res);
-  if (m.kind === 'image') {
-    const v = +p.completionImageTokens;
-    if (!v) return null;
-    return (m.flat || v >= 0.001) ? v : v * 1300;      // потокенные модели: ~1300 токенов на картинку
-  }
-  const s = +p.completionVideoSeconds;
-  if (!s) return null;
-  const d = o.dur || m.defDur || m.minDur || 5;
-  return s * d + (o.audio && +p.completionAudioSeconds ? +p.completionAudioSeconds * d : 0);
-}
 
-function priceLabel(m) {
-  if (m.external) return `Бесплатно <small>· ${esc(m.short)}${extLeft(m) != null ? ` · осталось ${extLeft(m)}` : ''}</small>`;
-  if (m.tier === 'free') return 'Бесплатно';
-  if (m.kind === 'image') { const e = estimate(m); return e == null ? 'цена по факту' : `≈ ${fmtUSD(e)} <small>/ картинка</small>`; }
-  const s = +priceOf(m, m.defaultRes).completionVideoSeconds;
-  return s ? `${fmtUSD(s)} <small>/ секунда</small>` : 'цена по факту';
-}
-
-function durRange(m) {
-  if (m.durations?.length) return m.durations.length > 1 ? `${Math.min(...m.durations)}–${Math.max(...m.durations)} с` : `${m.durations[0]} с`;
-  if (m.minDur && m.maxDur) return m.minDur === m.maxDur ? `${m.minDur} с` : `${m.minDur}–${m.maxDur} с`;
-  return '';
-}
-
-function modelTags(m) {
-  const t = (m.tags || []).map(x => `<span>${x}</span>`);
-  if (m.featured >= 0) t.push('<span class="hot">★ Хит</span>');
-  if (m.external || m.provider === 'horde') return t.join('');
-  if (m.kind === 'video') {
-    if (m.inputs.includes('image')) t.push('<span>🖼→🎬</span>');
-    if (m.caps?.includes('audio_output') || m.outputs?.includes('audio')) t.push('<span>🔊 звук</span>');
-    const d = durRange(m); if (d) t.push(`<span>⏱ ${d}</span>`);
-    if (m.resolutions?.length) t.push(`<span>${m.resolutions[m.resolutions.length - 1]}</span>`);
-  } else if (m.inputs.includes('image')) t.push('<span>✏️ правки по фото</span>');
-  return t.join('');
-}
-
-function currentCost() {
-  const m = currentModel();
-  if (state.mode === 'image') { const e = estimate(m); return e == null ? null : e * state.count; }
-  return estimate(m, {dur: state.duration, res: state.res, audio: state.audio});
-}
 
 /* =============================== APIs =============================== */
-// Улучшение промпта — по цепочке, от лучшего доступного бесплатного варианта:
-// 1) Gemini (бесплатный ключ Google AI Studio) → 2) Hugging Face (бесплатные кредиты аккаунта)
-// → 3) Pollinations (если есть платный ключ, доли цента) → 4) без ключей: только перевод на английский.
+// Улучшение и перевод промпта: Gemini (бесплатный ключ Google AI Studio), без ключа — только перевод на английский.
 const cleanLLM = s => (s || '').trim().replace(/^(prompt|промпт)\s*:\s*/i, '').replace(/^["'«“]+|["'»”]+$/g, '').trim();
 
 async function timedFetch(url, opts, ms = 40000) {
@@ -3082,23 +2599,6 @@ const LLM = [
     }
     throw new Error('Gemini: модель не найдена');
   }},
-  {name: 'Hugging Face', ok: () => !!wallet.hf, async run(sys, text) {
-    const r = await timedFetch('https://router.huggingface.co/v1/chat/completions', {
-      method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + wallet.hf},
-      body: JSON.stringify({model: 'meta-llama/Llama-3.1-8B-Instruct', max_tokens: 300, temperature: 0.9,
-        messages: [{role: 'system', content: sys}, {role: 'user', content: text}]}),
-    });
-    if (!r.ok) throw new Error('HF ' + r.status);
-    return (await r.json()).choices?.[0]?.message?.content;
-  }},
-  {name: 'Pollinations', ok: () => !!wallet.key, async run(sys, text) {
-    const r = await timedFetch(API.text, {
-      method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + wallet.key},
-      body: JSON.stringify({model: 'openai', messages: [{role: 'system', content: sys}, {role: 'user', content: text}]}),
-    });
-    if (!r.ok) throw new Error('Pollinations ' + r.status);
-    return (await r.json()).choices?.[0]?.message?.content;
-  }},
 ];
 
 async function translateToEnglish(text) {
@@ -3110,7 +2610,7 @@ async function translateToEnglish(text) {
   return out;
 }
 
-// кнопка «🌐 На английский»: только перевод, без добавок. С ключом Gemini / HF / Pollinations — умный перевод,
+// кнопка «🌐 На английский»: только перевод, без добавок. С ключом Gemini — умный перевод,
 // без ключей — бесплатный переводчик кусками (у него предел ~480 символов за раз), чтобы длинный промпт не обрезался
 async function translatePrompt(text) {
   if (!/[а-яё]/i.test(text)) return text;
@@ -3145,16 +2645,12 @@ async function enhancePrompt(text, kind) {
   return translatePrompt(text);   // без ключей: хотя бы переводим на английский (кусками — длинный промпт не обрежется)
 }
 
-// ---- бесплатно: Gradio-очередь на бесплатных GPU Hugging Face (ZeroGPU) ----
+// ---- Gradio-очередь на бесплатных GPU Hugging Face (ZeroGPU) — для «Точного голоса» (Seed-VC) ----
 class GpuError extends Error { constructor(msg, kind = 'other') { super(msg); this.kind = kind; } }
-const hfHeaders = (extra = {}) => wallet.hf ? {...extra, Authorization: 'Bearer ' + wallet.hf} : extra;
-const HF_OUT_KEY = 'freefield.hfQuotaOut';
-const hfQuotaOut = () => Date.now() - ls.get(HF_OUT_KEY, 0) < 30 * 60e3;   // после «лимит исчерпан» 30 мин не дёргаем HF
 
 function gpuError(raw, title = '') {
   const s = String(raw ?? '');
   if (/quota/i.test(s + ' ' + title)) {
-    ls.set(HF_OUT_KEY, Date.now());
     const m = s.match(/Try again in (\d+):(\d+):\d+/);
     const mins = m ? +m[1] * 60 + +m[2] : 0;
     const when = mins >= 60 ? ` (обновится через ≈ ${Math.round(mins / 60)} ч)` : mins > 0 ? ` (обновится через ${mins} мин)` : '';
@@ -3182,7 +2678,7 @@ async function gradioFnIndex(host, endpoint) {
 async function gradioUpload(host, blob, name = 'frame.jpg') {
   const fd = new FormData();
   fd.append('files', blob, name);
-  const r = await fetch(host + '/gradio_api/upload', {method: 'POST', body: fd, headers: hfHeaders()});
+  const r = await fetch(host + '/gradio_api/upload', {method: 'POST', body: fd});
   if (!r.ok) throw new GpuError(`бесплатный GPU недоступен (${r.status})`, 'down');
   const [path] = await r.json();
   return {path, meta: {_type: 'gradio.FileData'}};
@@ -3195,13 +2691,12 @@ async function gradioCall(host, endpoint, data, onStatus, runMsg = 'GPU гене
   let r;
   try {
     r = await fetch(`${host}/gradio_api/queue/join`, {
-      method: 'POST', headers: hfHeaders({'Content-Type': 'application/json'}),
+      method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({data, fn_index, session_hash, trigger_id: null, event_data: null})});
   } catch { throw new GpuError('нет связи с бесплатным GPU', 'down'); }
-  if (r.status === 401) throw new GpuError('токен Hugging Face не подошёл — проверьте его в «Лимитах»', 'auth');
   if (!r.ok) throw new GpuError(`бесплатный GPU недоступен (${r.status})`, 'down');
   onStatus('Встаю в очередь GPU…');
-  r = await fetch(`${host}/gradio_api/queue/data?session_hash=${session_hash}`, {headers: hfHeaders()});
+  r = await fetch(`${host}/gradio_api/queue/data?session_hash=${session_hash}`);
   const reader = r.body.getReader();
   const dec = new TextDecoder();
   let buf = '';
@@ -3231,118 +2726,12 @@ async function gradioCall(host, endpoint, data, onStatus, runMsg = 'GPU гене
   throw new GpuError('бесплатный GPU оборвал соединение', 'busy');
 }
 
-// ---- бесплатно: AI Horde (видеокарты волонтёров, без дневного лимита) ----
-async function hordeImage({prompt, w, h, seed, negative, onStatus}) {
-  const k = 1024 / Math.max(w, h);
-  const W = Math.round(w * k / 64) * 64, H = Math.round(h * k / 64) * 64;
-  const headers = {'Content-Type': 'application/json', apikey: wallet.horde || '0000000000', 'Client-Agent': HORDE.agent};
-  let r;
-  try {
-    r = await fetch(HORDE.api + '/generate/async', {method: 'POST', headers, body: JSON.stringify({
-      prompt: (negative ? `${prompt} ### ${negative}` : prompt).slice(0, 1500),
-      params: {width: W, height: H, steps: 25, cfg_scale: 6, sampler_name: 'k_euler_a', seed: String(seed), n: 1, karras: true},
-      models: HORDE.models, nsfw: false, censor_nsfw: true, r2: false, slow_workers: true,
-    })});
-  } catch { throw new GpuError('нет связи с AI Horde', 'down'); }
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.id) throw new GpuError('AI Horde: ' + (j.message || `ошибка ${r.status}`));
-  const t0 = Date.now();
-  while (true) {
-    await sleep(5000);
-    if (Date.now() - t0 > 20 * 60e3) {
-      fetch(`${HORDE.api}/generate/status/${j.id}`, {method: 'DELETE', headers}).catch(() => {});
-      throw new GpuError('AI Horde не успел за 20 минут — попробуйте ещё раз', 'busy');
-    }
-    const c = await fetch(`${HORDE.api}/generate/check/${j.id}`, {headers: {'Client-Agent': HORDE.agent}}).then(x => x.json()).catch(() => null);
-    if (!c) continue;
-    if (c.faulted) throw new GpuError('AI Horde: генерация сорвалась, попробуйте ещё раз', 'busy');
-    if (c.is_possible === false) throw new GpuError('AI Horde: сейчас нет подходящих видеокарт', 'busy');
-    if (c.done) break;
-    onStatus(c.processing ? 'Рисуется у волонтёра…' :
-      `Очередь AI Horde: #${c.queue_position}${c.wait_time ? ` · ≈ ${c.wait_time >= 90 ? Math.round(c.wait_time / 60) + ' мин' : c.wait_time + ' с'}` : ''}`);
-  }
-  const s = await fetch(`${HORDE.api}/generate/status/${j.id}`, {headers: {'Client-Agent': HORDE.agent}}).then(x => x.json());
-  const g = s.generations?.[0];
-  if (!g?.img) throw new GpuError('AI Horde не вернул картинку', 'busy');
-  if (g.censored) throw new GpuError('AI Horde скрыл картинку фильтром — измените промпт');
-  if (/^https?:/.test(g.img)) return (await fetch(g.img)).blob();
-  const bin = atob(g.img), arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new Blob([arr], {type: 'image/webp'});
-}
 
-async function gradioFile(out) {
-  const url = out?.url || out?.video?.url;
-  if (!url) throw new Error('бесплатный GPU не вернул файл');
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('не удалось скачать результат');
-  return r.blob();
-}
 
-async function freeImage({model, prompt, w, h, seed, onStatus = () => {}}) {
-  const m = FREE_MODELS.find(x => x.id === model && x.provider === 'hf' && x.kind === 'image') || FREE_MODELS[0];
-  const r32 = v => Math.max(256, Math.min(2048, Math.round(v / 32) * 32));
-  const out = await gradioCall(m.host, m.endpoint, m.args(prompt.slice(0, 1800), r32(w), r32(h), seed), onStatus, 'GPU рисует…');
-  return gradioFile(out[0]);
-}
 
-async function freeVideo({imageBlob, prompt, duration, seed, negative, onStatus}) {
-  const m = FREE_MODELS.find(x => x.id === 'free:wan22');
-  onStatus('Загружаю кадр…');
-  const frame = await gradioUpload(m.host, imageBlob);
-  const out = await gradioCall(m.host, m.endpoint,
-    [frame, prompt, 6, negative ? `${WAN_NEG}, ${negative}` : WAN_NEG, duration, 1, 1, seed, false], onStatus, 'GPU генерирует видео…');
-  onStatus('Скачиваю видео…');
-  return {blob: await gradioFile(out[0]), seed: typeof out[1] === 'number' ? out[1] : seed};
-}
 
-// ---- платно (Pollinations, оплата за генерацию) ----
-async function genFetch(path, params, {method = 'GET', body, timeout = 300000} = {}) {
-  const url = API.gen + path + (params ? '?' + new URLSearchParams(params) : '');
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeout);
-  try {
-    const r = await fetch(url, {method, body, signal: ctrl.signal, headers: {Authorization: 'Bearer ' + wallet.key}});
-    if (r.ok) return await r.blob().then(b => ({blob: b, type: r.headers.get('content-type') || b.type}));
-    let msg = '';
-    try { const j = await r.json(); msg = j.error?.message || j.message || ''; } catch {}
-    if (r.status === 401) throw new Error('ключ не подошёл — проверьте его в «Оплате»');
-    if (r.status === 402) throw new Error('на балансе не хватает pollen — пополните счёт');
-    if (r.status === 403) throw new Error('у ключа нет доступа к этой модели' + (msg ? ': ' + msg : ''));
-    if (r.status === 429) throw new Error('слишком много запросов — подождите минуту');
-    throw new Error(msg || `сервис ответил ${r.status}`);
-  } catch (e) {
-    if (e.name === 'AbortError') throw new Error('превышено время ожидания');
-    if (e instanceof TypeError) throw new Error('нет связи с платным сервисом');
-    throw e;
-  } finally { clearTimeout(t); }
-}
 
-async function paidImage(it) {
-  const {blob, type} = await genFetch('/image/' + encPrompt(it.finalPrompt),
-    {model: it.api, width: it.w, height: it.h, seed: it.seed}, {timeout: 300000});
-  if (!type.startsWith('image/')) throw new Error('сервис вернул не картинку');
-  return blob;
-}
 
-async function paidVideo(it, frameBlob, onStatus) {
-  const q = {model: it.api, duration: it.duration, aspectRatio: it.aspect || '16:9', seed: it.seed};
-  if (it.res) q.resolution = it.res;
-  if (it.audio) q.audio = 'true';
-  if (frameBlob) {
-    onStatus('Загружаю кадр…');
-    const fd = new FormData();
-    fd.append('file', frameBlob, 'frame.jpg');
-    const up = await genFetch('/upload', null, {method: 'POST', body: fd, timeout: 60000});
-    const j = JSON.parse(await up.blob.text());
-    if (!j.url) throw new Error('не удалось загрузить кадр');
-    q.image = j.url;
-  }
-  onStatus('Генерирую видео…');
-  const {blob, type} = await genFetch('/video/' + encPrompt(it.finalPrompt), q, {timeout: 900000});
-  if (!type.startsWith('video/')) throw new Error('сервис вернул не видео');
-  return blob;
-}
 
 /* =============================== generation =============================== */
 function composePrompt(text, styleId, kind = 'image') {
@@ -3350,10 +2739,6 @@ function composePrompt(text, styleId, kind = 'image') {
   const suffix = kind === 'video' ? s.suffix.replace(/film still,?\s*/, 'film look, ') : s.suffix;
   if (!suffix) return text;
   return isBlockPrompt(text) ? `${text}\nStyle: ${suffix}` : `${text}, ${suffix}`;   // в эталонном (блочном) промпте стиль — отдельной строкой
-}
-function readSeed(i = 0) {
-  const v = $('#seed').value.trim();
-  return v === '' ? randSeed() : (Math.abs(parseInt(v, 10)) + i) % 2147483647;
 }
 function modelFields(m) {
   return {model: m.id, api: m.api, modelTitle: m.title, tier: m.tier};
@@ -3380,118 +2765,10 @@ function finish(it, error) {
   updateCounts();
 }
 
-// проверки перед запуском: ключ для платных и подтверждение дорогих генераций
-function preflight(m, cost) {
-  if (m.tier !== 'paid') return true;
-  if (!wallet.key) {
-    openSheet('settings');
-    toast(`«${m.title}» — платная модель. Добавьте ключ Pollinations или выберите бесплатную.`, {ms: 6000});
-    return false;
-  }
-  if (m.health === 'down' && !confirm(`Модель «${m.title}» сейчас помечена как неработающая. Всё равно запустить?`)) return false;
-  if (cost != null && state.confirmOver > 0 && cost > state.confirmOver)
-    return confirm(`Эта генерация стоит ≈ ${fmtUSD(cost)} (лимит без подтверждения — ${fmtUSD(state.confirmOver)}). Запустить?`);
-  return true;
-}
 
-async function generateImages() {
-  const raw = $('#prompt').value.trim();
-  if (!raw) return nudge('Напишите, что нарисовать — или нажмите 🎲');
-  const m = currentModel('image');
-  if (m.external) return prepareExternal(m, raw);
-  const unit = estimate(m);
-  if (!preflight(m, unit == null ? null : unit * state.count)) return false;
-  const a = byId(ASPECTS, state.aspects.image);
-  const negative = $('#negative').value.trim();
-  const batch = [];
-  for (let i = 0; i < state.count; i++) {
-    batch.push(newItem({type: 'image', prompt: raw, style: state.style, aspect: a.id, w: a.w, h: a.h,
-      seed: readSeed(i), negative, cost: unit, ...modelFields(m)}));
-  }
-  render();
-  let final = raw;
-  if (/[а-яё]/i.test(raw)) { batch.forEach(it => setStatus(it, '🌐 Перевожу на английский…')); final = await asIs(raw); }
-  final = composePrompt(final, state.style);
-  batch.forEach(it => { it.finalPrompt = final; runImage(it); });
-  return true;
-}
 
-function runImage(it) {
-  it.status = 'queued';
-  it.startedAt = Date.now();
-  it.errorKind = null;
-  const m = allModels().find(x => x.id === it.model) || FREE_MODELS[0];
-  const onStatus = s => setStatus(it, s, 'running');
-  const args = {prompt: it.finalPrompt, w: it.w, h: it.h, seed: it.seed, negative: it.negative, onStatus};
-  setStatus(it, freeImageQueue.size && m.provider === 'hf' ? `В очереди · перед вами ${freeImageQueue.size}` : 'Готовлю…');
-  refreshCard(it);
-  const viaHorde = () => {
-    Object.assign(it, modelFields(FREE_MODELS.find(x => x.provider === 'horde')));
-    refreshCard(it);
-    setStatus(it, 'Лимит FLUX исчерпан → рисую через AI Horde…', 'running');
-    return hordeImage(args);
-  };
-  let task;
-  if (it.tier === 'paid') { setStatus(it, 'Генерация…', 'running'); task = paidImage(it); }
-  else if (m.provider === 'horde') task = hordeImage(args);
-  else if (hfQuotaOut() && state.autoFallback) task = viaHorde();
-  else task = freeImageQueue.push(() => freeImage({model: m.id, ...args}))
-    .catch(e => { if (e.kind === 'quota' && state.autoFallback) return viaHorde(); throw e; });
-  task.then(async blob => {
-    it.blob = blob;
-    const d = await dims(blob);
-    if (d) [it.w, it.h] = d;
-    finish(it);
-  }, e => finish(it, e));
-}
 
-async function generateVideo() {
-  const raw = $('#prompt').value.trim();
-  const m = currentModel('video');
-  const motion = byId(MOTIONS, state.motion);
-  if (state.vSource === 'image' && !state.vImage) return nudge('Добавьте картинку, которую нужно оживить');
-  if (state.vSource === 'text' && !raw) return nudge('Опишите сцену для видео — или нажмите 🎲');
-  if (m.external && state.vSource === 'image') return videoViaHub(m, raw, motion);
-  if (m.external) return prepareExternal(m, raw, motion);
-  const cost = estimate(m, {dur: state.duration, res: state.res, audio: state.audio});
-  if (!preflight(m, cost)) return false;
-  const base = {type: 'video', prompt: raw || motion.name, userPrompt: raw, motion: motion.id, duration: state.duration,
-    res: m.tier === 'paid' ? state.res : null, audio: m.tier === 'paid' && state.audio,
-    seed: readSeed(), negative: $('#negative').value.trim(), source: state.vSource, cost, ...modelFields(m)};
-  let it;
-  if (state.vSource === 'image') {
-    const r = state.vImage.w / state.vImage.h;
-    const aspect = r > 1.2 ? '16:9' : r < 0.83 ? '9:16' : '1:1';
-    it = newItem({...base, aspect, w: state.vImage.w, h: state.vImage.h, posterBlob: state.vImage.blob});
-  } else {
-    const a = byId(ASPECTS, state.aspects.video);
-    it = newItem({...base, style: state.style, aspect: a.id, w: a.w, h: a.h});
-  }
-  render();
-  runVideo(it);
-  return true;
-}
 
-// Google Vids: публичного API нет, поэтому генерация идёт на сайте Google в аккаунте пользователя.
-// Здесь готовим промпт под Veo и карточку, куда потом загружается готовый ролик.
-async function prepareExternal(m, raw, motion = null) {
-  const video = m.kind === 'video';
-  const a = byId(ASPECTS, state.aspects[m.kind]);
-  const it = newItem({type: m.kind, status: 'external', statusText: '✨ Готовлю промпт…', prompt: raw, userPrompt: raw,
-    motion: motion?.id, duration: video ? 8 : undefined, style: state.style, aspect: a.id, w: a.w, h: a.h, seed: 0, cost: 0,
-    source: 'text', ...modelFields(m)});
-  render();
-  let p = raw;
-  p = await asIs(raw);
-  const shape = {'9:16': 'vertical 9:16', '1:1': 'square 1:1', '16:9': 'horizontal 16:9'}[a.id] || `aspect ratio ${a.id}`;
-  it.finalPrompt = video
-    ? composePrompt([p, motion?.prompt].filter(Boolean).join(', '), it.style, 'video') + `. ${shape[0].toUpperCase() + shape.slice(1)} video.`
-    : composePrompt(p, it.style) + `, ${shape} format`;
-  it.statusText = '';
-  DB.put(it);
-  refreshCard(it);
-  return true;
-}
 
 function extLeft(m) {
   if (!m?.count) return null;
@@ -3501,7 +2778,6 @@ function extLeft(m) {
     (allModels().find(x => x.id === i.model) || {}).service === m.service).length;
   return Math.max(0, m.count.n - used);
 }
-const vidsLeft = () => extLeft(FREE_MODELS.find(m => m.id === 'ext:google-vids'));
 
 function videoDims(blob) {
   return new Promise(res => {
@@ -3572,7 +2848,6 @@ function markConnected(id, on = true) {
   if (!id) return;
   if (on) connected[id] = connected[id] || Date.now(); else delete connected[id];
   ls.set('freefield.connected', connected);
-  renderQuickSvc();
 }
 function usedToday(serviceId) {
   const today = new Date().toDateString();
@@ -3703,28 +2978,14 @@ function renderHub() {
     `<div class="svc-group">${mine.length ? 'Ещё сервисы' : 'Все сервисы'}</div>` + rest.map(row).join('');
 }
 
+// «Мои сервисы» → 🖼 / 🎬 у сайта: карточка в галерее — промпт из поля «Что на фото», «Открыть сайт», «📥 Загрузить файл»
 function useService(id, kind) {
-  const m = EXT_MODELS.find(x => x.service === id && x.kind === kind);
-  if (!m) return;
+  if (!EXT_MODELS.some(x => x.service === id && x.kind === kind)) return;
   closeSheets();
-  setMode(kind);
-  selectModel(m.id, false);
-  setView('create');
-  $('#prompt').focus();
-  toast(`${m.title}: напишите промпт и нажмите «Подготовить»`, {type: 'ok'});
+  phoneCards([{prompt: $('#prompt').value.trim(), kind, service: id, aspect_ratio: kind === 'video' ? '9:16' : '1:1'}], {quiet: true});
+  toast(`Карточка ${SERVICES.find(x => x.id === id)?.name || ''} — в галерее: скопируйте промпт, создайте на сайте и загрузите результат`, {type: 'ok', ms: 7000});
 }
 
-// быстрый переключатель под выбором модели: бесплатные модели + подключённые сервисы для текущего режима
-function renderQuickSvc() {
-  const box = $('#quickSvc');
-  if (!box) return;
-  const kind = state.mode, cur = state.models[kind];
-  const builtin = FREE_MODELS.filter(m => !m.external && m.kind === kind && m.provider !== 'horde');
-  const mine = EXT_MODELS.filter(m => m.kind === kind && isConnected(m.service));
-  const chip = m => `<button class="qchip ${m.id === cur ? 'on' : ''}" data-model="${esc(m.id)}" title="${esc(m.title)}"><span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>${esc(m.external ? m.site : m.title)}${m.external && usedToday(m.service) ? ` <small>${usedToday(m.service)}</small>` : ''}</button>`;
-  box.innerHTML = builtin.concat(mine).map(chip).join('') +
-    `<button class="qchip add" data-open-hub>${mine.length ? '＋' : '＋ Подключить сервисы'}</button>`;
-}
 
 function pickFile(accept, multiple = false) {   // multiple — массив файлов
   return new Promise(res => {
@@ -3735,59 +2996,6 @@ function pickFile(accept, multiple = false) {   // multiple — массив ф�
   });
 }
 
-async function runVideo(it) {
-  it.status = 'running';
-  it.startedAt = Date.now();
-  it.errorKind = null;
-  refreshCard(it);
-  const onStatus = s => setStatus(it, s);
-  try {
-    const motion = byId(MOTIONS, it.motion);
-    if (it.tier === 'paid') {
-      // платно: text→video напрямую или image→video
-      if (!it.finalPrompt) {
-        let p = it.userPrompt;
-        if (p) p = await asIs(p);
-        p = [p, motion.prompt].filter(Boolean).join(', ');
-        it.finalPrompt = it.posterBlob ? p : composePrompt(p, it.style, 'video');
-      }
-      const frame = it.posterBlob ? await downscale(it.posterBlob, 1280) : null;
-      it.blob = await paidVideo(it, frame, onStatus);
-      return finish(it);
-    }
-    // бесплатно: (text→кадр) → Wan 2.2 image→video
-    if (!it.posterBlob) {
-      const imgPrompt = await asIs(it.userPrompt);
-      it.imagePrompt = composePrompt(imgPrompt, it.style);
-      setStatus(it, freeImageQueue.size ? 'Первый кадр: в очереди…' : '🖼 Рисую первый кадр…');
-      const blob = await freeImageQueue.push(() => {
-        setStatus(it, '🖼 Рисую первый кадр…');
-        return freeImage({model: 'free:flux-schnell', prompt: it.imagePrompt, w: it.w, h: it.h, seed: it.seed, onStatus: s => setStatus(it, '🖼 Кадр: ' + s)});
-      });
-      it.posterBlob = blob;
-      const d = await dims(blob);
-      if (d) [it.w, it.h] = d;
-      const frame = {id: uid(), type: 'image', status: 'done', createdAt: Date.now(), prompt: it.userPrompt,
-        finalPrompt: it.imagePrompt, style: it.style, aspect: it.aspect, w: it.w, h: it.h, seed: it.seed, blob,
-        ...modelFields(FREE_MODELS[0]), cost: 0};
-      items.splice(items.indexOf(it) + 1, 0, frame);
-      DB.put(frame);
-      render();
-    }
-    if (!it.finalPrompt) {
-      let mp = it.userPrompt;
-      if (mp) mp = await asIs(mp);
-      it.finalPrompt = [mp, motion.prompt, 'smooth natural motion, cinematic'].filter(Boolean).join(', ');
-    }
-    setStatus(it, freeVideoQueue.size ? 'Видео: в очереди…' : 'Готовлю GPU…');
-    const frame = await downscale(it.posterBlob, 1024);
-    const res = await freeVideoQueue.push(() => freeVideo({
-      imageBlob: frame, prompt: it.finalPrompt, duration: it.duration, seed: it.seed, negative: it.negative, onStatus}));
-    it.blob = res.blob;
-    it.seed = res.seed;
-    finish(it);
-  } catch (e) { finish(it, e); }
-}
 
 function nudge(msg) {
   toast(msg);
@@ -3798,15 +3006,6 @@ function nudge(msg) {
   return false;
 }
 
-async function generate() {
-  if (peek.on) {
-    const m = currentModel(), raw = $('#prompt').value.trim();
-    return peekShow('Другие модели', {prompts: [['Промпт', composePrompt(raw, state.style, state.mode)]],
-      request: {модель: m.id, название: m.title, вид: state.mode, формат: state.aspect, количество: state.count, seed: $('#seed').value || 'случайный', избегать: $('#negative').value || null}});
-  }
-  const started = await (state.mode === 'video' ? generateVideo() : generateImages());
-  if (started && isMobile()) setView('gallery');
-}
 
 /* =============================== gallery =============================== */
 const urls = new Map();
@@ -3934,9 +3133,7 @@ function cardHTML(it) {
         <div class="pend-status" data-status>${esc(it.statusText)}</div>
         ${err ? '' : '<div class="pend-time" data-time></div>'}
         <div class="pend-prompt">${esc(it.prompt)}</div>
-        ${err ? `<div class="pend-actions"><button data-act="retry">↻ Повторить${it.tier === 'paid' && it.cost ? ' · ' + fmtUSD(it.cost) : ''}</button>${
-          it.errorKind === 'quota' ? `<button data-act="limits">🔑 Больше лимита</button>${it.type === 'video' ? '<button data-act="to-vids">Google Vids</button>' : '<button data-act="to-horde">AI Horde</button>'}` : ''
-        }<button data-act="delete">Удалить</button></div>` : ''}
+        ${err ? '<div class="pend-actions"><button data-act="delete">Удалить</button></div>' : ''}
       </div></div>`;
   }
   if (it.type === 'model') return m3dCardHTML(it);
@@ -3950,7 +3147,7 @@ function cardHTML(it) {
         ${it.type === 'image' ? '<button class="act" data-act="to3d" title="🧊 3D-модель из этой картинки (на компьютере)">🧊</button>' : ''}
         ${it.type === 'video' ? '<button class="act" data-act="revoice" title="Заменить голос — на образец голоса персонажа">🎙</button>' : ''}
         ${it.type === 'video' && it.blob ? '<button class="act" data-act="to-mt" title="🎞 В монтаж — добавить в текущий проект">🎞</button>' : ''}
-        <button class="act" data-act="variation" title="Ещё вариант">↻</button>
+        ${String(it.model).startsWith('ext:') ? '<button class="act" data-act="variation" title="Ещё вариант">↻</button>' : ''}
         <button class="act" data-act="reuse" title="Повторить с этими настройками">✎</button>
         <button class="act" data-act="download" title="Скачать">⤓</button>
         <button class="act" data-act="delete" title="Удалить">🗑</button>
@@ -4138,12 +3335,6 @@ async function doAction(act, it, el) {
       if (!$('#lightbox').classList.contains('hidden')) closeLB();
       removeItem(it);
       break;
-    case 'retry': {
-      const m = allModels().find(x => x.id === it.model) || {tier: it.tier, title: it.modelTitle};
-      if (!preflight(m, it.cost)) return;
-      it.type === 'video' ? runVideo(it) : runImage(it);
-      break;
-    }
     case 'copy':
       try { await navigator.clipboard.writeText(it.finalPrompt); }
       catch {
@@ -4194,63 +3385,29 @@ async function doAction(act, it, el) {
       if (ok.length > 1) toast(`Добавлено в галерею: ${ok.length} 🎉`, {type: 'ok'});
       break;
     }
-    case 'limits':
-      openSheet('settings');
-      setTimeout(() => $('#hfSection').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);
-      break;
-    case 'to-vids':
-      setMode('video');
-      selectModel('ext:google-vids', false);
-      setVSource('text');
-      $('#prompt').value = state.prompts.video = it.userPrompt || it.prompt;
-      removeItem(it);
-      setView('create');
-      toast('Выбран Google Vids (10 бесплатных видео в месяц) — нажмите «Подготовить»', {type: 'ok'});
-      break;
-    case 'to-horde':
-      Object.assign(it, modelFields(FREE_MODELS.find(x => x.provider === 'horde')));
-      runImage(it);
-      break;
     case 'variation': {
-      if (String(it.model).startsWith('ext:')) {
-        const copy = newItem({...pick(it), status: 'external', statusText: '', importedAt: null});
-        DB.put(copy); render();
-        toast('Ещё одна карточка с тем же промптом — сгенерируйте вариант на сайте Google', {type: 'ok'});
-        break;
-      }
-      const m = allModels().find(x => x.id === it.model) || {tier: it.tier, title: it.modelTitle};
-      if (!preflight(m, it.cost)) return;
-      const copy = newItem({...pick(it), seed: randSeed()});
-      if (copy.type === 'video' && copy.source === 'text' && copy.tier !== 'paid') delete copy.posterBlob; // новый кадр
-      render();
-      copy.type === 'video' ? runVideo(copy) : runImage(copy);
-      toast('Новый вариант в работе' + (copy.tier === 'paid' && copy.cost ? ` · ≈ ${fmtUSD(copy.cost)}` : ''));
+      const copy = newItem({...pick(it), status: 'external', statusText: '', importedAt: null});
+      DB.put(copy); render();
+      toast('Ещё одна карточка с тем же промптом — сгенерируйте вариант на сайте', {type: 'ok'});
       break;
     }
     case 'to-scn':
       closeLB();
       await refToScenario(it.blob);
       break;
-    case 'animate':
+    case 'animate':   // оживить через Flow / Dola / Arena / Vids — сценарием с этим фото
       closeLB();
-      if (asset.svc !== 'other') { await refToScenario(it.blob); break; }   // оживить через Flow / Dola / Arena — сценарием с этим фото
-      setMode('video');
-      useImageSource();
-      await setVImage(it.blob);
-      state.prompts.video = ''; $('#prompt').value = '';
-      setView('create');
-      toast('Картинка добавлена. Выберите модель и движение — и жмите «Создать видео»', {type: 'ok'});
+      await refToScenario(it.blob);
       break;
     case 'to-asset':
       closeLB();
       setView('create');
       setCreateMode('one');
-      if (asset.svc === 'other') setAssetSvc('flow');
       await assetAddRefs([it.blob]);
       break;
     case 'reuse':
       closeLB();
-      // видео — новым сценарием, фото с сайтов — в «Создание ассетов»; картинки прежних моделей — как раньше
+      // видео — новым сценарием, фото — в «Создание ассетов»
       if (it.type === 'video') {
         const s = {...blankScn(), kind: 'video', prompt: it.userPrompt ?? it.prompt};
         const empty = cl.scn.findIndex(x => !x.prompt.trim() && !x.ref);
@@ -4259,30 +3416,10 @@ async function doAction(act, it, el) {
         toast('Промпт — в сценарии. Меняйте и запускайте', {type: 'ok'});
         break;
       }
-      if (!allModels().some(m => m.id === it.model && !m.external)) {
-        setView('create'); setCreateMode('one');
-        if (asset.svc === 'other') setAssetSvc('flow');
-        $('#prompt').value = state.prompts.image = it.userPrompt ?? it.prompt; saveSettings();
-        toast('Промпт загружен — меняйте и создавайте', {type: 'ok'});
-        break;
-      }
-      setAssetSvc('other');
-      setMode(it.type);
-      if (it.model && allModels().some(m => m.id === it.model)) selectModel(it.model, false);
-      $('#prompt').value = state.prompts[it.type] = it.userPrompt ?? it.prompt;
-      $('#seed').value = it.seed;
-      $('#negative').value = it.negative || '';
-      if (it.style) setStyle(it.style);
-      if (it.aspect && it.source !== 'image') setAspect(it.aspect);
-      if (it.type === 'video') {
-        setMotion(it.motion);
-        if (it.source === 'image' && it.posterBlob) { setVSource('image'); await setVImage(it.posterBlob); }
-        else setVSource('text');
-        renderVideoOptions(); setDuration(it.duration);
-      }
-      $('.adv').open = true;
-      setView('create');
-      toast('Настройки загружены — меняйте и генерируйте', {type: 'ok'});
+      // фото — промпт в «Создание ассетов»
+      setView('create'); setCreateMode('one');
+      $('#prompt').value = state.prompts.image = it.userPrompt ?? it.prompt; saveSettings();
+      toast('Промпт загружен — меняйте и создавайте', {type: 'ok'});
       break;
   }
 }
@@ -4331,7 +3468,7 @@ function showLB() {
       ${it.type === 'video' && it.blob ? '<button data-act="to-mt" title="Добавить в текущий проект монтажа">🎞 В монтаж</button>' : ''}
       ${it.mt && mt.projects.some(x => x.id === it.mt) ? '<button data-act="open-mt" title="Открыть проект, из которого склеено это видео">🎞 Открыть проект</button>' : ''}
       <button data-act="download">⤓ Скачать</button>
-      <button data-act="variation">↻ Вариант</button>
+      ${String(it.model).startsWith('ext:') ? '<button data-act="variation">↻ Вариант</button>' : ''}
       <button data-act="reuse">✎ Повторить</button>
       <button data-act="delete" class="danger">🗑 Удалить</button>
     </div>`;
@@ -6409,90 +5546,11 @@ $('#peekBody').addEventListener('click', async e => {
   if (b) toast(await clCopyText(peekTexts[+b.dataset.peekCopy]) ? 'Скопировано' : 'Не удалось скопировать', {type: 'ok'});
 });
 
-/* =============================== catalog UI =============================== */
-function modelCardHTML(m) {
-  const on = state.models[m.kind] === m.id;
-  let hs = m.health, health = {healthy: 'работает', degraded: 'нестабильно', down: 'не работает', unknown: 'нет данных'}[m.health] || '';
-  if (m.provider === 'hf' && hfQuotaOut()) { hs = 'degraded'; health = 'лимит на сегодня исчерпан'; }
-  return `<button class="mcard ${m.tier} ${on ? 'on' : ''} ${m.health === 'down' ? 'down' : ''}" data-id="${esc(m.id)}">
-    <div class="mc-head">
-      <span class="mc-ico" style="${icoStyle(m)}">${esc(initials(m))}</span>
-      <div class="mc-name"><div class="mc-title">${esc(m.title)}</div><div class="mc-pub">${esc(m.publisher)}</div></div>
-      <span class="tier ${m.tier}${m.external ? ' site' : ''}">${m.external ? 'Free · сайт' : m.tier === 'free' ? 'Free' : 'Paid'}</span>
-    </div>
-    ${m.credits ? `<div class="mc-credits"><div>💳 ${esc(m.credits)}</div><div class="eq">→ ${esc(m.equiv)}</div>${m.note ? `<div class="nt">⚠ ${esc(m.note)}</div>` : ''}</div>` : `<div class="mc-desc">${esc(m.desc)}</div>`}
-    <div class="mc-tags">${modelTags(m)}</div>
-    <div class="mc-foot"><span class="mc-price">${priceLabel(m)}</span><span class="health ${hs}">${health}</span></div>
-  </button>`;
-}
 
-function renderCatalog() {
-  const q = cat.q.toLowerCase();
-  const match = m => m.kind === cat.kind && (!q || `${m.title} ${m.publisher} ${m.desc} ${m.api || ''}`.toLowerCase().includes(q));
-  const free = FREE_MODELS.filter(m => !m.external && match(m));
-  const sites = FREE_MODELS.filter(m => m.external && match(m));
-  const sorters = {
-    top: (a, b) => ((a.featured < 0 ? 99 : a.featured) - (b.featured < 0 ? 99 : b.featured)) || ((estimate(a) ?? 9) - (estimate(b) ?? 9)),
-    cheap: (a, b) => (estimate(a) ?? 9) - (estimate(b) ?? 9),
-    new: (a, b) => b.added - a.added,
-  };
-  const paid = catalog.filter(match).sort(sorters[cat.sort]);
-  let html = '';
-  if ((cat.tier === 'all' || cat.tier === 'free') && free.length) {
-    html += `<section class="cat-sec"><div class="cat-sec-head"><h3><span class="tier free">Free</span> Бесплатно — прямо здесь</h3>
-      <p>Генерация внутри Freefield, без регистрации. Есть дневной лимит бесплатного GPU.</p></div>
-      <div class="mgrid">${free.map(modelCardHTML).join('')}</div></section>`;
-  }
-  if ((cat.tier === 'all' || cat.tier === 'sites') && sites.length) {
-    const groups = [['day', 'Кредиты каждый день'], ['week', 'Каждую неделю'], ['month', 'Каждый месяц'], ['once', 'Разово — пробный период']];
-    html += `<section class="cat-sec"><div class="cat-sec-head"><h3><span class="tier free site">Free · сайт</span> Бесплатные кредиты на сайтах</h3>
-      <p>Генерация на сайте сервиса под вашим аккаунтом: Freefield готовит промпт, открывает сайт и принимает результат в галерею. Лимиты — на сентябрь 2026, сервисы их меняют.</p></div>
-      ${groups.map(([p, t]) => { const g = sites.filter(m => m.period === p); return g.length ? `<h4 class="cat-sub">${PERIODS[p]}</h4><div class="mgrid">${g.map(modelCardHTML).join('')}</div>` : ''; }).join('')}
-    </section>`;
-  }
-  if ((cat.tier === 'all' || cat.tier === 'paid') && paid.length) {
-    html += `<section class="cat-sec"><div class="cat-sec-head"><h3><span class="tier paid">Paid</span> Платные</h3>
-      <p>Оплата только за каждую генерацию, без подписки. Цены в pollen (≈ $), видны до запуска.</p></div>
-      ${wallet.key ? '' : '<div class="key-banner">🔑 Чтобы запускать платные модели, добавьте ключ Pollinations (пара минут). <button data-open-settings>Добавить ключ</button></div>'}
-      <div class="mgrid">${paid.map(modelCardHTML).join('')}</div></section>`;
-  }
-  $('#catBody').innerHTML = html || '<div class="cat-empty">Ничего не найдено</div>';
-}
 
-function renderServices() {
-  const groups = [['day', 'Каждый день'], ['week', 'Каждую неделю'], ['month', 'Каждый месяц'], ['once', 'Разово — пробный период']];
-  $('#svcList').innerHTML = groups.map(([p, t]) => {
-    const list = SERVICES.filter(x => x.period === p);
-    return `<div class="svc-group">${PERIODS[p]}</div>` + list.map(x => `
-      <div class="svc-row">
-        <span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
-        <div class="svc-main">
-          <div><b>${esc(x.name)}</b> <span class="hint">${esc(x.by)}</span></div>
-          <div class="svc-cr">💳 ${esc(x.credits)}</div>
-          ${x.image ? `<div class="svc-eq">🖼 ${esc(x.image.models)} — ${esc(x.image.equiv)}</div>` : ''}
-          ${x.video ? `<div class="svc-eq">🎬 ${esc(x.video.models)} — ${esc(x.video.equiv)}</div>` : ''}
-          ${x.note ? `<div class="hint">⚠ ${esc(x.note)}</div>` : ''}
-        </div>
-        <a class="btn small" href="${x.url}" target="_blank" rel="noopener">Открыть ↗</a>
-      </div>`).join('');
-  }).join('');
-}
 
 function openSheet(which) {
-  if (which === 'catalog') {
-    cat.kind = state.mode;
-    $$('#catKindSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === cat.kind));
-    renderCatalog();
-  } else {
-    $('#keyInput').value = wallet.key;
-    $('#hfInput').value = wallet.hf;
-    $('#hordeInput').value = wallet.horde;
-    $('#geminiInput').value = wallet.gemini;
-    $('#autoFallback').checked = state.autoFallback;
-    $('#confirmOver').value = state.confirmOver;
-    renderWallet();
-    refreshBalance();
-  }
+  if (which === 'settings') { $('#geminiInput').value = wallet.gemini; renderWallet(); }
   $$('.sheet').forEach(s => s.classList.add('hidden'));
   $(`#${which}Sheet`).classList.remove('hidden');
 }
@@ -6595,77 +5653,12 @@ function renderMcp() {
 function closeSheets() {
   if (rec.to) recCancel(false);
   $$('#vcBody audio').forEach(a => a.pause());   // «🎧 Библиотека голосов» и образцы не играют в закрытом окне
-  const cam = !$('#camSheet').classList.contains('hidden');
   $$('.sheet').forEach(s => s.classList.add('hidden'));
-  if (cam) CamPreview.mount($('#motionGrid'));   // превью снова рисуются в панели
 }
 
-function selectModel(id, announce = true) {
-  const m = allModels().find(x => x.id === id);
-  if (!m) return;
-  state.models[m.kind] = m.id;
-  // модель из каталога — это «Другие модели» в «Создании ассетов»
-  if (cl.mode !== 'one') setCreateMode('one');
-  if (asset.svc !== 'other') setAssetSvc('other');
-  if (m.kind !== state.mode) setMode(m.kind);
-  saveSettings();
-  refreshModelUI();
-  if (announce) toast(m.tier === 'free' ? `${m.title} — бесплатно` : `${m.title} — ${priceLabel(m).replace(/<[^>]+>/g, '')}`, {type: 'ok'});
-}
 
 /* =============================== controls =============================== */
-function refreshModelUI() {
-  const m = currentModel();
-  const pick = $('#modelPick');
-  pick.className = 'model-pick ' + m.tier;
-  $('#mpIcon').setAttribute('style', icoStyle(m));
-  $('#mpIcon').textContent = initials(m);
-  $('#mpTier').className = 'tier ' + m.tier;
-  $('#mpTier').textContent = m.tier === 'free' ? 'Free' : 'Paid';
-  $('#mpPub').textContent = m.publisher;
-  $('#mpTitle').textContent = m.title;
-  $('#mpPrice').innerHTML = priceLabel(m);
-  renderQuickSvc();
-  if (state.mode === 'video') renderVideoOptions();
-  updateGenButton();
-  if (!$('#catalogSheet').classList.contains('hidden')) renderCatalog();
-}
 
-function renderVideoOptions() {
-  const m = currentModel('video');
-  // источник: картинка — если модель её принимает; иначе кнопка «Из картинки» сама возьмёт модель, которая оживляет картинки
-  const canImg = canImage(m);
-  $('#vSourceSeg [data-v=image]').title = canImg ? 'Оживить картинку: первый кадр видео — ваша картинка'
-    : `${m.title} делает видео только из текста — нажмите, и Freefield возьмёт модель, которая оживляет картинки`;
-  if (!canImg && state.vSource === 'image') setVSource('text');
-  // длительность
-  const ctl = $('#durCtl');
-  let d = state.duration;
-  if (m.durations?.length) {
-    if (!m.durations.includes(d)) d = m.defDur && m.durations.includes(m.defDur) ? m.defDur : m.durations[0];
-    ctl.innerHTML = `<div class="chips">${m.durations.map(v => `<button class="chip ${v === d ? 'on' : ''}" data-dur="${v}">${v} с</button>`).join('')}</div>`;
-  } else {
-    const min = m.minDur ?? 1, max = m.maxDur ?? 10, step = m.durStep || 1;
-    if (d < min || d > max) d = m.defDur ?? min;
-    if (min === max) ctl.innerHTML = `<div class="hint">Фиксированная длительность: ${min} с</div>`;
-    else ctl.innerHTML = `<input type="range" id="duration" min="${min}" max="${max}" step="${step}" value="${d}">`;
-  }
-  setDuration(d);
-  // качество
-  const rs = m.tier === 'paid' ? (m.resolutions || []) : [];
-  $('#resBlock').classList.toggle('hidden', rs.length < 2);
-  if (!rs.includes(state.res)) state.res = rs.length ? (m.defaultRes && rs.includes(m.defaultRes) ? m.defaultRes : rs[0]) : null;
-  $('#resChips').innerHTML = rs.map(r => {
-    const s = +priceOf(m, r).completionVideoSeconds;
-    return `<button class="chip ${r === state.res ? 'on' : ''}" data-res="${r}">${r}${s ? ` · ${fmtUSD(s)}/с` : ''}</button>`;
-  }).join('');
-  // звук
-  const audio = m.tier === 'paid' && (m.caps.includes('audio_output'));
-  $('#audioBlock').classList.toggle('hidden', !audio);
-  if (!audio) state.audio = false;
-  $('#audioToggle').checked = state.audio;
-  updateGenButton();
-}
 
 function updateGenButton() {
   if (cl.mode === 'voice') return;   // в «Озвучке» большой кнопки нет — всё в самом «Эхо»
@@ -6725,87 +5718,24 @@ function updateGenButton() {
     $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : 'Без компьютера: подготовлю фото и промпты — «Создать» на сайтах нажмёте сами';
     return;
   }
-  if (asset.svc !== 'other') {
-    const btn = $('#genBtn'), m = scnModel('image', asset.svc, asset.model[asset.svc]) || scnModel('image', asset.svc, scnDefault('image', asset.svc));
-    btn.classList.remove('paid');
-    btn.disabled = asset.sending;
-    const n = asset.kind ? asset.n : 1;   // несколько картинок со своими промптами — «Создать 10 картинок · Google Flow ×4»
-    $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
-    $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайте';
-    $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
-      (asset.kind === 'loc' ? (asset.refs[0] ? ` · развёртка ✓${asset.info ? ' · инфографика ✓' : ''}` : ' · нужна развёртка')
-        : asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
-    return;
-  }
-  $('#genBtn').disabled = false;
-  const m = currentModel();
-  const video = state.mode === 'video';
-  const cost = currentCost();
-  const btn = $('#genBtn');
-  btn.classList.toggle('paid', m.tier === 'paid');
-  $('#genLabel').textContent = m.external ? (video && state.vSource === 'image' ? `🎬 Оживить в ${m.site}` : `🔗 Подготовить для ${m.site}`)
-    : video ? '🎬 Создать видео' : state.count > 1 ? `✨ Сгенерировать ×${state.count}` : '✨ Сгенерировать';
-  $('#genSub').textContent = m.external ? (extLeft(m) != null ? `${extLeft(m)}/${m.count.n}` : m.short) : m.tier === 'free' ? 'Бесплатно' : cost == null ? 'цена по факту' : '≈ ' + fmtUSD(cost);
-  $('#etaLine').textContent = `${m.title} · ${m.eta || ''}` + (m.tier === 'paid' && !wallet.key ? ' · нужен ключ' : '') +
-    (m.provider === 'hf' && m.kind === 'image' && hfQuotaOut() && state.autoFallback ? ' · лимит исчерпан → AI Horde' : '');
+  // «Создание ассетов»
+  const btn = $('#genBtn'), m = scnModel('image', asset.svc, asset.model[asset.svc]) || scnModel('image', asset.svc, scnDefault('image', asset.svc));
+  btn.classList.remove('paid');
+  btn.disabled = asset.sending;
+  const n = asset.kind ? asset.n : 1;   // несколько картинок со своими промптами — «Создать 10 картинок · Google Flow ×4»
+  $('#genLabel').textContent = asset.sending ? '⏳ Отправляю…' : `🖼 Создать ${n > 1 ? `${n} ${plur(n, 'картинку', 'картинки', 'картинок')} · ` : 'в '}${SITE_SHORT[asset.svc]}${asset.svc === 'flow' ? ' ×' + asset.count : ''}`;
+  $('#genSub').textContent = hubLink.ok ? 'на компьютере' : 'вручную на сайте';
+  $('#etaLine').textContent = (asset.svc === 'arena' ? 'Arena · 2 фото от двух моделей' : m ? m[2] + ' · ' + m[3] : '') +
+    (asset.kind === 'loc' ? (asset.refs[0] ? ` · развёртка ✓${asset.info ? ' · инфографика ✓' : ''}` : ' · нужна развёртка')
+      : asset.refs.length ? ` · референсов: ${asset.refs.length}` : '') + (hubLink.ok ? '' : ' · без компьютера — «Создать» на сайте нажмёте сами');
 }
 
-function setMode(mode) {
-  state.prompts[state.mode] = $('#prompt').value;
-  state.mode = mode;
-  document.body.dataset.mode = mode;
-  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
-  $('#prompt').value = state.prompts[mode] || '';
-  renderAspects();
-  updateLabels();
-  refreshModelUI();
-  saveSettings();
-}
 function setView(v) {
   if (v !== 'create' && mtPv.playing) mtPause();   // ушли в галерею — предпросмотр «Монтажа» не играет за кадром
   state.view = v;
   document.body.dataset.view = v;
   $$('#bottomNav [data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === v));
   if (v === 'gallery') requestAnimationFrame(() => { if (colCount() !== lastCols) render(); });
-}
-function setVSource(v) {
-  state.vSource = v;
-  document.body.dataset.vsource = v;
-  $$('#vSourceSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  updateLabels();
-  saveSettings();
-}
-// картинку в видео превращают: модели с входом image, а Google Flow, Vids, Dola и Arena — через компьютер (Freefield там сам)
-const HUB_SITES = ['flow', 'dola', 'arena', 'vids'];
-const canImage = m => m.inputs.includes('image') || !!(m.external && HUB_SITES.includes(m.service));
-// «Из картинки»: у выбранной модели нет входа для картинки — берём бесплатную Wan 2.2, она оживляет фото
-function useImageSource() {
-  const m = currentModel('video');
-  if (!canImage(m)) {
-    const alt = allModels().find(x => x.id === 'free:wan22') || allModels().find(x => x.kind === 'video' && x.inputs.includes('image'));
-    if (!alt) return toast('Нет модели, которая оживляет картинки', {type: 'err'});
-    state.models.video = alt.id;
-    saveSettings();
-    refreshModelUI();
-    toast(`${m.title} делает видео только из текста — для картинки взял ${alt.title}`, {type: 'ok', ms: 6500});
-  }
-  setVSource('image');
-}
-// оживить картинку в Google Flow / Vids / Dola / Arena: задание с фото уходит на компьютер, готовое видео придёт в галерею;
-// без компьютера — карточка для сайта с этим фото
-async function videoViaHub(m, raw, motion) {
-  const r = state.vImage.w / state.vImage.h, aspect = r > 1.2 ? '16:9' : r < 0.83 ? '9:16' : '1:1';
-  const prompt = [await asIs(raw), motion?.prompt].filter(Boolean).join(', ') || 'subtle natural motion, static camera';
-  if (!(await hubReady())) return phoneCards([{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]);
-  try {
-    const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({scenarios: [{prompt, kind: 'video', service: m.service, aspect_ratio: aspect, seconds: cl.seconds, images: [await refDataUrl(state.vImage.blob)]}]})});
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(j.error || `компьютер ответил ${res.status}`);
-    toast(`Отправлено в ${m.site} на компьютере — видео само появится в галерее`, {type: 'ok', ms: 7000});
-  } catch (e) { toast('Не удалось отправить: ' + e.message, {type: 'err'}); }
-  hubLink.refresh();
-  return true;
 }
 // стиль: общий (для всех) или — если в «Сценариях» выбран сценарий кнопкой 🎨 — только для этого сценария
 const styleTarget = () => cl.mode === 'scn' && cl.sel != null ? cl.scn[cl.sel] : null;
@@ -6857,24 +5787,11 @@ function delCustomStyle(id) {
   renderStyleGrid();
   if (cl.mode === 'scn') renderScn();
 }
-function setMotion(id) {
-  const m = byId(MOTIONS, id);
-  state.motion = m.id;
-  $$('.motion-card').forEach(c => c.classList.toggle('on', c.dataset.id === m.id));
-  $('#motionName').textContent = m.name;
-  $('#motionDesc').innerHTML = `${ic('video')}<div><b>${esc(m.name)}</b><br>${esc(m.desc)}<code title="Это допишется к промпту видео">${esc(m.prompt)}</code></div>`;
-  saveSettings();
-}
 // группы пресетов камеры (вкладки над сеткой) и сама сетка с живыми превью
 const motionGroupsHTML = cur => MOTION_GROUPS.map(([id, name, icon]) =>
   `<button class="mv-group ${cur === id ? 'on' : ''}" data-g="${id}">${ic(icon)}${name}<small>${motionsOf(id).length}</small></button>`).join('');
 const motionCardsHTML = (g, sel) => motionsOf(g).map((m, i) =>
   `<button class="motion-card ${m.id === sel ? 'on' : ''}" data-id="${m.id}" title="${esc(m.desc)}" style="animation-delay:${i * 28}ms"><div class="mv"><canvas></canvas></div><span class="mv-tick">${ic('check')}</span><div class="nm">${esc(m.name)}</div></button>`).join('');
-function renderMotionGroups() { $('#motionGroups').innerHTML = motionGroupsHTML(state.motionGroup); }
-function renderMotionGrid() {
-  $('#motionGrid').innerHTML = motionCardsHTML(state.motionGroup, state.motion);
-  CamPreview.mount($('#motionGrid'));
-}
 // «Видео сервисы»: у видео-сценария своё движение камеры (окно с теми же живыми превью)
 const camPick = {i: null, g: 'top'};
 function openCamPick(i) {
@@ -6903,74 +5820,14 @@ function withCamera(p, id) {
   }
   return `${String(p).trim().replace(/[.,;\s]+$/, '')}, ${m.prompt}`;
 }
-function setMotionGroup(g) {
-  state.motionGroup = MOTION_GROUPS.some(x => x[0] === g) ? g : 'top';
-  saveSettings();
-  renderMotionGroups();
-  renderMotionGrid();
-  $('#motionGroups .on')?.scrollIntoView({block: 'nearest', inline: 'center', behavior: 'smooth'});
-}
-function renderAspects() {
-  const list = state.mode === 'video' ? ASPECTS.filter(a => VIDEO_ASPECTS.includes(a.id)) : ASPECTS;
-  if (!list.some(a => a.id === state.aspects[state.mode])) state.aspects[state.mode] = list[0].id;
-  $('#aspectChips').innerHTML = list.map(a => {
-    const k = 13 / Math.max(a.w, a.h);
-    return `<button class="chip ${a.id === state.aspects[state.mode] ? 'on' : ''}" data-id="${a.id}"><span class="ar" style="width:${Math.round(a.w * k)}px;height:${Math.round(a.h * k)}px"></span>${a.id}</button>`;
-  }).join('');
-}
-function setAspect(id) {
-  state.aspects[state.mode] = id;
-  renderAspects();
-  saveSettings();
-}
-function setCount(n) {
-  state.count = n;
-  $$('#countSeg button').forEach(b => b.classList.toggle('on', +b.dataset.v === n));
-  updateLabels();
-  updateGenButton();
-  saveSettings();
-}
-function setDuration(v) {
-  state.duration = +v;
-  $('#durVal').textContent = +v;
-  const r = $('#duration'); if (r) r.value = v;
-  $$('#durCtl [data-dur]').forEach(c => c.classList.toggle('on', +c.dataset.dur === +v));
-  updateGenButton();
-  saveSettings();
-}
-async function setVImage(blob) {
-  if (!blob) {
-    state.vImage = null;
-    $('#dzPreview').classList.add('hidden');
-    $('.dz-empty').classList.remove('hidden');
-    return;
-  }
-  const d = await dims(blob);
-  if (!d) return toast('Не получилось прочитать картинку', {type: 'err'});
-  state.vImage = {blob, w: d[0], h: d[1]};
-  $('#dzImg').src = urlOf(blob);
-  $('#dzPreview').classList.remove('hidden');
-  $('.dz-empty').classList.add('hidden');
-}
 function updateLabels() {
-  const video = state.mode === 'video';
-  const fromImg = video && state.vSource === 'image';
-  const svc = asset.svc !== 'other';   // «Создание ассетов» через сервисы
-  $('#promptLabel').textContent = svc ? (asset.kind ? 'Общий промпт — поля из карточек выше' : 'Что на фото') : fromImg ? 'Движение (необязательно)' : video ? 'Сцена и действие' : 'Промпт';
-  $('#prompt').placeholder = svc ? 'Например: тот же герой с развёртки сидит за столом в старой мастерской, в руке ноутбук, тёплый свет… Можно по-русски — кнопка «🌐 На английский» переведёт'
-    : fromImg ? 'Что должно происходить? «девушка поворачивается и улыбается, волосы развеваются»'
-    : video ? 'Опишите сцену и действие: «кот в скафандре плывёт в невесомости»'
-    : 'Опишите картинку… можно по-русски — переведу на английский как есть';
+  $('#promptLabel').textContent = asset.kind ? 'Общий промпт — поля из карточек выше' : 'Что на фото';
+  $('#prompt').placeholder = 'Например: тот же герой с развёртки сидит за столом в старой мастерской, в руке ноутбук, тёплый свет… Можно по-русски — кнопка «🌐 На английский» переведёт';
   updateGenButton();
 }
 
 function buildControls() {
   renderStyleGrid();
-  // открываем группу выбранного движения («Популярные», если он там есть)
-  const cur = byId(MOTIONS, state.motion);
-  if (!motionsOf(state.motionGroup).some(m => m.id === cur.id)) state.motionGroup = cur.top ? 'top' : cur.g;
-  renderMotionGroups();
-  renderMotionGrid();
 }
 // пустая галерея: открыта файлом — подсказать, где настоящая; есть связь с компьютером — забрать готовое
 function renderEmpty() {
@@ -6982,8 +5839,6 @@ function renderEmpty() {
 }
 
 function bindControls() {
-  $('#vSourceSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) b.dataset.v === 'image' ? useImageSource() : setVSource('text'); });
-  $('#motionGroups').addEventListener('click', e => { const b = e.target.closest('[data-g]'); if (b) setMotionGroup(b.dataset.g); });
   // окно движения камеры для сценария: группа, выбор пресета, «без пресета»
   $('#camSheet').addEventListener('click', e => {
     const s = cl.scn[camPick.i], g = e.target.closest('[data-g]'), card = e.target.closest('.motion-card');
@@ -7009,22 +5864,9 @@ function bindControls() {
   });
   $('#styleFormSave').addEventListener('click', addCustomStyle);
   $('#styleFormCancel').addEventListener('click', () => { $('#styleForm').hidden = true; });
-  $('#motionGrid').addEventListener('click', e => { const c = e.target.closest('.motion-card'); if (c) setMotion(c.dataset.id); });
-  $('#aspectChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) setAspect(c.dataset.id); });
-  $('#countSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setCount(+b.dataset.v); });
-  $('#durCtl').addEventListener('input', e => { if (e.target.id === 'duration') setDuration(e.target.value); });
-  $('#durCtl').addEventListener('click', e => { const c = e.target.closest('[data-dur]'); if (c) setDuration(c.dataset.dur); });
-  $('#resChips').addEventListener('click', e => {
-    const c = e.target.closest('[data-res]'); if (!c) return;
-    state.res = c.dataset.res; saveSettings();
-    $$('#resChips .chip').forEach(x => x.classList.toggle('on', x === c));
-    updateGenButton();
-  });
-  $('#audioToggle').addEventListener('change', e => { state.audio = e.target.checked; saveSettings(); updateGenButton(); });
   $('#prompt').addEventListener('input', e => { state.prompts[state.mode] = e.target.value; saveSettings(); });
   $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); createGo(); } });
   $('#genBtn').addEventListener('click', createGo);
-  $('#modelPick').addEventListener('click', () => openSheet('catalog'));
   $('#hubBtn').addEventListener('click', openHub);
   $('#accBtn').addEventListener('click', openAcc);
   $('#mcpBtn').addEventListener('click', openMcp);
@@ -7058,11 +5900,6 @@ function bindControls() {
   bindWrite();
   bindVoices();
   bindChars();
-  $('#quickSvc').addEventListener('click', e => {
-    if (e.target.closest('[data-open-hub]')) return openHub();
-    const c = e.target.closest('[data-model]');
-    if (c) selectModel(c.dataset.model, false);
-  });
   $('#hubBody').addEventListener('click', e => {
     const r = e.target.closest('.hub-row'); if (!r) return;
     const x = SERVICES.find(v => v.id === r.dataset.svc);
@@ -7080,7 +5917,6 @@ function bindControls() {
     markConnected(c.closest('.hub-row').dataset.svc, c.checked);
     renderHub();
   });
-  $('#walletBtn').addEventListener('click', () => openSheet('settings'));
   $('#settingsBtn').addEventListener('click', () => openSheet('settings'));
 
   $('#diceBtn').addEventListener('click', () => {
@@ -7114,18 +5950,7 @@ function bindControls() {
     finally { btn.classList.remove('loading'); btn.textContent = '🌐 На английский'; }
   });
 
-  // dropzone / paste
-  const dz = $('#dropzone'), fi = $('#fileInput');
-  dz.addEventListener('click', e => { if (!e.target.closest('#dzClear')) fi.click(); });
-  fi.addEventListener('change', () => { if (fi.files[0]) setVImage(fi.files[0]); fi.value = ''; });
-  $('#dzClear').addEventListener('click', e => { e.stopPropagation(); setVImage(null); });
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); dz.classList.remove('drag');
-    const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/'));
-    if (f) setVImage(f);
-  });
+  // вставка фото из буфера
   document.addEventListener('paste', e => {
     const any = [...(e.clipboardData?.files || [])].find(f => /^(image|video)\//.test(f.type));
     const waiting = any && extTarget(any.type.startsWith('video/') ? 'video' : 'image');
@@ -7133,13 +5958,11 @@ function bindControls() {
     const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
     if (!f) return;
     e.preventDefault();
-    // «Создание сценария» — в свободную ячейку (сначала инфографика); «Сценарии» — фото в сценарий;
-    // «Создание ассетов» — в референсы; «Другие модели» — как раньше, оживить в видео
+    // «Создание сценария» — в свободную ячейку (сначала инфографика); «Сценарии» — фото в сценарий; «Создание ассетов» — в референсы
     if (cl.mode === 'write') return writeAddImage(!wr.info ? 'info' : !wr.sheet ? 'sheet' : 'loc', f);   // дальше — кадры локаций по порядку
     if (cl.mode === 'scn') return refToScenario(f);
-    if (asset.svc !== 'other') { setView('create'); return assetAddRefs([f]); }
-    setMode('video'); setVSource('image'); setVImage(f); setView('create');
-    toast('Картинка вставлена — оживим её 🎬', {type: 'ok'});
+    setView('create');
+    assetAddRefs([f]);
   });
 
   // gallery
@@ -7183,11 +6006,7 @@ function bindControls() {
   // mobile nav
   $('#bottomNav').addEventListener('click', e => {
     const b = e.target.closest('[data-nav]'); if (!b) return;
-    const v = b.dataset.nav;
-    if (v === 'models') openSheet('catalog');
-    else if (v === 'hub') openHub();
-    else if (v === 'settings') openSheet('settings');
-    else setView(v);
+    setView(b.dataset.nav);
   });
 
   // sheets
@@ -7195,73 +6014,10 @@ function bindControls() {
     if (e.target === s || e.target.closest('[data-close]')) closeSheets();
     if (e.target.closest('[data-open-settings]')) openSheet('settings');
   }));
-  $('#catKindSeg').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    cat.kind = b.dataset.v;
-    $$('#catKindSeg button').forEach(x => x.classList.toggle('on', x === b));
-    renderCatalog();
-  });
-  $('#catTierSeg').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    cat.tier = b.dataset.v;
-    $$('#catTierSeg button').forEach(x => x.classList.toggle('on', x === b));
-    renderCatalog();
-  });
-  $('#catSortSeg').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    cat.sort = b.dataset.v;
-    $$('#catSortSeg button').forEach(x => x.classList.toggle('on', x === b));
-    renderCatalog();
-  });
-  $('#catSearch').addEventListener('input', e => { cat.q = e.target.value.trim(); renderCatalog(); });
-  $('#catBody').addEventListener('click', e => {
-    const c = e.target.closest('.mcard'); if (!c) return;
-    selectModel(c.dataset.id);
-    closeSheets();
-  });
 
   // settings
   document.addEventListener('click', e => { const b = e.target.closest('[data-eye]'); if (b) $('#' + b.dataset.eye).classList.toggle('show'); });
-  $('#keySave').addEventListener('click', async () => {
-    const k = $('#keyInput').value.trim();
-    if (!k) return toast('Вставьте ключ');
-    wallet.key = k; ls.set('freefield.key', k);
-    await refreshBalance();
-    toast(wallet.balance === 'bad' ? 'Ключ не подошёл — проверьте его' : 'Ключ сохранён — платные модели доступны', {type: wallet.balance === 'bad' ? 'err' : 'ok'});
-    refreshModelUI();
-  });
-  $('#keyClear').addEventListener('click', () => {
-    wallet.key = ''; wallet.balance = null; ls.del('freefield.key');
-    $('#keyInput').value = '';
-    renderWallet(); refreshModelUI();
-    toast('Ключ удалён из браузера');
-  });
-  $('#balRefresh').addEventListener('click', refreshBalance);
-  $('#hfSave').addEventListener('click', async () => {
-    const t = $('#hfInput').value.trim();
-    if (!/^hf_\w{10,}/.test(t)) return toast('Токен Hugging Face начинается с hf_', {type: 'err'});
-    try {
-      const r = await fetch('https://huggingface.co/api/whoami-v2', {headers: {Authorization: 'Bearer ' + t}});
-      if (!r.ok) throw new Error();
-      const j = await r.json();
-      wallet.hf = t; wallet.hfUser = j.name || 'аккаунт';
-      ls.set('freefield.hf', t); ls.set('freefield.hfUser', wallet.hfUser); ls.del(HF_OUT_KEY);
-      renderWallet(); refreshModelUI();
-      toast(`Вы вошли в Hugging Face как ${wallet.hfUser} — бесплатный лимит GPU увеличен`, {type: 'ok'});
-    } catch { toast('Токен не подошёл — проверьте, что он скопирован целиком', {type: 'err'}); }
-  });
-  $('#hfClear').addEventListener('click', () => {
-    wallet.hf = ''; wallet.hfUser = ''; ls.del('freefield.hf'); ls.del('freefield.hfUser');
-    $('#hfInput').value = ''; renderWallet(); toast('Вы вышли из Hugging Face');
-  });
   $('#geminiSave').addEventListener('click', () => saveGeminiKey($('#geminiInput').value));
-  $('#hordeSave').addEventListener('click', () => {
-    wallet.horde = $('#hordeInput').value.trim();
-    wallet.horde ? ls.set('freefield.horde', wallet.horde) : ls.del('freefield.horde');
-    renderWallet(); toast(wallet.horde ? 'Ключ AI Horde сохранён' : 'Ключ AI Horde удалён', {type: 'ok'});
-  });
-  $('#autoFallback').addEventListener('change', e => { state.autoFallback = e.target.checked; saveSettings(); updateGenButton(); });
-  $('#confirmOver').addEventListener('change', e => { state.confirmOver = Math.max(0, +e.target.value || 0); saveSettings(); });
 
   // keyboard
   document.addEventListener('keydown', e => {
@@ -7961,8 +6717,8 @@ async function scnGo(own) {
   }
   return (await hubReady()) ? clSend(own) : scnPhone(own);
 }
-// большая кнопка «Создать»: сценарии, ассеты через сервисы или прежний генератор («Другие модели»)
-function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'voice' ? echoEnsure() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : asset.svc !== 'other' ? assetGo() : generate(); }
+// большая кнопка «Создать»: в каждой вкладке — своё действие
+function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'voice' ? echoEnsure() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : assetGo(); }
 
 /* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
@@ -7971,12 +6727,6 @@ const ASSET_SVC = {
   arena: {what: '2 фото от двух разных моделей · бесплатно'},
 };
 const ASSET_MAX_REFS = 4;
-// Nano Banana 2.1 — по умолчанию (пользователь 2026-10-07): сохранённый прежний выбор по умолчанию (Nano Banana 2) — на 2.1, один раз
-if (!ls.get('freefield.nb21', false)) {
-  const m = ls.get('freefield.asset.model', null);
-  if (m?.flow === 'nano-banana-2') ls.set('freefield.asset.model', {...m, flow: 'nano-banana-2.1'});
-  ls.set('freefield.nb21', true);
-}
 // «Что создаём» — ассеты рилса по шагам (пользователь 2026-09-27): готовый английский промпт с [ПОЛЯМИ], формат и количество.
 // Промпт — шаблон: пользователь меняет [ПОЛЯ] на своё, больше ничего не дописывается
 const ASSET_KINDS = {
@@ -8039,7 +6789,7 @@ function infoPrompt(base, it) {
   return parts.join(' ');
 }
 const asset = {
-  svc: ls.get('freefield.asset.svc', 'flow'),   // flow | dola | arena | other (прежние модели: FLUX, платные…)
+  svc: ['flow', 'dola', 'arena'].includes(ls.get('freefield.asset.svc', 'flow')) ? ls.get('freefield.asset.svc', 'flow') : 'flow',   // flow | dola | arena
   model: ls.get('freefield.asset.model', {flow: 'nano-banana-2.1', dola: 'seedream-5-pro'}),
   aspect: ls.get('freefield.asset.aspect', '3:4'),
   count: ls.get('freefield.asset.count', 4),
@@ -8055,10 +6805,9 @@ const asset = {
 // формат ассета — ближайший из тех, что есть у выбранного сервиса (2:3 есть только в Dola)
 const assetAspect = () => fitAr(SITE_AR.image[asset.svc] || SITE_AR.image.flow, asset.aspect);
 function setAssetSvc(svc) {
-  asset.svc = ['flow', 'dola', 'arena', 'other'].includes(svc) ? svc : 'flow';
+  asset.svc = ['flow', 'dola', 'arena'].includes(svc) ? svc : 'flow';
   asset.save();
   document.body.dataset.asvc = asset.svc;
-  if (asset.svc !== 'other' && state.mode !== 'image') setMode('image');   // ассеты — это фото
   renderAsset();
   updateLabels();
 }
@@ -8141,7 +6890,6 @@ function setAssetKind(k) {
   asset.kind = k;
   asset.n = 1;
   asset.items = [blankItem()];
-  if (asset.svc === 'other') setAssetSvc('flow');   // шаблоны — для Flow / Dola / Arena на компьютере
   asset.aspect = K.aspect;
   if (K.count) asset.count = K.count;
   asset.save();
@@ -8406,7 +7154,6 @@ function renderAsset() {
     <div class="block-head"><span class="lbl">Сервис</span><span class="hint">фото делаются на компьютере, под вашими аккаунтами</span></div>
     <div class="asset-svcs">${['flow', 'dola', 'arena'].map(tile).join('')}</div>
     ${models.length ? `<select class="asset-model asset-svc-only" data-amodel aria-label="Модель">${models.map(m => `<option value="${m[1]}" ${asset.model[asset.svc] === m[1] ? 'selected' : ''}>${scnModelLabel('image', m)}</option>`).join('')}</select>` : ''}
-    <button class="asset-other" data-asvc="other" title="FLUX, Wan и платные модели — прямо в приложении, без компьютера">${asset.svc === 'other' ? '✓ Другие модели — выбраны ниже' : '⋯ Другие модели (FLUX, платные)'}</button>
     <div class="asset-svc-only">
       <div class="block-head" style="margin-top:14px"><span class="lbl">Что создаём</span><span class="hint">готовый промпт и формат — останется вписать своё</span></div>
       <div class="asset-kinds">${assetKindsHTML()}</div>
@@ -10597,7 +9344,7 @@ async function clSend(own) {
 // где Freefield запускает их сам, эта версия не достаёт. Поэтому на каждое задание — карточка в галерее: фото, промпт,
 // сервис, модель и формат; «Создать» на сайте нажимает сам пользователь (тратятся те же бесплатные кредиты),
 // готовый файл загружается в карточку. Задания — те же, что ушли бы на компьютер (/api/batch).
-function phoneCards(tasks) {
+function phoneCards(tasks, {quiet = false} = {}) {
   // newItem кладёт карточку в начало — идём с конца, чтобы первая была сверху
   const made = [];
   tasks.map((t, i) => [t, i]).reverse().forEach(([t, i]) => {
@@ -10620,7 +9367,7 @@ function phoneCards(tasks) {
   if (isMobile()) setView('gallery');
   requestAnimationFrame(() => $('#feed').scrollTo({top: 0, behavior: 'smooth'}));   // карточки — вверху галереи
   const n = tasks.length;
-  toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
+  if (!quiet) toast(`Компьютер не подключён — ${n > 1 ? `${n} ${plur(n, 'карточка', 'карточки', 'карточек')}` : 'карточка'} для сайтов в галерее: сохраните фото, скопируйте промпт, нажмите «Создать» на сайте и загрузите результат`, {type: 'ok', ms: 9000});
   return made;
 }
 
@@ -10891,19 +9638,14 @@ function drawQR(box, text) {
 (async function init() {
   buildControls();
   bindControls();
-  renderServices();
-  setStyle(state.style); setMotion(state.motion); setCount(state.count);
-  setVSource(state.vSource);
-  const mode = state.mode; state.mode = 'image'; setMode(mode);
-  const qMode = new URLSearchParams(location.search).get('mode');   // ярлыки иконки: «Новая картинка» / «Новое видео»
-  if (qMode === 'image' || qMode === 'video') setMode(qMode);
+  setStyle(state.style);
+  state.mode = 'image'; document.body.dataset.mode = 'image';
+  $('#prompt').value = state.prompts.image || '';
   initPwa();
   autoImport.init().then(render);
   setView('create');
   setCreateMode(cl.mode);
   renderWallet();
-  loadCatalog();
-  if (wallet.key) refreshBalance();
   try {
     await DB.open();
     items = ((await DB.all()) || []).filter(i => (i.status === 'done' && i.blob) || i.status === 'external').sort((a, b) => b.createdAt - a.createdAt);
