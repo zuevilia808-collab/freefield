@@ -870,6 +870,48 @@ server.registerTool('image_to_3d', {
   return waitJob(job, WAIT_MS, extra);
 });
 
+/* ---- Монтаж под бит: клипы + трек → ролик с переходами, субтитрами по словам и моушн-графикой (пользователь 2026-10-10) ---- */
+const montageMod = () => import('./montage.js');
+server.registerTool('montage', {
+  title: 'Смонтировать ролик под бит',
+  description: 'Автомонтаж бесплатно на этом компьютере: 2–8 клипов + музыка → ролик 15–30 с. Находит биты трека, режет клипы так, что швы на битах ' +
+    '(клипы с речью — кусками от начала, шов в паузе речи), переходы и «удары» зумом на сильных долях, субтитры по словам из речи клипов (whisper.cpp, ' +
+    'активное слово — лаймовым), моушн-графика по стилю: titles — кинетический заголовок + финальная надпись; cards — заголовок + карточки-тезисы (items) + призыв; ' +
+    'launch — «NEW», имя продукта, фишки (items) на бит, кнопка-призыв в ритм; none — только субтитры. Под речь музыка тише и уступает голосу. ' +
+    'Первый запуск сам ставит ffmpeg и Whisper в Freefield\\tools (~300 МБ, несколько минут). Рендер 1,5–3 мин — вернётся job_id, жди через check_job. ' +
+    'Готовый mp4 — в outputs/<дата> и в галерее приложения. Тексты (title, subtitle, items, cta) пиши на языке ролика (по умолчанию по-русски).',
+  inputSchema: {
+    clips: z.array(z.string()).max(8).optional().describe('Видео по порядку (абсолютные пути). Не задано — последние 4 видео из outputs'),
+    music: z.string().optional().describe('Трек (mp3/wav/m4a). Без него — ровный ритм 120 BPM и звук клипов'),
+    duration: z.number().min(6).max(60).default(20).describe('Длина, с (подгоняется к целым тактам)'),
+    style: z.enum(['titles', 'cards', 'launch', 'none']).default('titles'),
+    title: z.string().max(80).optional().describe('Заголовок / имя продукта'),
+    subtitle: z.string().max(120).optional().describe('Подзаголовок (в launch — подпись под кнопкой)'),
+    items: z.array(z.string().max(60)).max(5).optional().describe('Тезисы для cards / фишки для launch'),
+    cta: z.string().max(40).optional().describe('Призыв в конце («Подпишись», «Ссылка в профиле»)'),
+    captions: z.boolean().default(true).describe('Субтитры по словам из речи клипов'),
+    language: z.string().max(5).default('auto').describe('Язык речи: auto, ru, en…'),
+    pace: z.enum(['auto', 'speech', 'fast', 'medium', 'slow']).default('auto').describe('auto: речь — куски от начала клипа; без речи — смена кадра каждые 1–2 такта; fast = каждые 2 бита'),
+    aspect: z.enum(['auto', '9:16', '1:1', '4:5', '16:9']).default('auto'),
+    music_start: z.number().min(0).optional().describe('С какой секунды трека (по умолчанию — самый громкий кусок, со сильной доли)'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async (args, extra) => {
+  const M = await montageMod();
+  const clips = (args.clips?.length ? args.clips : M.latestVideos(OUT, 4)).map(f => path.resolve(f));
+  const bad = clips.find(f => !fs.existsSync(f));
+  if (bad || clips.length < 1) return toolResult({status: 'error', error_kind: 'input', error: bad ? 'нет файла: ' + bad : 'в outputs нет видео'}, {text: 'Ошибка: ' + (bad ? 'нет файла ' + bad : 'в outputs нет видео — передай clips'), isError: true});
+  if (args.music && !fs.existsSync(args.music)) return toolResult({status: 'error', error_kind: 'input', error: 'нет трека: ' + args.music}, {text: 'Ошибка: нет трека ' + args.music, isError: true});
+  const job = startJob('montage', async status => {
+    const r = await M.montage({...args, clips, music: args.music && path.resolve(args.music), outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), onStatus: status});
+    recordGen({kind: 'video', site: 'freefield', model: `монтаж · ${r.style} · ${r.bpm} BPM`, prompt: `монтаж под бит: ${args.title || clips.map(f => path.basename(f)).join(', ')}`,
+      aspect: r.aspect, files: [{path: r.path, mime: r.mime}]});
+    return toolResult(r, {text: [`Готово: ${r.duration} с, ${r.width}×${r.height}, ${r.cuts} кусков под бит (${r.bpm} BPM), субтитры: ${r.captions ? r.captions + ' слов (' + r.language + ')' : 'нет'}, стиль ${r.style}`,
+      `Файл: ${r.path}`, `Время монтажа: ${r.seconds} с`, ...r.warnings.map(w => '⚠ ' + w)].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
 server.registerTool('upscale_image', {
   title: 'Увеличить картинку ×2 / ×4',
   description: 'Увеличивает картинку в 2 или 4 раза бесплатно. Картинку сделал Flow через Freefield — увеличивает сам Flow (меню «Скачать» → 2K/4K, 4K обычно только с подпиской Google AI; ' +

@@ -34,6 +34,7 @@ AI-студия коротких роликов на бесплатных кре
 | `flow_image`, `flow_video`, `vids_video`, `dola_image`, `arena_video` | Фото и видео на сайтах под аккаунтами пользователя |
 | `batch_generate` | До 10 сценариев: сам раскладывает по сайтам и профилям, при сбое — запасной сайт |
 | `image_to_3d`, `upscale_image` | 3D-модель по картинке, увеличение ×2 / ×4 |
+| `montage` | Монтаж под бит: клипы + трек → ролик 15–30 с, швы на битах, переходы и зумы, субтитры по словам (whisper.cpp), графика titles / cards / launch (HTML → кадры, бесплатно). ffmpeg и Whisper сами ставятся в `Freefield	ools` (`avtools.js`, `montage.js`, `montage-gfx.js`) |
 | `echo_voices`, `echo_speak`, `echo_clone_voice` | Озвучка через «Эхо» |
 | `sync_sites`, `chat_photos`, `phone_tasks`, `phone_link`, `switch_account`, `portal_status` | Забрать готовое, фото из чата, телефон, аккаунты, вход и остаток кредитов |
 | `free_credit_services`, `account_status`, `list_models`, `check_job` | Справка и долгие задачи |
