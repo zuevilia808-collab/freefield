@@ -49,6 +49,7 @@ const DEFAULT = {flow: {video: 'omni-1.1-flash', image: 'nano-banana-2.1'}, dola
 
 function modelFor(site, kind, s) {
   const list = MODELS[site][kind];
+  if (site === 'dola' && kind === 'video') return 'seedance-2.5';   // видео в Dola — только Seedance 2.5 (пользователь 2026-10-10)
   if (s.model && list[s.model]) return s.model;
   return DEFAULT[site][kind];
 }

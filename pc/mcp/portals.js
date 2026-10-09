@@ -1039,22 +1039,22 @@ const DOLA_REFUSED = /В целях защиты права на образ|ге
 // вопрос вместо генерации — в т. ч. выбор «А / В» (пользователь 2026-10-09: «Dola напиздела прямо в лицо и генерацию не дала»:
 // «запрос на 10 секунд, а в параметрах 15 — какой вариант вы хотите?», хотя стояло 10 с)
 const DOLA_ASKS = /nearest supported duration|I can generate it at|Would you like|Do you want|Could you confirm|Which (option|one)|Хотите,? чтобы|Подтвердите|Уточните|Какой вариант|Если выбираете|Выберите вариант|Подождите, пожалуйста|могу сделать (его|видео) (длительностью|на)/i;
-async function dolaAnswer(page, seconds, aspect) {
-  const box = page.locator('[contenteditable="true"]').first();
-  await box.click();
-  await box.fill(`Вариант A. Создай видео прямо сейчас: ровно ${seconds} секунд, формат ${aspect}, строго по описанию выше. Больше ничего не уточняй — просто генерируй.`);
-  await sleep(300);
-  await page.keyboard.press('Enter');
-  await sleep(2500);
-}
+// Ответ Dola текстом в чате НЕ даём (пользователь 2026-10-10: если отвечать ей на вопросы, а не выбирать модель вручную, —
+// она делает видео не Seedance 2.5): на вопрос — новый чат, модель снова выбирается вручную, длина и формат сразу в промпте.
+const dolaNoAsk = (prompt, seconds, aspect) => `${prompt}\n\nВидео: ровно ${seconds} секунд, формат ${aspect}. Ничего не уточняй и не предлагай варианты — сразу генерируй.`;
 
+// видео в Dola — только Seedance 2.5 (пользователь 2026-10-10), какую бы модель ни прислали
 export const dolaVideo = o => siteSlot('dola', async () => {
-  try { return await dolaVideoRun(o); } catch (e) {
-    // «Произошла ошибка» — ещё раз в новом чате. Отказ по фото человека («защита права на образ») принимаем как есть:
-    // Dola это видео не делает, Freefield переносит задание с тем же фото на другой сервис (runBatch → altSlot)
-    if (e.kind !== 'retry') throw e;
-    o.onStatus('Dola ответила «Произошла ошибка» — пробую ещё раз');
-    return dolaVideoRun(o);
+  o = {...o, model: DOLA_VIDEO_MODELS['seedance-2.5']};
+  for (let attempt = 1; ; attempt++) {
+    try { return await dolaVideoRun(o); } catch (e) {
+      // «Произошла ошибка» или вопрос вместо генерации — заново в новом чате с ручным выбором модели (до 3 попыток).
+      // Отказ по фото человека («защита права на образ») принимаем как есть: Freefield переносит задание на другой сервис
+      if (!['retry', 'asked'].includes(e.kind) || attempt >= 3) throw e;
+      o.onStatus(e.kind === 'asked' ? 'Dola переспрашивает — не отвечаю ей, а начинаю новый чат и снова выбираю Seedance 2.5 вручную'
+        : 'Dola ответила «Произошла ошибка» — пробую ещё раз');
+      if (e.kind === 'asked') o = {...o, prompt: dolaNoAsk(o.prompt, o.seconds || 10, o.aspect || '9:16')};
+    }
   }
 });
 async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA_VIDEO_MODELS['seedance-2.5'], imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
@@ -1071,6 +1071,9 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     await sleep(600);
     await menuItem(page, model.re).click();
     await sleep(500);
+    // модель должна реально стоять — иначе видео не запускаем
+    const picked = await page.getByRole('button', {name: /^(Модель|Model)/}).first().innerText().catch(() => '');
+    if (/Seedance/i.test(picked) && !model.re.test(picked)) throw new PortalError(`Dola: не выбралась ${model.label} (стоит «${picked.trim()}») — видео не запускаю`, 'retry');
     await page.getByRole('button', {name: /^\d+s$/}).first().click();
     await sleep(500);
     await menuItem(page, new RegExp(`^${seconds}s$`)).click();
@@ -1090,29 +1093,28 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     await sleep(400);
     await page.keyboard.press('Enter');
     const url = await chatUrlAfterSend(page, DOLA_CHAT);
-    // не уходим из чата, пока Dola не ответила: «Создаю видео…», вопрос (отвечаем «да») или отказ
+    // не уходим из чата, пока Dola не ответила: «Создаю видео…», вопрос (не отвечаем — новый чат) или отказ
     for (let i = 0; i < 20; i++) {
       await sleep(2000);
       const reply = await dolaReplyText(page);
-      if (DOLA_ASKS.test(reply)) { await dolaAnswer(page, seconds, aspect); continue; }
+      if (DOLA_ASKS.test(reply) && !DOLA_STARTED.test(reply)) throw new PortalError(`Dola переспрашивает вместо генерации — «${reply.slice(-160)}»`, 'asked');
       if (DOLA_STARTED.test(reply) || DOLA_REFUSED.test(reply) || (await dolaVideoSrcs(page)).length) break;
     }
     return url;
   }));
   onStatus(`Dola генерирует видео (${model.label}, ${seconds} с)`);
   const t0 = Date.now();
-  let vids = [], answered = 0;
+  let vids = [];
   while (Date.now() - t0 < timeoutMs) {
     await sleep(6000);
     const st = await inChat('dola', chat, async page => {
       await captchaCheck(page, 'dola');
-      const r = {vids: await dolaVideoSrcs(page), reply: await dolaReplyText(page)};
-      // Dola переспрашивает (например, про длительность) — отвечаем «да», но не больше двух раз
-      if (!r.vids.length && DOLA_ASKS.test(r.reply) && answered < 2) { answered++; await ui(() => dolaAnswer(page, seconds, aspect)); r.reply = ''; }
-      return r;
+      return {vids: await dolaVideoSrcs(page), reply: await dolaReplyText(page)};
     });
     vids = st.vids;
     const reply = st.reply;
+    // переспросила уже после отправки — тоже не отвечаем, а заново в новом чате с ручным выбором Seedance 2.5
+    if (!vids.length && DOLA_ASKS.test(reply.slice(-500)) && !DOLA_STARTED.test(reply.slice(-500))) throw new PortalError(`Dola переспрашивает вместо генерации — «${reply.slice(-160)}»`, 'asked');
     const pts = reply.match(/остал\S* балл\S* на сегодня:\s*(\d+)|points? left today:\s*(\d+)/i);
     if (pts) writeState({dolaPoints: {date: today(), left: +(pts[1] ?? pts[2]), at: Date.now()}});
     if (vids.length) break;
