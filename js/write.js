@@ -16,7 +16,44 @@ const CLAUDE_MODELS = [['claude-opus-5-5', 'Opus 5.5 — самый сильны
 // под ней строки «(0:00–0:03) …» (по-русски, переведён на английский). Таймкоды — для ролика 10 с; ИИ растягивает их под длину ролика
 const REF_BLOCKS = ['Scenes & Shot cuts', 'On-screen text', 'Spoken line', 'Subtitles', 'Action & Emotions', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
 const REF_OLD = ['On-screen text', 'Spoken line', 'Action', 'Automatic subtitles', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
+// v4 (пользователь 2026-10-09: «вставь эталонные промпты новые»): надписи по частям (хук / середина / призыв), субтитры — точным текстом,
+// в кадре, звуке и камере — что именно описать
 const REF_PROMPT = `Scenes & Shot cuts:
+(0:00–0:03) Scene 1 — HOOK: [What we see; the first frame matches the location photo]
+(0:03–0:07) Scene 2 — MAIN: [What we see]
+(0:07–0:10) Scene 3 — CTA: [What we see]
+On-screen text:
+(0:00–0:03) «[Hook, up to 7 words]» — upper third, bold
+(0:03–0:07) [Clean frame, or one key fact/number in «»]
+(0:07–0:10) «[Call to action]» — upper third
+Spoken line:
+(0:00–0:03) «[Line 1]»
+(0:03–0:07) «[Line 2]»
+(0:07–0:10) «[Line 3]»
+Subtitles:
+(0:00–0:03) «[Exact subtitle text 1]»
+(0:03–0:07) «[Exact subtitle text 2]»
+(0:07–0:10) «[Exact subtitle text 3]»
+Action & Emotions:
+(0:00–0:03) [Action + emotion; a concrete hand or prop action]
+(0:03–0:07) [Action + emotion]
+(0:07–0:10) [Action + emotion]
+Pose & body language:
+(0:00–0:10) [Posture, gestures, facial expression, eye contact with the camera]
+Location:
+(0:00–0:10) [Place, props, light, time of day — exactly as in the location photo]
+Camera & framing:
+(0:00–0:03) [Shot size, angle, lens, movement — vertical 9:16]
+(0:03–0:07) [Shot size, angle, movement]
+(0:07–0:10) [Shot size, angle, movement]
+Sound design:
+(0:00–0:03) [Ambient sound + accent effect]
+(0:03–0:07) [Voice up front, music quiet underneath]
+(0:07–0:10) [Final beat / music swell]
+Timing & pacing:
+(0:00–0:10) [Overall pace; cuts land on the beat and speech pauses]`;
+// прежний эталон (v3) — если он стоит в браузере без правок, его меняем на новый
+const REF_V3 = `Scenes & Shot cuts:
 (0:00–0:03) Scene 1: [Description]
 (0:03–0:07) Scene 2: [Description]
 (0:07–0:10) Scene 3: [Description]
@@ -89,13 +126,14 @@ const wr = {
   // хранятся в IndexedDB (10 фото в localStorage не влезут) — загружаются после открытия хранилища, см. wrLocsLoad
   locs: [],
   result: ls.get('freefield.write.result', null), // {scenarios, by, at} или {raw, by, at} — ответ не по формату
-  ref: (r => { const v = ls.get('freefield.write.ref.v', 1);
+  ref: (r => { let v = ls.get('freefield.write.ref.v', 1);
     if (v === 2) { if (r.includes('(0:00–0:03) [Subtitles 1]')) r = r.replace(/^Automatic subtitles:\n\(0:00–0:03\) \[Subtitles 1\]\n\(0:03–0:07\) \[Subtitles 2\]\n\(0:07–0:10\) \[Subtitles 3\]$/m,
       'Subtitles:\n(0:00–0:03) «[Exact subtitle text 1]»\n(0:03–0:07) «[Exact subtitle text 2]»\n(0:07–0:10) «[Exact subtitle text 3]»');
-      ls.set('freefield.write.ref.v', 3); ls.set('freefield.write.ref', r); return r; }
-    if (v >= 3) return r;
+      v = 3; }
+    if (v === 3) { if (r.trim() === REF_V3.trim()) r = REF_PROMPT; ls.set('freefield.write.ref.v', 4); ls.set('freefield.write.ref', r); return r; }
+    if (v >= 4) return r;
     if (r && r.trim() !== REF_OLD.map(b => b + ':').join('\n')) ls.set('freefield.write.ref.prev', r);
-    ls.set('freefield.write.ref.v', 3); ls.set('freefield.write.ref', REF_PROMPT); return REF_PROMPT; })(ls.get('freefield.write.ref', REF_PROMPT)),   // эталонный промпт: по нему ИИ пишет видео-промпты
+    ls.set('freefield.write.ref.v', 4); ls.set('freefield.write.ref', REF_PROMPT); return REF_PROMPT; })(ls.get('freefield.write.ref', REF_PROMPT)),   // эталонный промпт: по нему ИИ пишет видео-промпты
   char: ls.get('freefield.write.char', null),       // персонаж роликов: его развёртка — в ячейке, его голос ИИ впишет в каждый сценарий
   busy: false, note: '', pick: 'info',
   save() {
