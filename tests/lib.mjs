@@ -51,6 +51,9 @@ export async function suite(name, run) {
     async page(dev, label = '') {
       const ctx = await browser.newContext({...dev, serviceWorkers: 'block'});
       await ctx.route(/github\.io|googleapis\.com\/v1|generativelanguage|anthropic\.com|mymemory|hf\.space|huggingface/, r => r.abort());
+      // библиотека видео (склейка звука с видео) — своя копия из node_modules, без интернета
+      await ctx.route(/cdn\.jsdelivr\.net\/npm\/mediabunny@[\d.]+\/dist\/bundles\/mediabunny\.min\.mjs/, r =>
+        r.fulfill({body: fs.readFileSync(path.join(import.meta.dirname, 'node_modules/mediabunny/dist/bundles/mediabunny.min.mjs')), contentType: 'text/javascript'}));
       const p = await ctx.newPage();
       p.on('pageerror', e => errors.push(`${label}: ${e.message}`));
       p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_|net::/.test(m.text())) errors.push(`${label} console: ${m.text()}`); });

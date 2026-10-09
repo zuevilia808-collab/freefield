@@ -118,7 +118,7 @@ export const hubApi = {
     const {lanAddresses} = await import('./hub.js');
     // что умеет эта версия программы: приложение видит, что программу на компьютере пора обновить
     return {ok: true, name: 'Freefield', ...profiles[0], profiles, active, open, multi, unknown, app, mcp: !!hubApi.mcp, lan: lanAddresses(), port: HUB_PORT,
-      features: ['echo', 'echo-start', 'update'], echoPort: (await import('./echo.js')).ECHO.port};
+      features: ['echo', 'echo-start', 'update', 'split'], echoPort: (await import('./echo.js')).ECHO.port};
   },
   // выход и вход — в своём профиле Chrome (если открыт другой, Chrome Freefield переключится, когда там не идут генерации)
   switchAccount: async (site, p = 1) => {
@@ -223,6 +223,9 @@ export const hubApi = {
       siteLabel: SITE_LABEL[it.site] || it.siteLabel || null, meta3d: it.meta3d || null,
       files: (it.files || []).map((f, j) => ({url: `/api/file/${b.id}/${it.n}/${j}`, name: f.name || path.basename(f.path), mime: f.mime, label: f.label}))}))}));
   },
+  splitStart: async audio => (await import('./split.js')).splitStart(audio),
+  splitGet: async id => (await import('./split.js')).splitGet(id),
+  splitFile: async (id, which) => (await import('./split.js')).splitFile(id, which),
   filePath: async (id, n, j) => {
     const p = allBatches().find(b => b.id === id)?.items.find(i => i.n === n)?.files?.[j]?.path;
     const root = path.resolve(OUT) + path.sep;
