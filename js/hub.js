@@ -230,12 +230,13 @@ const hubLink = {
       // только сделанное через Freefield: старые синхронизации тащили с сайтов всё подряд — их не берём
       if (b.created < this.since || (b.source === 'sync' && !b.ours)) continue;
       for (const it of b.items) {
-        if (it.kind === '3d') { if (it.status === 'done') try { if (await this.importModel(b, it, got)) render(); } catch { /* в следующий раз */ } continue; }
+        if (it.kind === '3d') { if (it.status === 'done') try { await this.importModel(b, it, got); } catch { /* в следующий раз */ } continue; }
         for (const f of it.files || []) {
-        try { if (await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: b.created}, got)) render(); } catch { /* попробуем в следующий раз */ }
+        try { await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: b.created}, got); } catch { /* попробуем в следующий раз */ }
         }
       }
     }
+    if (got.video || got.image || got.model) render();   // один раз за все новые файлы, а не на каждый
     this.gotToast(got, 'С компьютера в галерею');
   },
   // кнопка «Забрать всё»: все файлы из Freefield/outputs за 2 дня, которых ещё нет в галерее

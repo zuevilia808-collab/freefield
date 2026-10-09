@@ -178,34 +178,57 @@ function colCount() {
   const min = w < 700 ? 150 : 260;
   return Math.max(isMobile() ? 2 : 1, Math.floor((w + 12) / (min + 12)));
 }
+// галерея не перерисовывается целиком: карточка, у которой ничего не поменялось, остаётся тем же элементом
+// (пользователь 2026-10-09: при каждом заходе все фото грузились заново — галерея мигала)
+function cardEl(html) {
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  const el = t.content.firstElementChild;
+  el._html = html;
+  bindCard(el);
+  return el;
+}
 function render() {
-  const grid = $('#grid');
+  const grid = $('#grid'), strip = $('#extStrip');
   const all = visibleItems();
   const ext = all.filter(i => i.status === 'external'), list = all.filter(i => i.status !== 'external');
-  $('#extStrip').innerHTML = ext.map(externalCardHTML).join('');
+  const extHTML = ext.map(externalCardHTML).join('');
+  if (strip._html !== extHTML) strip.innerHTML = strip._html = extHTML;
   $('#empty').classList.toggle('hidden', items.length > 0);
   if (!items.length) renderEmpty();
   const cols = lastCols = colCount();
-  const html = Array(cols).fill(''), heights = Array(cols).fill(0);
+  const old = new Map();
+  grid.querySelectorAll('.card').forEach(el => old.set(el.dataset.id, el));
+  const colEls = Array.from({length: cols}, () => []), heights = Array(cols).fill(0);
   for (const it of list) {
     const k = heights.indexOf(Math.min(...heights));
-    html[k] += cardHTML(it);
+    const html = cardHTML(it);
+    let el = old.get(it.id);
+    if (el && el._html === html) old.delete(it.id);
+    else el = cardEl(html);
+    colEls[k].push(el);
     heights[k] += it.h / it.w + 0.08;
   }
+  old.forEach(el => vidUnwatch(el));
   grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-  vidUnwatch(grid);
-  grid.innerHTML = html.map(h => `<div class="col">${h}</div>`).join('');
-  grid.querySelectorAll('.card').forEach(bindCard);
+  let colDivs = [...grid.children];
+  if (colDivs.length !== cols || colDivs.some(c => !c.classList.contains('col'))) {
+    colDivs = colEls.map(() => Object.assign(document.createElement('div'), {className: 'col'}));
+    grid.replaceChildren(...colDivs);
+  }
+  colEls.forEach((els, i) => {
+    const c = colDivs[i];
+    if (c.children.length === els.length && els.every((el, j) => c.children[j] === el)) return;   // колонка та же — не трогаем
+    c.replaceChildren(...els);
+  });
   updateCounts();
   renderHubJobs();
 }
 function refreshCard(it) {
   const el = document.querySelector(`.card[data-id="${it.id}"]`);
   if (!el) return;
-  vidUnwatch(el);
-  el.outerHTML = cardHTML(it);
-  const fresh = document.querySelector(`.card[data-id="${it.id}"]`);
-  if (fresh) bindCard(fresh);
+  const html = cardHTML(it);
+  if (el._html !== html) { vidUnwatch(el); el.replaceWith(cardEl(html)); }
   tick();
 }
 function updateCounts() {
