@@ -12,12 +12,19 @@ const mt = {
   job: null,                                 // идёт склейка: {pct, text, stop}
   busy: false,                               // ИИ думает
   get p() { return this.projects.find(p => p.id === this.cur) || this.projects[0] || null; },
+  // запись в localStorage — не на каждое движение: раз в 300 мс (и сразу, когда вкладку закрывают)
   save() {
     const p = this.p;
     if (p) p.updated = Date.now();
-    ls.set('freefield.mt.projects', this.projects); ls.set('freefield.mt.cur', p?.id || null); ls.set('freefield.mt.tab', this.tab);
+    clearTimeout(this.wT); this.wT = setTimeout(() => this.flush(), 300);
+  },
+  flush() {
+    clearTimeout(this.wT); this.wT = 0;
+    ls.set('freefield.mt.projects', this.projects); ls.set('freefield.mt.cur', this.p?.id || null); ls.set('freefield.mt.tab', this.tab);
   },
 };
+addEventListener('pagehide', () => mt.wT && mt.flush());
+document.addEventListener('visibilitychange', () => document.hidden && mt.wT && mt.flush());
 function mtNew(name) {
   const p = {id: uid(), name: name || `Проект ${mt.projects.length + 1}`, aspect: 'auto', fit: 'cover', audio: true, clips: [], titles: [], chat: [], created: Date.now()};
   mt.projects.unshift(p); mt.cur = p.id; mt.save();
@@ -140,7 +147,8 @@ function mtThumb(it) {
     v.onseeked = () => {
       const k = 256 / Math.max(v.videoWidth || 1, v.videoHeight || 1), c = document.createElement('canvas');
       c.width = Math.max(2, Math.round(v.videoWidth * k)); c.height = Math.max(2, Math.round(v.videoHeight * k));
-      try { c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); done(c.toDataURL('image/jpeg', 0.8)); } catch { done(null); }
+      // короткий адрес blob: вместо base64 — таймлайн не разбирает сотни килобайт текста при каждой перерисовке
+      try { c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); c.toBlob(b => done(b ? URL.createObjectURL(b) : null), 'image/jpeg', 0.8); } catch { done(null); }
     };
     v.onerror = () => done(null);
     v.src = urlOf(it.blob);
@@ -160,17 +168,34 @@ function mtFillThumbs(root) {
   });
 }
 
-/* ---- предпросмотр: два слоя <video> (для наплыва), затемнение и титры поверх; часы — свои, видео подстраиваются ---- */
-const mtPv = {t: 0, playing: false, raf: 0, last: 0, segs: []};
+/* ---- предпросмотр: два слоя <video> (для наплыва), затемнение и титры поверх; часы — свои, видео подстраиваются.
+   Без лагов (пользователь 2026-10-09: «чтобы там ничего не лагало»): элементы сцены и её размер запоминаются (не читаем
+   разметку в каждом кадре), стили пишутся, только когда меняются, холст рисуется, только когда на нём что-то есть,
+   видео догоняют часы скоростью, а не перемоткой; звук дорожек — Web Audio по расписанию ---- */
+const mtPv = {t: 0, playing: false, raf: 0, last: 0, segs: [], drawn: false, cw: 0, ch: 0, pps: 0};
+const mtEl = {stage: $('#mtStage'), vids: [...$$('#mtStage video')], dim: $('#mtStage .mt-dim'), cv: $('#mtStage canvas'), time: $('#mtTime'), play: $('#mtWork [data-mt-play]'), head: $('#mtHeadLine'), sc: $('#mtScroll')};
+const mtSet = (el, k, v) => { const o = el._st ||= {}; if (o[k] !== v) { o[k] = v; el.style[k] = v; } };
+const mtTxt = (el, v) => { if (el && el._tx !== v) { el._tx = v; el.textContent = v; } };
+if ('ResizeObserver' in window) new ResizeObserver(() => {
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  mtPv.cw = Math.round(mtEl.stage.clientWidth * dpr); mtPv.ch = Math.round(mtEl.stage.clientHeight * dpr);
+  mtPv.drawn = true;   // холст изменил размер — перерисовать
+  if (cl.mode === 'edit' && !mtPv.playing) mtShow(mtPv.t);
+}).observe(mtEl.stage);
 function mtPvSync() {
   mtPv.segs = mtSegs();
   mtPv.t = Math.min(mtPv.t, mtTotal(mtPv.segs));
+  if (mtAE.on) mtAE.plan();
   mtShow(mtPv.t);
 }
+const mtVisual = (p, T) => [...(p?.titles || []), ...(p?.photos || [])].some(x => T >= (x.at || 0) && T < (x.at || 0) + (x.dur || 3));
 function mtShow(T) {
-  const stage = $('#mtStage');
-  if (!stage) return;
-  const p = mt.p, segs = mtPv.segs, total = mtTotal(segs), vids = [...stage.querySelectorAll('video')];
+  const stage = mtEl.stage;
+  if (!stage?.isConnected) return;
+  const p = mt.p, segs = mtPv.segs, total = mtTotal(segs), vids = mtEl.vids, pps = mtPv.pps || mtPps();
+  // при просмотре бегунок не уходит за край таймлайна (читаем прокрутку до записи стилей — без лишнего пересчёта)
+  const sc = mtEl.sc, x = T * pps;
+  if (mtPv.playing && sc && (x < sc.scrollLeft || x > sc.scrollLeft + sc.clientWidth - 30)) sc.scrollLeft = Math.max(0, x - 40);
   stage.classList.toggle('empty', !segs.length);
   let vis = segs.filter(s => mtOn(s, T));
   if (!vis.length && segs.length && T >= total) vis = [segs.at(-1)];   // конец — последний кадр
@@ -190,78 +215,65 @@ function mtShow(T) {
   for (const v of vids) {
     const s = use.get(v);
     v._seg = s || null;
-    v.style.objectFit = p?.fit === 'contain' ? 'contain' : 'cover';
-    if (!s) { v.style.opacity = 0; if (!v.paused) v.pause(); continue; }
+    mtSet(v, 'objectFit', p?.fit === 'contain' ? 'contain' : 'cover');
+    if (!s) { mtSet(v, 'opacity', '0'); if (!v.paused) v.pause(); continue; }
     const on = vis.includes(s), loc = Math.min(s.b, s.a + Math.max(0, T - s.start)), look = on ? mtLook(s, Math.min(T, s.end - 1e-3)) : {alpha: 0, dim: 0, gain: 0};
-    v.style.opacity = look.alpha; v.style.zIndex = on ? 1 + vis.indexOf(s) : 0;
-    v.muted = !p?.audio || !!s.c.mute; v.volume = Math.min(1, look.gain * (s.c.vol ?? 1));
+    mtSet(v, 'opacity', String(look.alpha)); mtSet(v, 'zIndex', String(on ? 1 + vis.indexOf(s) : 0));
+    // отделённый голос и фон звучат через Web Audio — у самого видео звук выключен
+    const mute = !p?.audio || !!s.c.mute || !!s.c.sep;
+    if (v.muted !== mute) v.muted = mute;
+    const vol = Math.min(1, look.gain * (s.c.vol ?? 1));
+    if (Math.abs(v.volume - vol) > 0.01) v.volume = vol;
     if (on) dim = Math.max(dim, look.dim);
     if (on && mtPv.playing && T < total) {
-      if (Math.abs(v.currentTime - loc) > 0.3) v.currentTime = loc;
+      const drift = v.currentTime - loc;
+      if (Math.abs(drift) > 0.5) v.currentTime = loc;   // далеко — перемотка; близко — догоняем скоростью (без рывков)
+      const rate = Math.abs(drift) > 0.05 ? (drift > 0 ? 0.94 : 1.06) : 1;
+      if (v.playbackRate !== rate) v.playbackRate = rate;
       if (v.paused) v.play().catch(() => {});
     } else {
       if (!v.paused) v.pause();
+      if (v.playbackRate !== 1) v.playbackRate = 1;
       const want = on ? loc : s.a;
       if (Math.abs(v.currentTime - want) > 0.04) v.currentTime = want;
     }
   }
-  stage.querySelector('.mt-dim').style.opacity = dim;
-  const cv = stage.querySelector('canvas'), dpr = Math.min(2, devicePixelRatio || 1);
-  const cw = Math.round(stage.clientWidth * dpr), chh = Math.round(stage.clientHeight * dpr);
-  if (cv.width !== cw || cv.height !== chh) { cv.width = cw; cv.height = chh; }
-  const ctx = cv.getContext('2d');
-  ctx.clearRect(0, 0, cw, chh);
-  mtDrawPhotos(ctx, cw, chh, p?.photos, T);
-  mtDrawTitles(ctx, cw, chh, p?.titles, T);
-  const tl = $('#mtTime');
-  if (tl) tl.textContent = `${mtClock(T)}.${Math.floor((T % 1) * 10)} / ${mtClock(total)}`;
-  const pb = $('#mtWork [data-mt-play]');
-  if (pb) pb.textContent = mtPv.playing ? '⏸' : '▶';
-  mtHead();
-  mtAudSync(T);
-  // при просмотре бегунок не уходит за край таймлайна
-  const sc = $('#mtScroll'), x = T * mtPps();
-  if (mtPv.playing && sc && (x < sc.scrollLeft || x > sc.scrollLeft + sc.clientWidth - 30)) sc.scrollLeft = Math.max(0, x - 40);
-}
-// звуковая дорожка в просмотре: свой <audio> на каждый звук, подстраивается под часы
-const mtAudEl = new Map();
-function mtAudSync(T) {
-  const live = new Set();
-  for (const a of mt.p?.audios || []) {
-    if (T < a.at || T >= a.at + mtALen(a)) continue;
-    let el = mtAudEl.get(a.k);
-    if (!el) {
-      if (!mtAud.has(a.src)) { mtAudGet(a.src).then(() => mtPv.playing && mtShow(mtPv.t)); continue; }
-      const c = mtAud.get(a.src);
-      if (!c) continue;
-      el = new Audio(c.url); el.preload = 'auto';
-      mtAudEl.set(a.k, el);
-    }
-    live.add(a.k);
-    el.volume = Math.max(0, Math.min(1, mtAudGain(a, T)));
-    const want = (a.a || 0) + (T - a.at);
-    if (mtPv.playing) { if (Math.abs(el.currentTime - want) > 0.3) el.currentTime = want; if (el.paused) el.play().catch(() => {}); }
-    else if (!el.paused) el.pause();
+  mtSet(mtEl.dim, 'opacity', String(dim));
+  // титры и фото: холст трогаем, только когда на нём что-то есть (или надо стереть)
+  const draw = mtVisual(p, T);
+  if (draw || mtPv.drawn) {
+    const cv = mtEl.cv, cw = mtPv.cw || cv.width, chh = mtPv.ch || cv.height;
+    if (cv.width !== cw || cv.height !== chh) { cv.width = cw; cv.height = chh; }
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cw, chh);
+    if (draw) { mtDrawPhotos(ctx, cw, chh, p?.photos, T); mtDrawTitles(ctx, cw, chh, p?.titles, T); }
+    mtPv.drawn = draw;
   }
-  for (const [k, el] of mtAudEl) if (!live.has(k) && !el.paused) el.pause();
+  mtTxt(mtEl.time, `${mtClock(T)}.${Math.floor((T % 1) * 10)} / ${mtClock(total)}`);
+  mtTxt(mtEl.play, mtPv.playing ? '⏸' : '▶');
+  mtHead();
 }
 function mtTick(now) {
   mtPv.raf = 0;
-  if (!mtPv.playing || !$('#mtStage')?.isConnected || cl.mode !== 'edit') return mtPause();
+  if (!mtPv.playing || !mtEl.stage.isConnected || cl.mode !== 'edit') return mtPause();
   const dt = Math.min(0.25, (now - mtPv.last) / 1000);
   mtPv.last = now;
-  // видео ещё грузится — часы ждут его
-  const waiting = [...$$('#mtStage video')].some(v => v._seg && mtOn(v._seg, mtPv.t) && v.readyState < 3);
+  // видео ещё грузится — часы и звук ждут его
+  const waiting = mtEl.vids.some(v => v._seg && mtOn(v._seg, mtPv.t) && v.readyState < 3);
   if (!waiting) mtPv.t += dt;
+  mtAE.hold(waiting);
   const total = mtTotal(mtPv.segs);
   if (mtPv.t >= total) { mtPv.t = total; mtPv.playing = false; }
+  else if (!waiting && mtAE.drift() > 0.12) mtAE.plan();   // звук разошёлся с часами — поставить заново
   mtShow(mtPv.t);
   if (mtPv.playing) mtPv.raf = requestAnimationFrame(mtTick);
+  else mtAE.stop();
 }
 function mtPlay() {
-  if (!mtPv.segs.length) return;
+  if (!mtPv.segs.length && !mt.p?.audios?.length) return;
   if (mtPv.t >= mtTotal(mtPv.segs) - 0.05) mtPv.t = 0;
   mtPv.playing = true; mtPv.last = performance.now();
+  mtAE.start();
   if (!mtPv.raf) mtPv.raf = requestAnimationFrame(mtTick);
   mtShow(mtPv.t);
 }
@@ -269,11 +281,112 @@ function mtPause() {
   mtPv.playing = false;
   if (mtPv.raf) cancelAnimationFrame(mtPv.raf);
   mtPv.raf = 0;
-  $$('#mtStage video').forEach(v => v.pause());
-  mtAudEl.forEach(el => el.pause());
+  mtEl.vids.forEach(v => v.pause());
+  mtAE.stop();
   mtShow(mtPv.t);
 }
-const mtSeekTo = T => { mtPv.t = Math.max(0, Math.min(T, mtTotal(mtPv.segs))); mtShow(mtPv.t); };
+const mtSeekTo = T => { mtPv.t = Math.max(0, Math.min(T, mtTotal(mtPv.segs))); if (mtAE.on) mtAE.plan(); mtShow(mtPv.t); };
+
+/* ---- звук, кроме звука самих видео: дорожка «🎵», фон и голос клипов с отделённым голосом. Один список — и для просмотра
+   (AudioContext), и для склейки (OfflineAudioContext): что слышно здесь, то и будет в ролике ---- */
+const mtSepSrc = (id, w) => `vsplit-${id}-${w}`;
+function mtSounds(p, segs) {
+  const out = [];
+  for (const a of p.audios || []) out.push({src: a.src, when: a.at, off: a.a || 0, dur: mtALen(a), vol: a.vol ?? 1, fi: a.fadeIn || 0, fo: a.fadeOut || 0});
+  for (const s of segs) {
+    const c = s.c;
+    if (!c.sep || !p.audio || c.mute) continue;
+    out.push({src: mtSepSrc(c.id, 'rest'), when: s.start, off: s.a, dur: s.len, vol: c.vol ?? 1, seg: s});
+    const v = c.vox || {}, w = mtVoxWin(c, s);
+    if (w) out.push({src: w.src, fx: v.fx, when: w.when, off: w.off, dur: w.dur, vol: v.vol ?? 1, seg: s});
+  }
+  return out;
+}
+// где на таймлайне звучит голос клипа: исходный (время файла = время видео) или новая озвучка (с начала реплики)
+function mtVoxWin(c, s) {
+  const t = c.vox?.take, at = t ? t.at : 0, src = t ? t.src : mtSepSrc(c.id, 'voice'), len = t ? t.dur : Infinity;
+  const from = Math.max(s.a, at), to = Math.min(s.b, at + len);
+  return to - from > 0.02 ? {src, when: s.start + (from - s.a), off: from - at, dur: to - from, at} : null;
+}
+function mtGainAt(x, T) {
+  if (x.seg) return mtLook(x.seg, Math.min(T, x.seg.end - 1e-3)).gain * x.vol;
+  const u = T - x.when, v = x.when + x.dur - T;
+  return x.vol * Math.max(0, Math.min(1, x.fi ? u / x.fi : 1, x.fo ? v / x.fo : 1));
+}
+const mtBps = x => (x.seg ? [x.seg.start, x.seg.start + x.seg.inD, x.seg.end - x.seg.outD, x.seg.end] : [x.when, x.when + x.fi, x.when + x.dur - x.fo, x.when + x.dur]).sort((a, b) => a - b);
+// поставить звуки с момента T0 (часы ctx: c0) — громкость, нарастания и переходы — автоматикой Web Audio
+function mtSchedule(ctx, list, T0, c0, bufOf) {
+  const nodes = [];
+  for (const x of list) {
+    const end = x.when + x.dur;
+    if (end <= T0 + 1e-3) continue;
+    const buf = bufOf(x);
+    if (!buf) continue;
+    const t0 = Math.max(T0, x.when), off = x.off + (t0 - x.when), dur = Math.min(end - t0, buf.duration - off);
+    if (dur <= 0.01) continue;
+    const src = ctx.createBufferSource(), g = ctx.createGain(), at = c0 + (t0 - T0);
+    src.buffer = buf; src.connect(g).connect(ctx.destination);
+    g.gain.setValueAtTime(mtGainAt(x, t0), at);
+    for (const bp of mtBps(x)) if (bp > t0 + 1e-4 && bp <= end + 1e-4) g.gain.linearRampToValueAtTime(mtGainAt(x, Math.min(bp, end - 1e-3)), c0 + bp - T0);
+    src.start(at, off, dur);
+    nodes.push(src);
+  }
+  return nodes;
+}
+// звук готовится заранее и хранится декодированным: файл → AudioBuffer, голос с эффектами — отдельно (последние 3 варианта)
+const mtBufs = new Map(), mtBufOk = new Map(), mtFxKeys = new Map();
+function mtBufGet(key, make) {
+  if (!mtBufs.has(key)) mtBufs.set(key, make().catch(() => null).then(b => {
+    if (mtBufs.has(key)) mtBufOk.set(key, b);
+    if (mtAE.on) mtAE.plan();
+    return b;
+  }));
+  return mtBufs.get(key);
+}
+const mtSrcP = src => mtBufGet(src, async () => { const c = await mtAudGet(src); return c ? decodeAudio(c.blob) : null; });
+const mtBufKey = x => vfxIsDef(x.fx) ? x.src : x.src + '|' + vfxKey(x.fx);
+function mtFxP(src, fx) {
+  if (vfxIsDef(fx)) return mtSrcP(src);
+  const key = src + '|' + vfxKey(fx), ks = (mtFxKeys.get(src) || []).filter(k => k !== key);
+  ks.push(key);
+  while (ks.length > 3) { const k = ks.shift(); mtBufs.delete(k); mtBufOk.delete(k); }
+  mtFxKeys.set(src, ks);
+  return mtBufGet(key, async () => { const b = await mtSrcP(src); return b && vfxRender(b, fx); });
+}
+function mtBufFor(x) {
+  const k = mtBufKey(x);
+  if (mtBufOk.has(k)) return mtBufOk.get(k);
+  mtFxP(x.src, x.fx);
+  return null;
+}
+const mtAE = {
+  ctx: null, nodes: [], T0: 0, c0: 0, on: false,
+  start() {
+    try { this.ctx ||= new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+    this.ctx.resume?.().catch(() => {});
+    this.on = true; this.plan();
+  },
+  plan(T = mtPv.t) {
+    if (!this.on) return;
+    this.stopNodes();
+    const p = mt.p;
+    this.T0 = T; this.c0 = this.ctx.currentTime + 0.03;
+    this.nodes = p ? mtSchedule(this.ctx, mtSounds(p, mtPv.segs), T, this.c0, mtBufFor) : [];
+  },
+  // насколько звук разошёлся с часами просмотра
+  drift() { return this.on && this.ctx.state === 'running' ? Math.abs(this.T0 + Math.max(0, this.ctx.currentTime - this.c0) - mtPv.t) : 0; },
+  hold(w) {   // видео грузится — звук на паузе (только тот, что сами остановили)
+    if (!this.on || !!w === !!this.held) return;
+    this.held = !!w;
+    if (w) this.ctx.suspend().catch(() => {});
+    else this.ctx.resume().then(() => this.on && !this.held && this.plan()).catch(() => {});
+  },
+  stopNodes() { this.nodes.forEach(n => { try { n.stop(); n.disconnect(); } catch {} }); this.nodes = []; },
+  stop() {
+    this.stopNodes(); this.on = false;
+    if (this.held) { this.held = false; this.ctx.resume().catch(() => {}); }
+  },
+};
 
 /* ---- «Монтаж»: просмотр и таймлайн (пользователь 2026-10-08: «должен быть таймлайн, все дела»; «прямо в монтаже —
    музыка, переходы, обрезать, разрезать, укоротить»). Дорожки: видео (клипы друг за другом — тянуть края: обрезать;
@@ -290,53 +403,103 @@ function mtPps() {
   return Math.max(4, Math.min(240, w / Math.max(8, mtTEnd(mt.p) + 1)));
 }
 const mtSel = () => { const p = mt.p, s = mt.sel; if (!p || !s) return null;
-  return s.t === 'v' ? p.clips.find(c => c.k === s.k) : s.t === 't' ? p.titles?.find(x => x.k === s.k) : s.t === 'p' ? p.photos?.find(x => x.k === s.k) : p.audios?.find(x => x.k === s.k); };
+  return s.t === 'v' || s.t === 'g' ? p.clips.find(c => c.k === s.k) : s.t === 't' ? p.titles?.find(x => x.k === s.k) : s.t === 'p' ? p.photos?.find(x => x.k === s.k) : p.audios?.find(x => x.k === s.k); };
 // дорожки по рядам: что перекрывается по времени — на соседний ряд
 function mtLanes(list, len) {
   const ends = [];
   return list.map(x => { const at = x.at || 0; let i = ends.findIndex(e => e <= at + 1e-3); if (i < 0) i = ends.length; ends[i] = at + len(x); return i; });
 }
 const mtThumbUrl = new Map();
+// дорожка без пересборки: блоки — по ключу, у каждого меняются только изменившиеся атрибуты
+function mtPatch(box, rows) {
+  const old = new Map();
+  for (const e of [...box.children]) if (e._k) old.set(e._k, e); else e.remove();
+  for (const r of rows) {
+    let el = old.get(r.key);
+    if (el) old.delete(r.key);
+    else { el = document.createElement(r.tag || 'div'); el._k = r.key; el._a = {}; box.append(el); }
+    for (const [k, v] of Object.entries(r.a)) if (el._a[k] !== v) { el._a[k] = v; if (k === 'html') el.innerHTML = v; else el.setAttribute(k, v); }
+  }
+  old.forEach(e => e.remove());
+}
+// волна звука — картинкой один раз на файл (фон блока сдвигается под обрезку)
+const mtWaves = new Map();
+function mtWave(src) {
+  if (!mtWaves.has(src)) {
+    mtWaves.set(src, null);
+    mtSrcP(src).then(b => {
+      if (!b) return;
+      const W = Math.min(4000, Math.max(200, Math.round(b.duration * 60))), H = 40, c = document.createElement('canvas'), d = b.getChannelData(0), step = Math.max(1, Math.floor(d.length / W));
+      c.width = W; c.height = H;
+      const g = c.getContext('2d'), pk = [];
+      for (let i = 0; i < W; i++) { let m = 0; for (let j = i * step, e = Math.min(d.length, j + step); j < e; j += 4) m = Math.max(m, Math.abs(d[j])); pk.push(m); }
+      const top = Math.max(...pk, 0.01);
+      g.fillStyle = 'rgba(255,255,255,.55)';
+      pk.forEach((v, i) => { const h = Math.max(1, v / top * (H - 4)); g.fillRect(i, (H - h) / 2, 1, h); });
+      c.toBlob(bl => { if (bl) { mtWaves.set(src, {url: URL.createObjectURL(bl), dur: b.duration}); mtTl(); } });
+    });
+  }
+  return mtWaves.get(src);
+}
+const mtWaveCss = (src, off, pps) => { const w = mtWave(src); return w ? `--wv:url(${w.url});--wx:${-off * pps}px;--ww:${w.dur * pps}px;` : ''; };
 function mtTl() {
   const p = mt.p, inner = $('#mtInner');
   if (!p || !inner) return;
-  const segs = mtPv.segs, pps = mtPps(), end = mtTEnd(p) + 4, sel = mt.sel;
-  inner.style.width = Math.max(($('#mtScroll').clientWidth || 0) - 2, Math.ceil(end * pps)) + 'px';
-  // линейка: шаг подписей — чтобы не налезали
-  const step = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find(s => s * pps >= 56) || 600;
-  let rl = '';
-  for (let t = 0; t <= end; t += step) rl += `<i style="left:${t * pps}px">${mtClock(t)}</i>`;
-  $('#mtRuler').innerHTML = rl;
+  const segs = mtPv.segs, pps = mtPv.pps = mtPps(), end = mtTEnd(p) + 4, sel = mt.sel;
+  inner.style.width = Math.max((mtEl.sc.clientWidth || 0) - 2, Math.ceil(end * pps)) + 'px';
+  // линейка — только когда сменились масштаб или длина; шаг подписей — чтобы не налезали
+  const rk = pps + '|' + Math.ceil(end);
+  if (mtTl.rk !== rk) {
+    mtTl.rk = rk;
+    const step = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find(s => s * pps >= 56) || 600;
+    let rl = '';
+    for (let t = 0; t <= end; t += step) rl += `<i style="left:${t * pps}px">${mtClock(t)}</i>`;
+    $('#mtRuler').innerHTML = rl;
+  }
   // видео
   const drag = mtDrag?.kind === 'v' && mtDrag.moved && mtDrag.mode === 'move' ? mtDrag : null;
-  $('#mtTrV').innerHTML = segs.map(s => {
+  mtPatch($('#mtTrV'), [...segs.map(s => {
     const c = s.c, it = s.it, th = mtThumbUrl.get(it.id) || (it.posterBlob ? urlOf(it.posterBlob) : '');
-    if (!mtThumbUrl.has(it.id) && !it.posterBlob) mtThumb(it).then(d => { if (d && !mtThumbUrl.has(it.id)) { mtThumbUrl.set(it.id, d); mtTl(); } });
+    if (!mtThumbUrl.has(it.id) && !it.posterBlob) { mtThumbUrl.set(it.id, ''); mtThumb(it).then(d => { if (d) { mtThumbUrl.set(it.id, d); mtTl(); } }); }
     const left = drag?.k === c.k ? drag.ghost * pps : s.start * pps;
-    return `<div class="tl-b v ${sel?.k === c.k ? 'sel' : ''} ${drag?.k === c.k ? 'drag' : ''}" data-tl="v" data-k="${c.k}" style="left:${left}px;width:${Math.max(6, s.len * pps)}px;${th ? `--th:url(${th})` : ''}" title="${esc(it.prompt)}">
-      <i class="tl-h l" data-h="l"></i><span>#${s.n} · ${mtFmt(s.len)}${c.mute ? ' 🔇' : ''}</span><i class="tl-h r" data-h="r"></i></div>`;
-  }).join('') + segs.slice(1).map(s => {   // ◆ переход между клипами: нажать — следующий вид (склейка → плавно → через чёрное)
+    return {key: 'v' + c.k, a: {class: `tl-b v ${sel?.k === c.k && sel.t === 'v' ? 'sel' : ''} ${drag?.k === c.k ? 'drag' : ''}`, 'data-tl': 'v', 'data-k': c.k,
+      style: `left:${left}px;width:${Math.max(6, s.len * pps)}px;${th ? `--th:url(${th})` : ''}`, title: it.prompt || '',
+      html: `<i class="tl-h l" data-h="l"></i><span>#${s.n} · ${mtFmt(s.len)}${c.mute ? ' 🔇' : c.sep ? ' 🗣' : ''}</span><i class="tl-h r" data-h="r"></i>`}};
+  }), ...segs.slice(1).map(s => {   // ◆ переход между клипами: нажать — следующий вид (склейка → плавно → через чёрное)
     const x = s.inK === 'fade' ? s.start + s.inD / 2 : s.start, tr = MT_TR.find(t => t[0] === (s.c.tr || 'cut'));
-    return `<button class="tl-x ${s.inK}" data-tlx="${s.c.k}" style="left:${x * pps}px" title="Переход: ${tr[2]} — нажмите, чтобы сменить">${tr[1]}</button>`;
-  }).join('') + (drag ? `<i class="tl-ins" style="left:${drag.insX * pps}px"></i>` : '') + (segs.length ? '' : '<button class="tl-empty" data-mt-add>＋ Видео из галереи</button>');
+    return {key: 'x' + s.c.k, tag: 'button', a: {class: `tl-x ${s.inK}`, 'data-tlx': s.c.k, style: `left:${x * pps}px`, title: `Переход: ${tr[2]} — нажмите, чтобы сменить`, html: tr[1]}};
+  }), ...(drag ? [{key: 'ins', tag: 'i', a: {class: 'tl-ins', style: `left:${drag.insX * pps}px`}}] : []),
+  ...(segs.length ? [] : [{key: 'empty', tag: 'button', a: {class: 'tl-empty', 'data-mt-add': '', html: '＋ Видео из галереи'}}])]);
+  // 🗣 голос клипов, у которых он отделён: блок идёт за клипом (обрезка, перестановка, ✂)
+  const gs = segs.filter(s => s.c.sep), box = $('#mtWork .mtw-tl');
+  box.classList.toggle('g', gs.length > 0);
+  mtPatch($('#mtTrG'), gs.map(s => {
+    const c = s.c, w = mtVoxWin(c, s), t = c.vox?.take;
+    const left = w ? w.when : s.start, len = w ? w.dur : s.len, fx = !vfxIsDef(c.vox?.fx);
+    return {key: 'g' + c.k, a: {class: `tl-b g ${sel?.k === c.k && sel.t === 'g' ? 'sel' : ''} ${t ? 'new' : ''}`, 'data-tl': 'g', 'data-k': c.k,
+      style: `left:${left * pps}px;width:${Math.max(6, len * pps)}px;${w ? mtWaveCss(w.src, w.off, pps) : ''}`, title: t ? t.name : 'Голос из ролика',
+      html: `<span data-noicon>🗣 #${s.n}${t ? (t.kind === 'vc' ? ' · 🎧 ' : ' · 🎙 ') + esc(t.name) : ''}${fx ? ' ✨' : ''}${(c.vox?.vol ?? 1) === 0 ? ' 🔇' : ''}</span>`}};
+  }));
   // фото, титры и звук — по рядам
-  const ph = p.photos || [], pLane = mtLanes(ph, x => x.dur || 3);
-  $('#mtTrP').style.setProperty('--rows', Math.max(1, ...pLane.map(i => i + 1)));
-  $('#mtTrP').innerHTML = ph.map((o, i) => { const it = items.find(x => x.id === o.id);
-    return `<div class="tl-b p ${sel?.k === o.k ? 'sel' : ''}" data-tl="p" data-k="${o.k}" style="left:${(o.at || 0) * pps}px;width:${Math.max(6, (o.dur || 3) * pps)}px;--row:${pLane[i]};${it?.blob ? `--th:url(${urlOf(it.blob)})` : ''}" title="${esc(it?.prompt || 'фото')}">
-      <i class="tl-h l" data-h="l"></i><span>🖼 ${esc(MT_PH_POS.find(x => x[0] === o.pos)?.[1] || '')}</span><i class="tl-h r" data-h="r"></i></div>`; }).join('');
+  const ph = p.photos || [], pLane = mtLanes(ph, x => x.dur || 3), rows = l => Math.max(1, ...l.map(i => i + 1));
+  $('#mtTrP').style.setProperty('--rows', rows(pLane));
+  mtPatch($('#mtTrP'), ph.map((o, i) => { const it = items.find(x => x.id === o.id);
+    return {key: 'p' + o.k, a: {class: `tl-b p ${sel?.k === o.k ? 'sel' : ''}`, 'data-tl': 'p', 'data-k': o.k, title: it?.prompt || 'фото',
+      style: `left:${(o.at || 0) * pps}px;width:${Math.max(6, (o.dur || 3) * pps)}px;--row:${pLane[i]};${it?.blob ? `--th:url(${mtThumbUrl.get(it.id) || urlOf(it.blob)})` : ''}`,
+      html: `<i class="tl-h l" data-h="l"></i><span>🖼 ${esc(MT_PH_POS.find(x => x[0] === o.pos)?.[1] || '')}</span><i class="tl-h r" data-h="r"></i>`}}; }));
   const tl = p.titles || [], tLane = mtLanes(tl, t => t.dur || 3), au = p.audios || [], aLane = mtLanes(au, mtALen);
-  const box = $('#mtWork .mtw-tl'), rows = l => Math.max(1, ...l.map(i => i + 1));   // подписи дорожек — той же высоты
-  box.style.setProperty('--rp', rows(pLane)); box.style.setProperty('--rt', rows(tLane)); box.style.setProperty('--ra', rows(aLane));
-  $('#mtTrT').style.setProperty('--rows', Math.max(1, ...tLane.map(i => i + 1)));
-  $('#mtTrT').innerHTML = tl.map((t, i) => `<div class="tl-b t ${sel?.k === t.k ? 'sel' : ''}" data-tl="t" data-k="${t.k}" style="left:${(t.at || 0) * pps}px;width:${Math.max(6, (t.dur || 3) * pps)}px;--row:${tLane[i]}" title="${esc(t.text)}">
-      <i class="tl-h l" data-h="l"></i><span data-noicon>${esc(t.text || 'Титр')}</span><i class="tl-h r" data-h="r"></i></div>`).join('');
-  $('#mtTrA').style.setProperty('--rows', Math.max(1, ...aLane.map(i => i + 1)));
-  $('#mtTrA').innerHTML = au.map((a, i) => `<div class="tl-b a ${sel?.k === a.k ? 'sel' : ''}" data-tl="a" data-k="${a.k}" style="left:${a.at * pps}px;width:${Math.max(6, mtALen(a) * pps)}px;--row:${aLane[i]}" title="${esc(a.name)}">
-      <i class="tl-h l" data-h="l"></i><span data-noicon>${a.voice ? '🎙' : '🎵'} ${esc(a.name)}</span><i class="tl-h r" data-h="r"></i></div>`).join('');
+  box.style.setProperty('--rp', rows(pLane)); box.style.setProperty('--rt', rows(tLane)); box.style.setProperty('--ra', rows(aLane));   // подписи дорожек — той же высоты
+  $('#mtTrT').style.setProperty('--rows', rows(tLane));
+  mtPatch($('#mtTrT'), tl.map((t, i) => ({key: 't' + t.k, a: {class: `tl-b t ${sel?.k === t.k ? 'sel' : ''}`, 'data-tl': 't', 'data-k': t.k, title: t.text || '',
+    style: `left:${(t.at || 0) * pps}px;width:${Math.max(6, (t.dur || 3) * pps)}px;--row:${tLane[i]}`,
+    html: `<i class="tl-h l" data-h="l"></i><span data-noicon>${esc(t.text || 'Титр')}</span><i class="tl-h r" data-h="r"></i>`}})));
+  $('#mtTrA').style.setProperty('--rows', rows(aLane));
+  mtPatch($('#mtTrA'), au.map((a, i) => ({key: 'a' + a.k, a: {class: `tl-b a ${sel?.k === a.k ? 'sel' : ''}`, 'data-tl': 'a', 'data-k': a.k, title: a.name || '',
+    style: `left:${a.at * pps}px;width:${Math.max(6, mtALen(a) * pps)}px;--row:${aLane[i]};${mtWaveCss(a.src, a.a || 0, pps)}`,
+    html: `<i class="tl-h l" data-h="l"></i><span data-noicon>${a.voice ? '🎙' : '🎵'} ${esc(a.name)}</span><i class="tl-h r" data-h="r"></i>`}})));
   mtHead();
 }
-const mtHead = () => { const h = $('#mtHeadLine'); if (h) h.style.left = mtPv.t * mtPps() + 'px'; };
+const mtHead = () => mtSet(mtEl.head, 'left', mtPv.t * (mtPv.pps || mtPps()) + 'px');
 
 /* ---- перетаскивание на таймлайне: края — обрезать, середина — переставить (видео) или сдвинуть (титры, звук); пусто — бегунок.
    На телефоне: первое касание выделяет, тянуть — следующим (иначе таймлайн не прокрутить пальцем) ---- */
@@ -356,18 +519,26 @@ function mtTlDown(e) {
     if (e.target.closest('.mtw-ruler') || e.pointerType !== 'touch') { if (!e.target.closest('.mtw-ruler')) mt.sel = null; mtDrag = {mode: 'seek'}; mtSeekTo(T); renderMtEdit(); mtTl(); }
     else return;
   } else {
-    const kind = blk.dataset.tl, k = blk.dataset.k, was = mt.sel?.k === k;
+    const kind = blk.dataset.tl, k = blk.dataset.k, was = mt.sel?.k === k && mt.sel?.t === kind;
     mt.sel = {t: kind, k};
+    if (kind === 'g') { mtSeekTo(T); renderMtEdit(); return mtTl(); }   // голос идёт за клипом — только выделить
     const o = mtSel();
     if (e.pointerType === 'touch' && !was && !h) { renderMtEdit(); return mtTl(); }
     mtDrag = {mode: h ? 'trim-' + h.dataset.h : 'move', kind, k, x0: e.clientX, T0: T, o0: JSON.parse(JSON.stringify(o)), moved: false};
     if (kind === 'v') { const s = mtPv.segs.find(s => s.c.k === k); mtDrag.full = mtLen(s.it); mtDrag.s0 = {start: s.start, len: s.len}; }
     renderMtEdit();
   }
-  inner.setPointerCapture(e.pointerId);
+  try { inner.setPointerCapture(e.pointerId); } catch { /* касание уже кончилось */ }
   e.preventDefault();
 }
+// движения мыши копятся, обрабатывается последнее — один раз за кадр (а не на каждое событие)
+let mtMoveEv = null, mtMoveRaf = 0;
 function mtTlMove(e) {
+  if (!mtDrag) return;
+  mtMoveEv = e;
+  if (!mtMoveRaf) mtMoveRaf = requestAnimationFrame(() => { mtMoveRaf = 0; const ev = mtMoveEv; mtMoveEv = null; if (ev && mtDrag) mtTlMove1(ev); });
+}
+function mtTlMove1(e) {
   const g = mtDrag;
   if (!g) return;
   const pps = mtPps(), r = $('#mtInner').getBoundingClientRect(), T = Math.max(0, (e.clientX - r.left) / pps);
@@ -406,6 +577,8 @@ function mtTlMove(e) {
   mtTl();
 }
 function mtTlUp() {
+  if (mtMoveEv && mtDrag) mtTlMove1(mtMoveEv);   // последнее движение — не теряем
+  mtMoveEv = null;
   const g = mtDrag;
   mtDrag = null;
   if (!g || g.mode === 'seek') return;
@@ -435,7 +608,7 @@ function mtSplit() {
     if (!s) return toast('Поставьте бегунок на клип', {type: 'err'});
     const cut = Math.round((s.a + (T - s.start)) * 100) / 100;
     if (cut - s.a < 0.3 || s.b - cut < 0.3) return toast('Слишком близко к краю клипа', {type: 'err'});
-    const c = s.c, c2 = {...c, k: uid(), a: cut, tr: 'cut'};
+    const c = s.c, c2 = {...c, k: uid(), a: cut, tr: 'cut', ...(c.vox && {vox: structuredClone(c.vox)})};
     c.b = cut;
     p.clips.splice(p.clips.indexOf(c) + 1, 0, c2);
     mt.sel = {t: 'v', k: c2.k};
@@ -445,6 +618,11 @@ function mtSplit() {
 function mtDelSel() {
   const p = mt.p, s = mt.sel;
   if (!s) return;
+  if (s.t === 'g') {   // голос не удаляется, а затихает — вернуть ползунком «Голос»
+    const c = mtSel();
+    if (c) { (c.vox ||= {}).vol = 0; mt.save(); mtRefresh(); }
+    return toast('🗣 Голос клипа выключен — вернуть: ползунок «Голос» в свойствах', {type: 'ok'});
+  }
   if (s.t === 'v') p.clips = p.clips.filter(c => c.k !== s.k);
   else if (s.t === 't') p.titles = p.titles.filter(x => x.k !== s.k);
   else if (s.t === 'p') p.photos = p.photos.filter(x => x.k !== s.k);
@@ -454,7 +632,7 @@ function mtDelSel() {
 function mtDup() {
   const p = mt.p, s = mt.sel, o = mtSel();
   if (!o) return;
-  if (s.t === 'v') { const c = {...o, k: uid(), tr: 'cut'}; p.clips.splice(p.clips.indexOf(o) + 1, 0, c); mt.sel = {t: 'v', k: c.k}; }
+  if (s.t === 'v' || s.t === 'g') { const c = {...o, k: uid(), tr: 'cut', ...(o.vox && {vox: structuredClone(o.vox)})}; p.clips.splice(p.clips.indexOf(o) + 1, 0, c); mt.sel = {t: 'v', k: c.k}; }
   else if (s.t === 't' || s.t === 'p') { const t = {...o, k: uid(), at: o.at + o.dur}; (s.t === 't' ? p.titles : p.photos).push(t); mt.sel = {t: s.t, k: t.k}; }
   else { const a = {...o, k: uid(), at: o.at + mtALen(o)}; p.audios.push(a); mt.sel = {t: 'a', k: a.k}; }
   mt.save(); mtRefresh();
@@ -470,11 +648,12 @@ async function mtAudGet(src) {
   return mtAud.get(src);
 }
 async function mtAddAudio(blob, name, o = {}) {
-  let dur = 0;
-  try { dur = (await decodeAudio(blob)).duration; } catch { return toast(`«${name}»: не получилось прочитать звук`, {type: 'err'}); }
-  const p = mtProj(), src = 'mtaud-' + uid();
+  let buf;
+  try { buf = await decodeAudio(blob); } catch { return toast(`«${name}»: не получилось прочитать звук`, {type: 'err'}); }
+  const p = mtProj(), src = 'mtaud-' + uid(), dur = buf.duration;
   await DB.put({id: src, kind: 'mt-audio', blob, name, dur, createdAt: Date.now()});
   mtAud.set(src, {blob, url: urlOf(blob)});
+  mtBufs.set(src, Promise.resolve(buf)); mtBufOk.set(src, buf);   // уже декодирован — просмотру не надо снова
   const a = {k: uid(), src, name: String(name).slice(0, 80), dur: Math.round(dur * 100) / 100, at: Math.round((o.at ?? mtPv.t) * 20) / 20, a: 0, b: null,
     vol: o.vol ?? 1, fadeIn: o.fadeIn ?? 0, fadeOut: o.fadeOut ?? 0, ...(o.voice && {voice: true})};
   (p.audios ||= []).push(a);
@@ -525,6 +704,143 @@ function renderMtProg() {
   const el = $('#mtProg');
   if (el) el.innerHTML = mt.job ? `<div class="mt-prog"><div class="mt-bar"><i style="width:${Math.round(mt.job.pct * 100)}%"></i></div><span>${esc(mt.job.text)}</span><button class="btn small" data-mt-stop>Отменить</button></div>` : '';
 }
+/* ---- 🗣 голос клипа (пользователь 2026-10-09: «от видеоряда отделяется только голос аватара, остальная дорожка остаётся;
+   голосу — много параметров, чтобы он не был похож; перенести его в „Озвучку“, она распознаёт реплику, выбираю голос — и обратно
+   в монтаж»). Отделяет программа Freefield на компьютере (Demucs) — один раз на видео; фон остаётся звуком клипа ---- */
+mt.sepJob = null;   // идёт отделение: {k, note}
+mt.vcChar = null;   // персонаж для «🎧 Голосом персонажа»
+const mtFxRng = (k, key, label, min, max, step, val, fmt) => `<div class="mt-fl mt-rng"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${val}" data-mt-f="fx.${key}" data-k="${k}"><b>${fmt(val)}</b></div>`;
+const mtFxFmt = {pitch: v => `${v > 0 ? '+' : ''}${v} пт`, formant: v => `${v > 0 ? '+' : ''}${v}%`, low: v => `${v > 0 ? '+' : ''}${v} дБ`, high: v => `${v > 0 ? '+' : ''}${v} дБ`, rasp: v => `${v}%`, room: v => `${v}%`};
+function mtVoxHTML(o) {
+  const v = o.vox ||= {}, fx = vfxNorm(v.fx), sg = mtPv.segs.find(x => x.c === o), t = v.take, chars = vc.chars.filter(c => c.sample);
+  if (!chars.some(c => c.id === mt.vcChar)) mt.vcChar = chars[0]?.id || null;
+  const busy = mt.voxJob?.k === o.k;
+  return `<div class="block-head"><span class="lbl">🗣 Голос клипа #${sg?.n || '—'}</span></div>
+    <div class="mt-sp1" data-noicon>${t ? `${t.kind === 'vc' ? '🎧 Голосом' : '🎙 Озвучка'}: ${esc(t.name)}` : 'Исходный голос из ролика'}</div>
+    <div class="mt-fl mt-rng"><span>Голос</span><input type="range" min="0" max="2" step="0.05" value="${v.vol ?? 1}" data-mt-f="vvol" data-k="${o.k}"><b>${Math.round((v.vol ?? 1) * 100)}%</b></div>
+    <div class="mt-fl mt-rng"><span>Фон</span><input type="range" min="0" max="1.5" step="0.05" value="${o.vol ?? 1}" data-mt-f="vol" data-k="${o.k}"><b>${Math.round((o.vol ?? 1) * 100)}%</b></div>
+    <div class="block-head"><span class="lbl">Изменить голос</span>${vfxIsDef(fx) ? '' : '<button class="link-btn" data-mt-fx-reset>Сбросить</button>'}</div>
+    <div class="mt-vp">${VFX_PRESETS.map(([id, name]) => `<button class="chip" data-mt-vp="${id}">${name}</button>`).join('')}</div>
+    ${mtFxRng(o.k, 'pitch', 'Высота', -12, 12, 1, fx.pitch, mtFxFmt.pitch)}
+    ${mtFxRng(o.k, 'formant', 'Тембр', -30, 30, 1, fx.formant, mtFxFmt.formant)}
+    ${mtFxRng(o.k, 'low', 'Низкие', -12, 12, 1, fx.low, mtFxFmt.low)}
+    ${mtFxRng(o.k, 'high', 'Высокие', -12, 12, 1, fx.high, mtFxFmt.high)}
+    ${mtFxRng(o.k, 'rasp', 'Хрипотца', 0, 100, 5, fx.rasp, mtFxFmt.rasp)}
+    ${mtFxRng(o.k, 'room', 'Комната', 0, 100, 5, fx.room, mtFxFmt.room)}
+    <div class="seg mt-vk">${VFX_KINDS.map(([k, name]) => `<button data-mt-vk="${k}" class="${fx.kind === k ? 'on' : ''}">${name}</button>`).join('')}</div>
+    <div class="mt-fl"><button class="btn small" data-mt-gplay>▶ Послушать клип</button><span class="mt-note" id="mtFxNote"></span></div>
+    <p class="hint">Высота и тембр меняются без сдвига по времени — губы совпадают. «Тембр» сильнее всего делает голос непохожим.</p>
+    <div class="block-head"><span class="lbl">Другой голос</span></div>
+    <div class="mt-fl"><button class="btn small primary" data-mt-to-echo ${busy ? 'disabled' : ''}>🎙 Переозвучить в «Озвучке»</button></div>
+    <p class="hint">«Озвучка» распознает реплику — выберите голос, озвучьте и нажмите «→ В монтаж».</p>
+    ${chars.length ? `<div class="mt-fl"><select data-mt-vcchar aria-label="Персонаж">${chars.map(c => `<option value="${c.id}" ${c.id === mt.vcChar ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+      <button class="btn small" data-mt-vc ${busy ? 'disabled' : ''} title="Seed-VC: тот же текст и интонации, голос — как в образце персонажа">🎧 Голосом персонажа</button></div>` : ''}
+    ${busy ? `<div class="mt-note" id="mtVoxNote">⏳ ${esc(mt.voxJob.note)}</div>` : ''}
+    <div class="mt-fl">${t ? '<button class="btn small" data-mt-vorig>↩ Исходный голос</button>' : ''}<button class="btn small" data-mt-unsep title="Голос и фон — снова одним звуком клипа">Вернуть звук как был</button></div>`;
+}
+const mtNote = (id, text) => { const el = $('#' + id); if (el) el.textContent = text ? '⏳ ' + text : ''; };
+async function mtSep(c) {
+  const it = mtItem(c);
+  if (!it || mt.sepJob) return;
+  const have = async () => !!(await mtAudGet(mtSepSrc(it.id, 'voice'))) && !!(await mtAudGet(mtSepSrc(it.id, 'rest')));
+  if (!(await have())) {
+    if (!(await canSplit())) return toast('Голос отделяет программа Freefield на компьютере (Demucs, бесплатно) — откройте «Монтаж» на компьютере, где она стоит', {type: 'err', ms: 9000});
+    mt.sepJob = {k: c.k, note: 'Достаю звук из ролика…'}; renderMtEdit();
+    const note = n => { mt.sepJob.note = n; mtNote('mtSepNote', n); };
+    try {
+      const ab = await decodeAudio(it.blob);
+      note('Компьютер отделяет голос от фона…');
+      const r = await hubSplitFiles(wavBlob(await audioMono(ab, 44100)), note);
+      for (const w of ['voice', 'rest']) {
+        const src = mtSepSrc(it.id, w);
+        await DB.put({id: src, kind: 'mt-audio', blob: r[w], name: w === 'voice' ? 'голос' : 'фон', createdAt: Date.now()});
+        mtAud.set(src, {blob: r[w], url: urlOf(r[w])});
+      }
+    } catch (e) { mt.sepJob = null; renderMtEdit(); return toast('Голос не отделился: ' + e.message, {type: 'err', ms: 9000}); }
+    mt.sepJob = null;
+  }
+  // у всех кусков этого видео в проекте (после ✂) — сразу
+  for (const x of mt.p.clips) if (x.id === c.id && !x.sep) { x.sep = true; x.vox ||= {vol: 1}; }
+  mt.sel = {t: 'g', k: c.k}; mt.save(); mtRefresh();
+  toast('🗣 Голос отделён: звуки места и музыка остались у клипа, голос — на дорожке «🗣»', {type: 'ok', ms: 6000});
+}
+// где в куске [a, b] звучит речь: по громкости кадров 20 мс (с запасом 0,15 с)
+function mtSpeech(buf, a, b) {
+  const d = buf.getChannelData(0), sr = buf.sampleRate, fr = Math.round(sr * 0.02), i0 = Math.floor(a * sr), i1 = Math.min(d.length, Math.floor(b * sr)), lv = [];
+  for (let i = i0; i < i1; i += fr) { let s = 0; for (let j = i, e = Math.min(i1, i + fr); j < e; j += 2) s += d[j] * d[j]; lv.push(Math.sqrt(s / (fr / 2))); }
+  const thr = Math.max(...lv, 0) * 0.12, f = lv.findIndex(x => x > thr), l = lv.length - 1 - [...lv].reverse().findIndex(x => x > thr);
+  if (f < 0 || !thr) return [a, b];
+  return [Math.max(a, a + f * 0.02 - 0.15), Math.min(b, a + (l + 1) * 0.02 + 0.15)];
+}
+// новый голос клипа (озвучка или голос персонажа) — файлом в базе, в клипе — ссылка и место начала
+async function mtSetTake(p, c, buf, take) {
+  const blob = wavBlob(buf), src = 'mtaud-' + uid();
+  await DB.put({id: src, kind: 'mt-audio', blob, name: take.name, dur: buf.duration, createdAt: Date.now()});
+  mtAud.set(src, {blob, url: urlOf(blob)});
+  mtBufs.set(src, Promise.resolve(buf)); mtBufOk.set(src, buf);
+  c.vox = {...(c.vox || {}), vol: c.vox?.vol || 1, take: {src, at: Math.round(take.at * 1000) / 1000, dur: buf.duration, name: String(take.name).slice(0, 80), kind: take.kind}};
+  mt.save();
+}
+// «🎙 Переозвучить»: голос клипа (где говорят) → «Озвучка»; она распознает реплику
+async function mtToEcho(c) {
+  const s = mtPv.segs.find(x => x.c === c);
+  if (!s) return;
+  const vb = await mtSrcP(mtSepSrc(c.id, 'voice'));
+  if (!vb) return toast('Голос клипа не найден — отделите его снова', {type: 'err'});
+  let [from, to] = mtSpeech(vb, s.a, s.b);
+  if (to - from < 1.5) { const mid = (from + to) / 2; from = Math.max(s.a, mid - 0.75); to = Math.min(s.b, from + 1.5); }
+  if (to - from < 1.5) return toast('Реплика короче 1,5 с — «Озвучке» её не распознать', {type: 'err'});
+  to = Math.min(to, from + 30);
+  const wav = wavBlob(await audioMono(vb, 24000, from, to - from));
+  const line = {p: mt.p.id, proj: mt.p.name, k: c.k, n: s.n, at: from, dur: to - from};
+  mtPause();
+  setView('create'); setCreateMode('voice');
+  exFromMontage(line, wav);
+}
+// «→ В монтаж» из «Озвучки»: озвучка без тишины по краям, по длине — как исходная реплика (растягиваем без смены высоты)
+async function mtTakeIn(line, blob, name) {
+  const p = mt.projects.find(x => x.id === line.p), c = p?.clips.find(x => x.k === line.k);
+  if (!c) throw new Error('клип уже удалён из монтажа');
+  let buf = await decodeAudio(blob);
+  const [a, b] = mtSpeech(buf, 0, buf.duration);
+  buf = await audioMono(buf, buf.sampleRate, a, b - a);
+  const ratio = line.dur / buf.duration, r = Math.max(0.8, Math.min(1.25, ratio));
+  if (Math.abs(r - 1) > 0.03) buf = await vfxStretch(buf, r);
+  await mtSetTake(p, c, buf, {at: line.at, name, kind: 'echo'});
+  if (!c.sep) { c.sep = true; c.vox.vol ||= 1; }
+  mt.cur = p.id; mt.tab = 'edit'; mt.sel = {t: 'g', k: c.k}; mt.save();
+  setView('create'); setCreateMode('edit');
+  const diff = buf.duration - line.dur;
+  toast(Math.abs(diff) > 0.3 ? `🎙 Озвучка в монтаже. Она ${diff > 0 ? 'длиннее' : 'короче'} реплики на ${exNum(Math.abs(diff))} с — губы немного разойдутся; ${diff > 0 ? 'сократите текст или прибавьте темп' : 'добавьте слов или убавьте темп'}`
+    : '🎙 Озвучка в монтаже — по длине как исходная реплика', {type: 'ok', ms: 9000});
+}
+// «🎧 Голосом персонажа»: Seed-VC меняет только тембр — слова, паузы и губы те же
+async function mtVc(c) {
+  const ch = vc.char(mt.vcChar);
+  if (!ch?.sample || mt.voxJob) return;
+  mt.voxJob = {k: c.k, note: 'Готовлю голос…'}; renderMtEdit();
+  const note = n => { mt.voxJob.note = n; mtNote('mtVoxNote', n); };
+  try {
+    const vb = await mtSrcP(mtSepSrc(c.id, 'voice'));
+    if (!vb) throw new Error('голос клипа не найден — отделите его снова');
+    const out = await decodeAudio(await seedVc(wavBlob(await audioMono(vb, 24000)), dataBlob(ch.sample), note));
+    const g = Math.min(4, rms(vb) / (rms(out) || 1) || 1), d = out.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.max(-1, Math.min(1, d[i] * g));
+    await mtSetTake(mt.p, c, out, {at: 0, name: ch.name, kind: 'vc'});
+    toast(`🎧 Голос клипа — как у «${ch.name}»`, {type: 'ok'});
+  } catch (e) { toast('Голос не изменился: ' + e.message, {type: 'err', ms: 9000}); }
+  mt.voxJob = null; mtRefresh();
+}
+// после правки эффектов: голос пересчитывается заранее (в потоке), просмотр — с новым голосом
+function mtFxChanged(c) {
+  clearTimeout(mtFxChanged.t);
+  mtFxChanged.t = setTimeout(() => {
+    const s = mtPv.segs.find(x => x.c === c), w = s && mtVoxWin(c, s);
+    if (!w) return;
+    mtNote('mtFxNote', 'Обрабатываю голос…');
+    mtFxP(w.src, c.vox?.fx).then(() => { mtNote('mtFxNote', ''); if (mtAE.on) mtAE.plan(); mtTl(); });
+  }, 150);
+}
 const mtNum = (key, k, v, min, max, step = 0.1) => `<input type="number" data-mt-f="${key}" data-k="${k}" value="${Math.round(v * 100) / 100}" min="${min}" ${max != null ? `max="${max}"` : ''} step="${step}">`;
 function renderMtEdit() {
   const body = $('#mtBody');
@@ -538,7 +854,12 @@ function renderMtEdit() {
       <div class="mt-fl"><label>Начало ${mtNum('a', o.k, o.a || 0, 0, full)}</label><label>Конец ${mtNum('b', o.k, o.b ?? full, 0.3, full)}</label><span>из ${mtFmt(full)}</span></div>
       ${sg && sg.n > 1 ? `<div class="mt-fl"><span>Переход</span>${seg('tr', MT_TR.map(([v, i, t]) => [v, `${i} ${t}`]), o.tr || 'cut', o.k)}</div>
         ${(o.tr || 'cut') !== 'cut' ? `<div class="mt-fl mt-rng"><span>Длина</span><input type="range" min="0.2" max="2" step="0.1" value="${o.td || 0.6}" data-mt-f="td" data-k="${o.k}"><b>${String(o.td || 0.6).replace('.', ',')} с</b></div>` : ''}` : ''}
-      <div class="mt-fl mt-rng"><button class="icon-btn ${o.mute ? 'off' : ''}" data-mt-mute="${o.k}" title="${o.mute ? 'Включить звук клипа' : 'Без звука'}">${o.mute ? '🔇' : '🔊'}</button><input type="range" min="0" max="1.5" step="0.05" value="${o.vol ?? 1}" data-mt-f="vol" data-k="${o.k}" ${o.mute ? 'disabled' : ''}><b>${Math.round((o.vol ?? 1) * 100)}%</b></div>`;
+      <div class="mt-fl mt-rng"><button class="icon-btn ${o.mute ? 'off' : ''}" data-mt-mute="${o.k}" title="${o.mute ? 'Включить звук клипа' : 'Без звука'}">${o.mute ? '🔇' : '🔊'}</button>${o.sep ? '<span>Фон</span>' : ''}<input type="range" min="0" max="1.5" step="0.05" value="${o.vol ?? 1}" data-mt-f="vol" data-k="${o.k}" ${o.mute ? 'disabled' : ''}><b>${Math.round((o.vol ?? 1) * 100)}%</b></div>
+      <div class="mt-fl">${o.sep ? `<button class="btn small" data-mt-gsel>🗣 Голос отделён — изменить голос</button>`
+        : `<button class="btn small" data-mt-sep ${mt.sepJob ? 'disabled' : ''} title="Голос аватара — на свою дорожку, звуки места и музыка остаются у клипа">🗣 Отделить голос</button>`}</div>
+      ${mt.sepJob?.k === o.k ? `<div class="mt-note" id="mtSepNote">⏳ ${esc(mt.sepJob.note)}</div>` : ''}`;
+  } else if (o && s.t === 'g') {
+    sel = mtVoxHTML(o);
   } else if (o && s.t === 't') {
     sel = `<div class="block-head"><span class="lbl">Титр</span></div>
       <textarea class="mt-ta" rows="2" data-mt-f="text" data-k="${o.k}" placeholder="Текст титра">${esc(o.text || '')}</textarea>
@@ -601,6 +922,22 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtDup' in d) return mtDup();
   if ('mtDelSel' in d) return mtDelSel();
   if ('mtGone' in d) { p.clips = p.clips.filter(c => mtItem(c)); mt.save(); return mtRefresh(); }
+  // голос клипа
+  if ('mtSep' in d && o) return mtSep(o);
+  if ('mtGsel' in d && o) { mt.sel = {t: 'g', k: o.k}; renderMtEdit(); return mtTl(); }
+  if ('mtToEcho' in d && o) return mtToEcho(o);
+  if ('mtVc' in d && o) return mtVc(o);
+  if ('mtGplay' in d && o) { const sg = mtPv.segs.find(x => x.c === o); if (sg) { mtSeekTo(sg.start); mtPlay(); } return; }
+  if ('mtVorig' in d && o?.vox) { delete o.vox.take; mt.save(); mtRefresh(); return mtFxChanged(o); }
+  if ('mtUnsep' in d && o) { o.sep = false; mt.sel = {t: 'v', k: o.k}; mt.save(); return mtRefresh(); }
+  if ((d.mtVp || 'mtFxReset' in d || d.mtVk) && o) {
+    const v = o.vox ||= {};
+    if (d.mtVp) v.fx = {...VFX_DEF, ...VFX_PRESETS.find(x => x[0] === d.mtVp)?.[2]};
+    else if (d.mtVk) v.fx = {...vfxNorm(v.fx), kind: d.mtVk};
+    else delete v.fx;
+    mt.save(); renderMtEdit(); mtTl();
+    return mtFxChanged(o);
+  }
   if (d.mtTr && o) { o.tr = d.mtTr; o.td = o.td || 0.6; }
   else if (d.mtMute && o) o.mute = !o.mute;
   else if (d.mtPos && o) o.pos = d.mtPos;
@@ -615,7 +952,18 @@ $('#mtCreate').addEventListener('input', e => {
   if (!f || !o || o.k !== el.dataset.k) return;
   const v = f === 'text' ? el.value.slice(0, 200) : +el.value, p = mt.p, s = mt.sel;
   if (f !== 'text' && !Number.isFinite(v)) return;
-  if (s.t === 'v') {
+  if (s.t === 'g') {   // голос: громкость, фон, эффекты
+    const vx = o.vox ||= {}, lbl = el.nextElementSibling;
+    if (f === 'vvol') { vx.vol = v; lbl.textContent = Math.round(v * 100) + '%'; }
+    else if (f === 'vol') { o.vol = v; lbl.textContent = Math.round(v * 100) + '%'; }
+    else if (f.startsWith('fx.')) {
+      const k = f.slice(3);
+      vx.fx = {...vfxNorm(vx.fx), [k]: v};
+      lbl.textContent = mtFxFmt[k](v);
+      mtFxChanged(o);
+    }
+    if (mtAE.on) mtAE.plan();
+  } else if (s.t === 'v') {
     const full = mtLen(mtItem(o));
     if (f === 'a') o.a = Math.max(0, Math.min(v, (o.b ?? full) - 0.3));
     else if (f === 'b') { const b = Math.max((o.a || 0) + 0.3, Math.min(v, full)); o.b = b >= full - 0.05 ? null : b; }
@@ -649,7 +997,8 @@ $('#mtCreate').addEventListener('change', e => {
     mtPv.t = 0; mt.sel = null;
     renderMt(); return updateGenButton();
   }
-  if ('mtAudio' in d) { p.audio = el.checked; mt.save(); return mtShow(mtPv.t); }
+  if ('mtAudio' in d) { p.audio = el.checked; mt.save(); if (mtAE.on) mtAE.plan(); return mtShow(mtPv.t); }
+  if ('mtVcchar' in d) { mt.vcChar = el.value; return; }
   if (d.mtF) { mt.save(); mtRefresh(); }
 });
 
@@ -770,28 +1119,13 @@ async function mtFps(segs) {
 async function mtMixAudio(segs, total, M, p) {
   const SR = 48000, ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * SR)), SR);
   let any = false;
-  // звуковая дорожка: музыка, озвучка — со своей громкостью, нарастанием и затуханием
-  for (const a of p.audios || []) {
-    if (a.at >= total) continue;
-    const c = await mtAudGet(a.src);
-    if (!c) continue;
-    let buf;
-    try { buf = await ctx.decodeAudioData(await c.blob.arrayBuffer()); } catch { continue; }
-    const len = Math.min(mtALen(a), total - a.at, buf.duration - (a.a || 0));
-    if (len <= 0) continue;
-    const g = ctx.createGain(), vol = a.vol ?? 1, fi = Math.min(a.fadeIn || 0, len / 2), fo = Math.min(a.fadeOut || 0, len / 2);
-    g.connect(ctx.destination);
-    g.gain.setValueAtTime(fi ? 0 : vol, a.at);
-    if (fi) g.gain.linearRampToValueAtTime(vol, a.at + fi);
-    if (fo) { g.gain.setValueAtTime(vol, a.at + len - fo); g.gain.linearRampToValueAtTime(0, a.at + len); }
-    const src = ctx.createBufferSource();
-    src.buffer = buf; src.connect(g);
-    src.start(a.at, a.a || 0, len);
-    any = true;
-  }
+  // дорожка «🎵», фон и голос клипов (с эффектами, озвучкой) — тем же расписанием, что и в просмотре
+  const list = mtSounds(p, segs).filter(x => x.when < total), bufs = new Map();
+  for (const x of list) { const b = await mtFxP(x.src, x.fx); if (b) bufs.set(x, b); }
+  if (mtSchedule(ctx, list, 0, 0, x => bufs.get(x)).length) any = true;
   for (const s of segs) {
     const at = s._in.at;
-    if (!p.audio || s.c.mute || !at || !(await at.canDecode().catch(() => false))) continue;
+    if (!p.audio || s.c.mute || s.c.sep || !at || !(await at.canDecode().catch(() => false))) continue;
     const g = ctx.createGain(), vol = s.c.vol ?? 1;
     g.connect(ctx.destination);
     g.gain.setValueAtTime(s.inK !== 'cut' ? 0 : vol, s.start);

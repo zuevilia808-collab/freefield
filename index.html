@@ -29,6 +29,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
 <script defer src="js/services.js"></script>
 <script defer src="js/gallery.js"></script>
 <script defer src="js/m3d.js"></script>
+<script defer src="js/vfx.js"></script>
 <script defer src="js/montage.js"></script>
 <script defer src="js/echo.js"></script>
 <script defer src="js/controls.js"></script>
@@ -241,10 +242,11 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
         <button class="icon-btn" data-mt-zoom="-1" title="Мельче">−</button><input type="range" id="mtZoom" min="0" max="100" value="30" aria-label="Масштаб"><button class="icon-btn" data-mt-zoom="1" title="Крупнее">＋</button><button class="icon-btn" data-mt-fit title="Весь ролик">↔</button>
       </div>
       <div class="mtw-tl">
-        <div class="mtw-heads"><i></i><b>🎞</b><b>🖼</b><b>T</b><b>🎵</b></div>
+        <div class="mtw-heads"><i></i><b>🎞</b><b class="g" title="Голос, отделённый от видео">🗣</b><b>🖼</b><b>T</b><b>🎵</b></div>
         <div class="mtw-scroll" id="mtScroll"><div class="mtw-inner" id="mtInner">
           <div class="mtw-ruler" id="mtRuler"></div>
           <div class="mtw-track v" id="mtTrV"></div>
+          <div class="mtw-track g" id="mtTrG"></div>
           <div class="mtw-track p" id="mtTrP"></div>
           <div class="mtw-track t" id="mtTrT"></div>
           <div class="mtw-track a" id="mtTrA"></div>

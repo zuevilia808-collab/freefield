@@ -508,7 +508,12 @@ function rvStatus(t) {
 // паузы и интонации те же, губы совпадают; новый голос кладём на прежний фон с той же громкостью.
 // Без компьютера — как раньше: меняется весь звук, фон пропадает (split: false).
 const canSplit = async () => await hubReady() && hubHas('split');
+// звук → голос и фон (WAV-файлы с компьютера); hubSplit — то же, сразу декодированное
 async function hubSplit(wav, onStatus) {
+  const r = await hubSplitFiles(wav, onStatus);
+  return {voice: await decodeAudio(r.voice), rest: await decodeAudio(r.rest)};
+}
+async function hubSplitFiles(wav, onStatus) {
   const r = await fetch(hubLink.url('/api/split'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({audio: await blobDataUrl(wav)})});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
@@ -519,7 +524,7 @@ async function hubSplit(wav, onStatus) {
     if (s.status === 'error' || s.error) throw new Error(s.error || 'голос не отделился');
     if (s.note) onStatus(s.note);
     if (s.status === 'done') {
-      const get = async u => { const x = await fetch(hubLink.url(u)); if (!x.ok) throw new Error('не скачался звук с компьютера'); return decodeAudio(await x.blob()); };
+      const get = async u => { const x = await fetch(hubLink.url(u)); if (!x.ok) throw new Error('не скачался звук с компьютера'); return x.blob(); };
       return {voice: await get(s.voice), rest: await get(s.rest)};
     }
   }
