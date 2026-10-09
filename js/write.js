@@ -14,7 +14,7 @@ const WRITERS = {
 const CLAUDE_MODELS = [['claude-opus-5-5', 'Opus 5.5 — самый сильный'], ['claude-sonnet-5', 'Sonnet 5 — быстрее и дешевле']];
 // Эталонный промпт пользователя для видео. Пользователь 2026-10-09 прислал новый — по таймкодам: подпись блока на своей строке,
 // под ней строки «(0:00–0:03) …» (по-русски, переведён на английский). Таймкоды — для ролика 10 с; ИИ растягивает их под длину ролика
-const REF_BLOCKS = ['Scenes & Shot cuts', 'On-screen text', 'Spoken line', 'Automatic subtitles', 'Action & Emotions', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
+const REF_BLOCKS = ['Scenes & Shot cuts', 'On-screen text', 'Spoken line', 'Subtitles', 'Action & Emotions', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
 const REF_OLD = ['On-screen text', 'Spoken line', 'Action', 'Automatic subtitles', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
 const REF_PROMPT = `Scenes & Shot cuts:
 (0:00–0:03) Scene 1: [Description]
@@ -26,10 +26,10 @@ Spoken line:
 (0:00–0:03) "[Line 1]"
 (0:03–0:07) "[Line 2]"
 (0:07–0:10) "[Line 3]"
-Automatic subtitles:
-(0:00–0:03) [Subtitles 1]
-(0:03–0:07) [Subtitles 2]
-(0:07–0:10) [Subtitles 3]
+Subtitles:
+(0:00–0:03) «[Exact subtitle text 1]»
+(0:03–0:07) «[Exact subtitle text 2]»
+(0:07–0:10) «[Exact subtitle text 3]»
 Action & Emotions:
 (0:00–0:03) [Actions 1]
 (0:03–0:07) [Actions 2]
@@ -57,7 +57,7 @@ const isBlockPrompt = t => { const known = new Set([...REF_BLOCKS, ...REF_OLD, .
 // блочный промпт → на английский построчно: подписи блоков остаются, текст на экране и реплика героя — как написаны
 // (по-русски), в остальных блоках переводится всё, кроме кусков в «кавычках»
 async function translateBlocks(text) {
-  const keep = ['On-screen text', 'Spoken line', 'Automatic subtitles'];
+  const keep = ['On-screen text', 'Spoken line', 'Subtitles', 'Automatic subtitles'];
   let cur = '';   // блок, под которым стоит строка «(0:00–0:03) …»
   const lines = await Promise.all(String(text).split('\n').map(async line => {
     const lab = line.match(/^([A-Za-z][A-Za-z &/-]+):\s*(.*)$/), tc = !lab && line.match(/^(\s*\(\d+:\d{2}\s*[–—-]\s*\d+:\d{2}\))\s*(.*)$/);
@@ -89,9 +89,13 @@ const wr = {
   // хранятся в IndexedDB (10 фото в localStorage не влезут) — загружаются после открытия хранилища, см. wrLocsLoad
   locs: [],
   result: ls.get('freefield.write.result', null), // {scenarios, by, at} или {raw, by, at} — ответ не по формату
-  ref: (r => { if (ls.get('freefield.write.ref.v', 1) >= 2) return r;
+  ref: (r => { const v = ls.get('freefield.write.ref.v', 1);
+    if (v === 2) { if (r.includes('(0:00–0:03) [Subtitles 1]')) r = r.replace(/^Automatic subtitles:\n\(0:00–0:03\) \[Subtitles 1\]\n\(0:03–0:07\) \[Subtitles 2\]\n\(0:07–0:10\) \[Subtitles 3\]$/m,
+      'Subtitles:\n(0:00–0:03) «[Exact subtitle text 1]»\n(0:03–0:07) «[Exact subtitle text 2]»\n(0:07–0:10) «[Exact subtitle text 3]»');
+      ls.set('freefield.write.ref.v', 3); ls.set('freefield.write.ref', r); return r; }
+    if (v >= 3) return r;
     if (r && r.trim() !== REF_OLD.map(b => b + ':').join('\n')) ls.set('freefield.write.ref.prev', r);
-    ls.set('freefield.write.ref.v', 2); ls.set('freefield.write.ref', REF_PROMPT); return REF_PROMPT; })(ls.get('freefield.write.ref', REF_PROMPT)),   // эталонный промпт: по нему ИИ пишет видео-промпты
+    ls.set('freefield.write.ref.v', 3); ls.set('freefield.write.ref', REF_PROMPT); return REF_PROMPT; })(ls.get('freefield.write.ref', REF_PROMPT)),   // эталонный промпт: по нему ИИ пишет видео-промпты
   char: ls.get('freefield.write.char', null),       // персонаж роликов: его развёртка — в ячейке, его голос ИИ впишет в каждый сценарий
   busy: false, note: '', pick: 'info',
   save() {
@@ -188,7 +192,8 @@ function writeBrief() {
       : voice ? `the hero's fixed voice word for word, then the exact ${lang} speech in «» with timing (e.g. "voice — ${voice.en}; ${a1}-${mid} s, in ${lang}: «…» ${mid}-${sec} s: «…»")`
       : `the hero's exact ${lang} speech in «», with timing and the voice (e.g. "${a1}-${mid} s, deep calm male voice, in ${lang}: «…» ${mid}-${sec} s: «…»")`],
     ['Action', 'what happens second by second, including the concrete action with the hands or a prop'],
-    ['Automatic subtitles', `the burned-in subtitles of each part — the same words as the spoken line, in ${lang}; style once: bottom third, bold white sans-serif with a dark outline, word-synced`],
+    ['Subtitles', `the EXACT ${lang} text the video model must write on screen as subtitles for each part, in «», written out in full — the words of that part's spoken line; never write "automatic subtitles", "same as the spoken line" or any description instead of the text`],
+    ['Automatic subtitles', `the EXACT ${lang} subtitle text for each part, in «», written out in full — never "automatic" or "same as the spoken line"`],
     ['Pose & body language', 'posture, gestures, facial expression, eye contact'],
     ['Location', `only the place, light and its details${L ? ` exactly as on ${many ? "the scenario's own location image" : 'IMAGE 3'}` : ''} — never the hero's appearance`],
     ['Camera & framing', 'shot size, angle, lens, movement, vertical 9:16'],

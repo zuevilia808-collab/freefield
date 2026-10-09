@@ -11,6 +11,7 @@ function visibleItems() {
   const q = $('#search').value.trim().toLowerCase();
   return items.filter(it =>
     (state.filter === 'all' || it.type === state.filter) &&
+    (!state.siteProj || it.siteProject === state.siteProj) &&
     (!q || (it.prompt + ' ' + (it.finalPrompt || '') + ' ' + (it.modelTitle || '') + ' ' + (vc.char(it.char)?.name || '')).toLowerCase().includes(q)));
 }
 
@@ -145,6 +146,7 @@ function cardHTML(it) {
         <button class="act" data-act="delete" title="Удалить">🗑</button>
       </div>
       <div class="card-foot">
+        ${it.siteProject ? `<div class="card-site">🌐 Сайт: ${esc(it.siteProject)}</div>` : ''}
         <div class="card-prompt">${esc(it.prompt)}</div>
         <div class="card-model">${tierBadge(it)} ${esc(it.modelTitle || '')}</div>
       </div>
@@ -188,7 +190,18 @@ function cardEl(html) {
   bindCard(el);
   return el;
 }
+// фильтр «🌐 Сайт: <проект>» — виден, когда в галерее есть картинки для сайта
+function siteFilterSync() {
+  const sel = $('#siteFilter');
+  if (!sel) return;
+  const names = [...new Set(items.map(i => i.siteProject).filter(Boolean))];
+  if (state.siteProj && !names.includes(state.siteProj)) state.siteProj = '';
+  sel.hidden = !names.length;
+  const html = `<option value="">Все проекты</option>${names.map(n => `<option value="${esc(n)}" ${state.siteProj === n ? 'selected' : ''}>🌐 Сайт: ${esc(n)}</option>`).join('')}`;
+  if (sel._html !== html) sel.innerHTML = sel._html = html;
+}
 function render() {
+  siteFilterSync();
   const grid = $('#grid'), strip = $('#extStrip');
   const all = visibleItems();
   const ext = all.filter(i => i.status === 'external'), list = all.filter(i => i.status !== 'external');

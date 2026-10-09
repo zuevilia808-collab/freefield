@@ -223,6 +223,23 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
         }
         const wj = url.pathname.match(/^\/api\/write\/([0-9a-f]{16})$/);
         if (wj && req.method === 'GET' && api.writeGet) { const j = await api.writeGet(wj[1]); return j ? send(200, j) : send(404, {error: 'нет такого задания — программу перезапускали?'}); }
+        // «🌐 Ассеты для сайта»: задание с исходниками — в очередь «ждёт Claude»; список; превью исходника; удалить
+        if (url.pathname === '/api/site' && api.siteCreate) {
+          if (req.method === 'GET') return send(200, await api.siteList());
+          if (req.method !== 'POST') return send(405, {error: 'нужен POST'});
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 160e6) return send(413, {error: 'слишком большие исходники — уменьшите их'}); }
+          try { return send(200, await api.siteCreate(JSON.parse(body || '{}'))); } catch (e) { return send(400, {error: e.message}); }
+        }
+        const st = url.pathname.match(/^\/api\/site\/(s[0-9a-z]{6,20})(?:\/(\d{1,2}))?$/);
+        if (st && api.siteList) {
+          if (!st[2] && req.method === 'DELETE') { try { return send(200, {ok: await api.siteDelete(st[1])}); } catch (e) { return send(409, {error: e.message}); } }
+          if (!st[2] || req.method !== 'GET') return send(405, {error: 'нет такого запроса'});
+          const file = await api.siteSrcFile(st[1], +st[2]);
+          if (!file) return send(404, {error: 'файл не найден'});
+          res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
+          return fs.createReadStream(file).pipe(res);
+        }
         if (url.pathname === '/api/outputs' && req.method === 'GET') return send(200, await api.outputs());
         if (url.pathname === '/api/sync' && req.method === 'POST') return send(200, await api.sync());
         const m = url.pathname.match(/^\/api\/file\/([\w-]+)\/(\d+)\/(\d+)$/);

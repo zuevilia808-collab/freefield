@@ -22,6 +22,15 @@ function updateGenButton() {
     $('#etaLine').textContent = '';
     return;
   }
+  if (cl.mode === 'site') {
+    const btn = $('#genBtn'), n = site.srcs.length;
+    btn.classList.remove('paid');
+    btn.disabled = site.sending;
+    $('#genLabel').textContent = site.sending ? '⏳ Отправляю…' : n ? '🌐 Отправить Claude' : '＋ Добавьте исходники';
+    $('#genSub').textContent = n ? `${n} ${plur(n, 'исходник', 'исходника', 'исходников')}` : 'картинки-образцы';
+    $('#etaLine').textContent = 'Задание ждёт Claude на компьютере · картинки — бесплатно, Flow и Dola';
+    return;
+  }
   if (cl.mode === 'chars') {
     const n = vc.chars.length, btn = $('#genBtn');
     btn.classList.remove('paid');
@@ -310,7 +319,7 @@ function bindControls() {
     const waiting = any && extTarget(any.type.startsWith('video/') ? 'video' : 'image');
     if (waiting) { e.preventDefault(); attachExternal(waiting, any); return; }
     const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
-    if (!f) return;
+    if (!f || cl.mode === 'site') return;   // «Для сайта» — свой обработчик (site.js)
     e.preventDefault();
     // «Сценарии» — в свободную ячейку (сначала инфографика); «Сценарии» — фото в сценарий; «Фото» — в референсы
     if (cl.mode === 'write') return writeAddImage(!wr.info ? 'info' : !wr.sheet ? 'sheet' : 'loc', f);   // дальше — кадры локаций по порядку
@@ -327,6 +336,7 @@ function bindControls() {
     render();
   });
   $('#search').addEventListener('input', render);
+  $('#siteFilter').addEventListener('change', e => { state.siteProj = e.target.value; render(); });
   $('#extStrip').addEventListener('dragover', e => { if (e.target.closest('.card.ext')) e.preventDefault(); });
   $('#extStrip').addEventListener('drop', e => {
     const card = e.target.closest('.card.ext'); if (!card) return;

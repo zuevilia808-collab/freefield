@@ -38,6 +38,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
 <script defer src="js/assets.js"></script>
 <script defer src="js/chars.js"></script>
 <script defer src="js/write.js"></script>
+<script defer src="js/site.js"></script>
 <script defer src="js/init.js"></script>
 </head>
 <body data-mode="image" data-view="create">
@@ -151,7 +152,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
   <aside class="panel">
     <div class="panel-scroll">
 
-      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit keep-voice" id="createMode">
+      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit keep-voice keep-site" id="createMode">
         <button data-cm="chars" class="on" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
         <button data-cm="one" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Фото</span></button>
         <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Сценарии</span></button>
@@ -159,6 +160,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
         <button data-cm="edit" title="Монтаж: видео из галереи — в один длинный ролик; ИИ-монтажёр пишет сценарий и монтирует сам"><svg class="ic"><use href="#i-film"/></svg><span>Монтаж</span></button>
         <button data-cm="voice" title="Озвучка голосом персонажа — «Эхо» на этом компьютере: клон голоса, эмоции, варианты"><svg class="ic"><use href="#i-mic"/></svg><span>Озвучка</span></button>
         <button data-cm="3d" title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
+        <button data-cm="site" title="Картинки для сайта по найденным образцам: то же настроение и роль, но новые люди, детали и композиция — делает Claude"><svg class="ic"><use href="#i-globe"/></svg><span>Для сайта</span></button>
       </div>
       <section class="only-write" id="writeCreate"></section>
       <section class="only-chars" id="charsCreate"></section>
@@ -167,6 +169,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
       <section class="only-voice" id="echoCreate"></section>
       <section class="only-scn" id="scnCreate"></section>
       <section class="only-asset" id="assetCreate"></section>
+      <section class="only-site" id="siteCreate"></section>
 
       <section>
         <div class="block-head">
@@ -210,6 +213,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
       <div class="seg" id="filterSeg">
         <button data-v="all" class="on">Все</button><button data-v="image">Фото</button><button data-v="video">Видео</button><button data-v="model">🧊 3D</button>
       </div>
+      <select class="site-filter" id="siteFilter" hidden aria-label="Проект сайта"></select>
       <input class="search" id="search" placeholder="Поиск по промптам…">
       <span class="count" id="countLabel"></span>
     </div>

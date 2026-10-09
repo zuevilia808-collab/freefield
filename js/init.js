@@ -154,6 +154,7 @@ function drawQR(box, text) {
     await DB.open();
     items = ((await DB.all()) || []).filter(i => (i.status === 'done' && i.blob) || i.status === 'external').sort((a, b) => b.createdAt - a.createdAt);
     wrLocsLoad();
+    siteLoad();
     vcLoad().then(serLoad);
     scrLoad();
   } catch {

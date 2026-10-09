@@ -32,7 +32,8 @@ export function saveOutput(buf, mime, prompt, seed = randSeed()) {
 const BATCH_FILE = path.join(HERE, '.batches.json');
 const batches = new Map();
 const readBatches = () => { try { return JSON.parse(fs.readFileSync(BATCH_FILE, 'utf8')); } catch { return []; } };
-const plainBatch = b => ({id: b.id, source: b.source, created: b.created, done: b.done, pid: b.pid, items: b.items});
+const plainBatch = b => ({id: b.id, source: b.source, created: b.created, done: b.done, pid: b.pid, items: b.items,
+  ...(b.siteTask && {siteTask: b.siteTask, siteProject: b.siteProject})});
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 // пакет из файла, который не доделал уже закрытый Freefield (перезапуск, сбой), больше не «идёт» — помечаем прерванным
 function orphan(b) {
@@ -65,7 +66,8 @@ export function runSync(onStatus) {
   return syncing ||= import('./sync.js').then(S => S.syncSites({onStatus})).finally(() => { syncing = null; });
 }
 
-export async function startBatch(scenarios, source) {
+// extra — {siteTask, siteProject}: картинки для «🌐 Ассетов для сайта» — в галерее с меткой проекта
+export async function startBatch(scenarios, source, extra = {}) {
   const B = await batchMod();
   // профили, окна которых сейчас открыты, — задания в первую очередь им (без открытия новых окон)
   let open = [];
@@ -73,7 +75,8 @@ export async function startBatch(scenarios, source) {
     const {chromeOpen, openProfilesNow} = await import('./bridge.js');
     if (await chromeOpen()) open = Object.keys((await openProfilesNow()).map).map(dir => dir === 'Default' ? 1 : +dir.split(' ')[1] + 1);
   } catch {}
-  const batch = {id: `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source, created: Date.now(), done: false, pid: process.pid, items: B.planBatch(scenarios, {open})};
+  const batch = {id: `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source, created: Date.now(), done: false, pid: process.pid, items: B.planBatch(scenarios, {open}),
+    ...(extra.siteTask && {siteTask: extra.siteTask, siteProject: extra.siteProject || null})};
   batches.set(batch.id, batch);
   persistBatches();
   batch.promise = B.runBatch(batch.items, {
@@ -118,7 +121,7 @@ export const hubApi = {
     const {lanAddresses} = await import('./hub.js');
     // что умеет эта версия программы: приложение видит, что программу на компьютере пора обновить
     return {ok: true, name: 'Freefield', ...profiles[0], profiles, active, open, multi, unknown, app, mcp: !!hubApi.mcp, lan: lanAddresses(), port: HUB_PORT,
-      features: ['echo', 'echo-start', 'update', 'split', ...((await import('./write.js')).claudeExe() ? ['claude'] : [])], echoPort: (await import('./echo.js')).ECHO.port};
+      features: ['echo', 'echo-start', 'update', 'split', 'site', ...((await import('./write.js')).claudeExe() ? ['claude'] : [])], echoPort: (await import('./echo.js')).ECHO.port};
   },
   // выход и вход — в своём профиле Chrome (если открыт другой, Chrome Freefield переключится, когда там не идут генерации)
   switchAccount: async (site, p = 1) => {
@@ -218,7 +221,7 @@ export const hubApi = {
   },
   list: async () => {
     const {SITE_LABEL} = await batchMod();
-    return allBatches().map(b => ({...b, items: b.items.map(it => ({n: it.n, prompt: it.prompt, kind: it.kind, site: it.site,
+    return allBatches().map(b => ({...b, siteProject: b.siteProject || null, items: b.items.map(it => ({n: it.n, prompt: it.prompt, kind: it.kind, site: it.site,
       model: it.model, appModel: it.appModel || null, status: it.status, message: it.message, note: it.note, aspect: it.aspect,
       siteLabel: SITE_LABEL[it.site] || it.siteLabel || null, meta3d: it.meta3d || null,
       files: (it.files || []).map((f, j) => ({url: `/api/file/${b.id}/${it.n}/${j}`, name: f.name || path.basename(f.path), mime: f.mime, label: f.label}))}))}));
@@ -228,6 +231,10 @@ export const hubApi = {
   splitFile: async (id, which) => (await import('./split.js')).splitFile(id, which),
   writeStart: async job => (await import('./write.js')).writeStart(job),
   writeGet: async id => (await import('./write.js')).writeGet(id),
+  siteCreate: async body => (await import('./site.js')).siteCreate(body),
+  siteList: async () => (await import('./site.js')).siteList(),
+  siteSrcFile: async (id, n) => (await import('./site.js')).siteSrcFile(id, n),
+  siteDelete: async id => (await import('./site.js')).siteDelete(id),
   filePath: async (id, n, j) => {
     const p = allBatches().find(b => b.id === id)?.items.find(i => i.n === n)?.files?.[j]?.path;
     const root = path.resolve(OUT) + path.sep;
@@ -238,7 +245,7 @@ export const hubApi = {
   outputs: async () => {
     const meta = new Map();
     for (const b of allBatches()) if (b.source !== 'sync' || b.ours) for (const it of b.items) for (const f of it.files || [])
-      meta.set(path.basename(f.path), {prompt: it.prompt, kind: it.kind, site: it.site, model: it.model, appModel: it.appModel || null, aspect: it.aspect, label: f.label});
+      meta.set(path.basename(f.path), {prompt: it.prompt, kind: it.kind, site: it.site, model: it.model, appModel: it.appModel || null, aspect: it.aspect, label: f.label, siteProject: b.siteProject || null});
     const days = fs.existsSync(OUT) ? fs.readdirSync(OUT).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().slice(-2) : [];
     return days.flatMap(d => fs.readdirSync(path.join(OUT, d)).filter(n => meta.has(n)).map(n => ({
       name: n, url: `/api/out/${d}/${encodeURIComponent(n)}`, mtime: fs.statSync(path.join(OUT, d, n)).mtimeMs, meta: meta.get(n),

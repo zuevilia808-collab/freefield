@@ -188,7 +188,8 @@ const hubLink = {
     const item = {id: uid(), type: kind, status: 'done', statusText: '', createdAt: meta.mtime || Date.now(), importedAt: Date.now(),
       prompt, userPrompt: prompt, finalPrompt: prompt, model: meta.appModel || `ext:${site}-${kind}`, tier: String(meta.appModel).startsWith('pol:') ? 'paid' : 'free',
       modelTitle: `${SITE_NAMES[site] || site}${meta.model ? ' · ' + meta.model : ''}${meta.label ? ' · ' + meta.label : ''}`,
-      seed: 0, cost: 0, source: 'text', aspect: meta.aspect || '16:9', w: d?.[0] || 1280, h: d?.[1] || 720, duration, blob, viaClaude: true, pcName: name};
+      seed: 0, cost: 0, source: 'text', aspect: meta.aspect || '16:9', w: d?.[0] || 1280, h: d?.[1] || 720, duration, blob, viaClaude: true, pcName: name,
+      ...(meta.siteProject && {siteProject: meta.siteProject})};   // «🌐 Ассеты для сайта» — метка проекта
     items.push(item);
     items.sort((a, b) => b.createdAt - a.createdAt);
     await DB.put(item);
@@ -232,7 +233,7 @@ const hubLink = {
       for (const it of b.items) {
         if (it.kind === '3d') { if (it.status === 'done') try { await this.importModel(b, it, got); } catch { /* в следующий раз */ } continue; }
         for (const f of it.files || []) {
-        try { await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: b.created}, got); } catch { /* попробуем в следующий раз */ }
+        try { await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: b.created, siteProject: b.siteProject}, got); } catch { /* попробуем в следующий раз */ }
         }
       }
     }

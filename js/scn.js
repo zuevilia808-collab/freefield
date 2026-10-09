@@ -344,7 +344,7 @@ async function refToScenario(blob) {
 }
 function setCreateMode(m) {
   const prev = cl.mode;
-  cl.mode = ['scn', 'write', 'chars', '3d', 'edit', 'voice'].includes(m) ? m : 'one';
+  cl.mode = ['scn', 'write', 'chars', '3d', 'edit', 'voice', 'site'].includes(m) ? m : 'one';
   if (prev === 'edit' && cl.mode !== 'edit') mtPause();
   if (cl.mode === 'scn' && prev !== 'scn') { const t = scnTrim(cl.scn); if (t.length !== cl.scn.length) { cl.scn = t; cl.sel = null; cl.save(); } }
   ls.set('freefield.create.cm', cl.mode);
@@ -357,6 +357,7 @@ function setCreateMode(m) {
   else if (cl.mode === '3d') renderM3dPanel();
   else if (cl.mode === 'edit') renderMt();
   else if (cl.mode === 'voice') renderEcho();
+  else if (cl.mode === 'site') { renderSite(); siteRefresh(); }
   else setAssetSvc(asset.svc);
   styleSync();
   updateGenButton();
@@ -374,4 +375,4 @@ async function scnGo(own) {
   return (await hubReady()) ? clSend(own) : scnPhone(own);
 }
 // большая кнопка «Создать»: в каждой вкладке — своё действие
-function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'voice' ? echoEnsure() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : assetGo(); }
+function createGo() { return cl.mode === 'chars' ? vcOpenChar(null, 'chars') : cl.mode === '3d' ? m3dGo() : cl.mode === 'edit' ? mtGo() : cl.mode === 'voice' ? echoEnsure() : cl.mode === 'site' ? siteGo() : cl.mode === 'scn' ? scnGo() : cl.mode === 'write' ? writeGo() : assetGo(); }

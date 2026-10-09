@@ -365,6 +365,7 @@ const SERVER_OPTS = {
     'Долгие задачи возвращают job_id — дождись результата через check_job. ' +
     'Бесплатно и в лучшем качестве — через сайты под аккаунтом пользователя: flow_video / flow_image (Google Flow), arena_video (Arena, 2 видео за раз), dola_image (Dola). ' +
     'Несколько сценариев сразу — batch_generate: он сам разложит их по сервисам. Задания с телефона — phone_tasks, подключить телефон — phone_link. ' +
+    'Картинки для сайта по чужим образцам — site_tasks (порядок работы — в его описании), итог — site_task_update. ' +
     'Рабочий порядок: пользователь пишет сценарии в чат — сразу перепиши каждый в подробный английский промпт и запусти batch_generate (для картинок по умолчанию ' +
     'Nano Banana 2.1 во Flow и Seedream 5.0 в Dola — без кредитов), не переспрашивай по мелочам. Прислал фото в чат — вызови chat_photos, получи путь и передай его ' +
     'как image_path: для видео — оживить фото (Arena), для картинки — сделать по референсу (Flow / Dola). Готовые файлы сами появляются в галерее приложения ' +
@@ -794,16 +795,24 @@ server.registerTool('batch_generate', {
       image_path: z.string().optional().describe('Фото-референс: для видео — оживить его (Arena), для картинки — сделать по нему (Flow Nano Banana 2 / Dola / Arena). Фото из чата — через chat_photos.'),
       image_paths: z.array(z.string()).max(4).optional().describe('Несколько фото-референсов: Flow берёт все как «ингредиенты», Dola и Arena — первое'),
     })).min(1).max(10),
+    site_task: z.string().optional().describe('id задания из site_tasks («🌐 Ассеты для сайта»): готовые картинки попадут в галерею с меткой «🌐 Сайт: <проект>»'),
   },
   annotations: {readOnlyHint: false, openWorldHint: true},
-}, async ({scenarios}, extra) => {
+}, async ({scenarios, site_task}, extra) => {
   try {
     for (const s of scenarios) {
       if (s.image_path) { readLocalImage(s.image_path); s.image_path = path.resolve(s.image_path); }
       if (s.image_paths) s.image_paths = s.image_paths.map(p => { readLocalImage(p); return path.resolve(p); });
     }
   } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
-  const batch = await startBatch(scenarios, 'claude');
+  let siteExtra = {};
+  if (site_task) {
+    const {siteProject} = await import('./site.js');
+    const name = siteProject(site_task);
+    if (!name) return {isError: true, content: [{type: 'text', text: `Нет задания ${site_task} — возьми id из site_tasks`}]};
+    siteExtra = {siteTask: site_task, siteProject: name};
+  }
+  const batch = await startBatch(scenarios, 'claude', siteExtra);
   const job = startJob('batch', async status => {
     status(progressLine(batch.items));
     const t = setInterval(() => status(progressLine(batch.items)), 3000);
@@ -1033,6 +1042,76 @@ server.registerTool('phone_tasks', {
   if (!list.length) return {content: [{type: 'text', text: 'Пакетов пока не было. Телефон подключается инструментом phone_link.'}]};
   return {content: [{type: 'text', text: list.map(b => `${b.source === 'phone' ? '📱 С телефона' : '🤖 От Claude'} · ${new Date(b.created).toLocaleString('ru')} · ${b.done ? 'завершён' : 'идёт'} · ${b.id}\n` +
     B.summary(b.items)).join('\n\n')}]};
+});
+
+// «🌐 Ассеты для сайта»: задания из приложения ждут Claude здесь
+const SITE_FLOW = `ПОРЯДОК РАБОТЫ с каждым исходником (соблюдай всегда, в любом чате):
+1. Посмотри картинку (она в ответе; путь — в поле file) и коротко разбери: что изображено, зачем это на сайте, композиция, цвета, свет, настроение, стиль.
+2. Обязательно измени:
+   • людей — новые лица и внешность, никаких узнаваемых реальных людей;
+   • предметы и детали — другие, той же категории;
+   • композицию и ракурс — заметно другие (если composition=true — расположение можно повторить, но всё остальное всё равно меняется);
+   • цвета — под палитру проекта (colors, «Стиль и цвета»);
+   • убери любые надписи, логотипы, бренды, водяные знаки, известных персонажей и узнаваемые товары.
+3. Промпт пиши с нуля на английском по своему разбору (учти «Что сохранить» — keep, «О чём сайт» и стиль проекта). Исходник в генерацию НЕ передавай. Исключение: composition=true — тогда он идёт как референс image_path, но промпт всё равно требует изменений из пункта 2.
+4. Генерируй через batch_generate бесплатно, с site_task=<id задания>: Flow (service="flow", model nano-banana-2.1) и Dola (service="dola", Seedream 5.0) параллельно, count — сколько вариантов просили. Формат по роли:
+   • hero (главный баннер) — 16:9 (+ мобильная версия 3:4, если об этом просили в keep);
+   • bg (фон) — 16:9, спокойный, с местом под текст;
+   • card (карточка) и product (фото товара) — 4:3 или 1:1;
+   • icon (иконка / иллюстрация) — 1:1 на однотонном фоне;
+   • other — по смыслу.
+5. Сравни результат с исходником. Слишком похоже — перегенерируй с более сильными отличиями. Не переписывай промпты ради обхода отказов сервисов (защита образа и т. п.) — такое задание просто отметь ошибкой.
+6. Вызови site_task_update: status, message (коротко по-русски для пользователя) и по каждому исходнику analysis (разбор) и prompts (английские промпты, по которым генерировал).
+Сначала вызови site_tasks с take=true — задания перейдут в «в работе», и пользователь это увидит.`;
+server.registerTool('site_tasks', {
+  title: 'Ассеты для сайта: задания',
+  description: 'Задания раздела «🌐 Ассеты для сайта» приложения Freefield со статусом «ждёт Claude». Пользователь находит в интернете чужие картинки (баннеры, фоны, фото, ' +
+    'иллюстрации, скриншоты сайтов) — это только образцы: они защищены авторским правом, копировать их нельзя. По каждому нужно сделать НОВУЮ оригинальную картинку ' +
+    'для его сайта: то же настроение и та же роль на странице, но заметно другие люди, детали и композиция. В ответе: общие поля проекта и по каждому исходнику — ' +
+    'абсолютный путь к файлу, роль, «что сохранить», число вариантов, флаг композиции и сама картинка.\n' + SITE_FLOW,
+  inputSchema: {
+    take: z.boolean().default(false).describe('true — забрать задания в работу (статус «в работе»)'),
+    id: z.string().optional().describe('Одно задание по id (в любом статусе) — например, чтобы доделать'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({take, id}) => {
+  const {siteTasks, SITE_ROLES, SITE_STATUS} = await import('./site.js');
+  const list = siteTasks({take, id});
+  if (!list.length) return {content: [{type: 'text', text: id ? `Задания ${id} нет.` : 'Заданий «ждёт Claude» нет. Пользователь создаёт их в приложении Freefield: «Создать» → «🌐 Ассеты для сайта» → «Отправить Claude».'}]};
+  const content = [];
+  for (const t of list) {
+    const P = t.project;
+    content.push({type: 'text', text: [`ЗАДАНИЕ ${t.id} · ${SITE_STATUS[t.status]} · ${new Date(t.created).toLocaleString('ru')}`,
+      `Проект: ${P.name}`, `О чём сайт: ${P.about}`, `Стиль и цвета: ${P.style || '—'}${P.colors.length ? ` · палитра ${P.colors.join(', ')}` : ''}`].join('\n')});
+    for (const s of t.sources) {
+      content.push({type: 'text', text: [`Исходник ${s.n}: ${s.file}`, `  роль: ${s.role} (${SITE_ROLES[s.role]})`, `  что сохранить: ${s.keep || '—'}`,
+        `  вариантов: ${s.count}`, `  composition: ${s.composition ? 'true — можно повторить расположение, исходник можно дать как image_path' : 'false — исходник в генерацию не передавать'}`].join('\n')});
+      try { content.push(...(await previewItem({buf: fs.readFileSync(s.file), mime: /\.png$/i.test(s.file) ? 'image/png' : /\.webp$/i.test(s.file) ? 'image/webp' : 'image/jpeg'}))); } catch {}
+    }
+  }
+  content.push({type: 'text', text: SITE_FLOW});
+  return {content};
+});
+
+server.registerTool('site_task_update', {
+  title: 'Ассеты для сайта: итог',
+  description: 'Записывает итог задания «🌐 Ассеты для сайта» — пользователь видит его в карточке задания в приложении Freefield. ' +
+    'status: working (в работе) | done (готово) | error (ошибка, например сервис отказал из-за защиты образа). message — коротко по-русски для пользователя: что сделано, что не вышло. ' +
+    'sources — по каждому исходнику: n, analysis (разбор исходника по-русски) и prompts (английские промпты, по которым генерировал). Картинки сами придут в галерею, если batch_generate вызван с site_task.',
+  inputSchema: {
+    id: z.string(),
+    status: z.enum(['working', 'done', 'error']),
+    message: z.string().max(4000).optional(),
+    sources: z.array(z.object({n: z.number().int().min(1).max(10), analysis: z.string().max(3000).optional(), prompts: z.array(z.string().max(2500)).max(8).optional(),
+      note: z.string().max(600).optional().describe('короткая пометка по этому исходнику, например почему не вышло')})).max(10).optional(),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async args => {
+  try {
+    const {siteUpdate, SITE_STATUS} = await import('./site.js');
+    const t = siteUpdate(args);
+    return {content: [{type: 'text', text: `Задание ${t.id}: ${SITE_STATUS[t.status]}. Пользователь увидит это в приложении.`}]};
+  } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
 });
 
 server.registerTool('phone_link', {
