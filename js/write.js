@@ -2,9 +2,13 @@
 /* ---- «Сценарии»: ИИ пишет сценарии рилсов по инфографике (о чём ролик) и развёртке героя (как он выглядит) ---- */
 // Кто пишет — модуль выбора ИИ: Claude (ключ Anthropic, платно — лучший сценарист), Gemini (бесплатный ключ Google)
 // или «ИИ в чате» (задание копируется в буфер — для Gemini, Claude, ChatGPT). Dola убрана по просьбе пользователя (2026-09-26): пишет слабо.
+// «Claude (подписка)» и «Бесплатный ИИ» — пользователь 2026-10-09: «AI Studio постоянно проблемы с ключом… у меня подписка есть»,
+// «Freefield отдаёт задание в Claude Code, сценарий идёт куда надо». Подписка — через программу Freefield на компьютере (Claude Code)
 const WRITERS = {
+  sub: {name: 'Claude (подписка)', ico: '✳', color: 'linear-gradient(135deg,#d97757,#7c3aed)', what: 'Пишет Claude Code на вашем компьютере — по подписке Claude, без ключа и доплат'},
   claude: {name: 'Claude', ico: '✳', color: 'linear-gradient(135deg,#e08a64,#b1532f)', what: 'Лучший сценарист. Платно — с вашего счёта Anthropic, обычно центы за раз'},
   gemini: {name: 'Gemini', ico: '✦', color: 'linear-gradient(135deg,#4285f4,#9b72cb,#d96570)', what: 'Пишет очень хорошо, бесплатно — нужен бесплатный ключ Google'},
+  free: {name: 'Бесплатный ИИ', ico: '◌', color: 'linear-gradient(135deg,#64748b,#334155)', what: 'Без ключа и регистрации (Pollinations). Пишет слабее и не видит картинки — запасной вариант'},
   chat: {name: 'ИИ в чате', ico: '💬', color: 'linear-gradient(135deg,#7c5cff,#4c1d95)', what: 'Без ключа — скопируется ваш эталонный промпт и просьба написать сценарии; вставьте в чат с Gemini, Claude или ChatGPT'},
 };
 const CLAUDE_MODELS = [['claude-opus-5-5', 'Opus 5.5 — самый сильный'], ['claude-sonnet-5', 'Sonnet 5 — быстрее и дешевле']];
@@ -93,7 +97,9 @@ function wrCharCheck() {
   if (!c.sheet && wr.sheet) { c.sheet = wr.sheet; vc.saveChars(); }
   else if (c.sheet !== wr.sheet) wr.char = null;
 }
-const writerAuto = () => wallet.anthropic ? 'claude' : wallet.gemini ? 'gemini' : 'chat';
+// ИИ готов писать прямо сейчас: подписка — нужна программа на компьютере с Claude Code, Claude и Gemini — ключ
+const writerReady = id => id === 'sub' ? !!(hubLink.ok && hubHas('claude')) : id === 'claude' ? !!wallet.anthropic : id === 'gemini' ? !!wallet.gemini : !!WRITERS[id];
+const writerAuto = () => ['sub', 'claude', 'gemini', 'free'].find(writerReady);
 const writerNow = () => WRITERS[wr.ai] ? wr.ai : writerAuto();
 
 // заполненный эталон: каждый блок — с новой строки «Подпись: …» (ИИ иногда пишет всё в одну строку, с **жирным** или в ```)
@@ -272,8 +278,58 @@ async function writeClaude(sys, user, media) {
   }
   return {text: (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n'), cut: j.stop_reason === 'max_tokens', by: 'Claude ' + (CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1].split(' — ')[0] || wr.claudeModel)};
 }
-// ИИ-писатель для «Сценариев», «Серии» и ИИ-монтажёра: who — 'claude' или 'gemini'
-const aiWrite = (who, sys, user, media) => who === 'claude' ? writeClaude(sys, user, media) : writeGemini(sys, user, media);
+// ИИ-писатель для «Сценариев», «Серии» и ИИ-монтажёра: who — 'sub', 'claude', 'gemini' или 'free'
+const aiWrite = (who, sys, user, media) => ({sub: writeSub, claude: writeClaude, free: writeFree}[who] || writeGemini)(sys, user, media);
+// задание с картинками: [подпись, data URL] — свои (ИИ-монтажёр) или ячейки «Сценариев»
+const wrMedia = media => media || [['IMAGE 1 — INFOGRAPHIC:', wr.info], ['IMAGE 2 — CHARACTER TURNAROUND SHEET:', wr.sheet],
+  ...wr.locs.slice(0, wr.count).map((d, i) => [`IMAGE ${i + 3} — CHARACTER IN LOCATION (scenario ${i + 1}):`, d])];
+// картинка для Claude Code: jpeg/png/webp/gif до ~4 МБ; видео и прочее — кадром нельзя, пропускаем
+async function wrImg(d) {
+  if (/^data:image\/(png|jpeg|webp|gif);base64,/.test(d || '') && d.length < 5.2e6) return d;
+  if (!/^data:image\//.test(d || '')) return null;
+  const im = new Image(); im.src = d; await im.decode();
+  const k = Math.min(1, 2000 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+  c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.88);
+}
+// Claude по подписке: задание уходит в программу Freefield на компьютере, там его пишет Claude Code; ответ — сюда же
+async function writeSub(sys, user, media) {
+  if (!await hubReady() || !hubHas('claude')) throw new Error(hubLink.ok ? 'на компьютере нет Claude Code или программа Freefield старая — обновите её (🔌 MCP)' : 'компьютер с программой Freefield не отвечает — откройте Freefield на компьютере');
+  const content = [];
+  for (const [t, d] of wrMedia(media)) { const img = await wrImg(d).catch(() => null); content.push({type: 'text', text: t}); if (img) content.push({type: 'image', data: img}); }
+  content.push({type: 'text', text: user});
+  const model = /sonnet/.test(wr.claudeModel) ? 'sonnet' : 'opus';
+  const r = await fetch(hubLink.url('/api/write'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({system: sys, content, model})});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
+  for (let t = 0; t < 900; t++) {   // до получаса: 10 сценариев Opus пишет минуты 2–5, задания идут по одному
+    await sleep(t ? 2000 : 1500);
+    const s = await (await fetch(hubLink.url('/api/write/' + j.id))).json().catch(() => null);
+    if (!s) continue;
+    if (s.status === 'error' || s.error) throw new Error(s.error || 'Claude Code не ответил');
+    if (s.status === 'done') return {text: s.text, cut: s.cut, by: `Claude ${s.model === 'sonnet' ? 'Sonnet' : 'Opus'} (подписка)`};
+  }
+  throw new Error('Claude Code не ответил за полчаса');
+}
+// без ключа: Pollinations (анонимно — только текст, картинки ИИ не видит: даём ему подписи и просим держаться задания)
+async function writeFree(sys, user, media) {
+  const pics = wrMedia(media).map(([t]) => t).join('\n');
+  const body = JSON.stringify({model: 'openai', messages: [{role: 'system', content: sys}, {role: 'user', content:
+    `${pics ? `(The images below were attached but you cannot see them — write from the text, keep the character and places generic and consistent:\n${pics})\n\n` : ''}${user}`}]});
+  let r, last = '';
+  for (const pause of [4000, 16000, 0]) {   // анонимный доступ — не чаще раза в 15 с; занят — подождать и повторить
+    r = await timedFetch('https://text.pollinations.ai/openai', {method: 'POST', headers: {'Content-Type': 'application/json'}, body}, 300000).catch(e => ({ok: false, status: 0, e}));
+    if (r.ok) break;
+    last = r.status ? `ответ ${r.status}` : 'нет связи';
+    if (!pause || r.status && r.status < 429 && r.status !== 402) break;
+    await sleep(pause);
+  }
+  if (!r.ok) throw new Error(`бесплатный ИИ сейчас не отвечает (${last}) — попробуйте через минуту или выберите другой ИИ`);
+  const j = await r.json().catch(() => ({})), ch = j.choices?.[0];
+  if (!ch?.message?.content) throw new Error('бесплатный ИИ вернул пустой ответ — попробуйте ещё раз');
+  return {text: ch.message.content, cut: ch.finish_reason === 'length', by: 'Бесплатный ИИ (Pollinations)'};
+}
 async function writeGemini(sys, user, media) {
   const part = d => { const x = b64(d); return {inline_data: {mime_type: x.mime, data: x.data}}; };
   const req = {systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: media ? [...media.flatMap(([t, d]) => [{text: t}, part(d)]), {text: user}] : [
@@ -325,6 +381,7 @@ async function writeGo() {
     return peekShow('Сценарии', {prompts: who === 'chat' ? [['Задание для ИИ в чате (копируется)', chat]] : [['Системный промпт', sys], ['Задание (вместе с картинками)', typeof user === 'string' ? user : JSON.stringify(user, null, 2)]],
       request: {ИИ: who === 'chat' ? 'ИИ в чате' : WRITERS[who]?.name, картинки: {инфографика: wr.info || null, развёртка: wr.sheet || null, кадры_в_локациях: wr.locs || []}, сценариев: wr.count}});
   }
+  if (['auto', 'sub'].includes(wr.ai) && !hubLink.ok) await hubReady().catch(() => false);
   if (wrNeedKey()) { openKeys(); return geminiOpen(); }   // ключ вставляется в «Настройках» — они уже открыты, когда вернётесь из AI Studio
   // кадры «персонаж в локации» обязательны при любом ИИ: сколько сценариев, столько кадров (пользователь 2026-09-27)
   const pics = writerNow() === 'chat' ? [] : ['info', 'sheet'].filter(k => !wr[k]), gap = wrLocGap();
@@ -345,11 +402,12 @@ async function writeGo() {
     // ИИ в чате: ответом будут только заполненные эталонные промпты, каждый в своём блоке
     return toast(await clCopyText(chat) ? `Скопировано: эталонный промпт и просьба написать ${wr.count} ${plur(wr.count, 'сценарий', 'сценария', 'сценариев')} — вставьте в чат с ИИ и приложите инфографику, развёртку и ${wr.count} ${plur(wr.count, 'кадр', 'кадра', 'кадров')} в локациях по порядку` : 'Не удалось скопировать', {type: 'ok', ms: 10000});
   }
-  if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) {
+  if (!writerReady(who)) {
+    if (who === 'sub') return toast('«Claude (подписка)» пишет через программу Freefield на компьютере — откройте Freefield на компьютере или выберите другой ИИ', {type: 'err', ms: 8000});
     toast(`Вставьте ключ ${WRITERS[who].name} — или выберите другой ИИ`, {type: 'err'});
     return openKeys();
   }
-  wr.busy = true; wr.note = `${WRITERS[who].name} читает картинки и пишет сценарии…`;
+  wr.busy = true; wr.note = who === 'free' ? 'Бесплатный ИИ пишет сценарии (картинки он не видит)…' : `${WRITERS[who].name} читает картинки и пишет сценарии…`;
   renderWriteNote(); updateGenButton();
   try {
     const {r, list} = await writeRun();
@@ -366,9 +424,11 @@ async function writeGo() {
 
 // сам ИИ-сценарист: задание из нынешних ячеек «Сценариев» → Claude или Gemini → сценарии с голосом героя
 async function writeRun() {
+  if (['auto', 'sub'].includes(wr.ai) && !hubLink.ok) await hubReady().catch(() => false);
   const who = writerNow(), {sys, user} = writeBrief();
-  if (who === 'chat') throw new Error('ИИ для сценариев не подключён — подключите бесплатный Gemini в «Сценариях»');
-  if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) throw new Error(`нет ключа ${WRITERS[who].name} — вставьте его в «Сценариях»`);
+  if (who === 'chat') throw new Error('в «Сценариях» выбран «ИИ в чате» — он сам не пишет; выберите «⚡ Авто»');
+  if (who === 'sub' && !writerReady(who)) await hubReady();
+  if (!writerReady(who)) throw new Error(who === 'sub' ? 'компьютер с программой Freefield и Claude Code не отвечает' : `нет ключа ${WRITERS[who].name} — вставьте его в «Сценариях»`);
   const r = await aiWrite(who, sys, user);
   const list = parseScenarios(r.text, r.code), voice = wrVoice();
   if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
@@ -510,7 +570,9 @@ function renderWriteNote() {
   if (el) el.innerHTML = wr.busy ? `<div class="wr-note">⏳ ${esc(wr.note)}</div>` : '';
 }
 function writerState(id) {
+  if (id === 'sub') return writerReady(id) ? ['ok', '✓ компьютер подключён'] : ['no', hubLink.ok ? 'обновите программу на компьютере' : 'нужен Freefield на компьютере'];
   if (id === 'claude') return wallet.anthropic ? ['ok', '✓ ключ есть'] : ['no', 'нужен ключ'];
+  if (id === 'free') return ['ok', '✓ без ключа'];
   if (id === 'gemini') return wallet.gemini ? ['ok', '✓ ключ есть'] : ['no', 'нужен ключ'];
   return ['ok', '✓ всегда доступно'];
 }
@@ -522,6 +584,10 @@ function renderWriteAi() {
   const tile = id => { const w = WRITERS[id], [c, t] = writerState(id);
     return `<button class="wr-ai ${wr.ai === id ? 'on' : ''}" data-wai="${id}"><b><span class="mc-ico" style="background:${w.color}">${esc(w.ico)}</span>${w.name}</b>${w.what}<i class="${c}">${t}</i></button>`; };
   const setup = {
+    sub: `${CLAUDE_MODELS.length ? `<select data-wmodel aria-label="Модель Claude">${CLAUDE_MODELS.map(([v, t]) => `<option value="${v}" ${wr.claudeModel === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
+      ${writerReady('sub') ? '✓ Задание уходит в Claude Code на компьютере, сценарии возвращаются сюда сами. Без доплат — в пределах лимитов вашей подписки Claude.'
+        : hubLink.ok ? 'Программа Freefield на компьютере не видит Claude Code или старая — обновите её (🔌 MCP → обновить) и перезапустите Claude.' : 'Работает, когда Freefield открыт на компьютере с Claude (или телефон связан с ним по QR).'}`,
+    free: 'Без ключа и регистрации. Картинки этот ИИ не видит — пишет по тексту задания, поэтому слабее Claude и Gemini. Запасной вариант, когда остальные недоступны.',
     claude: `${CLAUDE_MODELS.length ? `<select data-wmodel aria-label="Модель Claude">${CLAUDE_MODELS.map(([v, t]) => `<option value="${v}" ${wr.claudeModel === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
       ${wallet.anthropic ? '✓ Ключ Claude есть — оплата с вашего счёта Anthropic за каждый сценарий.' : '<button class="btn small free" data-keys-open>🔑 Вставить ключ Claude — в «Настройках»</button>'}`,
     gemini: wallet.gemini ? '✓ Ключ Gemini есть — пишет Gemini Flash, бесплатно.' : '<button class="btn small free" data-keys-open>🔑 Подключить Gemini — в «Настройках», бесплатно</button>',
@@ -529,7 +595,7 @@ function renderWriteAi() {
   };
   el.innerHTML = `
     <div class="block-head" style="margin-top:14px"><span class="lbl">Кто пишет сценарий</span><span class="hint">${wr.ai === 'auto' ? 'сейчас: ' + WRITERS[who].name : ''}</span></div>
-    <div class="wr-ais"><button class="wr-ai auto ${wr.ai === 'auto' ? 'on' : ''}" data-wai="auto"><b>⚡ Авто</b>Лучший из доступных: Claude → Gemini → ИИ в чате</button>
+    <div class="wr-ais"><button class="wr-ai auto ${wr.ai === 'auto' ? 'on' : ''}" data-wai="auto"><b>⚡ Авто</b>Лучший из доступных: Claude по подписке → Claude по ключу → Gemini → бесплатный</button>
       ${Object.keys(WRITERS).map(tile).join('')}</div>
     <div class="wr-setup" id="wrSetup">${wrNeedKey() ? '<div class="wr-lead">✨ <b>Чтобы ИИ писал сценарии прямо здесь</b> — подключите Gemini: бесплатно, один раз, около минуты.</div><button class="btn free" data-keys-open>🔑 Подключить Gemini</button>' +
       '<div class="hint" style="margin-top:6px">Без ключа — выберите «ИИ в чате»: задание скопируется, и вставите его в чат с ИИ.</div>' : setup[who]}</div>`;

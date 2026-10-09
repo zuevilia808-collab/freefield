@@ -38,7 +38,11 @@ await suite('интерфейс: разделы, верхняя полоса, п
     // ключи — только в «Настройках»: кнопка в «Сценариях» ведёт туда
     await p.evaluate(() => setCreateMode('write')); await sleep(300);
     t.ok(!await p.locator('#writeCreate [data-wkey-in]').count(), `${dev}: в «Сценариях» нет поля ключа`);
+    // без ключей и без компьютера «Авто» пишет бесплатным ИИ; кнопка ключа — у выбранного Gemini
+    t.ok(await p.evaluate(() => writerNow() === 'free' && !writerReady('sub')), `${dev}: без ключей «Авто» — бесплатный ИИ`);
+    await p.evaluate(() => { wr.ai = 'gemini'; renderWriteAi(); });
     await p.locator('#writeCreate [data-keys-open]').first().click(); await sleep(300);
+    await p.evaluate(() => { wr.ai = 'auto'; renderWriteAi(); });
     t.ok(await p.evaluate(() => !$('#settingsSheet').classList.contains('hidden')), `${dev}: «Подключить Gemini» открывает «Настройки»`);
     await p.evaluate(() => closeSheets());
     // пустая галерея: три шага

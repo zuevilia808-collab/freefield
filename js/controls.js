@@ -46,7 +46,9 @@ function updateGenButton() {
       : who === 'chat' ? `📋 Скопировать задание: ${wr.count} ${plur(wr.count, 'сценарий', 'сценария', 'сценариев')}`
       : `✍️ Написать ${wr.count} ${plur(wr.count, 'сценарий', 'сценария', 'сценариев')}`;
     $('#genSub').textContent = who === 'chat' ? 'скопировать' : WRITERS[who].name;
-    $('#etaLine').textContent = who === 'claude' ? `${CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1] || wr.claudeModel} · платно, с вашего счёта Anthropic${wallet.anthropic ? '' : ' · нужен ключ'}`
+    $('#etaLine').textContent = who === 'sub' ? `Claude Code на вашем компьютере · по подписке, без доплат${writerReady('sub') ? '' : ' · нужен Freefield на компьютере'}`
+      : who === 'free' ? 'Бесплатный ИИ без ключа · картинки не видит, пишет слабее'
+      : who === 'claude' ? `${CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1] || wr.claudeModel} · платно, с вашего счёта Anthropic${wallet.anthropic ? '' : ' · нужен ключ'}`
       : who === 'gemini' ? 'Gemini · бесплатно по вашему ключу Google'
       : 'Скопирую эталонный промпт и просьбу написать сценарии — вставьте в чат с ИИ (Gemini, Claude, ChatGPT)';
     return;

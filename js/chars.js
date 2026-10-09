@@ -790,11 +790,10 @@ function charNeeds(c, mineFrames = 0, prep = false) {
   if (!c.sheet && !(prep && c.photo)) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ser-fix>🧍 добавить</button>${prep ? '<button class="wr-link" data-ser-photo>📷 есть только фото — развёртку и инфографику сделает серия</button>' : ''}`]);
   if (!c.info && !(prep && (c.photo || c.sheet))) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ser-fix>📊 добавить</button>`]);
   if (mineFrames > (c.locs?.length || 0)) out.push([`кадров «в локации» у персонажа ${c.locs?.length || 0}, а видео — ${mineFrames}`, '<button class="wr-link" data-ser-frames="new">🖼 пусть Flow сделает новые</button>']);
-  const who = writerNow(), gem = '<button class="wr-link" data-keys-open>🔑 подключить Gemini — бесплатно</button>';
-  if (who === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Сценариях» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']
-    : ['ИИ для сценариев не подключён', gem]);
-  else if (who === 'gemini' && !wallet.gemini || who === 'claude' && !wallet.anthropic)   // выбран ИИ, а ключ удалён
-    out.push([`выбран ${WRITERS[who].name}, но его ключа нет`, wallet.gemini || wallet.anthropic ? '<button class="wr-link" data-ser-auto>⚡ взять ИИ с ключом</button>' : gem]);
+  const who = writerNow();
+  if (who === 'chat') out.push(['в «Сценариях» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']);
+  else if (!writerReady(who) && who !== 'sub')   // выбран ИИ, а ключ удалён; подписку проверит сама серия — компьютер может ответить чуть позже
+    out.push([`выбран ${WRITERS[who].name}, но его ключа нет`, '<button class="wr-link" data-ser-auto>⚡ взять доступный ИИ</button>']);
   return out;
 }
 

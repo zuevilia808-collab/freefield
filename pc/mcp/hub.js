@@ -215,6 +215,14 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           res.writeHead(200, {'Content-Type': 'audio/wav', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
           return fs.createReadStream(file).pipe(res);
         }
+        // «Claude (подписка)»: сценарии пишет Claude Code этого компьютера; ход — GET /api/write/<id>
+        if (url.pathname === '/api/write' && req.method === 'POST' && api.writeStart) {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 60e6) return send(413, {error: 'слишком большие картинки — уменьшите их'}); }
+          try { return send(200, await api.writeStart(JSON.parse(body || '{}'))); } catch (e) { return send(400, {error: e.message}); }
+        }
+        const wj = url.pathname.match(/^\/api\/write\/([0-9a-f]{16})$/);
+        if (wj && req.method === 'GET' && api.writeGet) { const j = await api.writeGet(wj[1]); return j ? send(200, j) : send(404, {error: 'нет такого задания — программу перезапускали?'}); }
         if (url.pathname === '/api/outputs' && req.method === 'GET') return send(200, await api.outputs());
         if (url.pathname === '/api/sync' && req.method === 'POST') return send(200, await api.sync());
         const m = url.pathname.match(/^\/api\/file\/([\w-]+)\/(\d+)\/(\d+)$/);

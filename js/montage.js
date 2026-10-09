@@ -1354,7 +1354,7 @@ $('#mtSheet').addEventListener('click', async e => {
    ИИ видит описания клипов и кадр из середины каждого; вложенное видео Gemini получает целиком, Claude — кадрами ---- */
 const MT_QUICK = ['Напиши сценарий по вложениям', 'Собери ролик из клипов проекта', 'Обрежь лишнее в начале и в конце клипов', 'Сделай плавные переходы', 'Добавь титры'];
 const MT_PROMPTS_ASK = 'Сделай по этому сценарию промпты для видео — по одному на каждый клип';
-const mtWho = () => wr.ai === 'gemini' && wallet.gemini ? 'gemini' : wr.ai === 'claude' && wallet.anthropic ? 'claude' : wallet.anthropic ? 'claude' : wallet.gemini ? 'gemini' : null;
+const mtWho = () => { const w = writerNow(); return w && w !== 'chat' && writerReady(w) ? w : writerAuto() || null; };
 mt.att = [];   // вложения к следующему сообщению: {k, kind: 'image' | 'video', name, blob, thumb, prompt?}
 // кадры из видео в моменты at (доли длины) — для Claude и для миниатюр
 function mtGrab(blob, at = [0.5], max = 512) {
@@ -1482,11 +1482,12 @@ async function mtAsk(text, dry) {
   const p = mtProj();
   text = String(text || '').trim() || (dry ? '(ваше сообщение)' : mt.att.length ? 'Напиши сценарий по вложениям' : '');
   if (!text) return toast('Напишите, что сделать с роликом', {type: 'err'});
+  if (['auto', 'sub'].includes(wr.ai) && !hubLink.ok) await hubReady().catch(() => false);
   const who = mtWho();
   if (dry) {
     const {sys, user, media} = await mtBrief(p, text, who, false);
     return peekShow('ИИ-монтажёр', {prompts: [['Системный промпт', sys], ['Сообщение (вместе с вложениями и кадрами клипов)', user]],
-      request: {ИИ: who ? WRITERS[who].name : 'нет ключа — Gemini (бесплатно) или Claude', вложения_и_кадры: media.map(m => m[0]), отправка: who === 'claude' ? 'api.anthropic.com/v1/messages' : 'generativelanguage.googleapis.com (Gemini)'}});
+      request: {ИИ: who ? WRITERS[who].name : 'нет ключа — Gemini (бесплатно) или Claude', вложения_и_кадры: media.map(m => m[0]), отправка: {sub: 'Claude Code на компьютере (подписка)', claude: 'api.anthropic.com/v1/messages', free: 'text.pollinations.ai'}[who] || 'generativelanguage.googleapis.com (Gemini)'}});
   }
   if (!who) return mtNeedKey();
   if (mt.busy) return;
