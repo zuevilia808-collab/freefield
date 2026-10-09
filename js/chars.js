@@ -1077,7 +1077,7 @@ async function serFramesWait(j, c) {
 }
 // 3. видео: кадр + развёртка + голос персонажа; «Видео» пользователя не трогаем
 async function serVideoSend(j, c) {
-  const rows = j.rows.filter(r => r.frame && !r.skip);
+  const rows = j.rows.filter(r => r.frame && !r.skip && r.vstate !== 'done');
   if (!rows.length) return serFail(j, 'нет ни одного сценария с кадром');
   j.hub = await hubReady();
   const res = await scnGo(rows.map(r => ({...blankScn(), kind: 'video', prompt: fillBlocks(r.video_prompt), aspect: '9:16', fixed: true, service: j.service === 'auto' ? 'auto' : 'flow',
@@ -1090,7 +1090,7 @@ async function serVideoSend(j, c) {
   serNote(j, j.hub ? 'Компьютер делает видео…' : 'Карточки видео — в галерее: «Создать» на сайте и загрузите результат в карточку');
 }
 async function serVideoWait(j, c) {
-  const rows = j.rows.filter(r => r.frame && !r.skip && r.vidx != null);
+  const rows = j.rows.filter(r => r.frame && !r.skip && r.vidx != null && !(r.vstate === 'done' && r.vfiles));   // готовые с прошлой попытки — не трогаем
   for (const r of rows) {
     if (j.hub) {
       const it = serHubItem(j.sentVideos, null, r.vidx, j.vsent, 'video');
@@ -1109,6 +1109,9 @@ async function serVideoWait(j, c) {
   }
   const done = rows.filter(r => r.vstate === 'done').length, left = rows.filter(r => r.vstate === 'queued').length;
   if (left) return serNote(j, `Видео: ${done} из ${rows.length}`);
+  // ни одного видео — это не «готово», а ошибка с «↻ Повторить» (раньше серия писала «✅ готова: 0 из 3»)
+  const all = j.rows.filter(r => !r.skip && r.vidx != null), ok = all.filter(r => r.vstate === 'done').length;
+  if (!ok) return serFail(j, `ни одно видео не вышло: ${rows.map(r => r.verr).filter(Boolean)[0] || 'ошибка сервисов'} — «↻ Повторить»`);
   if (j.voice === 'char' && c.sample && done) { j.stage = 'voice'; return serNote(j, ''); }
   serDone(j);
 }
@@ -1222,6 +1225,7 @@ function serJobHTML(j, c) {
     <div class="vc-foot">
       ${j.stage === 'done' ? `<button class="btn free" data-ser-zip>📦 Скачать всё</button><button class="btn" data-ser-caps>📋 Подписи к постам</button>${j.voice === 'char' && j.rows.some(r => r.vverr) ? '<button class="btn" data-ser-revoice>🎧 Повторить голос</button>' : ''}` : ''}
       ${j.stage === 'error' ? `<button class="btn free" data-ser-retry ${block.length ? 'disabled' : ''}>↻ Повторить</button>` : ''}
+      ${j.stage === 'done' && j.rows.some(r => !r.skip && r.frame && r.vstate === 'error') ? '<button class="btn free" data-ser-retry>↻ Повторить упавшие видео</button>' : ''}
       ${live ? `<button class="btn" data-ser-pause>${j.paused ? '▶ Продолжить' : '⏸ Пауза'}</button>` : ''}
       ${live && !j.hub && j.sentFrames ? '<button class="btn" data-ser-gallery>🖼 Карточки в галерее</button>' : ''}
       ${!live ? '<button class="btn" data-ser-new>＋ Новая серия</button>' : ''}
@@ -1259,9 +1263,9 @@ async function serClick(b) {
   if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
     if (serBlock(j, c).length) return renderVoices();
     const miss = j.rows?.filter(r => !r.frame && !r.skip);
-    Object.assign(j, {tries: 0, retryAt: 0}, j.failed === 'prep' ? {stage: 'prep', sentPrep: 0} : j.failed === 'locs' ? {stage: 'locs', sentLocs: 0} : j.failed === 'voice' ? {stage: 'voice'}
+    Object.assign(j, {tries: 0, retryAt: 0}, j.failed === 'prep' ? {stage: 'prep', sentPrep: 0} : j.failed === 'locs' ? {stage: 'locs', sentLocs: 0} : j.stage === 'done' || j.failed === 'video' ? {stage: 'video', sentVideos: 0} : j.failed === 'voice' ? {stage: 'voice'}
       : !j.rows?.length || j.failed === 'write' && j.rows.length < j.n ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
-    (j.rows || []).forEach(r => { r.err = null; Object.assign(r, {vverr: null, vwait: 0}); if (!j.sentVideos) Object.assign(r, {vstate: null, verr: null}); });
+    (j.rows || []).forEach(r => { r.err = null; Object.assign(r, {vverr: null, vwait: 0}); if (!j.sentVideos && r.vstate !== 'done') Object.assign(r, {vstate: null, verr: null}); });
     ser.save(); renderVoices(); return serKick();
   }
   if (b.hasAttribute('data-ser-del')) {
