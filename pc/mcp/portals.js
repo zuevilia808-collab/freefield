@@ -94,6 +94,13 @@ export const SITES = {
 
 // По одной вкладке на сервис: Freefield работает с ней, а лишние вкладки того же сайта закрывает.
 // Вкладки — только своего профиля Chrome (у каждого открытого профиля своё окно).
+// снимок вкладки сайта для журнала неполадок (самодиагностика, пользователь 2026-10-10: «где затупливаешь — введи самодиагностику»)
+export async function siteShot(site) {
+  try {
+    const page = (await profilePages()).find(p => p.url().includes(SITES[site].match) && !p.url().includes('accounts.google'));
+    return page ? await problemShot(page, site) : null;
+  } catch { return null; }
+}
 async function sitePage(site, front = true) {
   const cfg = SITES[site];
   const pages = await profilePages();
@@ -1050,7 +1057,7 @@ export const dolaVideo = o => siteSlot('dola', async () => {
     return dolaVideoRun(o);
   }
 });
-async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA_VIDEO_MODELS['seedance-2.5'], imagePath, onStatus, timeoutMs = 900000}) {
+async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA_VIDEO_MODELS['seedance-2.5'], imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
   const chat = await siteRun('dola', () => ui(async () => {
     onStatus('открываю новый чат Dola (видео)');
     const page = await sitePage('dola');
@@ -1465,7 +1472,7 @@ async function arenaImageRun({prompt, imagePath, onStatus, timeoutMs = 300000}) 
 }
 
 export const arenaVideo = o => siteSlot('arena', () => arenaRun(o));
-async function arenaRun({prompt, imagePath, onStatus, timeoutMs = 600000}) {
+async function arenaRun({prompt, imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
   const chat = await arenaStart({mode: 'Video', prompt, imagePath, onStatus, has: async page => (await arenaVideos(page)).length > 0});
   const t0 = Date.now();
   let vids = [], idle = 0;

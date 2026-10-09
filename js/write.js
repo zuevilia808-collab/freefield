@@ -408,10 +408,14 @@ async function writeSub(sys, user, media) {
   const r = await fetch(hubLink.url('/api/write'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({system: sys, content, model})});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
-  for (let t = 0; t < 900; t++) {   // до получаса: 10 сценариев Opus пишет минуты 2–5, задания идут по одному
+  // задания идут по одному: в очереди можно ждать, а само письмо дольше 12 минут — завис (обычно 1–5 мин)
+  let run = 0;
+  for (let t = 0; t < 1200; t++) {
     await sleep(t ? 2000 : 1500);
     const s = await (await fetch(hubLink.url('/api/write/' + j.id))).json().catch(() => null);
     if (!s) continue;
+    if (s.status === 'running') run ||= Date.now();
+    if (run && Date.now() - run > 12 * 60e3) throw new Error('Claude Code пишет дольше 12 минут — похоже, завис; попробуйте ещё раз');
     if (s.status === 'error' || s.error) throw new Error(s.error || 'Claude Code не ответил');
     if (s.status === 'done') return {text: s.text, cut: s.cut, by: `Claude ${s.model === 'sonnet' ? 'Sonnet' : 'Opus'} (подписка)`};
   }

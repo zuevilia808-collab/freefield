@@ -887,6 +887,7 @@ async function serPrepSend(j, c) {
   serNote(j, j.hub ? 'Компьютер делает во Flow развёртку и инфографику по фото…' : 'Карточки развёртки и инфографики — в галерее: создайте их во Flow и загрузите в карточки, дальше серия пойдёт сама');
 }
 async function serPrepWait(j, c) {
+  if (serLost(j, j.sentPrep, j.prepTasks.map(p => p.prompt), j.psent, 'image', 'prep')) return;
   for (const p of j.prepTasks.filter(p => !c[p.what])) {
     let img = null;
     if (j.hub) {
@@ -949,6 +950,7 @@ async function serLocsSend(j, c) {
   serNote(j, j.hub ? `Компьютер делает во Flow ${j.n} ${plur(j.n, 'кадр', 'кадра', 'кадров')} героя в разных локациях…` : 'Карточки кадров — в галерее: создайте их во Flow и загрузите результат');
 }
 async function serLocsWait(j, c) {
+  if (serLost(j, j.sentLocs, j.locs.map(l => l.prompt), j.locs.length, 'image', 'locs')) return;
   for (const l of j.locs.filter(l => !l.frame && !l.err)) {
     if (j.hub) {
       const it = serHubItem(j.sentLocs, l.prompt, l.idx, j.locs.length, 'image');
@@ -1042,6 +1044,15 @@ async function serFramesSend(j, c) {
     serNote(j, 'Карточки кадров — в галерее: создайте фото во Flow и загрузите в карточку, дальше серия пойдёт сама');
   }
 }
+// задание пропало на компьютере (программу перезапускали, пачки нет): 3 минуты не видно ни одного своего пункта — остановиться
+// с «↻ Повторить», а не ждать вечно (самодиагностика, пользователь 2026-10-10)
+function serLost(j, since, prompts, size, kind, stage) {
+  if (!j.hub || !since || Date.now() - since < 180000) return false;
+  if (prompts.some((pr, i) => serHubItem(since, pr, i, size, kind))) return false;
+  j.failed = stage;
+  serFail(j, 'компьютер потерял задание (программу перезапускали?) — нажмите «↻ Повторить»');
+  return true;
+}
 // пункт пачки компьютера: по промпту, а не нашёлся — по порядку в пачке того же размера
 function serHubItem(since, prompt, idx, size, kind) {
   const fresh = hubLink.batches.filter(b => b.created >= since - 60000);
@@ -1091,6 +1102,7 @@ async function serVideoSend(j, c) {
 }
 async function serVideoWait(j, c) {
   const rows = j.rows.filter(r => r.frame && !r.skip && r.vidx != null && !(r.vstate === 'done' && r.vfiles));   // готовые с прошлой попытки — не трогаем
+  if (serLost(j, j.sentVideos, rows.map(() => null), j.vsent, 'video', 'video')) return;
   for (const r of rows) {
     if (j.hub) {
       const it = serHubItem(j.sentVideos, null, r.vidx, j.vsent, 'video');
