@@ -77,7 +77,7 @@ async function saveRefs(it, list) {
   }
   if (pwa.ios() && navigator.canShare?.({files})) return navigator.share({files}).catch(() => {});
   for (const [k, f] of files.entries()) {
-    if (k) await new Promise(r => setTimeout(r, 500));   // несколько загрузок подряд браузер иначе отбрасывает
+    if (k) await sleep(500);   // несколько загрузок подряд браузер иначе отбрасывает
     const a = document.createElement('a'), url = URL.createObjectURL(f);
     a.href = url; a.download = f.name;
     document.body.append(a); a.click(); a.remove();

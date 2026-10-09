@@ -26,7 +26,7 @@ async function echoApi(p, body, method) {
 async function echoJob(job, onMsg) {
   while (job.status === 'queued' || job.status === 'running') {
     onMsg?.(job.message || '«Эхо» работает…', job.progress);
-    await new Promise(r => setTimeout(r, 800));
+    await sleep(800);
     job = await echoApi('/jobs/' + encodeURIComponent(job.id));
   }
   if (job.status === 'error') throw new Error(job.error || '«Эхо»: ошибка');
@@ -52,7 +52,7 @@ function echoEnsure() {
       const r = await fetch(hubLink.url('/api/echo-start'), {method: 'POST'}).then(x => x.json()).catch(() => ({ok: false, error: 'нет связи с программой Freefield'}));
       if (!r.ok) { eh.state = 'down'; eh.err = r.error; return echoShow(); }
       for (let i = 0; i < 75 && eh.state === 'starting'; i++) {
-        await new Promise(res => setTimeout(res, 2000));
+        await sleep(2000);
         try { const h = await echoApi('/health'); eh.model = h.model || ''; eh.state = 'ok'; } catch {}
       }
       if (eh.state !== 'ok') { eh.state = 'down'; eh.err = '«Эхо» не ответило за 2,5 минуты после запуска'; return echoShow(); }
@@ -76,9 +76,8 @@ function echoStatusHTML() {
 // нет связи с программой на компьютере: ключ сменился / компьютер не отвечает / сайт на ПК без программы / телефон с GitHub
 function echoNoHubHTML() {
   const again = '<button class="btn small" data-eh-recheck>↻ Проверить снова</button>';
-  if (hubLink.denied) return `<div class="eh-card">🔑 Ключ связи сменился — на компьютере: «Озвучка» → «📱 На телефон», отсканируйте новый QR-код ${again}</div>`;
-  if (hubLink.local() && hubLink.key) return `<div class="eh-card">🔴 Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi ${again}</div>`;
-  if (hubLink.pcSite()) return `<div class="eh-card">💻 Программа Freefield на этом компьютере не отвечает — откройте Claude Desktop ${again}</div>`;
+  const st = pcStatus();
+  if (st.k !== 'ok' && st.k !== 'none') return `<div class="eh-card">${st.icon} ${st.text} ${again}</div>`;
   // Freefield с GitHub на телефоне: «Эхо» — на видеокарте компьютера, телефон открывает его с компьютера по Wi-Fi
   const p = ls.get('freefield.pcLan', null);
   if (p) return `<div class="eh-card col"><b>🎙 «Эхо» — на компьютере, телефон подключается к нему по Wi-Fi</b>
@@ -647,7 +646,7 @@ $('#peekBody').addEventListener('click', async e => {
 
 
 function openSheet(which) {
-  if (which === 'settings') { $('#geminiInput').value = wallet.gemini; renderWallet(); }
+  if (which === 'settings') renderWallet();
   $$('.sheet').forEach(s => s.classList.add('hidden'));
   $(`#${which}Sheet`).classList.remove('hidden');
 }

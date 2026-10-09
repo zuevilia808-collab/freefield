@@ -240,8 +240,7 @@ function bindVoices() {
     if (b.hasAttribute('data-vc-new')) return vcOpenChar(null, vcUi.view === 'pick' ? 'pick' : 'list');
     if (x.vcG) { d.g = x.vcG; return renderVoices(); }
     if (b.hasAttribute('data-vc-sheet') || x.vcImg) {   // развёртка, инфографика или кадры в локациях (их — несколько сразу)
-      vcUi.imgFor = x.vcImg || 'sheet';
-      $('#vcFile').multiple = vcUi.imgFor === 'locs'; $('#vcFile').value = ''; return $('#vcFile').click();
+      return vcPickImg(x.vcImg || 'sheet');
     }
     if (x.vcLang) { d.lang = x.vcLang; return renderVoices(); }
     if (b.hasAttribute('data-vc-info-wr')) { d.info = wr.info; return renderVoices(); }
@@ -258,7 +257,7 @@ function bindVoices() {
     if (x.vcPickChar) return vcAssign(vcUi.i, vc.char(x.vcPickChar));
     if (b.hasAttribute('data-vc-pick-none')) return vcAssign(vcUi.i);
     // точный голос персонажа: образец из файла или по ссылке, голос во Flow
-    if (b.hasAttribute('data-vc-sample')) { vcUi.audioFor = 'sample'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
+    if (b.hasAttribute('data-vc-sample')) return vcPickAudio('sample');
     if (b.hasAttribute('data-vc-sample-rm')) { d.sample = null; d.sampleSec = 0; return renderVoices(); }
     if (b.hasAttribute('data-vc-sample-save')) return d.sample && saveFile(dataBlob(d.sample), `голос-${(d.name || 'образец').trim()}.wav`);
     // 🎤 запись с микрофона — образец персонажу или для замены голоса
@@ -286,9 +285,9 @@ function bindVoices() {
     if (x.tcAs) { vcUi.tcAs = x.tcAs; return renderVoices(); }
     if (b.hasAttribute('data-tc-go')) return toCharSave();
     if (x.rvChar) { Object.assign(vcUi, {rvChar: x.rvChar, rvFile: null, rvRec: false}); return renderVoices(); }
-    if (b.hasAttribute('data-rv-file')) { vcUi.audioFor = 'rv'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
+    if (b.hasAttribute('data-rv-file')) return vcPickAudio('rv');
     if (b.hasAttribute('data-rv-go')) return revoiceGo();
-    if (b.hasAttribute('data-rv-upload')) { vcUi.audioFor = 'rv-upload'; $('#vcAudio').value = ''; return $('#vcAudio').click(); }
+    if (b.hasAttribute('data-rv-upload')) return vcPickAudio('rv-upload');
     if (b.hasAttribute('data-rv-save-ref')) { const smp = rvSample(); return smp && saveFile(dataBlob(smp), `голос-${rvWho() || 'образец'}.wav`); }
     if (b.hasAttribute('data-rv-save-src')) {
       const it = rvItem();
@@ -311,32 +310,33 @@ function bindVoices() {
       const tag = $('#vcBody [data-vc-flow-tag]'); if (tag) tag.textContent = (vcUi.edit.flow.kind === 'char' ? '@' : '@Voice: ') + (t.value || vcUi.edit.name || 'Имя');
     }
   });
-  // аудио: образец голоса персонажа, образец для замены голоса или готовый новый звук ролика
-  $('#vcAudio').addEventListener('change', async e => {
-    const file = e.target.files[0], to = vcUi.audioFor;
-    if (!file) return;
-    if (to === 'rv-upload') return revoiceUpload(file);
-    try {
-      const r = await voiceSample(file);
-      if (to === 'rv') Object.assign(vcUi, {rvFile: r.data, rvRec: false});
-      else if (vcUi.edit) vcOwnSample(vcUi.edit, r);
-      toast(`Образец голоса: ${r.sec} с`, {type: 'ok'});
-    } catch (err) { toast('Не получилось: ' + err.message, {type: 'err', ms: 8000}); }
-    renderVoices();
-  });
   box.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-vc-name]')) { e.preventDefault(); vcSaveChar(); } });
-  $('#vcFile').addEventListener('change', async e => {
-    const files = [...e.target.files].filter(f => f.type.startsWith('image/')), d = vcUi.edit, to = vcUi.imgFor || 'sheet';
-    if (!files.length || !d) return;
-    try {
-      if (to === 'locs') {   // кадры — по порядку, до 10 (больше сценариев за раз не пишется)
-        const room = CL_MAX - d.locs.length;
-        for (const f of files.slice(0, room)) d.locs.push(await refDataUrl(f));
-        if (files.length > room) toast(`Взял ${room} ${plur(room, 'кадр', 'кадра', 'кадров')} — больше ${CL_MAX} не нужно`, {type: 'err'});
-      } else d[to] = await refDataUrl(files[0]);
-    } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
-    renderVoices();
-  });
+}
+// аудио: образец голоса персонажа, образец для замены голоса или готовый новый звук ролика
+async function vcPickAudio(to) {
+  const file = await pickFile('audio/*,video/*');
+  if (!file) return;
+  if (to === 'rv-upload') return revoiceUpload(file);
+  try {
+    const r = await voiceSample(file);
+    if (to === 'rv') Object.assign(vcUi, {rvFile: r.data, rvRec: false});
+    else if (vcUi.edit) vcOwnSample(vcUi.edit, r);
+    toast(`Образец голоса: ${r.sec} с`, {type: 'ok'});
+  } catch (err) { toast('Не получилось: ' + err.message, {type: 'err', ms: 8000}); }
+  renderVoices();
+}
+// фото персонажа: развёртка, инфографика или кадры в локациях (их — несколько сразу)
+async function vcPickImg(to) {
+  const files = [].concat(await pickFile('image/*', to === 'locs')).filter(f => f?.type.startsWith('image/')), d = vcUi.edit;
+  if (!files.length || !d) return;
+  try {
+    if (to === 'locs') {   // кадры — по порядку, до 10 (больше сценариев за раз не пишется)
+      const room = CL_MAX - d.locs.length;
+      for (const f of files.slice(0, room)) d.locs.push(await refDataUrl(f));
+      if (files.length > room) toast(`Взял ${room} ${plur(room, 'кадр', 'кадра', 'кадров')} — больше ${CL_MAX} не нужно`, {type: 'err'});
+    } else d[to] = await refDataUrl(files[0]);
+  } catch { return toast('Не удалось прочитать фото', {type: 'err'}); }
+  renderVoices();
 }
 
 /* ---- Точный голос: образец голоса у персонажа и замена голоса в готовом видео ---- */
@@ -1079,7 +1079,6 @@ function renderChars() {
     <p class="hint vc-note">Персонажи хранятся в этом браузере. У каждого свой голос — два персонажа одним голосом не заговорят.</p>`;
 }
 function bindChars() {
-  $('#charFile').addEventListener('change', e => charImport(e.target.files[0]));
   $('#charsCreate').addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -1088,7 +1087,7 @@ function bindChars() {
     if (x.chEdit) return vcOpenChar(vc.char(x.chEdit), 'chars');
     if (b.hasAttribute('data-ch-scripts')) return openScripts(x.chScripts || 'all');
     if (x.chPlay) return charPlay(vc.char(x.chPlay));
-    if (b.hasAttribute('data-ch-import')) { $('#charFile').value = ''; return $('#charFile').click(); }
+    if (b.hasAttribute('data-ch-import')) return pickFile('.json,application/json').then(f => f && charImport(f));
     if (x.chSeries) return openSeries(x.chSeries);
     if (x.chGallery) {   // его фото и видео: поиск галереи по имени персонажа
       $('#search').value = vc.char(x.chGallery)?.name || '';

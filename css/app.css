@@ -1054,7 +1054,6 @@ body[data-cm=one] .only-asset{display:block}#quickSvc{display:none}
 .key-row{display:flex;gap:8px}
 .key-row input{flex:1;min-width:0;-webkit-text-security:disc;font-family:var(--mono);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:11px;padding:0 12px;height:38px;outline:0;transition:border-color .2s,box-shadow .2s}
 .key-row input:focus{border-color:rgba(212,255,58,.45);box-shadow:0 0 0 3px rgba(212,255,58,.08)}
-.key-row input.show{-webkit-text-security:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 15px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03)),var(--panel3);border:1px solid var(--line);font-weight:600;font-size:13px;color:var(--text);transition:background .2s,border-color .2s,transform .25s var(--spring),box-shadow .25s,filter .2s;white-space:nowrap;box-shadow:var(--hl);text-decoration:none}
 .btn .ic{width:16px;height:16px}
 .btn:hover{border-color:var(--line3);background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.04)),var(--panel4);transform:translateY(-1px)}

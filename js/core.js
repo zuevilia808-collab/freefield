@@ -809,8 +809,13 @@ const wallet = {
   anthropic: ls.get('freefield.anthropic', ''),   // Claude (Anthropic) — пишет сценарии, платно по ключу пользователя
 };
 ['key', 'hf', 'hfUser', 'horde', 'spend.v1', 'catalog.v1', 'hfQuotaOut', 'nb21'].forEach(k => ls.del('freefield.' + k));
+// ключи в «Настройках» — тем же блоком, что в «Создании сценария» (keyCardHTML)
 function renderWallet() {
-  $('#geminiStatus').textContent = wallet.gemini ? '✓ Ключ сохранён — Gemini пишет сценарии и переводит промпты' : 'Не подключено — перевод идёт через бесплатный сервис';
+  const el = $('#setKeys');
+  if (!el) return;
+  const card = (id, title) => { const w = WRITERS[id];
+    return `<div class="set-card"><div class="set-card-head"><span class="mc-ico" style="background:${w.color};color:#fff">${esc(w.ico)}</span><div><b>${title}</b></div></div>${keyCardHTML(id)}</div>`; };
+  el.innerHTML = card('gemini', 'Google Gemini — сценарии и перевод бесплатно') + card('claude', 'Claude — сценарии, платно по вашему ключу');
 }
 // модели сайтов (карточки «сделать на сайте», «Мои сервисы»)
 const allModels = () => EXT_MODELS;
@@ -831,22 +836,24 @@ async function timedFetch(url, opts, ms = 40000) {
   try { return await fetch(url, {...opts, signal: ctrl.signal}); } finally { clearTimeout(t); }
 }
 
-const LLM = [
-  {name: 'Gemini', ok: () => !!wallet.gemini, async run(sys, text) {
+// короткий ответ Gemini (перевод, улучшение промпта); нет ключа или ошибка — null, тогда вызывающий обходится без него
+async function geminiShort(sys, text) {
+  if (!wallet.gemini) return null;
+  try {
     for (const model of (await geminiModels('flash')).slice(0, 3)) {
-      const r = await timedFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      const r = await timedFetch(`${GEMINI_API}/${model}:generateContent`, {
         method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': wallet.gemini},
         body: JSON.stringify({systemInstruction: {parts: [{text: sys}]}, contents: [{role: 'user', parts: [{text}]}],
           generationConfig: {temperature: 0.9, maxOutputTokens: 2048}}),
       });
       if (r.status === 404) continue;
-      if (!r.ok) throw new Error('Gemini ' + r.status);
+      if (!r.ok) return null;
       const j = await r.json();
-      return (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('');
+      return cleanLLM((j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join(''));
     }
-    throw new Error('Gemini: модель не найдена');
-  }},
-];
+  } catch { /* нет связи */ }
+  return null;
+}
 
 async function translateToEnglish(text) {
   if (!/[а-яё]/i.test(text)) return text;
@@ -862,9 +869,8 @@ async function translateToEnglish(text) {
 async function translatePrompt(text) {
   if (!/[а-яё]/i.test(text)) return text;
   const sys = 'Translate the user text into natural English for an AI image/video generation prompt. Keep every detail, name, number and the order of ideas; add nothing, remove nothing. Output only the translation.';
-  for (const p of LLM.filter(p => p.ok())) {
-    try { const out = cleanLLM(await p.run(sys, text)); if (out.length >= 3 && !/[а-яё]{4,}/i.test(out)) return out; } catch { /* следующий */ }
-  }
+  const smart = await geminiShort(sys, text);
+  if (smart?.length >= 3 && !/[а-яё]{4,}/i.test(smart)) return smart;
   const parts = [], sentences = text.split(/(?<=[.!?…\n])\s+/);
   for (const s of sentences) {
     if (parts.length && (parts[parts.length - 1] + ' ' + s).length <= 450) parts[parts.length - 1] += ' ' + s;
@@ -880,15 +886,9 @@ async function asIs(text) {
   try { return await translateKeepQuotes(text); } catch { return text; }
 }
 
-let lastEnhancer = '';
 async function enhancePrompt(text, kind) {
-  for (const p of LLM.filter(p => p.ok())) {
-    try {
-      const out = cleanLLM(await p.run(SYS[kind] || SYS.image, text));
-      if (out.length >= 8) { lastEnhancer = p.name; return out; }
-    } catch { /* пробуем следующий */ }
-  }
-  lastEnhancer = 'перевод';
+  const out = await geminiShort(SYS[kind] || SYS.image, text);
+  if (out?.length >= 8) return out;
   return translatePrompt(text);   // без ключей: хотя бы переводим на английский (кусками — длинный промпт не обрежется)
 }
 

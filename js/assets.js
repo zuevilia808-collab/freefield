@@ -76,7 +76,6 @@ const asset = {
   info: null,   // инфографика для «Персонажа в локации» — по ней подбирается место и действие
   kind: null,   // выбранная кнопка «Что создаём» (ASSET_KINDS) или null — свой промпт
   n: 1, items: [],   // сколько картинок и у каждой — поля промпта и своё фото ({vals, ref})
-  pickFor: null,   // куда пойдут фото из окна выбора: общие референсы, фото героев развёрток или одной картинки
   tookSheet: false,
   sending: false,
   save() { ls.set('freefield.asset.svc', this.svc); ls.set('freefield.asset.model', this.model); ls.set('freefield.asset.aspect', this.aspect); ls.set('freefield.asset.count', this.count); },
@@ -410,17 +409,14 @@ function setAssetCount(n) {
     const need = !asset.refs[0] ? 'sheet' : null, took = asset.tookSheet;
     asset.tookSheet = false;
     if (!need) return toast(`${took ? `Развёртку${asset.info ? ' и инфографику' : ''} взял из «Создания сценария». ` : ''}Место и действие — по желанию у каждого кадра; пустые ${asset.info ? 'подберутся по инфографике' : 'выберет модель'}`, {type: 'ok', ms: 6000});
-    asset.pickFor = need;
     toast('Выберите фото развёртки героя', {ms: 6000});
-    $('#assetFile').value = '';
-    return $('#assetFile').click();
+    return assetPick(need);
   }
   // сразу — окно выбора фото (нажатие на число — жест пользователя, браузер откроет окно)
-  asset.pickFor = asset.kind === 'sheet' ? 'items' : 'common';
+  const to = asset.kind === 'sheet' ? 'items' : 'common';
   toast(asset.kind === 'sheet' ? 'Выберите фото героев — по одному на развёртку, по порядку'
     : asset.kind === 'loc' ? 'Выберите фото развёртки героя' : 'Выберите фото-пример стиля — или закройте окно, он не обязателен', {ms: 6000});
-  $('#assetFile').value = '';
-  $('#assetFile').click();
+  assetPick(to);
 }
 
 function renderAsset() {
@@ -448,6 +444,8 @@ function renderAsset() {
     <div class="cl-live" data-where="asset">${clLiveHTML('asset')}</div>`;
 }
 // to: 'common' / не задано — общие референсы; 'items' — фото героев развёрток по порядку; число — фото одной картинки
+// окно выбора фото: to — куда они пойдут (общие референсы, фото героев развёрток, одной картинки, развёртка или инфографика)
+const assetPick = to => pickFile('image/*', true).then(files => assetAddRefs(files, to));
 async function assetAddRefs(files, to) {
   const list = [...files].filter(f => f && f.type?.startsWith('image/'));
   if (!list.length) return;
@@ -459,7 +457,7 @@ async function assetAddRefs(files, to) {
     if (to === 'sheet') asset.refs[0] = d; else asset.info = d;
     renderAsset(); updateGenButton();
     if (to === 'sheet' && !asset.info) return toast('Развёртка есть. Теперь инфографика — по ней подберутся место и действие', {ms: 9000,
-      action: '📊 Выбрать', onAction: () => { asset.pickFor = 'info'; $('#assetFile').value = ''; $('#assetFile').click(); }});
+      action: '📊 Выбрать', onAction: () => assetPick('info')});
     return toast(to === 'sheet' ? 'Развёртка героя добавлена' : 'Инфографика добавлена — место и действие подберутся по ней', {type: 'ok'});
   }
   if (typeof to === 'number' && asset.items[to]) {
@@ -524,7 +522,7 @@ async function assetGo() {
   if (prompts.some(p => /\[[A-Z][A-Z ]*[\]:]/.test(p))) return nudge('Впишите своё вместо [ПОЛЕЙ] в промпте: тема, герой, место…');
   if (asset.kind === 'loc' && !asset.refs[0] && !list.every(it => it.ref)) {
     $(`#assetCreate [data-aslot-box="sheet"]`)?.classList.add('miss');
-    return toast('Для «Персонажа в локации» нужна развёртка героя', {type: 'err', ms: 8000, action: '🧍 Выбрать развёртку', onAction: () => { asset.pickFor = 'sheet'; $('#assetFile').value = ''; $('#assetFile').click(); }});
+    return toast('Для «Персонажа в локации» нужна развёртка героя', {type: 'err', ms: 8000, action: '🧍 Выбрать развёртку', onAction: () => assetPick('sheet')});
   }
   // развёртка по шаблону делается по фото героя: у картинки своё фото или общий референс
   const noPh = asset.kind === 'sheet' && isAssetTpl(raw) && !asset.refs.length ? list.findIndex(it => !it.ref) : -1;
@@ -533,7 +531,7 @@ async function assetGo() {
     ph?.classList.add('miss');
     ph?.scrollIntoView({block: 'center', behavior: 'smooth'});
     return toast(`${list.length > 1 ? `Развёртка ${noPh + 1}: нужно` : 'Нужно'} фото героя — развёртка делается по нему`, {type: 'err', ms: 8000,
-      action: '🧍 Выбрать фото', onAction: () => { asset.pickFor = noPh; $('#assetFile').value = ''; $('#assetFile').click(); }});
+      action: '🧍 Выбрать фото', onAction: () => assetPick(noPh)});
   }
   // фото картинки: своё (герой этой развёртки) + общие референсы — до 4 (столько «ингредиентов» берёт Flow);
   // у «Персонажа в локации» последней всегда идёт инфографика
@@ -595,11 +593,11 @@ function bindAsset() {
     if (b.dataset.aiPh) {
       const i = +b.dataset.aiPh;
       if (asset.items[i]?.ref) { asset.items[i].ref = null; renderAsset(); return updateGenButton(); }
-      asset.pickFor = i; $('#assetFile').value = ''; return $('#assetFile').click();
+      return assetPick(i);
     }
-    if (b.hasAttribute('data-aref-add')) { asset.pickFor = 'common'; $('#assetFile').value = ''; return $('#assetFile').click(); }
+    if (b.hasAttribute('data-aref-add')) return assetPick('common');
     // «Персонаж в локации»: места «Развёртка» и «Инфографика», «Взять у персонажа»
-    if (b.dataset.aslot) { asset.pickFor = b.dataset.aslot; $('#assetFile').value = ''; return $('#assetFile').click(); }
+    if (b.dataset.aslot) return assetPick(b.dataset.aslot);
     if (b.dataset.aslotRm) { if (b.dataset.aslotRm === 'info') asset.info = null; else asset.refs.splice(0, 1); renderAsset(); return updateGenButton(); }
     if (b.dataset.aslotChar) {
       const c = vc.char(b.dataset.aslotChar);
@@ -636,7 +634,6 @@ function bindAsset() {
   let itemsTimer = null;
   $('#prompt').addEventListener('input', () => { if (asset.kind) { clearTimeout(itemsTimer); itemsTimer = setTimeout(renderAssetItems, 300); } });
   $('#akindSheet').addEventListener('click', e => { const b = e.target.closest('[data-an]'); if (b && !b.disabled) countSheet.onPick?.(+b.dataset.an); });
-  $('#assetFile').addEventListener('change', e => { const to = asset.pickFor; asset.pickFor = null; assetAddRefs(e.target.files, to); });
   // перетаскивание фото на блок референсов
   const over = e => e.target.closest?.('#assetRefs');
   $('#assetCreate').addEventListener('dragover', e => { const z = over(e); if (z) { e.preventDefault(); z.classList.add('drag'); } });

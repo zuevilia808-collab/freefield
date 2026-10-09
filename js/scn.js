@@ -248,10 +248,10 @@ async function clSwitchAccount(id, btn) {
 
 // нижняя часть раздела — статус связи, кнопки, задания: обновляется при каждом опросе компьютера, не трогая поля ввода
 function clLiveHTML(where = 'create') {
+  const st = pcStatus();
   const conn = hubLink.ok
     ? `<div class="cl-conn on">🟢 Приложение подключено к компьютеру — задания уйдут прямо туда${hubLink.info?.flowLeft != null ? ` · во Flow осталось <b>${hubLink.info.flowLeft}</b> из 50 кредитов` : ''}${hubLink.onPc() ? ' <button class="btn small" data-phone-qr title="QR-код: открыть Freefield с вашими аккаунтами на телефоне">📱 На телефон</button>' : ''}</div>`
-    : hubLink.denied ? '<div class="cl-conn">🔑 Ключ связи сменился — отсканируйте новый QR-код: на компьютере во Freefield кнопка «📱 На телефон».</div>'
-    : hubLink.key && hubLink.local() ? '<div class="cl-conn">🔴 Компьютер не отвечает. Проверьте: компьютер включён, Claude Desktop открыт, телефон в той же сети Wi-Fi. Или без него: «Подготовить» сделает карточки для сайтов — «Создать» там нажмёте сами.</div>'
+    : st.k === 'denied' || st.k === 'down' ? `<div class="cl-conn">${st.icon} ${st.text}.${st.k === 'down' ? ' Или без него: «Подготовить» сделает карточки для сайтов — «Создать» там нажмёте сами.' : ''}</div>`
     : where === 'asset' ? ''   // в «Создании ассетов» инструкцию для телефона не показываем (просьба пользователя 2026-09-27)
     // без компьютера (версия с GitHub, APK) — вручную на сайтах сервисов (пользователь 2026-09-28: «генерация с телефона без компа»)
     : `<div class="cl-conn"><b>📱 Без компьютера — сами на сайтах сервисов</b>

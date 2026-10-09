@@ -1117,7 +1117,7 @@ async function mtAsk(text, dry) {
   renderMtChat();
   try {
     const {sys, user, media, refs} = await mtBrief(p, text, who);
-    const r = who === 'claude' ? await writeClaude(sys, user, media) : await writeGemini(sys, user, media);
+    const r = await aiWrite(who, sys, user, media);
     mt.att = [];
     const j = mtParse(r.text);
     const msg = {role: 'ai', text: String(j?.reply || (j ? '' : r.text)).slice(0, 4000), at: Date.now(), by: r.by};
