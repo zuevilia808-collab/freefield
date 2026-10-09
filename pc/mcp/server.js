@@ -293,7 +293,8 @@ async function findPaid(model, kind) {
 // ---- бесплатные кредиты на сайтах: берём список прямо из приложения (один источник правды) ----
 function loadServices() {
   try {
-    const html = fs.readFileSync(path.join(HERE, '..', 'app', 'index.html'), 'utf8');
+    const app = path.join(HERE, '..', 'app'), core = path.join(app, 'js', 'core.js');   // список — в js/core.js (раньше — в самом index.html)
+    const html = fs.readFileSync(fs.existsSync(core) ? core : path.join(app, 'index.html'), 'utf8');
     const start = html.indexOf('const SERVICES = [');
     const end = html.indexOf('\n];', start);
     if (start < 0 || end < 0) return [];
@@ -530,7 +531,7 @@ server.registerTool('free_credit_services', {
 }, async ({kind}) => {
   const periods = {day: 'каждый день', week: 'каждую неделю', month: 'каждый месяц', once: 'разово'};
   const list = loadServices().filter(x => kind === 'all' || x[kind]);
-  if (!list.length) return {isError: true, content: [{type: 'text', text: 'Не удалось прочитать список сервисов из app/index.html.'}]};
+  if (!list.length) return {isError: true, content: [{type: 'text', text: 'Не удалось прочитать список сервисов из app/js/core.js.'}]};
   const text = list.map(x => [`${x.name} (${x.by}) — ${periods[x.period]} — ${x.url}`, `  кредиты: ${x.credits}`,
     x.image ? `  картинки: ${x.image.models} → ${x.image.equiv}` : '', x.video ? `  видео: ${x.video.models} → ${x.video.equiv}` : '',
     x.note ? `  ⚠ ${x.note}` : ''].filter(Boolean).join('\n')).join('\n');

@@ -2,8 +2,9 @@
 // Файлы приложения — «сначала сеть» (обновления приходят сразу), шрифты — из кэша.
 // Запросы к сервисам генерации и к компьютеру (/api/, /mcp) не кэшируются и идут напрямую:
 // там секретный ключ, свежие статусы и видео по сотне МБ (v3 их кэшировал — смена версии кэш чистит).
-const CACHE = 'freefield-v4';
-const SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'freefield-v5';   // v5: страница разбита на css/ и js/
+const SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
+  './css/app.css', './js/core.js', './js/services.js', './js/gallery.js', './js/m3d.js', './js/montage.js', './js/echo.js', './js/controls.js', './js/hub.js', './js/scn.js', './js/assets.js', './js/chars.js', './js/write.js', './js/init.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

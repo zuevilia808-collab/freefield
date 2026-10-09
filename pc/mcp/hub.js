@@ -50,6 +50,42 @@ function proxyEcho(req, res, target, cors) {
   req.pipe(up);
 }
 
+// Файлы приложения — новейшие с GitHub Pages: папка app на компьютере бывает старой, а страница должна быть всегда последней
+// (пользователь 2026-09-29: «при „Открыть Freefield с компьютера“ — старая версия»). Скачанное кладём и в app — это запасная копия:
+// нет интернета — отдаём её. FREEFIELD_APP_LOCAL=1 — только папка app (для проверки правок до публикации), FREEFIELD_PAGES — другой адрес сайта.
+export const PAGES = process.env.FREEFIELD_PAGES || 'https://zuevilia808-collab.github.io/freefield/';
+const LIVE = /^(index\.html|manifest\.json|sw\.js|(css|js)\/[\w.-]+\.(css|js)|(img|icons)\/[\w./-]+\.(png|webp|jpg|svg))$/;
+const fresh = new Map();   // путь → {at, buf}
+let offline = 0;   // GitHub не ответил — до этого времени берём папку app, не ждём сеть на каждом файле
+async function latestApp(appDir, rel, log) {
+  if (process.env.FREEFIELD_APP_LOCAL || !LIVE.test(rel)) return null;
+  const c = fresh.get(rel);
+  if (c && Date.now() - c.at < 60e3 || Date.now() < offline) return c?.buf || null;
+  try {
+    const r = await fetch(PAGES + rel + '?t=' + Date.now(), {cache: 'no-store', signal: AbortSignal.timeout(c ? 3000 : 6000)});
+    if (r.status === 404) { fresh.set(rel, {at: Date.now(), buf: null}); return null; }   // нет на сайте — из папки app, если есть
+    if (!r.ok) throw new Error('GitHub Pages: ' + r.status);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (rel === 'index.html' && !/<title>Freefield/.test(buf.toString('utf8', 0, 4096))) throw new Error('не та страница');
+    fresh.set(rel, {at: Date.now(), buf});
+    saveApp(appDir, rel, buf, log);
+    return buf;
+  } catch {
+    offline = Date.now() + 30e3;
+    return c?.buf || null;
+  }
+}
+export function saveApp(appDir, rel, buf, log = () => {}) {
+  try {
+    const dst = path.join(appDir, rel);
+    if (fs.existsSync(dst) && fs.readFileSync(dst).equals(buf)) return false;
+    fs.mkdirSync(path.dirname(dst), {recursive: true});
+    fs.writeFileSync(dst + '.new', buf);
+    fs.renameSync(dst + '.new', dst);
+    return true;
+  } catch (e) { log('app:', rel, e.message); return false; }
+}
+
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 
 // key — строка или функция (ключ можно сменить на ходу); api: {hello(), submit(scenarios) → {id}, list() → batches, filePath(batchId, n, j) → путь или null}
@@ -183,8 +219,12 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
       const file = path.resolve(appDir, rel);
       // скрытые файлы и папки (.git и т. п.) не отдаём никому — только файлы самого приложения
       const hidden = path.relative(path.resolve(appDir), file).split(path.sep).some(p => p.startsWith('.'));
-      if (hidden || !file.startsWith(path.resolve(appDir) + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return send(404, 'Not found', 'text/plain');
-      res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-cache'});
+      if (hidden || !file.startsWith(path.resolve(appDir) + path.sep)) return send(404, 'Not found', 'text/plain');
+      const type = TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream';
+      const buf = req.method === 'GET' ? await latestApp(appDir, path.relative(path.resolve(appDir), file).split(path.sep).join('/'), log) : null;
+      if (buf) { res.writeHead(200, {'Content-Type': type, 'Content-Length': buf.length, 'Cache-Control': 'no-cache'}); return res.end(buf); }
+      if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return send(404, 'Not found', 'text/plain');
+      res.writeHead(200, {'Content-Type': type, 'Cache-Control': 'no-cache'});
       fs.createReadStream(file).pipe(res);
     } catch (e) {
       log('hub:', e.message);
