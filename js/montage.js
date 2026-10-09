@@ -738,7 +738,7 @@ function mtVoxHTML(o) {
     <p class="hint">Высота и тембр меняются без сдвига по времени — губы совпадают. «Тембр» сильнее всего делает голос непохожим.</p>
     <div class="block-head"><span class="lbl">Другой голос</span></div>
     <div class="mt-fl"><button class="btn small primary" data-mt-to-echo ${busy ? 'disabled' : ''}>🎙 Переозвучить в «Озвучке»</button></div>
-    <p class="hint">«Озвучка» распознает реплику — выберите голос, озвучьте и нажмите «→ В монтаж».</p>
+    <p class="hint">«Озвучка» распознает реплику — выберите голос, озвучьте и нажмите «＋ В монтаж» — озвучка встанет новой дорожкой.</p>
     <div class="mt-fl"><button class="btn small" data-mt-voice-save ${busy ? 'disabled' : ''} title="Голос этого клипа — в «Мои голоса» «Озвучки»: им можно озвучить любой текст">💾 Голос — в «Мои голоса»</button></div>
     ${chars.length ? `<div class="mt-fl"><select data-mt-vcchar aria-label="Персонаж">${chars.map(c => `<option value="${c.id}" ${c.id === mt.vcChar ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
       <button class="btn small" data-mt-vc ${busy ? 'disabled' : ''} title="Seed-VC: тот же текст и интонации, голос — как в образце персонажа">🎧 Голосом персонажа</button></div>` : ''}
@@ -821,23 +821,6 @@ async function mtVoiceSave(c) {
   mtPause();
   setView('create'); setCreateMode('voice');
   exVoiceFromMontage(wav, `«${mt.p.name}», клип #${s.n}`);
-}
-// «→ В монтаж» из «Озвучки»: озвучка без тишины по краям, по длине — как исходная реплика (растягиваем без смены высоты)
-async function mtTakeIn(line, blob, name) {
-  const p = mt.projects.find(x => x.id === line.p), c = p?.clips.find(x => x.k === line.k);
-  if (!c) throw new Error('клип уже удалён из монтажа');
-  let buf = await decodeAudio(blob);
-  const [a, b] = mtSpeech(buf, 0, buf.duration);
-  buf = await audioMono(buf, buf.sampleRate, a, b - a);
-  const ratio = line.dur / buf.duration, r = Math.max(0.8, Math.min(1.25, ratio));
-  if (Math.abs(r - 1) > 0.03) buf = await vfxStretch(buf, r);
-  await mtSetTake(p, c, buf, {at: line.at, name, kind: 'echo'});
-  if (!c.sep) { c.sep = true; c.vox.vol ||= 1; }
-  mt.cur = p.id; mt.tab = 'edit'; mt.sel = {t: 'g', k: c.k}; mt.save();
-  setView('create'); setCreateMode('edit');
-  const diff = buf.duration - line.dur;
-  toast(Math.abs(diff) > 0.3 ? `🎙 Озвучка в монтаже. Она ${diff > 0 ? 'длиннее' : 'короче'} реплики на ${exNum(Math.abs(diff))} с — губы немного разойдутся; ${diff > 0 ? 'сократите текст или прибавьте темп' : 'добавьте слов или убавьте темп'}`
-    : '🎙 Озвучка в монтаже — по длине как исходная реплика', {type: 'ok', ms: 9000});
 }
 // «🎧 Голосом персонажа»: Seed-VC меняет только тембр — слова, паузы и губы те же
 async function mtVc(c) {

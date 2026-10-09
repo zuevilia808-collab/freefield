@@ -613,7 +613,12 @@ select.ehx-in{height:44px;padding:0 12px;cursor:pointer}
 .ehx-tk>div{flex:1;min-width:0}
 .ehx-tk p{font-weight:600;font-size:13.5px;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .ehx-take>small{display:block;color:var(--em);font-size:12px;margin-top:10px}
-.ehx-acts{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:10px}
+.ehx-acts{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}
+.ehx-acts-r{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin-left:auto}
+.ehx-acts-r>button:not(.ehx-btn){width:32px;height:32px;display:grid;place-items:center;color:var(--em);border-radius:9px;transition:color .2s,background .2s}
+.ehx-acts-r>button:not(.ehx-btn):hover{background:rgba(255,255,255,.05);color:var(--text)}
+.ehx-acts-r>button.on{color:var(--free)}
+.ehx-acts-r>button.on .ic{fill:currentColor}
 .ehx-acts>button:not(.ehx-btn){width:32px;height:32px;display:grid;place-items:center;color:var(--em);border-radius:9px;transition:color .2s,background .2s}
 .ehx-acts>button:not(.ehx-btn):hover{background:rgba(255,255,255,.05);color:var(--text)}
 .ehx-acts>button.on{color:var(--free)}

@@ -90,7 +90,7 @@ await suite('монтаж: без лагов, голос отдельно, эф�
   const play = await p.evaluate(async () => { mtSeekTo(0); mtPlay(); await new Promise(r => setTimeout(r, 900)); const r = {on: mtAE.on, nodes: mtAE.nodes.length, t: mtPv.t}; mtPause(); return r; });
   t.ok(play.on && play.nodes >= 2, 'просмотр: фон и голос звучат через Web Audio', play);
 
-  // --- 🎙 переозвучить: «Озвучка» распознаёт реплику → голос «Диктор» → «→ В монтаж»
+  // --- 🎙 переозвучить: «Озвучка» распознаёт реплику → голос «Диктор» → «＋ В монтаж» (новой дорожкой, голос клипа остаётся)
   await p.evaluate(() => { const c = mt.p.clips[0]; c.vox.fx = {}; mt.sel = {t: 'g', k: c.k}; renderMtEdit(); });
   await p.locator('#mtBody [data-mt-to-echo]').click();
   await p.waitForFunction(() => ex.line && ex.line.text, null, {timeout: 20000}).catch(() => {});
@@ -100,15 +100,19 @@ await suite('монтаж: без лагов, голос отдельно, эф�
   await p.fill('#ehxVoice [data-ehx-f="vName"]', 'Диктор');
   await p.locator('#ehxVoice [data-ehx-save]').click(); await sleep(1200);
   await p.locator('#ehxGo').click();
-  await p.waitForSelector('#ehxTakes [data-ehx-tomt]', {timeout: 20000}).catch(() => {});
-  t.ok(await p.locator('#ehxTakes [data-ehx-tomt]').count() >= 1, 'у готовой озвучки — «→ В монтаж»');
-  await p.locator('#ehxTakes [data-ehx-tomt]').first().click();
-  await p.waitForFunction(() => cl.mode === 'edit' && mt.p.clips[0].vox?.take, null, {timeout: 20000}).catch(() => {});
-  const take = await p.evaluate(() => ({mode: cl.mode, take: mt.p.clips[0].vox?.take, line: ex.line, label: $('#mtTrG .tl-b')?.innerText || ''}));
-  // озвучка 2,6 с на реплику ~2 с: растянута (сжата) без смены высоты, но не больше чем до 0,8×
+  await p.waitForFunction(() => $$('#ehxTakes .ehx-take').length >= 2, null, {timeout: 20000}).catch(() => {});
+  // у каждой дорожки — одинаковые кнопки, «Вместо реплики» нет
+  const btns = await p.evaluate(() => $$('#ehxTakes .ehx-take').map(e => !!e.querySelector('[data-ehx-tadd]') && !!e.querySelector('[data-ehx-tfav]') && !!e.querySelector('[data-ehx-dl], [data-ehx-mdl]')));
+  t.ok(btns.length >= 2 && btns.every(Boolean) && !(await p.locator('#ehxTakes [data-ehx-tomt]').count()), 'у всех дорожек (и «Из монтажа») — «＋ В монтаж», ★, скачать', btns);
+  const before = await p.evaluate(() => ({audios: (mt.p.audios || []).length, sep: mt.p.clips[0].sep}));
+  await p.evaluate(() => mtSeekTo(0));
+  await p.locator('#ehxTakes .ehx-take:not(.mtl) [data-ehx-tadd]').first().click();
+  await p.waitForFunction(n => (mt.p.audios || []).length > n, before.audios, {timeout: 20000}).catch(() => {});
+  const take = await p.evaluate(() => { const a = mt.p.audios.at(-1); return {n: mt.p.audios.length, name: a?.name, at: a?.at, voice: a?.voice, sep: mt.p.clips[0].sep, take: mt.p.clips[0].vox?.take || null}; });
   if (process.env.SHOT) await p.screenshot({path: process.env.SHOT + '-take.png'});
-  t.ok(take.mode === 'edit' && take.take && Math.abs(take.take.dur - 2.6 * 0.8) < 0.12 && !take.line, 'озвучка в монтаже вместо голоса клипа, подогнана по длине', take);
-  t.ok(/Диктор/.test(take.label), 'на дорожке «🗣» — новая озвучка', take.label);
+  t.ok(take.n === before.audios + 1 && /Диктор/.test(take.name) && take.at === 0 && take.voice, '«＋ В монтаж»: озвучка — новой дорожкой с бегунка', take);
+  t.ok(take.sep && !take.take, 'голос клипа остался как был', take);
+  await p.evaluate(() => { setView('create'); setCreateMode('edit'); });   // «Озвучка» остаётся открытой — монтаж открываем сами
 
   // --- склейка: фон (1000 Гц) и новый голос (330 Гц) — есть, старого голоса и звука видео (200 Гц) — нет
   const mix = await p.evaluate(async () => {
@@ -116,14 +120,15 @@ await suite('монтаж: без лагов, голос отдельно, эф�
     const g = hz => { const n = Math.min(d.length, sr * 1.5), k = 2 * Math.cos(2 * Math.PI * hz / sr); let s1 = 0, s2 = 0; for (let i = Math.round(sr * 0.2); i < n; i++) { const s0 = d[i] + k * s1 - s2; s2 = s1; s1 = s0; } return Math.sqrt(s1 * s1 + s2 * s2 - k * s1 * s2) / n; };
     return {bed: +g(1000).toFixed(4), take: +g(330).toFixed(4), old: +g(200).toFixed(4), dur: +ab.duration.toFixed(2)};
   });
-  t.ok(mix.bed > mix.old * 4 && mix.take > mix.old * 4, 'в ролике фон и новый голос, старого голоса нет', mix);
+  t.ok(mix.bed > 0 && mix.take > 0 && mix.old > 0, 'в ролике фон, голос клипа и новая дорожка — все вместе', mix);
 
   // --- ✂ разрезать клип: у обеих половин свой голос
-  const cut = await p.evaluate(() => { mt.sel = {t: 'v', k: mt.p.clips[0].k}; mtSeekTo(1); mtSplit(); return {n: mt.p.clips.length, sep: mt.p.clips.every(c => c.sep && c.vox?.take), g: $$('#mtTrG .tl-b').length, same: mt.p.clips[0].vox === mt.p.clips[1].vox}; });
-  t.ok(cut.n === 2 && cut.sep && cut.g === 2 && !cut.same, '✂: обе половины с голосом (настройки — у каждой свои)', cut);
-  // «Вернуть звук как был»
-  await p.evaluate(() => { mt.sel = {t: 'g', k: mt.p.clips[1].k}; renderMtEdit(); });
+  const cut = await p.evaluate(() => { mt.sel = {t: 'v', k: mt.p.clips[0].k}; mtSeekTo(1); mtSplit(); return {n: mt.p.clips.length, sep: mt.p.clips.every(c => c.sep && c.vox), g: $$('#mtTrG .tl-b').length, same: mt.p.clips[0].vox === mt.p.clips[1].vox}; });
+  // голос клипа без замены: на дорожке «🗣» — куски, где в половине звучит речь
+  t.ok(cut.n === 2 && cut.sep && cut.g >= 1 && !cut.same, '✂: обе половины с голосом (настройки — у каждой свои)', cut);
+  // «Вернуть звук как был» — у той половины, где голос на дорожке
+  const k = await p.evaluate(() => { const k = $('#mtTrG .tl-b').dataset.k; mt.sel = {t: 'g', k}; renderMtEdit(); return k; });
   await p.locator('#mtBody [data-mt-unsep]').click();
-  t.ok(await p.evaluate(() => !mt.p.clips[1].sep && $$('#mtTrG .tl-b').length === 1), '«Вернуть звук как был» — голос снова в клипе');
+  t.ok(await p.evaluate(([k, g]) => !mt.p.clips.find(c => c.k === k).sep && $$('#mtTrG .tl-b').length === g - 1, [k, cut.g]), '«Вернуть звук как был» — голос снова в клипе');
 });
 hub.close(); echo.close();
