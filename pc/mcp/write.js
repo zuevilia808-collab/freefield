@@ -92,6 +92,17 @@ function work(job, sys, blocks) {
   });
 }
 
+// короткий вопрос Claude Code и ответ текстом (переписать промпт после ложного отказа и т. п.); не вышло — null
+export async function claudeAsk(system, text, model = 'sonnet', ms = 180000) {
+  const {id} = writeStart({system, content: [{type: 'text', text}], model});
+  for (const t0 = Date.now(); Date.now() - t0 < ms;) {
+    await new Promise(r => setTimeout(r, 1500));
+    const j = writeGet(id);
+    if (j?.status === 'done') return j.text;
+    if (!j || j.status === 'error') return null;
+  }
+  return null;
+}
 export function writeGet(id) {
   const j = jobs.get(id);
   if (!j) return null;

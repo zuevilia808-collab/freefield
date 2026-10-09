@@ -1014,11 +1014,13 @@ const menuItem = (page, re) => page.locator('[role=menuitem],[role=option],[role
 // ответы Dola: «Создаю видео…» (пошло), вопрос (надо подтвердить), отказ
 const DOLA_STARTED = /Создаю видео|Видео будет создано|будет готово|генерир|Generating|I'?ll create|creating/i;
 const DOLA_REFUSED = /В целях защиты права на образ|генерирование видео только с собой|Используйте другое изображение|нельзя генерировать|Произошла ошибка|не могу (создать|сгенерировать)|cannot (create|generate)/i;
-const DOLA_ASKS = /nearest supported duration|I can generate it at|Would you like|Do you want|Could you confirm|Хотите,? чтобы|Подтвердите|Уточните|могу сделать (его|видео) (длительностью|на)/i;
+// вопрос вместо генерации — в т. ч. выбор «А / В» (пользователь 2026-10-09: «Dola напиздела прямо в лицо и генерацию не дала»:
+// «запрос на 10 секунд, а в параметрах 15 — какой вариант вы хотите?», хотя стояло 10 с)
+const DOLA_ASKS = /nearest supported duration|I can generate it at|Would you like|Do you want|Could you confirm|Which (option|one)|Хотите,? чтобы|Подтвердите|Уточните|Какой вариант|Если выбираете|Выберите вариант|Подождите, пожалуйста|могу сделать (его|видео) (длительностью|на)/i;
 async function dolaAnswer(page, seconds, aspect) {
   const box = page.locator('[contenteditable="true"]').first();
   await box.click();
-  await box.fill(`Да, создай это видео: ${seconds} секунд, формат ${aspect}, по описанию выше.`);
+  await box.fill(`Вариант A. Создай видео прямо сейчас: ровно ${seconds} секунд, формат ${aspect}, строго по описанию выше. Больше ничего не уточняй — просто генерируй.`);
   await sleep(300);
   await page.keyboard.press('Enter');
   await sleep(2500);

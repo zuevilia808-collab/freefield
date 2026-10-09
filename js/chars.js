@@ -908,9 +908,12 @@ async function serPrepWait(j, c) {
 }
 // 0½. герой в N разных локациях — по инфографике (места героя), с развёрткой; сценарии потом пишутся по этим кадрам
 // (пользователь 2026-10-09: «как получишь 3 разных фото с 3 разными локациями — к написанию сценариев, опираясь на то, кто наш персонаж»)
+// у каждого кадра — свой тип места: иначе три кадра выходили одной улицей (пользователь 2026-10-09: «3 разных фото с 3 разными локациями»)
+const SER_PLACE = ['outdoors in open landscape or nature', 'in a street, market, shop or bar', 'indoors at his home or workplace', 'at night or dusk, lit by a fire, lamp or neon',
+  'in a vehicle or on the road', 'in a crowded public place', 'on a rooftop, hill or high viewpoint', 'in a workshop or kitchen, busy with his hands', 'by water: river, lake or sea', 'in bad weather: rain, snow or wind'];
 function serLocTask(j, c, i, hub) {
   let p = ASSET_KINDS.loc.prompt;
-  p = photoSet(p, 'Location', `place number ${i + 1} of the hero's places listed on the reference infographic (if there are fewer, a new real place from his world); it must differ from his other ${j.n - 1} shots — idea: ${LOC_SCENES[i % LOC_SCENES.length]}`);
+  p = photoSet(p, 'Location', `a place from the hero's world listed on the reference infographic (place ${i + 1}; invent a fitting one if the list is shorter), set ${SER_PLACE[i % SER_PLACE.length]} — clearly different in type, light and colours from his other ${j.n - 1} shots`);
   p = photoSet(p, 'Action', 'one clear action typical for him in this place, with his hands or a prop');
   p = photoSet(p, 'Camera & framing', 'vertical 9:16, medium shot, eye level, 35 mm lens, sharp focus on the face, room above his head for text');
   p = photoSet(p, 'Infographic', 'the second reference image only explains who he is and where he goes — never show it, its text, icons or charts');

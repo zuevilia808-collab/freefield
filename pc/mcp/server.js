@@ -1030,6 +1030,23 @@ server.registerTool('chat_photos', {
   return {content};
 });
 
+// журнал неполадок: ошибки сайтов, повторы, переносы (пишет программа) и заметки Claude — чтобы всё отполировать
+server.registerTool('problems', {
+  title: 'Журнал неполадок',
+  description: 'Журнал неполадок Freefield: каждая ошибка генерации (сайт, вид ошибки, текст, промпт), повторы и переносы на другой сервис — пишет сама программа. ' +
+    'note — добавить свою запись о неполадке, с которой ты столкнулся (что делал, что сломалось, что помогло). Смотри журнал, когда генерации падают, и рассказывай пользователю, что пробовал.',
+  inputSchema: {limit: z.number().int().min(1).max(200).default(30), note: z.string().max(2000).optional().describe('своя запись в журнал'), site: z.string().max(20).optional()},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({limit, note, site}) => {
+  const {PROBLEMS_FILE, logProblem} = await import('./batch.js');
+  if (note) logProblem({by: 'claude', site: site || null, message: note});
+  let lines = [];
+  try { lines = fs.readFileSync(PROBLEMS_FILE, 'utf8').trim().split('\n').filter(Boolean).slice(-limit); } catch { /* пусто */ }
+  if (!lines.length) return {content: [{type: 'text', text: (note ? 'Записано. ' : '') + 'Журнал пуст.'}]};
+  const rows = lines.map(l => { try { const j = JSON.parse(l); return `${j.at.slice(0, 16).replace('T', ' ')} · ${j.by === 'claude' ? '📝 Claude' : j.site || '?'}${j.kind ? ' · ' + j.kind : ''}${j.errorKind ? ' · ' + j.errorKind : ''}${j.try ? ' · попытка ' + j.try : ''} — ${j.outcome || j.message || ''}${j.steps ? '\n   ' + j.steps.join(' → ') : ''}`; } catch { return l; } });
+  return {content: [{type: 'text', text: `${note ? 'Записано.\n' : ''}Журнал неполадок (${PROBLEMS_FILE}), последние ${rows.length}:\n${rows.join('\n')}`}]};
+});
+
 server.registerTool('phone_tasks', {
   title: 'Задания с телефона',
   description: 'Показывает пакеты сценариев, отправленные с телефона (раздел «Для Клода» в приложении Freefield) и запущенные Claude: что сгенерировано, где лежат файлы, какие ошибки. ' +
