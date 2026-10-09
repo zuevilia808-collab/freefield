@@ -260,7 +260,13 @@ function mtTick(now) {
   mtPv.last = now;
   // видео ещё грузится — часы и звук ждут его
   const waiting = mtEl.vids.some(v => v._seg && mtOn(v._seg, mtPv.t) && v.readyState < 3);
-  if (!waiting) mtPv.t += dt;
+  // часы идут за видео, которое сейчас на экране (пользователь 2026-10-09: «видео в монтаже фризит»): раньше, если страница
+  // на миг задумывалась, часы отставали, и видео отматывалось назад — замирало и прыгало; без видео (фото, звук) — свои часы
+  if (!waiting) {
+    const lead = mtEl.vids.filter(v => v._seg && mtOn(v._seg, mtPv.t) && !v.paused && !v.seeking).sort((a, b) => b._seg.start - a._seg.start)[0];
+    const vt = lead ? lead._seg.start + lead.currentTime - lead._seg.a : NaN;
+    mtPv.t = vt > mtPv.t - 0.3 && vt <= lead._seg.end + 0.05 ? Math.max(mtPv.t, vt) : mtPv.t + dt;
+  }
   mtAE.hold(waiting);
   const total = mtTotal(mtPv.segs);
   if (mtPv.t >= total) { mtPv.t = total; mtPv.playing = false; }
