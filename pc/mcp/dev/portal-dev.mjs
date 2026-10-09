@@ -1,9 +1,9 @@
 // Инструмент разработчика: изучать страницы порталов в браузере Freefield.
-//   node portal-dev.mjs open <url>
-//   node portal-dev.mjs shot <файл.png> [часть-адреса]
-//   node portal-dev.mjs inspect [часть-адреса]      — поля ввода и кнопки на странице
-//   node portal-dev.mjs eval "<js>" [часть-адреса]
-import {context, pageFor, screenshot} from './bridge.js';
+//   node mcp/dev/portal-dev.mjs open <url>
+//   node mcp/dev/portal-dev.mjs shot <файл.png> [часть-адреса]
+//   node mcp/dev/portal-dev.mjs inspect [часть-адреса]      — поля ввода и кнопки на странице
+//   node mcp/dev/portal-dev.mjs eval "<js>" [часть-адреса]
+import {context, pageFor, screenshot} from '../bridge.js';
 
 const [cmd, a, b] = process.argv.slice(2);
 const pick = async match => {
