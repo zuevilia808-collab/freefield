@@ -7,3 +7,5 @@ pc/config.json
 .lock-*
 outputs/
 node_modules/
+# проверки: npm install создаёт свой список версий — в репозиторий не кладём
+tests/package-lock.json
