@@ -11,7 +11,12 @@
 | `pc/config.example.json` | `Freefield\config.json` | ваш конфиг (токен Hugging Face, Blender) — копия образца, заполняете сами |
 | `pc/serve.js` | `Freefield\serve.js` | простой сервер страницы без генерации (не обязателен) |
 | `pc/update.ps1`, `pc/update.cmd` | `Freefield\Обновить Freefield.cmd` | обновить программу из репозитория (см. ниже) |
-| `index.html` и остальное в корне | `Freefield\app\` | страница Freefield |
+| `index.html`, `css/`, `js/`, `img/`, `icons/` | `Freefield\app\` | страница Freefield — запасная копия (см. ниже) |
+
+## Страница всегда новейшая
+Программа отдаёт страницу (`http://127.0.0.1:5180` и по QR-коду на телефон) сразу с сайта на GitHub Pages — всегда последнюю
+версию — и заодно кладёт её в `Freefield\app\`. Нет интернета — открывается копия из `app`. Кнопка «Обновить программу»
+обновляет и `mcp`, и `app`. Проверить свои правки до публикации: запустить с `FREEFIELD_APP_LOCAL=1` — тогда только папка `app`.
 
 ## Запуск
 - Вместе с Claude Desktop: программа запускается сама, пока Claude Desktop открыт.

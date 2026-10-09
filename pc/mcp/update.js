@@ -1,4 +1,5 @@
-// Обновление программы Freefield из репозитория (GitHub, ветка main): все pc/mcp/*.js и *.mjs → эта папка.
+// Обновление программы Freefield из репозитория (GitHub, ветка main): все pc/mcp/*.js и *.mjs → эта папка,
+// а страница приложения (index.html, css/, js/) — с GitHub Pages в папку app рядом (запасная копия на случай без интернета).
 // Прежние версии изменённых файлов — в mcp/backup-<дата>. Настройки, профили и готовые файлы не трогаем.
 // Новый код начнёт работать после перезапуска программы (Claude Desktop или ярлыка Freefield).
 import fs from 'node:fs';
@@ -28,5 +29,23 @@ export async function updateFromGithub({dir = HERE, log = () => {}} = {}) {
     changed.push(f.name);
     log('обновлён ' + f.name);
   }
-  return {changed, total: list.length, backup: changed.length && fs.existsSync(backup) ? backup : null};
+  const app = await updateApp({log}).catch(e => { log('app: ' + e.message); return []; });
+  return {changed, app, total: list.length, backup: changed.length && fs.existsSync(backup) ? backup : null};
+}
+
+// Страница приложения: index.html и всё, на что он ссылается в css/ и js/, + manifest.json и sw.js
+export async function updateApp({dir = path.join(HERE, '..', 'app'), log = () => {}} = {}) {
+  const {PAGES, saveApp} = await import('./hub.js');
+  const get = async rel => {
+    const r = await fetch(PAGES + rel + '?t=' + Date.now(), {cache: 'no-store'});
+    if (!r.ok) throw new Error(`не скачался ${rel}: ${r.status}`);
+    return Buffer.from(await r.arrayBuffer());
+  };
+  const html = await get('index.html');
+  if (!/<title>Freefield/.test(html.toString('utf8', 0, 4096))) throw new Error('GitHub Pages отдал не ту страницу');
+  const refs = [...new Set([...html.toString('utf8').matchAll(/(?:src|href)="((?:css|js)\/[\w.-]+\.(?:css|js))"/g)].map(m => m[1]))];
+  const files = [...await Promise.all([...refs, 'manifest.json', 'sw.js'].map(async rel => [rel, await get(rel)])), ['index.html', html]];
+  const changed = files.filter(([rel, buf]) => saveApp(dir, rel, buf, log)).map(([rel]) => rel);   // index.html — последним
+  for (const rel of changed) log('обновлён app/' + rel);
+  return changed;
 }

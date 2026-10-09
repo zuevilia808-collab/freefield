@@ -111,8 +111,10 @@ export const hubApi = {
       open = multi ? o.ids : [o.ids[0] || activeProfileId()];
       active = multi ? null : open[0];
     }
-    // версия приложения (время правки app/index.html): открытая страница видит, что вышло обновление
-    const app = Math.round(fs.statSync(path.join(HERE, '..', 'app', 'index.html'), {throwIfNoEntry: false})?.mtimeMs || 0);
+    // версия приложения (последняя правка index.html, css/, js/ в папке app): открытая страница видит, что вышло обновление
+    const appDir = path.join(HERE, '..', 'app'), mtime = f => fs.statSync(path.join(appDir, f), {throwIfNoEntry: false})?.mtimeMs || 0;
+    const sub = d => { try { return fs.readdirSync(path.join(appDir, d)).map(f => d + '/' + f); } catch { return []; } };
+    const app = Math.round(Math.max(0, ...['index.html', ...sub('css'), ...sub('js')].map(mtime)));
     const {lanAddresses} = await import('./hub.js');
     // что умеет эта версия программы: приложение видит, что программу на компьютере пора обновить
     return {ok: true, name: 'Freefield', ...profiles[0], profiles, active, open, multi, unknown, app, mcp: !!hubApi.mcp, lan: lanAddresses(), port: HUB_PORT,
