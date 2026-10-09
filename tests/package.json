@@ -1,0 +1,12 @@
+{
+  "name": "freefield-tests",
+  "private": true,
+  "type": "module",
+  "description": "Проверки Freefield в браузере: npm install, затем npm test",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

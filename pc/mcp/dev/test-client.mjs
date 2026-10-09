@@ -1,9 +1,10 @@
-// Проверка MCP-сервера так же, как его вызывает Claude: node test-client.mjs
+// Проверка MCP-сервера так же, как его вызывает Claude: node mcp/dev/test-client.mjs
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+import {fileURLToPath} from 'node:url';
 
 const client = new Client({name: 'freefield-test', version: '1.0.0'});
-await client.connect(new StdioClientTransport({command: process.execPath, args: ['server.js'], cwd: import.meta.dirname, stderr: 'inherit', env: {...process.env}}));
+await client.connect(new StdioClientTransport({command: process.execPath, args: ['server.js'], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'inherit', env: {...process.env}}));
 const short = r => r.content.map(c => c.type === 'image' ? `[image ${c.mimeType}, ${Math.round(c.data.length * 0.75 / 1024)} KB]` : c.text).join('\n');
 
 const {tools} = await client.listTools();
