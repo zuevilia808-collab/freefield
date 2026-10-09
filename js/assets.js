@@ -6,6 +6,19 @@ const ASSET_SVC = {
   arena: {what: '2 фото от двух разных моделей · бесплатно'},
 };
 const ASSET_MAX_REFS = 4;
+// Промпты фото — блоками, как эталон видео (пользователь 2026-10-09: «в „Фото“ в промптах должна быть чёткая блочная система»):
+// «Подпись: …» — по строке на блок; место, действие, тема и заголовок встают в свои блоки (photoSet)
+const PHOTO_BLOCKS = ['Subject', 'Pose & expression', 'Action', 'Location', 'Lighting', 'Camera & framing', 'Style', 'Avoid'];
+const PHOTO_SHAPE = PHOTO_BLOCKS.map(b => b + ': …');
+const photoBlocks = o => Object.entries(o).map(([k, v]) => `${k}: ${v}`).join('\n');
+const isPhotoBlock = t => [...String(t || '').matchAll(/^\s*([A-Z][A-Za-z &/-]{1,30}):/gm)].length >= 3;
+// блок «Подпись:» — заменить его содержимое; нет такого — новой строкой перед «Avoid:» (или в конце)
+function photoSet(p, label, v) {
+  const re = new RegExp(`^([ \\t]*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[ \\t]*:)[ \\t]*(.*)$`, 'mi');
+  if (re.test(p)) return p.replace(re, (a, l) => `${l} ${v}`);
+  const av = p.search(/^[ \t]*Avoid[ \t]*:/mi);
+  return av >= 0 ? `${p.slice(0, av)}${label}: ${v}\n${p.slice(av)}` : `${p.replace(/\s+$/, '')}\n${label}: ${v}`;
+}
 // «Что создаём» — ассеты рилса по шагам (пользователь 2026-09-27): готовый английский промпт с [ПОЛЯМИ], формат и количество.
 // Промпт — шаблон: пользователь меняет [ПОЛЯ] на своё, больше ничего не дописывается
 const ASSET_KINDS = {
@@ -14,17 +27,22 @@ const ASSET_KINDS = {
   info: {ico: 'chart', name: 'Создать инфографику', sub: 'о чём ролик · 9:16', aspect: '9:16', many: 'Инфографики',
     ask: 'Сколько инфографик нужно?', note: 'Тему и заголовок можно вписать у каждой — или оставить пустыми, их выберет модель. Дальше откроется выбор фото-примера стиля (не обязателен).',
     hint: 'Промпт инфографики уже в поле. Тема и заголовок — по желанию у каждой картинки; пример стиля — по желанию',
-    prompt: 'Vertical infographic poster for a short video: a bold headline at the top, 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.',
-    legacy: ['Vertical infographic poster for a short video about [TOPIC]. Bold headline at the top: "[HEADLINE]". 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.'],
+    prompt: photoBlocks({Format: 'vertical infographic poster for a short video', Topic: '', Headline: '',
+      Content: '3–5 key points, each with a simple flat icon and a short label', Typography: 'a bold headline at the top, large readable type, strong visual hierarchy',
+      Layout: 'clean modern layout, generous spacing', Colors: 'high contrast, consistent color palette', Avoid: 'watermark, tiny unreadable text'}),
+    legacy: ['Vertical infographic poster for a short video: a bold headline at the top, 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.', 'Vertical infographic poster for a short video about [TOPIC]. Bold headline at the top: "[HEADLINE]". 3–5 key points, each with a simple flat icon and a short label, large readable typography, clean modern layout, strong visual hierarchy, high contrast, consistent color palette, generous spacing, no watermark.'],
     opt: [['TOPIC', 'Тема — по желанию'], ['HEADLINE', 'Заголовок — по желанию']]},
   // Пользователь 2026-10-08: «при нажатии на „Развёртка героя“ в поле сразу же вводился промпт, который нужен для развёртки» —
   // промпт готовый, без [ПОЛЕЙ]: развёртка — по фото героя (своё у каждой развёртки или общий референс)
   sheet: {ico: 'user', name: 'Развёртка героя', sub: 'спереди, сбоку, сзади · 16:9', aspect: '16:9', many: 'Развёртки героев',
     ask: 'Сколько развёрток героя нужно?', note: 'По одной на героя. Дальше откроется выбор фото: по одному фото на героя, по порядку.',
     hint: 'Промпт развёртки уже в поле — добавьте фото героя, развёртка будет по нему',
-    prompt: 'Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.',
+    prompt: photoBlocks({Subject: 'the same person as in the reference photo — keep the face, hair, clothing and accessories exactly',
+      Layout: 'character turnaround sheet: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories',
+      Consistency: 'the same person and outfit in every view, consistent proportions', Background: 'neutral light-gray studio background',
+      Lighting: 'even soft studio lighting', Style: 'photorealistic, high detail', Avoid: 'text, labels, watermark'}),
     // прежний шаблон с [ПОЛЕМ] — если он остался в поле, это тоже шаблон, а не свой промпт
-    legacy: ['Character turnaround sheet of [CHARACTER: age, face, hair, clothing]: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.']},
+    legacy: ['Character turnaround sheet of the same person as in the reference photo, keeping the face, hair and clothing exactly: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.', 'Character turnaround sheet of [CHARACTER: age, face, hair, clothing]: full-body views from the front, left side, back and right side in one row, plus a face close-up and close-ups of clothing details and accessories. The same person and outfit in every view, consistent proportions, neutral light-gray studio background, even soft lighting, photorealistic, high detail, no text, no watermark.']},
   // Пользователь 2026-09-29: обязательны развёртка И инфографика; что делает герой и где — не вписывать: модель сама выбирает
   // обстановку по теме инфографики, у каждого кадра — своя (LOC_SCENES)
   // Пользователь 2026-10-07: место и действие можно вписать у каждого кадра (необязательно); инфографика желательна, но не обязательна.
@@ -32,7 +50,11 @@ const ASSET_KINDS = {
   loc: {ico: 'pin', name: 'Персонаж в локации', sub: 'по развёртке · место и действие по желанию · 3:4 ×4', aspect: '3:4', count: 4, many: 'Кадры героя в локациях',
     ask: 'Сколько кадров «персонаж в локации» нужно?', note: 'Один кадр на сценарий. У каждого кадра можно вписать место и действие — или оставить пустыми: их подберут по инфографике (если она есть) или выберет модель.',
     hint: 'Нужна развёртка героя; инфографика желательна. Место и действие — по желанию у каждого кадра',
-    prompt: 'Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.',
+    prompt: photoBlocks({Subject: 'the same character as in the reference turnaround sheet — keep the face, hair, clothing and details exactly',
+      'Pose & expression': 'natural body posture, believable relaxed expression', Action: '', Location: '',
+      Lighting: 'cinematic lighting and shadows', 'Camera & framing': 'vertical portrait, eye level, 35–50 mm lens, sharp focus on the face',
+      Style: 'photorealistic documentary photography, high detail', Avoid: 'text, watermark, any part of the infographic'}),
+    legacy: ['Photorealistic vertical portrait of the same character as in the reference turnaround sheet, keeping the face, hair, clothing and details exactly. Natural body posture, cinematic lighting and shadows, documentary photography, high detail, vertical composition, no text, no watermark.'],
     opt: [['LOCATION', 'Место — по желанию'], ['ACTION', 'Действие — по желанию']]},
 };
 // у каждого кадра «персонаж в локации» — своя сцена по теме инфографики (кадры одного запуска не повторяются)
@@ -46,6 +68,13 @@ const LOC_SCENES_FREE = ['a calm everyday moment at home', 'walking along a city
 // промпт кадра «персонаж в локации»: основа (поле «Что на фото») + вписанные место и действие; чего нет — по инфографике или на выбор модели
 function locPrompt(base, it, i) {
   const place = (it.vals.LOCATION || '').trim(), action = (it.vals.ACTION || '').trim();
+  if (isPhotoBlock(base)) {   // блочный промпт: место и действие — в «Location:» и «Action:», чего нет — выбирает модель
+    const idea = !place && !action ? ` (scene idea: ${(asset.info ? LOC_SCENES : LOC_SCENES_FREE)[Math.max(0, i) % LOC_SCENES.length]})` : '';
+    const by = asset.info ? 'that fits the topic of the reference infographic' : 'that looks natural and believable';
+    let p = photoSet(base, 'Location', place || `choose yourself a real-life setting with props ${by}${idea}`);
+    p = photoSet(p, 'Action', action || `choose yourself one clear action for the character ${by}`);
+    return asset.info ? photoSet(p, 'Infographic', 'the reference infographic only explains the topic — never show it, its text, icons or charts') : p;
+  }
   const miss = !place && !action ? 'a real-life setting, props and an action for the character' : !place ? 'a real-life setting and props' : !action ? 'an action for the character' : '';
   const one = place && !action;   // не хватает только действия — одно, остальное — несколько
   const parts = [base];
@@ -60,6 +89,10 @@ function locPrompt(base, it, i) {
 // свой промпт пользователя, видимо, уже говорит, о чём инфографика)
 function infoPrompt(base, it) {
   const topic = (it.vals.TOPIC || '').trim(), head = (it.vals.HEADLINE || '').trim(), tpl = isAssetTpl(base);
+  if (isPhotoBlock(base)) {   // блочный: тема и заголовок — в свои блоки
+    let p = topic || tpl ? photoSet(base, 'Topic', topic || 'choose yourself a useful, popular topic for a short video') : base;
+    return head || tpl ? photoSet(p, 'Headline', head ? `exactly "${head}"` : `write a short, catchy headline for ${topic ? 'this' : 'the'} topic`) : p;
+  }
   const parts = [base];
   if (topic) parts.push(`Topic: ${topic}.`);
   else if (tpl) parts.push('Choose yourself a useful, popular topic for a short video.');

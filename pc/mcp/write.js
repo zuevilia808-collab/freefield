@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawn, spawnSync} from 'node:child_process';
+import {HERE} from './state.js';
 
 const WIN = process.platform === 'win32';
 // где Claude Code: установка через npm (claude.exe рядом с claude.cmd) или claude в PATH
@@ -21,6 +22,18 @@ export function claudeExe() {
   } catch { return null; }
 }
 
+// каждое задание и ответ — файлом: outputs/Сценарии Claude/<дата>/<время>.md (картинки — только подписи)
+export const WRITE_DIR = path.join(process.env.FREEFIELD_OUTPUT_DIR || path.join(HERE, '..', 'outputs'), 'Сценарии Claude');
+function keep(job, sys, blocks) {
+  try {
+    const d = new Date(job.at), pad = n => String(n).padStart(2, '0');
+    const dir = path.join(WRITE_DIR, `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+    fs.mkdirSync(dir, {recursive: true});
+    const task = blocks.map(b => b.type === 'image' ? '[картинка]' : b.text).join('\n');
+    job.file = path.join(dir, `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${job.id.slice(0, 4)}.md`);
+    fs.writeFileSync(job.file, `# Claude ${job.model} — ${d.toLocaleString('ru-RU')}\n\n## Ответ\n\n${job.text || job.error}\n\n## Задание\n\n${task}\n\n## Системный промпт\n\n${sys}\n`);
+  } catch { /* не записалось — ответ всё равно уходит в приложение */ }
+}
 const jobs = new Map();
 let queue = Promise.resolve();   // по одному: несколько заданий сразу быстро выбирают лимит подписки
 const MODELS = ['opus', 'sonnet', 'haiku'];
@@ -47,7 +60,7 @@ export function writeStart({system, content, model} = {}) {
   const id = crypto.randomBytes(8).toString('hex');
   const job = {id, status: 'queued', at: Date.now(), model: MODELS.includes(model) ? model : 'opus'};
   jobs.set(id, job);
-  queue = queue.then(() => work(job, sys, blocks)).catch(() => {});
+  queue = queue.then(() => work(job, sys, blocks)).then(() => keep(job, sys, blocks)).catch(() => {});
   return {id};
 }
 

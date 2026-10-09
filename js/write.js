@@ -12,24 +12,62 @@ const WRITERS = {
   chat: {name: 'ИИ в чате', ico: '💬', color: 'linear-gradient(135deg,#7c5cff,#4c1d95)', what: 'Без ключа — скопируется ваш эталонный промпт и просьба написать сценарии; вставьте в чат с Gemini, Claude или ChatGPT'},
 };
 const CLAUDE_MODELS = [['claude-opus-5-5', 'Opus 5.5 — самый сильный'], ['claude-sonnet-5', 'Sonnet 5 — быстрее и дешевле']];
-// Эталонный промпт пользователя для видео (прислал 2026-09-26): каждый видео-промпт — эти блоки, по строке на блок
-const REF_BLOCKS = ['On-screen text', 'Spoken line', 'Action', 'Automatic subtitles', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
-const REF_PROMPT = REF_BLOCKS.map(b => b + ': ').join('\n');
+// Эталонный промпт пользователя для видео. Пользователь 2026-10-09 прислал новый — по таймкодам: подпись блока на своей строке,
+// под ней строки «(0:00–0:03) …» (по-русски, переведён на английский). Таймкоды — для ролика 10 с; ИИ растягивает их под длину ролика
+const REF_BLOCKS = ['Scenes & Shot cuts', 'On-screen text', 'Spoken line', 'Automatic subtitles', 'Action & Emotions', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
+const REF_OLD = ['On-screen text', 'Spoken line', 'Action', 'Automatic subtitles', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
+const REF_PROMPT = `Scenes & Shot cuts:
+(0:00–0:03) Scene 1: [Description]
+(0:03–0:07) Scene 2: [Description]
+(0:07–0:10) Scene 3: [Description]
+On-screen text:
+(0:00–0:10) [On-screen text]
+Spoken line:
+(0:00–0:03) "[Line 1]"
+(0:03–0:07) "[Line 2]"
+(0:07–0:10) "[Line 3]"
+Automatic subtitles:
+(0:00–0:03) [Subtitles 1]
+(0:03–0:07) [Subtitles 2]
+(0:07–0:10) [Subtitles 3]
+Action & Emotions:
+(0:00–0:03) [Actions 1]
+(0:03–0:07) [Actions 2]
+(0:07–0:10) [Actions 3]
+Pose & body language:
+(0:00–0:10) [Pose and gestures]
+Location:
+(0:00–0:10) [Location]
+Camera & framing:
+(0:00–0:03) [Camera 1]
+(0:03–0:07) [Camera 2]
+(0:07–0:10) [Camera 3]
+Sound design:
+(0:00–0:03) [Sound 1]
+(0:03–0:07) [Sound 2]
+(0:07–0:10) [Sound 3]
+Timing & pacing:
+(0:00–0:10) [Overall pace]`;
+// таймкод строки эталона: «(0:00–0:03)»
+const REF_TC = /\(\d+:\d{2}\s*[–—-]\s*\d+:\d{2}\)/;
 // подписи блоков эталона, который пользователь вписал в «Сценариях» (строки «Подпись: …»)
 const refLabels = () => { const l = [...String(wr.ref || '').matchAll(/^\s*([A-Za-zА-Яа-яЁё][^:\n]{1,40}):/gm)].map(m => m[1].trim()); return l.length ? l : REF_BLOCKS; };
-const isBlockPrompt = t => { const known = new Set([...REF_BLOCKS, ...refLabels()]);
+const isBlockPrompt = t => { const known = new Set([...REF_BLOCKS, ...REF_OLD, ...refLabels()]);
   return [...String(t || '').matchAll(/^\s*([^:\n]{2,40}):/gm)].filter(m => known.has(m[1].trim())).length >= 3; };
 // блочный промпт → на английский построчно: подписи блоков остаются, текст на экране и реплика героя — как написаны
 // (по-русски), в остальных блоках переводится всё, кроме кусков в «кавычках»
 async function translateBlocks(text) {
-  const keep = ['On-screen text', 'Spoken line'];
+  const keep = ['On-screen text', 'Spoken line', 'Automatic subtitles'];
+  let cur = '';   // блок, под которым стоит строка «(0:00–0:03) …»
   const lines = await Promise.all(String(text).split('\n').map(async line => {
-    const m = line.match(/^([A-Za-z][A-Za-z &/-]+):\s*(.*)$/);
-    if (!m || keep.includes(m[1]) || !/[а-яё]/i.test(m[2])) return line;
+    const lab = line.match(/^([A-Za-z][A-Za-z &/-]+):\s*(.*)$/), tc = !lab && line.match(/^(\s*\(\d+:\d{2}\s*[–—-]\s*\d+:\d{2}\))\s*(.*)$/);
+    if (lab) cur = lab[1];
+    const m = lab || (tc && [line, tc[1], tc[2]]);
+    if (!m || keep.includes(lab ? m[1] : cur) || !/[а-яё]/i.test(m[2])) return line;
     const quotes = [];
     const safe = m[2].replace(/«[^»]*»/g, q => `[${quotes.push(q) - 1}]`);
     if (!/[а-яё]/i.test(safe)) return line;
-    try { return `${m[1]}: ${(await translatePrompt(safe)).replace(/\[(\d+)\]/g, (_, n) => quotes[+n] ?? '')}`; } catch { return line; }
+    try { return `${m[1]}${lab ? ':' : ''} ${(await translatePrompt(safe)).replace(/\[(\d+)\]/g, (_, n) => quotes[+n] ?? '')}`; } catch { return line; }
   }));
   return lines.join('\n');
 }
@@ -51,7 +89,9 @@ const wr = {
   // хранятся в IndexedDB (10 фото в localStorage не влезут) — загружаются после открытия хранилища, см. wrLocsLoad
   locs: [],
   result: ls.get('freefield.write.result', null), // {scenarios, by, at} или {raw, by, at} — ответ не по формату
-  ref: ls.get('freefield.write.ref', REF_PROMPT),   // эталонный промпт пользователя: по нему ИИ пишет видео-промпты
+  ref: (r => { if (ls.get('freefield.write.ref.v', 1) >= 2) return r;
+    if (r && r.trim() !== REF_OLD.map(b => b + ':').join('\n')) ls.set('freefield.write.ref.prev', r);
+    ls.set('freefield.write.ref.v', 2); ls.set('freefield.write.ref', REF_PROMPT); return REF_PROMPT; })(ls.get('freefield.write.ref', REF_PROMPT)),   // эталонный промпт: по нему ИИ пишет видео-промпты
   char: ls.get('freefield.write.char', null),       // персонаж роликов: его развёртка — в ячейке, его голос ИИ впишет в каждый сценарий
   busy: false, note: '', pick: 'info',
   save() {
@@ -104,10 +144,11 @@ const writerNow = () => WRITERS[wr.ai] ? wr.ai : writerAuto();
 
 // заполненный эталон: каждый блок — с новой строки «Подпись: …» (ИИ иногда пишет всё в одну строку, с **жирным** или в ```)
 function fillBlocks(text) {
-  const labels = [...new Set([...refLabels(), ...REF_BLOCKS])].sort((a, b) => b.length - a.length)
+  const labels = [...new Set([...refLabels(), ...REF_BLOCKS, ...PHOTO_BLOCKS])].sort((a, b) => b.length - a.length)
     .map(l => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'));
   const re = new RegExp(`[ \\t]*\\**[ \\t]*\\b(${labels.join('|')})[ \\t]*\\**[ \\t]*:[ \\t]*\\**[ \\t]*`, 'g');   // подписи — с большой буквы, как в эталоне
   return String(text || '').replace(/```[\w-]*/g, '').replace(re, (m, l) => `\n${l.replace(/\s+/g, ' ')}: `)
+    .replace(/[ \t]*(\(\d+:\d{2}\s*[–—-]\s*\d+:\d{2}\))/g, '\n$1')   // «(0:00–0:03) …» — каждая с новой строки
     .replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
 }
 // вставленный промпт похож на эталон (≥3 подписей блоков — хоть в одну строку) → разложить по блокам, как эталон;
@@ -126,7 +167,10 @@ const blocksHTML = t => fillBlocks(t).split('\n').filter(l => l.trim()).map(l =>
 // задание для ИИ: структура рилса пользователя (хук → речь с жестами → призыв); на выходе — эталонный промпт, только заполненный
 // (пользователь 2026-09-26: «выходной промпт для сценария должен быть ровно такой, как эталонный — только заполненный»)
 function writeBrief() {
-  const n = wr.count, sec = cl.seconds, mid = sec - 3, words = Math.round((sec - 2) * 2.4);   // речь со 2-й секунды до конца
+  const n = wr.count, sec = cl.seconds, words = Math.round(sec * 2.3);
+  // три части ролика, как в эталоне (0–3 / 3–7 / 7–10 при 10 с) — под длину ролика
+  const a1 = Math.max(2, Math.round(sec * 0.3)), mid = Math.max(a1 + 2, Math.round(sec * 0.7)), tc = s => `0:${String(s).padStart(2, '0')}`;
+  const segs = `(${tc(0)}–${tc(a1)}) / (${tc(a1)}–${tc(mid)}) / (${tc(mid)}–${tc(sec)})`, timed = REF_TC.test(wr.ref || '');
   // кадры «персонаж в локации»: по одному на сценарий — IMAGE 3 для сценария 1, IMAGE 4 для сценария 2…
   const L = Math.min(wr.locs.length, n), many = L > 1;
   const ref = (wr.ref || '').trim() || REF_PROMPT, shape = refLabels().map(l => `${l}: …`), labels = refLabels().map(l => l.toLowerCase());
@@ -137,16 +181,19 @@ function writeBrief() {
   const lang = vc.char(wr.char)?.lang === 'en' ? 'English' : 'Russian', en = lang === 'English';
   // подсказки — только к тем блокам, что есть в эталоне пользователя
   const guide = [
+    ['Scenes & Shot cuts', 'what each shot shows and where the cut is; the first shot starts exactly like the location image'],
+    ['Action & Emotions', 'what the hero does and feels in each part, including a concrete action with the hands or a prop'],
     ['On-screen text', `the ${lang} hook text in «» with its timing and place (0–2 s, upper third) and the ${lang} CTA text in «» for ${mid}–${sec} s, plus font style`],
-    ['Spoken line', voice ? `the hero's fixed voice word for word, then the exact ${lang} speech in «» with timing (e.g. "voice — ${voice.en}; 2-${mid} s, in ${lang}: «…» ${mid}-${sec} s: «…»")`
-      : `the hero's exact ${lang} speech in «», with timing and the voice (e.g. "2-${mid} s, deep calm male voice, in ${lang}: «…» ${mid}-${sec} s: «…»")`],
+    ['Spoken line', timed ? `the exact ${lang} speech of each part in «»${voice ? `; the label line itself carries the fixed voice: "Spoken line: voice — ${voice.en}"` : ''}`
+      : voice ? `the hero's fixed voice word for word, then the exact ${lang} speech in «» with timing (e.g. "voice — ${voice.en}; ${a1}-${mid} s, in ${lang}: «…» ${mid}-${sec} s: «…»")`
+      : `the hero's exact ${lang} speech in «», with timing and the voice (e.g. "${a1}-${mid} s, deep calm male voice, in ${lang}: «…» ${mid}-${sec} s: «…»")`],
     ['Action', 'what happens second by second, including the concrete action with the hands or a prop'],
-    ['Automatic subtitles', 'burned-in subtitles of the spoken line: language, position, style (default: ${lang}, bottom third, bold white sans-serif with a dark outline, word-synced)'],
+    ['Automatic subtitles', `the burned-in subtitles of each part — the same words as the spoken line, in ${lang}; style once: bottom third, bold white sans-serif with a dark outline, word-synced`],
     ['Pose & body language', 'posture, gestures, facial expression, eye contact'],
-    ['Location', `only the place and its details${L ? ` exactly as on ${many ? "the scenario's own location image" : 'IMAGE 3'}` : ''} — never the hero's appearance`],
+    ['Location', `only the place, light and its details${L ? ` exactly as on ${many ? "the scenario's own location image" : 'IMAGE 3'}` : ''} — never the hero's appearance`],
     ['Camera & framing', 'shot size, angle, lens, movement, vertical 9:16'],
     ['Sound design', 'voice, ambient sound, effects, music (or none)'],
-    ['Timing & pacing', `the beat timing 0–2 s / 2–${mid} s / ${mid}–${sec} s and the rhythm`],
+    ['Timing & pacing', `the beat timing ${segs} and the rhythm`],
   ].filter(([l]) => labels.includes(l.toLowerCase())).map(([l, t]) => `  ${l} — ${t}.`).join('\n');
   const intro = `You are a top short-form video scriptwriter (Reels / TikTok / Shorts) and an expert prompt engineer for AI video models (Veo, Omni, Seedance) and image models (Nano Banana).
 You receive ${L + 2} images:
@@ -157,13 +204,13 @@ IMAGE 3 — CHARACTER IN LOCATION: the hero already placed in the scene. The ree
 THE HERO'S PERSONALITY (the author's words, in Russian): «${about}». Keep this character, attitude and manner of speech in every scenario — in what he says and how he acts; it never changes his look.` : ''}
 
 Write ${n} different reel scenario${n > 1 ? 's' : ''}, ${sec} seconds each, vertical 9:16, for ${en ? 'an English' : 'a Russian'}-speaking audience. Mandatory structure of every reel:
-1) 0–2 s HOOK: the hero silently looks into the camera or does one short intriguing action; the upper third of the frame stays clean because the hook text is added there in editing. Hook text: ${lang}, at most 7 words, hits curiosity or pain.
-2) 2–${mid} s: the hero speaks ${lang} in short natural spoken sentences and does a concrete action with the hands or a prop connected to the infographic.
-3) ${mid}–${sec} s CTA: a short spoken call to action; CTA text for the screen in ${lang} (added in editing).
+1) 0–${a1} s HOOK: an intriguing first line or action that stops the scroll; the hook text sits in the upper third. Hook text: ${lang}, at most 7 words, hits curiosity or pain.
+2) ${a1}–${mid} s: the hero speaks ${lang} in short natural spoken sentences and does a concrete action with the hands or a prop connected to the infographic.
+3) ${mid}–${sec} s CTA: a short spoken call to action; CTA text for the screen in ${lang}.
 All speech of one reel together: at most ${words} ${lang} words, so it fits the time.
 Every scenario uses a different angle (pain → solution, myth vs fact, mini-story, comparison, secret / life hack, common mistake…)${many ? `; scenario k is set in the location of its own image (scenario 1 — IMAGE 3, scenario 2 — IMAGE 4…), and the scenarios are returned in this order.` : L ? ', set in the location of IMAGE 3.' : ' and a different location that suits the hero and the topic.'}`;
   // сам сценарий = эталонный промпт автора, только заполненный: те же подписи, тот же порядок, блок — строка
-  const template = `THE SCENARIO FORMAT — the AUTHOR'S REFERENCE PROMPT below, only filled in: exactly the same labels, in the same order, nothing renamed, merged, skipped or added; every block on its own line as "Label: content". If a block in the reference already contains text, that text is the author's rule for the block — follow it in every scenario.
+  const template = `THE SCENARIO FORMAT — the AUTHOR'S REFERENCE PROMPT below, only filled in: exactly the same labels, in the same order, nothing renamed, merged, skipped or added.${timed ? ` Each label stays on its own line ("Label:") and below it come its timecoded lines "(m:ss–m:ss) …" exactly as in the reference — the same number of lines per block; [placeholders] are replaced with real content, the brackets disappear. The reference timecodes are written for a 10-second reel: rescale them to ${sec} s — ${segs}; a "(0:00–0:10)" line covers the whole reel (0:00–${tc(sec)}).` : ' Every block on its own line as "Label: content".'} If a block in the reference already contains text (not a [placeholder]), that text is the author's rule for the block — follow it in every scenario.
 AUTHOR'S REFERENCE PROMPT:
 <<<
 ${ref}
@@ -177,10 +224,18 @@ For every scenario return:
 • title — a short Russian name; angle — the Russian name of the approach (боль, миф…);
 • video_prompt — the scenario itself: the filled reference prompt (lines separated by \\n inside the JSON string, no markdown);
 • caption — the post text for this reel in ${lang}: 1–3 short catchy sentences and 5–8 relevant hashtags;
-• asset_prompt — English, 60–110 words, for the Nano Banana image model that gets the turnaround sheet as a reference: "Photorealistic vertical 3:4 portrait of the same [exact hero description from the sheet] …" + the scenario's location${L ? ' as on its location image' : ''} + the pose of the first frame + lighting + "documentary photography, natural body posture, high detail, vertical composition, no text, no watermark".
+• asset_prompt — the photo of the first frame for the Nano Banana image model (it gets the turnaround sheet as a reference), English, 60–120 words, in the same block system — exactly these labels, one per line, all filled in:
+  Subject: the same hero exactly as on the sheet — age, build, face, hair and beard, every clothing item with its colour, accessories, distinctive marks
+  Pose & expression: the pose, gesture and facial expression of the first frame
+  Action: what he is doing in the first frame
+  Location: the scenario's place${L ? ' exactly as on its location image' : ''} — props, details
+  Lighting: light source, time of day, mood
+  Camera & framing: vertical 3:4, shot size, angle, lens
+  Style: photorealistic documentary photography, natural body posture, high detail
+  Avoid: text, watermark
 
 Answer with ONLY one JSON object inside a single \`\`\`json code block — no text before or after it:
-{"scenarios":[{"title":"…","angle":"…","video_prompt":"${shape.join('\\n')}","caption":"…","asset_prompt":"…"}]}`;
+{"scenarios":[{"title":"…","angle":"…","video_prompt":"${shape.join('\\n')}","caption":"…","asset_prompt":"${PHOTO_SHAPE.join('\\n')}"}]}`;
   const user = `Первая картинка — инфографика, вторая — развёртка героя${many ? `, дальше — ${L} ${plur(L, 'кадр', 'кадра', 'кадров')} героя в разных локациях: по одному на сценарий, по порядку` : L ? ', третья — герой в локации' : ''}.\nСценариев: ${n}, длина каждого: ${sec} секунд.\nПожелания автора: ${wr.idea.trim() || 'нет — выбери самые сильные углы для этой темы и аудитории'}`;
   // для чата с любым ИИ (Gemini, Claude, ChatGPT): просьба написать N сценариев и структура ответа автора (пользователь 2026-09-27):
   // «N. Название» → Block 1. Photo (промпт ассета) → Block 2. Video prompt (эталон, только заполненный) → Block 3. Post caption;
@@ -192,7 +247,14 @@ Answer with ONLY one JSON object inside a single \`\`\`json code block — no te
 Block 1. Photo
 
 ${fence}
-Photorealistic vertical 3:4 portrait of the same <герой точно как на развёртке>, <место, поза и предмет первого кадра>, <свет>, documentary photography, natural body posture, high detail, vertical composition, no text, no watermark
+Subject: <герой точно как на развёртке: возраст, лицо, волосы, одежда с цветами, аксессуары>
+Pose & expression: <поза и выражение лица первого кадра>
+Action: <что он делает в первом кадре>
+Location: <место первого кадра, предметы>
+Lighting: <свет, время суток, настроение>
+Camera & framing: vertical 3:4, <крупность, ракурс, объектив>
+Style: photorealistic documentary photography, natural body posture, high detail
+Avoid: text, watermark
 ${fence}
 
 Block 2. Video prompt
@@ -219,7 +281,7 @@ function parseScenarios(raw, code = '') {
   const str = v => typeof v === 'string' ? v.trim() : v == null ? '' : String(v);
   const out = list => list.map(o => ({title: str(o.title) || 'Сценарий', angle: str(o.angle), location: str(o.location), hook: str(o.hook), cta: str(o.cta),
     beats: (Array.isArray(o.beats) ? o.beats : []).map(b => ({time: str(b.time), action: str(b.action), speech: str(b.speech)})),
-    asset_prompt: str(o.asset_prompt), caption: str(o.caption), video_prompt: fillBlocks(str(o.video_prompt))}));
+    asset_prompt: fillBlocks(str(o.asset_prompt)), caption: str(o.caption), video_prompt: fillBlocks(str(o.video_prompt))}));
   for (const t of tries) {
     const a = t.indexOf('{'), b = t.lastIndexOf('}');
     if (a < 0 || b <= a) continue;
@@ -658,7 +720,7 @@ function writeOutHTML() {
     <div class="wr-card" data-wi="${i}">
       <div class="scn-head">${wr.locs[i] ? `<img class="wr-card-loc" src="${wr.locs[i]}" alt="" title="Кадр ${i + 1} — «персонаж в локации» этого сценария">` : ''}<b>${i + 1}. ${esc(s.title)}</b>${s.angle ? `<span class="wr-tag">${esc(s.angle)}</span>` : ''}</div>
       <div class="wr-blocks">${s.video_prompt ? blocksHTML(s.video_prompt) : '<div>ИИ не заполнил эталонный промпт — напишите сценарий заново</div>'}</div>
-      ${s.asset_prompt ? `<details class="wr-prompts"><summary>Промпт ассета — для «🖼 Ассет ×4»</summary><p>${esc(s.asset_prompt)}</p></details>` : ''}
+      ${s.asset_prompt ? `<details class="wr-prompts"><summary>Промпт ассета — для «🖼 Ассет ×4»</summary><div class="wr-blocks">${blocksHTML(s.asset_prompt)}</div></details>` : ''}
       <div class="cl-row">
         <button class="btn small" data-wcopy-video="${i}" title="Скопировать сценарий — заполненный эталонный промпт, по блокам">📋 Копировать</button>
         ${s.asset_prompt ? `<button class="btn small" data-wasset="${i}" title="Flow · Nano Banana 2.1 · 3:4 · ×4 с развёрткой героя — без кредитов">🖼 Ассет ×4</button>` : ''}
