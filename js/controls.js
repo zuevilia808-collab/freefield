@@ -28,7 +28,7 @@ function updateGenButton() {
     btn.disabled = false;
     $('#genLabel').textContent = '＋ Новый персонаж';
     $('#genSub').textContent = n ? `${n} ${plur(n, 'персонаж', 'персонажа', 'персонажей')}` : 'первый';
-    $('#etaLine').textContent = 'Персонажи хранятся в этом браузере · выберите героя в «Создании сценария» — всё встанет в ячейки';
+    $('#etaLine').textContent = 'Персонажи хранятся в этом браузере · выберите героя в «Сценариях» — всё встанет в ячейки';
     return;
   }
   if (cl.mode === 'write') {
@@ -60,7 +60,7 @@ function updateGenButton() {
     $('#etaLine').textContent = hubLink.ok ? 'Google Vids · Google Flow · Arena · Dola — бесплатные кредиты' : 'Без компьютера: подготовлю фото и промпты — «Создать» на сайтах нажмёте сами';
     return;
   }
-  // «Создание ассетов»
+  // «Фото»
   const btn = $('#genBtn'), m = scnModel('image', asset.svc, asset.model[asset.svc]) || scnModel('image', asset.svc, scnDefault('image', asset.svc));
   btn.classList.remove('paid');
   btn.disabled = asset.sending;
@@ -134,7 +134,7 @@ const motionGroupsHTML = cur => MOTION_GROUPS.map(([id, name, icon]) =>
   `<button class="mv-group ${cur === id ? 'on' : ''}" data-g="${id}">${ic(icon)}${name}<small>${motionsOf(id).length}</small></button>`).join('');
 const motionCardsHTML = (g, sel) => motionsOf(g).map((m, i) =>
   `<button class="motion-card ${m.id === sel ? 'on' : ''}" data-id="${m.id}" title="${esc(m.desc)}" style="animation-delay:${i * 28}ms"><div class="mv"><canvas></canvas></div><span class="mv-tick">${ic('check')}</span><div class="nm">${esc(m.name)}</div></button>`).join('');
-// «Видео сервисы»: у видео-сценария своё движение камеры (окно с теми же живыми превью)
+// «Видео»: у видео-сценария своё движение камеры (окно с теми же живыми превью)
 const camPick = {i: null, g: 'top'};
 function openCamPick(i) {
   const s = cl.scn[i];
@@ -175,6 +175,17 @@ function buildControls() {
 function renderEmpty() {
   const el = $('#emptyAct');
   if (!el) return;
+  // с чего начать: программа на компьютере → вход в аккаунты Google → персонаж (сделанное — с галочкой)
+  const profs = hubLink.info?.profiles?.length ? hubLink.info.profiles : hubLink.info ? [hubLink.info] : [];
+  const logged = profs.some(p => ['flow', 'dola', 'arena', 'vids'].some(id => p.login?.[id]?.ok));
+  const phone = pwa.mobile() || isMobile();
+  const step = (n, done, ico, title, text, attr) => `<button class="feat ${done ? 'done' : ''}" ${attr}><b><svg class="ic"><use href="#i-${ico}"/></svg>${n}. ${title}<i class="fs-ok">${done ? '✓' : ''}</i></b><span>${text}</span></button>`;
+  $('#firstSteps').innerHTML =
+    step(1, hubLink.ok, 'plug', phone ? 'Компьютер' : 'Программа Freefield', hubLink.ok ? 'Подключена — задания уходят на компьютер.'
+      : phone ? 'На компьютере во Freefield: «📱 На телефон» → наведите камеру на QR-код.' : 'Откройте Claude Desktop или запустите Freefield из папки — она делает фото и видео.', 'data-step="pc"') +
+    step(2, logged, 'users', 'Аккаунты Google', logged ? 'Вход выполнен — кредиты Flow, Dola, Arena ваши.' : 'Войдите в Google Flow, Dola и Arena в окне Chrome Freefield — один раз.', 'data-step="acc"') +
+    step(3, vc.chars.length > 0, 'image', 'Персонаж', vc.chars.length ? `Есть: ${vc.chars.map(c => esc(c.name || 'без имени')).slice(0, 3).join(', ')}${vc.chars.length > 3 ? '…' : ''}. Дальше — «🚀 Серия роликов» у персонажа.`
+      : 'Развёртка, инфографика, кадры и голос — один раз, для всех роликов.', 'data-step="char"');
   el.innerHTML = /^(file|data):$/.test(location.protocol) && !native.on()
     ? '<div class="cl-conn">Эта страница открыта файлом — у неё своя, пустая галерея. Ваши фото и видео — в Freefield с компьютера: <a href="http://localhost:5180/">localhost:5180</a></div>'
     : hubLink.ok ? '<button class="btn" data-import-all title="Компьютер проверит сервисы (Flow…) и отдаст все картинки и видео за сегодня и вчера">🔄 Забрать всё из сервисов</button>' : '';
@@ -209,9 +220,12 @@ function bindControls() {
   $('#prompt').addEventListener('input', e => { state.prompts[state.mode] = e.target.value; saveSettings(); });
   $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); createGo(); } });
   $('#genBtn').addEventListener('click', createGo);
-  $('#hubBtn').addEventListener('click', openHub);
   $('#accBtn').addEventListener('click', openAcc);
-  $('#mcpBtn').addEventListener('click', openMcp);
+  $('#mcpOpen').addEventListener('click', openMcp);
+  // «Режим разработчика»: кнопки ⟨/⟩ видны только с ним
+  $('#devMode').checked = document.body.classList.toggle('dev', !!ls.get('freefield.dev', false));
+  $('#devMode').addEventListener('change', e => { ls.set('freefield.dev', e.target.checked); document.body.classList.toggle('dev', e.target.checked); });
+  $('#pcBtn').addEventListener('click', pcBtnClick);
   $('#mcpBody').addEventListener('change', e => {   // адрес туннеля → ссылка коннектора
     if (!e.target.matches('[data-mcp-tunnel]')) return;
     const v = e.target.value.trim().replace(/\/+$/, '').replace(/\/mcp.*$/, '');
@@ -229,12 +243,6 @@ function bindControls() {
     hubLink.pcUp = null; renderScnAcc();
     await hubLink.tryDirect(); renderScnAcc();
     toast(hubLink.ok ? 'Freefield на компьютере найден — профили Chrome здесь' : hubLink.pcUp ? 'Программа запущена, но сайт к себе не пускает — откройте Freefield с компьютера' : 'Программа Freefield на компьютере не запущена', {type: hubLink.ok ? 'ok' : 'err', ms: 7000});
-  });
-  $('#accSvc').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.hasAttribute('data-acc-hub')) return openHub();
-    const x = SERVICES.find(v => v.id === b.dataset.accSite);
-    if (x) openSide(x.url, x.id);
   });
   bindClaude();
   bindAsset();
@@ -269,7 +277,9 @@ function bindControls() {
   });
   $('#empty').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.go) { setView('create'); setCreateMode(b.dataset.go); }
+    if (b.dataset.step === 'pc') return pcBtnClick();
+    if (b.dataset.step === 'acc') return openAcc();
+    if (b.dataset.step === 'char') { setView('create'); setCreateMode('chars'); if (!vc.chars.length) vcOpenChar(null, 'chars'); return; }
     else if (b.hasAttribute('data-import-all')) hubLink.importAll(b);
   });
 
@@ -300,7 +310,7 @@ function bindControls() {
     const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
     if (!f) return;
     e.preventDefault();
-    // «Создание сценария» — в свободную ячейку (сначала инфографика); «Сценарии» — фото в сценарий; «Создание ассетов» — в референсы
+    // «Сценарии» — в свободную ячейку (сначала инфографика); «Сценарии» — фото в сценарий; «Фото» — в референсы
     if (cl.mode === 'write') return writeAddImage(!wr.info ? 'info' : !wr.sheet ? 'sheet' : 'loc', f);   // дальше — кадры локаций по порядку
     if (cl.mode === 'scn') return refToScenario(f);
     setView('create');

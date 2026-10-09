@@ -228,7 +228,7 @@ function renderHub() {
         <div class="hint">${st}</div>${use ? `<div class="hint">${use}</div>` : ''}
         <div class="hub-acts">
           <button data-hub-asset>🖼 Ассеты</button>
-          <button data-hub-scn>🎬 Видео сервисы</button>
+          <button data-hub-scn>🎬 Видео</button>
           <button data-hub-acc>👤 Сменить аккаунт</button>
           <button data-open>↗ Сайт</button>
         </div>

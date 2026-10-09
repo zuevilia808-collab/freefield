@@ -87,8 +87,8 @@ function accPcHTML() {
   const text = up === null ? '⏳ Ищу программу Freefield на этом компьютере — профили Chrome показывает она…'
     : up ? '🟡 Программа Freefield на компьютере запущена, но показывать профили сайту с GitHub не даёт. Откройте Freefield с компьютера — там профили Chrome, вход в Flow, Dola, Arena, Vids и генерация во всех профилях.'
     : `🔴 Сайт не достучался до программы Freefield на этом компьютере — профили Chrome показывает она.${hubLink.lna === 'denied' ? ' <b>Chrome запретил этому сайту доступ к программам на компьютере.</b>' : ''}
-      <br>• Через папку Freefield (адрес 127.0.0.1:5180) всё работает — значит, Chrome не пускает сюда сайт: значок слева от адреса → «Настройки сайтов» → <b>«Доступ к локальной сети»</b> → «Разрешить», обновите страницу и нажмите «Проверить ещё раз».
-      <br>• И там не открывается — программа не запущена: откройте Claude Desktop (или запустите Freefield из папки).`;
+      ${helpHTML('Что сделать', `• Через папку Freefield (адрес 127.0.0.1:5180) всё работает — значит, Chrome не пускает сюда сайт: значок слева от адреса → «Настройки сайтов» → <b>«Доступ к локальной сети»</b> → «Разрешить», обновите страницу и нажмите «Проверить ещё раз».
+      <br>• И там не открывается — программа не запущена: откройте Claude Desktop (или запустите Freefield из папки).`)}`;
   return `<div class="acc-box"><div class="hint">${text}</div><div class="acc-foot">${find}${up ? `<a class="btn small" href="${HUB_PC}/">🔗 Открыть Freefield с компьютера</a>` : ''}</div></div>`;
 }
 // Аккаунты в сервисах по профилям Chrome: вход, баланс, «Выйти» / «Войти» (аккаунт выбирает и входит сам пользователь в окне Chrome Freefield)
@@ -197,18 +197,8 @@ async function accAction(kind, site, btn, p = 1, email = null) {
   renderScnAcc();
   renderScn();
 }
-const renderScnAcc = () => { const el = $('#scnAcc'); if (el) el.innerHTML = scnAccHTML(); const s = $('#accSvc'); if (s) s.innerHTML = accSvcHTML(); };
+const renderScnAcc = () => { const el = $('#scnAcc'); if (el) el.innerHTML = scnAccHTML(); };
 // в окне «Профили» — ещё и все остальные сервисы, где вы вошли (отмечены в «Мои сервисы»)
-function accSvcHTML() {
-  const auto = CLAUDE_SVC.map(c => c.id), mine = SERVICES.filter(x => !auto.includes(x.id) && isConnected(x.id));
-  const rows = mine.map(x => `<div class="acc-row"><span class="mc-ico" style="background:${x.color};color:#fff">${esc(x.ico)}</span>
-    <div class="acc-main"><b>${esc(x.name)}</b> <span class="hint">🟢 вход выполнен · ${esc(x.credits)}${usedToday(x.id) ? ` · сегодня: ${usedToday(x.id)}` : ''}</span></div>
-    <button class="btn small" data-acc-site="${x.id}">↗ Открыть</button></div>`).join('');
-  return `<div class="cl-sec">Другие сервисы, где вы вошли${mine.length ? ` — ${mine.length}` : ''}</div>
-    <div class="acc-box">${rows || '<div class="hint">Пока нет. Войдите на сайте сервиса и отметьте «вход выполнен» в «Мои сервисы».</div>'}
-      <div class="acc-foot"><button class="btn small" data-acc-hub>🎁 Мои сервисы — подключить ещё</button></div></div>`;
-}
-
 function clBatchHTML(b) {
   const ic = {queued: '⏳', running: '⏳', done: '✅', error: '❌'};
   const ok = b.items.filter(i => i.status === 'done').length;
@@ -252,14 +242,13 @@ function clLiveHTML(where = 'create') {
   const conn = hubLink.ok
     ? `<div class="cl-conn on">🟢 Приложение подключено к компьютеру — задания уйдут прямо туда${hubLink.info?.flowLeft != null ? ` · во Flow осталось <b>${hubLink.info.flowLeft}</b> из 50 кредитов` : ''}${hubLink.onPc() ? ' <button class="btn small" data-phone-qr title="QR-код: открыть Freefield с вашими аккаунтами на телефоне">📱 На телефон</button>' : ''}</div>`
     : st.k === 'denied' || st.k === 'down' ? `<div class="cl-conn">${st.icon} ${st.text}.${st.k === 'down' ? ' Или без него: «Подготовить» сделает карточки для сайтов — «Создать» там нажмёте сами.' : ''}</div>`
-    : where === 'asset' ? ''   // в «Создании ассетов» инструкцию для телефона не показываем (просьба пользователя 2026-09-27)
+    : where === 'asset' ? ''   // в «Фото» инструкцию для телефона не показываем (просьба пользователя 2026-09-27)
     // без компьютера (версия с GitHub, APK) — вручную на сайтах сервисов (пользователь 2026-09-28: «генерация с телефона без компа»)
-    : `<div class="cl-conn"><b>📱 Без компьютера — сами на сайтах сервисов</b>
-        <ol class="steps"><li>Нажмите <b>«Подготовить»</b> — на каждый сценарий в галерее появится карточка: фото, промпт, сервис, модель и формат.</li>
+    : `<div class="cl-conn">${helpHTML('📱 Без компьютера — сами на сайтах сервисов', `<ol class="steps"><li>Нажмите <b>«Подготовить»</b> — на каждый сценарий в галерее появится карточка: фото, промпт, сервис, модель и формат.</li>
         <li>На карточке: <b>💾 сохраните фото</b> → <b>«Скопировать промпт и открыть»</b> сайт → приложите фото, вставьте промпт и нажмите там «Создать».</li>
         <li>Скачайте результат и нажмите <b>«📥 Загрузить файл»</b> — он появится в галерее.</li></ol>
         Тратятся те же бесплатные кредиты ваших аккаунтов.${pwa.mobile() ? ' Google Vids с телефона видео не создаёт — «Авто» раскладывает по Flow, Dola и Arena.' : ''}
-        Чтобы всё запускалось само, нужен компьютер: там во Freefield кнопка «📱 На телефон».</div>`;
+        Чтобы всё запускалось само, нужен компьютер: там во Freefield кнопка «📱 На телефон».`)}</div>`;
   return `${conn}
     <div class="cl-acts">
       ${where === 'create' && (hubLink.ok || !pwa.mobile()) ? '<button class="btn" data-copy>📋 Скопировать задание для Claude</button>' : ''}
@@ -291,7 +280,7 @@ function renderScn() {
       <textarea data-prompt rows="${isBlockPrompt(s.prompt) ? 10 : 3}" placeholder="${i === 0 ? 'Например: дрон пролетает над ночным мегаполисом, неон отражается в лужах, камера медленно опускается к улице' : 'Что происходит в кадре, как движется камера, какой свет и настроение'}">${esc(s.prompt)}</textarea>
     </div>`).join('');
   $('#scnCreate').innerHTML = `
-    <div class="scn-intro">${scnIntroText()}</div>
+    ${helpHTML('Как это работает', `<div class="scn-intro">${scnIntroText()}</div>`)}
     ${scn}
     <div class="cl-row">
       ${cl.scn.length < CL_MAX ? '<button class="btn" data-add>＋ Сценарий</button>' : ''}
@@ -321,13 +310,13 @@ function scnToHTML(i) {
 // два фото у сценария: «персонаж в локации» (первый кадр, главный референс) и развёртка героя (только «ингредиент» Flow и Vids)
 function scnRefHTML(s, i) {
   const vid = s.kind === 'video';
-  // 📎 при загруженных в «Создании сценария» кадрах «персонаж в локации» — выбрать из них (уже взятые другими сценариями — бледнее)
+  // 📎 при загруженных в «Сценариях» кадрах «персонаж в локации» — выбрать из них (уже взятые другими сценариями — бледнее)
   const pick = !s.ref && cl.pickFor === i && wr.locs.length ? `<div class="scn-pick">
-    ${wr.locs.map((src, k) => `<button data-loc-pick="${k}" class="${cl.scn.some(x => x.ref === src) ? 'used' : ''}" title="Кадр ${k + 1} из «Создания сценария»"><img src="${src}" alt=""><i>${k + 1}</i></button>`).join('')}
+    ${wr.locs.map((src, k) => `<button data-loc-pick="${k}" class="${cl.scn.some(x => x.ref === src) ? 'used' : ''}" title="Кадр ${k + 1} из «Сценариев»"><img src="${src}" alt=""><i>${k + 1}</i></button>`).join('')}
     <button class="btn small" data-ref-file>📁 Другое фото</button><button class="btn small" data-pick-x>Отмена</button></div>` : '';
   const add = pick || [
     !s.ref && `<button class="btn small" data-ref-add title="Герой уже на месте съёмки (шаг 2): видео начнётся с этого кадра, картинка будет сделана по нему">📎 ${vid ? 'Персонаж в локации' : 'Фото-референс'}</button>`,
-    !s.sheet && `<button class="btn small" data-sheet-add title="${wr.sheet ? 'Возьму развёртку из «Создания сценария»' : 'Развёртка героя: вид спереди, сбоку, сзади, лицо, одежда'}">🧍 Развёртка</button>`,
+    !s.sheet && `<button class="btn small" data-sheet-add title="${wr.sheet ? 'Возьму развёртку из «Сценариев»' : 'Развёртка героя: вид спереди, сбоку, сзади, лицо, одежда'}">🧍 Развёртка</button>`,
   ].filter(Boolean).join('');
   const photo = (src, text, rm) => `<div class="scn-ref"><img src="${src}" alt=""><span>${text}</span><button class="scn-rm" ${rm} title="Убрать фото">✕</button></div>`;
   return `<div class="scn-refs">
@@ -373,13 +362,13 @@ function setCreateMode(m) {
   updateGenButton();
 }
 // большая кнопка внизу в режиме сценариев: отправить на компьютер, а без него — карточки для сайтов сервисов
-// own — свой список сценариев (кнопка «🎬 Видео» у персонажа): уходит только он, «Видео сервисы» остаются как были
+// own — свой список сценариев (кнопка «🎬 Видео» у персонажа): уходит только он, «Видео» остаются как были
 async function scnGo(own) {
   if (peek.on) {
     const list = own || cl.ready();
     if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
     const out = await clTasks(list), plan = clPlan(list);
-    return peekShow('Видео сервисы', {prompts: out.map((t, i) => [`Сценарий ${i + 1} → ${SITE_SHORT[plan[i]?.site] || plan[i]?.site || t.service} · ${plan[i]?.model || t.model || ''}`, t.prompt]),
+    return peekShow('Видео', {prompts: out.map((t, i) => [`Сценарий ${i + 1} → ${SITE_SHORT[plan[i]?.site] || plan[i]?.site || t.service} · ${plan[i]?.model || t.model || ''}`, t.prompt]),
       request: {куда: 'программа на компьютере: POST /api/batch', body: {scenarios: out}}});
   }
   return (await hubReady()) ? clSend(own) : scnPhone(own);

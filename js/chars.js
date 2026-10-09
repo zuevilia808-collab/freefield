@@ -36,7 +36,7 @@ const vc = {
   char(id) { return id ? this.chars.find(c => c.id === id) || null : null; },
   owner(voiceId, except) { return this.chars.find(c => c.voice === voiceId && c.id !== except) || null; },   // у какого персонажа этот голос
   saveCustom() { ls.set('freefield.voices.custom', this.custom); },
-  saveChars() { return DB.put({id: VC_ID, chars: this.chars}); },
+  saveChars() { if (!items.length) renderEmpty(); return DB.put({id: VC_ID, chars: this.chars}); },   // пустая галерея — галочка «Персонаж»
 };
 async function vcLoad() {
   const rec = await DB.req('readonly', s => s.get(VC_ID)).catch(() => null);
@@ -46,6 +46,7 @@ async function vcLoad() {
   lib.forEach(c => Object.assign(c, {voice: null, sample: null, sampleSec: 0}));
   if (lib.length) vc.saveChars();
   vcRefresh();
+  if (!items.length) renderEmpty();
 }
 function vcRefresh() {
   if (cl.mode === 'write') renderWrite(); else if (cl.mode === 'scn') renderScn(); else if (cl.mode === 'chars') renderChars();
@@ -54,7 +55,7 @@ function vcRefresh() {
 // голос сценария: у персонажа — его текущий голос (сменили голос персонажу — у сценариев тоже), иначе — голос, выбранный сценарию
 const scnVoice = s => vc.voice(vc.char(s?.char)?.voice || s?.voice);
 const scnVoiceLabel = s => vc.char(s.char)?.name || vc.voice(s.voice)?.name || 'Голос';
-// голос героя в «Создании сценария» — у выбранного персонажа
+// голос героя в «Сценариях» — у выбранного персонажа
 const wrVoice = () => vc.voice(vc.char(wr.char)?.voice);
 
 // голос → в промпт видео. В эталоне — в начало строки «Spoken line» (свою догадку о голосе ИИ из неё убираем), нет её —
@@ -101,7 +102,7 @@ function vcShow() {
 }
 function openVoices(view = 'list', o = {}) { Object.assign(vcUi, {view, from: view, ...o}); vcShow(); }
 function vcOpenChar(c, from) {
-  // новый персонаж — с развёрткой, которая уже есть и ещё ничья (у сценария или в «Создании сценария»); голос выбирают на слух.
+  // новый персонаж — с развёрткой, которая уже есть и ещё ничья (у сценария или в «Сценариях»); голос выбирают на слух.
   // Голос во Flow обязателен (пользователь 2026-09-28): пока его не переименовали — это имя персонажа
   const guess = [from === 'pick' && cl.scn[vcUi.i]?.sheet, wr.sheet].find(x => x && !vc.chars.some(y => y.sheet === x)) || null;
   vcUi.edit = c ? {about: '', lang: 'ru', info: null, ...c, flow: {kind: c.flow?.kind === 'char' ? 'char' : 'voice', name: c.flow?.name || c.name}, flowAuto: !c.flow?.name, locs: [...(c.locs || [])]}
@@ -140,7 +141,7 @@ function vcCharHTML() {
   return `<div class="vc-opt"><span>Имя</span><input class="vc-in" data-vc-name maxlength="40" value="${esc(d.name)}" placeholder="Например: Дедушка Иван"></div>
     <div class="vc-opt"><span>Развёртка — как выглядит: спереди, сбоку, сзади</span><div class="vc-sheet-row">${d.sheet ? `<img src="${d.sheet}" alt="">` : ''}
       <button class="btn small" data-vc-sheet>📁 ${d.sheet ? 'Другое фото' : 'Загрузить'}</button>
-      ${!d.sheet && wr.sheet ? '<button class="btn small" data-vc-sheet-wr>🧍 Из «Создания сценария»</button>' : ''}
+      ${!d.sheet && wr.sheet ? '<button class="btn small" data-vc-sheet-wr>🧍 Из «Сценариев»</button>' : ''}
       ${d.sheet ? '<button class="btn small" data-vc-sheet-rm>✕ Убрать</button>' : ''}</div></div>
     <div class="vc-opt"><span>Кто он — характер, манера речи, словечки (необязательно: ИИ учтёт в каждом сценарии)</span>
       <textarea class="vc-in" data-vc-about rows="2" maxlength="400" placeholder="Например: ворчливый, но добрый дед-огородник; говорит поговорками, обращается «внучок»">${esc(d.about || '')}</textarea></div>
@@ -148,12 +149,12 @@ function vcCharHTML() {
       <div class="seg">${[['ru', 'Русский'], ['en', 'English']].map(([k, t]) => `<button data-vc-lang="${k}" class="${(d.lang || 'ru') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
     <div class="vc-opt"><span>📊 Инфографика — о чём ролики с ним (необязательно)</span><div class="vc-sheet-row">${d.info ? `<img src="${d.info}" alt="">` : ''}
       <button class="btn small" data-vc-img="info">📁 ${d.info ? 'Другая' : 'Загрузить'}</button>
-      ${!d.info && wr.info ? '<button class="btn small" data-vc-info-wr>Из «Создания сценария»</button>' : ''}
+      ${!d.info && wr.info ? '<button class="btn small" data-vc-info-wr>Из «Сценариев»</button>' : ''}
       ${d.info ? '<button class="btn small" data-vc-info-rm>✕ Убрать</button>' : ''}</div></div>
     <div class="vc-opt"><span>📍 Кадры «персонаж в локации» — по одному на сценарий (необязательно)</span>
       <div class="vc-locs">${(d.locs || []).map((x, i) => `<div class="vc-loc"><img src="${x}" alt=""><i>${i + 1}</i><button data-vc-loc-rm="${i}" title="Убрать кадр">✕</button></div>`).join('')}</div>
       <div class="vc-sheet-row"><button class="btn small" data-vc-img="locs" ${(d.locs || []).length >= CL_MAX ? 'disabled' : ''}>📁 Добавить кадры</button>
-        ${wr.locs.length && !(d.locs || []).length ? `<button class="btn small" data-vc-locs-wr>Из «Создания сценария» (${wr.locs.length})</button>` : ''}
+        ${wr.locs.length && !(d.locs || []).length ? `<button class="btn small" data-vc-locs-wr>Из «Сценариев» (${wr.locs.length})</button>` : ''}
         ${(d.locs || []).length ? '<button class="btn small" data-vc-locs-rm>✕ Убрать все</button>' : ''}</div></div>
     <div class="vc-opt"><span>🎙 Голос во Flow — один и тот же в каждом ролике (обязательно)</span>
       <div class="seg">${[['voice', '@Voice: голос'], ['char', '@Персонаж']].map(([k, t]) => `<button data-vc-flow-kind="${k}" class="${d.flow.kind === k ? 'on' : ''}">${t}</button>`).join('')}</div>
@@ -191,9 +192,7 @@ function vcAssign(i, c, v) {
   if (!s) return closeSheets();
   if (c) { s.char = c.id; s.voice = c.voice; if (c.sheet) s.sheet = c.sheet; }
   else { delete s.char; if (v) s.voice = v.id; else delete s.voice; }
-  cl.save(); closeSheets(); renderScn(); updateGenButton();
-  toast(c ? `Сценарий ${i + 1}: говорит ${c.name} — голос «${vc.voice(c.voice)?.name}»${c.sheet ? ', развёртка приложена' : ''}`
-    : v ? `Сценарий ${i + 1}: голос «${v.name}»` : `Сценарий ${i + 1}: без голоса — его выберет видео-модель`, {type: 'ok'});
+  cl.save(); closeSheets(); renderScn(); updateGenButton();   // кто говорит — видно на самом сценарии, без всплывающего сообщения
 }
 async function vcSaveChar() {
   const d = vcUi.edit, name = d.name.trim();
@@ -210,7 +209,7 @@ async function vcSaveChar() {
   // у сценариев с этим персонажем — его голос и новая развёртка
   cl.scn.forEach(s => { if (s.char === c.id) { s.voice = c.voice; if (c.sheet && (!s.sheet || s.sheet === oldSheet)) s.sheet = c.sheet; } });
   cl.save();
-  // «Создание сценария»: персонаж создан оттуда — сразу выбран; у выбранного сменилась развёртка — она и в ячейке
+  // «Сценарии»: персонаж создан оттуда — сразу выбран; у выбранного сменилась развёртка — она и в ячейке
   if (vcUi.from === 'write' || wr.char === c.id) { wrUseChar(c); wr.save(); }
   toast(i >= 0 ? `Персонаж «${name}» сохранён` : `Персонаж «${name}» создан — голос во Flow: ${flow.kind === 'char' ? '@' : '@Voice: '}${flow.name}${c.sample ? ', есть образец' : ''}`, {type: 'ok', ms: 6000});
   if (vcUi.from === 'pick') return vcAssign(vcUi.i, c);
@@ -575,7 +574,7 @@ async function toCharSave() {
 
 /* ---- «📜 Готовые сценарии»: всё, что написал ИИ, — забрать в любой момент ---- */
 // Пользователь 2026-09-28: «должно быть место, где можно забрать готовые сценарии». Каждый написанный сценарий
-// (из «Создания сценария» и по «🎬 Видео» у персонажа) сохраняется с персонажем, датой и своим кадром в локации.
+// (из «Сценариев» и по «🎬 Видео» у персонажа) сохраняется с персонажем, датой и своим кадром в локации.
 const SCR_ID = 'freefield-scripts', SCR_MAX = 100;
 const scr = {list: [], save() { return DB.put({id: SCR_ID, list: this.list}).catch(() => {}); }};
 async function scrLoad() {
@@ -598,7 +597,7 @@ function scrShown() {
 }
 function openScripts(f = 'all') { Object.assign(vcUi, {view: 'scripts', from: 'scripts', scrF: f}); vcShow(); }
 function scrHTML() {
-  if (!scr.list.length) return '<p class="set-p">Здесь будут все сценарии, которые напишет ИИ, — из «Создания сценария» и по кнопке «🎬 Видео» у персонажа. Забрать их можно в любой момент: скопировать, сохранить файлом или отправить в видео сервисы.</p>';
+  if (!scr.list.length) return '<p class="set-p">Здесь будут все сценарии, которые напишет ИИ, — из «Сценариев» и по кнопке «🎬 Видео» у персонажа. Забрать их можно в любой момент: скопировать, сохранить файлом или отправить в видео сервисы.</p>';
   const f = vcUi.scrF || 'all', count = k => scr.list.filter(x => k === 'none' ? !x.char : x.char === k).length;
   const chips = [['all', `Все · ${scr.list.length}`], ...vc.chars.filter(c => count(c.id)).map(c => [c.id, `${c.name} · ${count(c.id)}`]),
     ...(count('none') ? [['none', `Без персонажа · ${count('none')}`]] : [])];
@@ -627,13 +626,13 @@ function scrFile() {
   saveFile(new Blob([list.map((x, i) => `Сценарий ${i + 1}. ${scrText(x)}${x.asset_prompt ? `\n\nПромпт ассета: ${x.asset_prompt}` : ''}`).join('\n\n———\n\n')], {type: 'text/plain;charset=utf-8'}),
     `сценарии-${who}-${new Date().toISOString().slice(0, 10)}.txt`);
 }
-// сценарий из архива → сценарий «Видео сервисов»: с его кадром в локации, развёрткой и голосом персонажа
+// сценарий из архива → сценарий «Видео»: с его кадром в локации, развёрткой и голосом персонажа
 function scrScn(x) {
   const c = vc.char(x.char);
   return {...blankScn(), kind: 'video', prompt: fillBlocks(x.video_prompt), aspect: '9:16', fixed: true, ...(x.service && {service: x.service}),
     ...(x.loc && {ref: x.loc}), ...(c?.sheet && {sheet: c.sheet}), ...(c && {char: c.id, voice: c.voice})};
 }
-// видео сразу по готовым сценариям: с компьютером — запуск, без него — карточки для сайтов («Видео сервисы» не трогаем)
+// видео сразу по готовым сценариям: с компьютером — запуск, без него — карточки для сайтов («Видео» не трогаем)
 async function scrVideo(ids) {
   const list = ids.map(id => scr.list.find(x => x.id === id)).filter(Boolean);
   if (!list.length) return;
@@ -645,10 +644,10 @@ function scrToScn(id) {
   const scn = scrScn(x);
   const empty = cl.scn.findIndex(scnEmpty);
   if (empty >= 0) cl.scn[empty] = scn; else if (cl.scn.length < CL_MAX) cl.scn.push(scn);
-  else return toast(`Уже ${CL_MAX} сценариев в «Видео сервисах» — уберите лишний`, {type: 'err'});
+  else return toast(`Уже ${CL_MAX} сценариев в «Видео» — уберите лишний`, {type: 'err'});
   cl.save();
   closeSheets(); setView('create'); setCreateMode('scn');
-  toast(`«${x.title}» — в «Видео сервисах»${x.loc ? ', с его кадром в локации' : ''}`, {type: 'ok'});
+  toast(`«${x.title}» — в «Видео»${x.loc ? ', с его кадром в локации' : ''}`, {type: 'ok'});
 }
 function scrDel(id) {
   const i = scr.list.findIndex(x => x.id === id);
@@ -741,15 +740,15 @@ async function charImport(file) {
 /* ---- «Персонажи» — 4-й раздел «Создать»: герои роликов со всем, что к ним нужно ---- */
 // Пользователь 2026-09-28: отдельный раздел, где хранятся разные персонажи с их инфографикой, голосом и т. д.
 // Персонаж: имя, развёртка, «кто он» (характер — ИИ держит его в сценариях), инфографика, кадры в локациях, голос
-// (описание, образец файлом или записью, голос во Flow). «✍ Сценарий с ним» — всё встаёт в «Создание сценария».
+// (описание, образец файлом или записью, голос во Flow). «✍ Сценарий с ним» — всё встаёт в «Сценарии».
 // чего не хватает, чтобы серия шла сама: [текст, кнопка-исправление]; кадры нужны только для «Мои кадры»
 function charNeeds(c, mineFrames = 0) {
   const out = [];
   if (!c.sheet) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ser-fix>🧍 добавить</button>`]);
   if (!c.info) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ser-fix>📊 добавить</button>`]);
   if (mineFrames > (c.locs?.length || 0)) out.push([`кадров «в локации» у персонажа ${c.locs?.length || 0}, а видео — ${mineFrames}`, '<button class="wr-link" data-ser-frames="new">🖼 пусть Flow сделает новые</button>']);
-  const who = writerNow(), gem = '<button class="wr-link" data-ser-gemini>🔑 подключить Gemini — бесплатно</button>';
-  if (who === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Создании сценария» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']
+  const who = writerNow(), gem = '<button class="wr-link" data-keys-open>🔑 подключить Gemini — бесплатно</button>';
+  if (who === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Сценариях» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']
     : ['ИИ для сценариев не подключён', gem]);
   else if (who === 'gemini' && !wallet.gemini || who === 'claude' && !wallet.anthropic)   // выбран ИИ, а ключ удалён
     out.push([`выбран ${WRITERS[who].name}, но его ключа нет`, wallet.gemini || wallet.anthropic ? '<button class="wr-link" data-ser-auto>⚡ взять ИИ с ключом</button>' : gem]);
@@ -803,7 +802,7 @@ async function serStep(j) {
   if (j.stage === 'frames') return j.sentFrames ? serFramesWait(j, c) : serFramesSend(j, c);
   if (j.stage === 'video') return j.sentVideos ? serVideoWait(j) : serVideoSend(j, c);
 }
-// 1. сценарии: ячейки «Создания сценария» на время — материалы персонажа (без кадров: кадры сделает Flow по сценариям).
+// 1. сценарии: ячейки «Сценариев» на время — материалы персонажа (без кадров: кадры сделает Flow по сценариям).
 // Пишем частями, не больше SER_CHUNK за раз, и дописываем недостающие: длинный ответ ИИ обрывался — и «↻ Повторить»
 // снова давал «сценарии не написаны» (пользователь 2026-09-29). Написанное остаётся в серии.
 const SER_CHUNK = 5;
@@ -893,7 +892,7 @@ async function serFramesWait(j, c) {
   j.stage = 'video';
   serNote(j, rows.some(r => r.err) ? 'Часть кадров не вышла — видео будут по остальным' : '');
 }
-// 3. видео: кадр + развёртка + голос персонажа; «Видео сервисы» пользователя не трогаем
+// 3. видео: кадр + развёртка + голос персонажа; «Видео» пользователя не трогаем
 async function serVideoSend(j, c) {
   const rows = j.rows.filter(r => r.frame && !r.skip);
   if (!rows.length) return serFail(j, 'нет ни одного сценария с кадром');
@@ -1027,7 +1026,6 @@ function serClick(b) {
   if (b.hasAttribute('data-ser-new')) { vcUi.serNew = true; return renderVoices(); }
   if (b.hasAttribute('data-ser-fix')) return vcOpenChar(c, 'chars');
   if (b.hasAttribute('data-ser-auto')) { wr.ai = 'auto'; wr.save(); return renderVoices(); }
-  if (b.hasAttribute('data-ser-gemini')) { closeSheets(); setCreateMode('write'); return geminiOpen(); }
   if (b.hasAttribute('data-ser-gallery')) { closeSheets(); setView('gallery'); return render(); }
   if (!j) return;
   if (b.hasAttribute('data-ser-pause')) { j.paused = !j.paused; ser.save(); renderVoices(); return serKick(); }
@@ -1073,7 +1071,7 @@ function serCardHTML(c) {
 function renderChars() {
   const el = $('#charsCreate');
   if (!el) return;
-  el.innerHTML = `${vc.chars.length ? '' : '<p class="ch-empty">Здесь живут герои ваших роликов. Персонаж из файла (.freefield.json) — кнопка «📥 Импорт персонажа» ниже. Один раз сохраните персонажа — внешность (развёртка), о чём он рассказывает (инфографика), кадры в локациях, характер и голос — и потом выбирайте его в «Создании сценария» одним нажатием.</p>'}
+  el.innerHTML = `${vc.chars.length ? '' : '<p class="ch-empty">Здесь живут герои ваших роликов. Персонаж из файла (.freefield.json) — кнопка «📥 Импорт персонажа» ниже. Один раз сохраните персонажа — внешность (развёртка), о чём он рассказывает (инфографика), кадры в локациях, характер и голос — и потом выбирайте его в «Сценариях» одним нажатием.</p>'}
     <div class="ch-list">${vc.chars.map(charCardHTML).join('')}<button class="ch-add" data-ch-new>＋ Новый персонаж</button></div>
     <div class="vc-foot"><button class="btn" data-ch-import>📥 Импорт персонажа</button><button class="btn" data-ch-scripts>📜 Готовые сценарии${scr.list.length ? ' · ' + scr.list.length : ''}</button></div>
     <p class="hint vc-note">Персонажи хранятся в этом браузере. У каждого свой голос — два персонажа одним голосом не заговорят.</p>`;
@@ -1095,7 +1093,7 @@ function bindChars() {
       setView('gallery'); render();
       return $('#feed')?.scrollTo({top: 0, behavior: 'smooth'});
     }
-    if (x.chWrite) {   // в «Создание сценария» с этим героем: развёртка, инфографика, кадры, голос — в ячейки
+    if (x.chWrite) {   // в «Сценарии» с этим героем: развёртка, инфографика, кадры, голос — в ячейки
       const c = vc.char(x.chWrite);
       if (!c) return;
       wrUseChar(c); wr.save();
