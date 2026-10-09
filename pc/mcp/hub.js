@@ -201,6 +201,20 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
             service: pickOf(j.service, ['auto', 'hunyuan', 'hf', 'tripo', 'meshy'], 'auto'), quality: pickOf(j.quality, ['standard', 'high', 'max'], 'high'),
             texture: j.texture !== false, pbr: j.pbr === true, format: pickOf(j.format, ['glb', 'obj', 'fbx'], 'glb')}));
         }
+        // «🎙 Голос персонажа»: звук ролика → голос и фон отдельно (Demucs на этом компьютере); звук присылает приложение, не путь
+        if (url.pathname === '/api/split' && req.method === 'POST' && api.splitStart) {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 60e6) return send(413, {error: 'слишком длинный звук'}); }
+          try { return send(200, await api.splitStart(JSON.parse(body || '{}').audio)); } catch (e) { return send(400, {error: e.message}); }
+        }
+        const sp = url.pathname.match(/^\/api\/split\/([0-9a-f]{16})(?:\/(voice|rest)\.wav)?$/);
+        if (sp && req.method === 'GET' && api.splitGet) {
+          if (!sp[2]) { const j = await api.splitGet(sp[1]); return j ? send(200, j) : send(404, {error: 'нет такого задания — программу перезапускали?'}); }
+          const file = await api.splitFile(sp[1], sp[2]);
+          if (!file || !fs.existsSync(file)) return send(404, {error: 'файл не найден'});
+          res.writeHead(200, {'Content-Type': 'audio/wav', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
+          return fs.createReadStream(file).pipe(res);
+        }
         if (url.pathname === '/api/outputs' && req.method === 'GET') return send(200, await api.outputs());
         if (url.pathname === '/api/sync' && req.method === 'POST') return send(200, await api.sync());
         const m = url.pathname.match(/^\/api\/file\/([\w-]+)\/(\d+)\/(\d+)$/);

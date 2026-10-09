@@ -132,7 +132,7 @@ function renderVoices() {
   if (v === 'char') echoCharFill();
 }
 function vcListHTML() {
-  return `<p class="set-p">Голос персонажа — голос, сохранённый во Flow: его слушают и выбирают в самом Flow, и он одинаковый во всех роликах (@Voice). По желанию — точный образец (своя запись или файл): по нему Dola повторит голос (@Audio1), а «🎙 Заменить голос» сделает таким голос любого готового видео.</p>
+  return `<p class="set-p">Голос персонажа — голос, сохранённый во Flow: его слушают и выбирают в самом Flow, и он одинаковый во всех роликах (@Voice). Свой голос во Flow не загрузить, поэтому по желанию — точный образец (своя запись или файл): по нему Dola повторит голос (@Audio1), а «🚀 Серия» и «🎙 Заменить голос» поменяют на него голос готового видео — звуки места останутся.</p>
     <div class="cl-sec" style="margin-top:0">🎭 Персонажи</div>
     <div class="vc-chars">${vc.chars.map(c => vcCharBtn(c, `data-vc-edit="${c.id}"`)).join('')}<button class="vc-char add" data-vc-new>＋ Новый персонаж</button></div>`;
 }
@@ -159,7 +159,7 @@ function vcCharHTML() {
     <div class="vc-opt"><span>🎙 Голос во Flow — один и тот же в каждом ролике (обязательно)</span>
       <div class="seg">${[['voice', '@Voice: голос'], ['char', '@Персонаж']].map(([k, t]) => `<button data-vc-flow-kind="${k}" class="${d.flow.kind === k ? 'on' : ''}">${t}</button>`).join('')}</div>
       <input class="vc-in vc-flow" data-vc-flow maxlength="40" value="${esc(d.flow.name || '')}" placeholder="${d.flow.kind === 'char' ? 'Имя персонажа во Flow — как сохранили' : 'Имя голоса во Flow — по умолчанию имя персонажа'}">
-      <div class="hint vc-note">${d.flow.kind === 'char' ? 'Во Flow создайте персонажа с этим лицом и голосом (Add to Character) и сохраните под этим именем.' : 'Во Flow: Add voice → послушайте голоса Flow и выберите (или Create new voice — со своим образцом) → сохраните под этим именем.'} В промпт Flow Freefield впишет «<b data-vc-flow-tag>${d.flow.kind === 'char' ? '@' : '@Voice: '}${esc(d.flow.name || d.name || 'Имя')}</b>».</div></div>
+      <div class="hint vc-note">${d.flow.kind === 'char' ? 'Во Flow создайте персонажа с этим лицом и голосом (Add to Character) и сохраните под этим именем.' : 'Во Flow: Add voice → послушайте голоса Flow, выберите похожий → сохраните под этим именем. Свой голос во Flow не загрузить — его даёт «Точный голос» ниже: серия поменяет на него голос Flow.'} В промпт Flow Freefield впишет «<b data-vc-flow-tag>${d.flow.kind === 'char' ? '@' : '@Voice: '}${esc(d.flow.name || d.name || 'Имя')}</b>».</div></div>
     <div class="vc-opt"><span>Кто говорит</span>
       <div class="seg">${Object.entries(VC_G).map(([k, x]) => `<button data-vc-g="${k}" class="${(d.g || vc.voice(d.voice)?.g || 'm') === k ? 'on' : ''}">${x[1]}</button>`).join('')}</div></div>
     <div class="vc-opt"><span>🎧 Точный голос — образец 5–15 с чистой речи одного человека, без музыки (необязательно)</span>
@@ -484,7 +484,7 @@ function vcRevoiceHTML() {
   const it = rvItem(), smp = rvSample();
   if (!it) return '<p class="set-p">Ролик не найден — он удалён из галереи.</p>';
   const chars = vc.chars.filter(c => c.sample);
-  return `<p class="set-p">Слова, интонации и движения губ останутся — голос станет как в образце. Фоновые звуки и музыка ролика при замене пропадут, останется голос.</p>
+  return `<p class="set-p">Слова, интонации и движения губ останутся — голос станет как в образце. ${hubHas('split') && hubLink.ok ? 'Компьютер отделит голос от фона — звуки места и музыка останутся.' : 'Без программы Freefield на компьютере фоновые звуки и музыка пропадут, останется голос; с ней — останутся.'}</p>
     <div class="cl-sec" style="margin-top:0">🎭 Чей голос</div>
     <div class="vc-chars">${chars.map(c => vcCharBtn(c, `data-rv-char="${c.id}"`, !vcUi.rvFile && vcUi.rvChar === c.id)).join('')}
       <button class="vc-char add ${vcUi.rvFile && !vcUi.rvRec ? 'on' : ''}" data-rv-file>📁 ${vcUi.rvFile && !vcUi.rvRec ? 'Образец из файла ✓' : 'Другой файл'}</button>
@@ -492,7 +492,7 @@ function vcRevoiceHTML() {
     ${chars.length ? '' : '<p class="hint vc-note">Образец голоса можно сохранить у персонажа (🎙 → персонаж → «Точный голос»: файлом или записью с микрофона) — тогда он будет здесь всегда.</p>'}
     ${smp ? `<div class="vc-sample"><audio controls src="${smp}"></audio></div>` : ''}
     <div class="vc-foot"><button class="btn free" data-rv-go ${smp && !vcUi.busy ? '' : 'disabled'}>✨ Заменить голос — бесплатно</button></div>
-    <div class="hint vc-note" id="rvNote">${vcUi.busy ? '⏳ ' + esc(vcUi.rvNote) : 'Seed-VC на Hugging Face, в пределах бесплатного лимита GPU (с токеном Hugging Face в «Лимитах» — больше). Ролик на 10 с — около минуты. Новый ролик появится в галерее рядом с исходным.'}</div>
+    <div class="hint vc-note" id="rvNote">${vcUi.busy ? '⏳ ' + esc(vcUi.rvNote) : 'Голос меняет Seed-VC на Hugging Face, в пределах бесплатного лимита GPU. Ролик на 10 с — около минуты; первый раз компьютер ещё ставит разделение звука (5–15 минут). Новый ролик появится в галерее рядом с исходным.'}</div>
     <details class="vc-manual"><summary>Вручную — если автоматически не вышло</summary><ol class="ext-steps">
       <li>Сохраните звук ролика и образец: <button class="wr-link" data-rv-save-src>💾 звук ролика</button> · <button class="wr-link" data-rv-save-ref ${smp ? '' : 'disabled'}>💾 образец</button></li>
       <li>Откройте <a href="https://huggingface.co/spaces/Plachta/Seed-VC" target="_blank" rel="noopener">Seed-VC</a> (бесплатно) или ElevenLabs → Voice Changer: звук ролика — в «Source», образец — в «Reference», и скачайте результат</li>
@@ -503,17 +503,59 @@ function rvStatus(t) {
   const el = $('#rvNote');
   if (el) el.textContent = '⏳ ' + t;
 }
-// замена голоса: звук ролика → Seed-VC с образцом → новый звук в ролик
+// Голос персонажа в готовом ролике (пользователь 2026-10-09: свой голос во Flow не загрузить, а если срезать звук — пропадут
+// и звуки места). Поэтому: компьютер разделяет звук на голос и фон (Demucs), Seed-VC меняет тембр только голоса — слова,
+// паузы и интонации те же, губы совпадают; новый голос кладём на прежний фон с той же громкостью.
+// Без компьютера — как раньше: меняется весь звук, фон пропадает (split: false).
+const canSplit = async () => await hubReady() && hubHas('split');
+// звук → голос и фон (WAV-файлы с компьютера); hubSplit — то же, сразу декодированное
+async function hubSplit(wav, onStatus) {
+  const r = await hubSplitFiles(wav, onStatus);
+  return {voice: await decodeAudio(r.voice), rest: await decodeAudio(r.rest)};
+}
+async function hubSplitFiles(wav, onStatus) {
+  const r = await fetch(hubLink.url('/api/split'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({audio: await blobDataUrl(wav)})});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `компьютер ответил ${r.status}`);
+  for (let t = 0; t < 1800; t++) {   // первый раз компьютер ставит Demucs — до получаса
+    await sleep(t ? 2000 : 800);
+    const s = await (await fetch(hubLink.url('/api/split/' + j.id))).json().catch(() => null);
+    if (!s) continue;
+    if (s.status === 'error' || s.error) throw new Error(s.error || 'голос не отделился');
+    if (s.note) onStatus(s.note);
+    if (s.status === 'done') {
+      const get = async u => { const x = await fetch(hubLink.url(u)); if (!x.ok) throw new Error('не скачался звук с компьютера'); return x.blob(); };
+      return {voice: await get(s.voice), rest: await get(s.rest)};
+    }
+  }
+  throw new Error('компьютер не разделил звук за час');
+}
+const rms = ab => { const d = ab.getChannelData(0); let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] * d[i]; return Math.sqrt(s / Math.ceil(d.length / 4)) || 0; };
+async function charVoice(videoBlob, sample, onStatus) {
+  onStatus('Достаю звук из ролика…');
+  const ab = await decodeAudio(videoBlob);
+  if (!await canSplit()) {
+    const out = await seedVc(wavBlob(await audioMono(ab, 24000)), dataBlob(sample), onStatus);
+    return {audio: await decodeAudio(out), split: false};
+  }
+  onStatus('Компьютер отделяет голос от фона…');
+  const {voice, rest} = await hubSplit(wavBlob(await audioMono(ab, 44100)), onStatus);
+  const out = await decodeAudio(await seedVc(wavBlob(await audioMono(voice, 24000)), dataBlob(sample), onStatus));
+  onStatus('Кладу новый голос на фон…');
+  const rate = 48000, len = Math.ceil(ab.duration * rate), off = new OfflineAudioContext(1, len, rate);
+  const gain = Math.min(4, rms(voice) / (rms(out) || 1) || 1);   // громкость — как у голоса Flow
+  [[rest, 1], [out, gain]].forEach(([b, g]) => { const s = off.createBufferSource(), v = off.createGain(); s.buffer = b; v.gain.value = g; s.connect(v).connect(off.destination); s.start(0); });
+  return {audio: await off.startRendering(), split: true};
+}
+// замена голоса: звук ролика → голос персонажа (фон остаётся, если подключён компьютер) → новый звук в ролик
 async function revoiceGo() {
   const it = rvItem(), smp = rvSample(), who = rvWho();
   if (!it || !smp || vcUi.busy) return;
   vcUi.busy = true; renderVoices();
   try {
-    rvStatus('Достаю звук из ролика…');
-    const src = wavBlob(await audioMono(await decodeAudio(it.blob), 24000));
-    const out = await seedVc(src, dataBlob(smp), rvStatus);
+    const {audio} = await charVoice(it.blob, smp, rvStatus);
     rvStatus('Собираю ролик с новым голосом…');
-    await revoiceSave(it, await decodeAudio(out), who);
+    await revoiceSave(it, audio, who);
     toast(`Готово: ролик с голосом «${who}» — в галерее 🎉`, {type: 'ok', ms: 7000});
     if (!$('#voiceSheet').classList.contains('hidden') && vcUi.view === 'revoice') closeSheets();
   } catch (e) {
@@ -742,10 +784,11 @@ async function charImport(file) {
 // Персонаж: имя, развёртка, «кто он» (характер — ИИ держит его в сценариях), инфографика, кадры в локациях, голос
 // (описание, образец файлом или записью, голос во Flow). «✍ Сценарий с ним» — всё встаёт в «Сценарии».
 // чего не хватает, чтобы серия шла сама: [текст, кнопка-исправление]; кадры нужны только для «Мои кадры»
-function charNeeds(c, mineFrames = 0) {
+// prep — для серии: развёртку и инфографику она сделает сама во Flow — по фото героя (c.photo) или по развёртке
+function charNeeds(c, mineFrames = 0, prep = false) {
   const out = [];
-  if (!c.sheet) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ser-fix>🧍 добавить</button>`]);
-  if (!c.info) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ser-fix>📊 добавить</button>`]);
+  if (!c.sheet && !(prep && c.photo)) out.push(['нет развёртки — как он выглядит', `<button class="wr-link" data-ser-fix>🧍 добавить</button>${prep ? '<button class="wr-link" data-ser-photo>📷 есть только фото — развёртку и инфографику сделает серия</button>' : ''}`]);
+  if (!c.info && !(prep && (c.photo || c.sheet))) out.push(['нет инфографики — о чём ролики', `<button class="wr-link" data-ser-fix>📊 добавить</button>`]);
   if (mineFrames > (c.locs?.length || 0)) out.push([`кадров «в локации» у персонажа ${c.locs?.length || 0}, а видео — ${mineFrames}`, '<button class="wr-link" data-ser-frames="new">🖼 пусть Flow сделает новые</button>']);
   const who = writerNow(), gem = '<button class="wr-link" data-keys-open>🔑 подключить Gemini — бесплатно</button>';
   if (who === 'chat') out.push(wallet.gemini || wallet.anthropic ? ['в «Сценариях» выбран «ИИ в чате» — он сам не пишет', '<button class="wr-link" data-ser-auto>⚡ пусть пишет ИИ здесь</button>']
@@ -763,7 +806,9 @@ function charNeeds(c, mineFrames = 0) {
 // начинается сам, как только результат загружен в карточку. Состояние — в базе: закрытая вкладка серию не теряет.
 const SER_ID = 'freefield-series', FFLATE = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js';
 const ser = {jobs: [], busy: false, timer: 0, writing: new Set(), save() { return DB.put({id: SER_ID, jobs: this.jobs}).catch(() => {}); }};
-const SER_STAGE = {write: '✍ ИИ пишет сценарии', frames: '🖼 Кадры во Flow', video: '🎬 Видео', done: '✅ Серия готова', error: '⚠ Серия остановлена'};
+const SER_STAGE = {prep: '🪄 Развёртка и инфографика', write: '✍ ИИ пишет сценарии', frames: '🖼 Кадры во Flow', video: '🎬 Видео', voice: '🎙 Голос персонажа',
+  done: '✅ Серия готова', error: '⚠ Серия остановлена'};
+const SER_STEP = {prep: 'Подготовка', write: 'Сценарии', frames: 'Кадры', video: 'Видео', voice: 'Голос', done: 'Готово'};
 const serLive = j => j && !['done', 'error'].includes(j.stage);
 const serOf = id => ser.jobs.filter(j => j.char === id).sort((a, b) => b.at - a.at)[0] || null;
 async function serLoad() {
@@ -797,10 +842,58 @@ async function serTick() {
 async function serStep(j) {
   const c = vc.char(j.char);
   if (!c) return serFail(j, 'персонаж удалён');
-  if (j.hub && (j.sentFrames || j.sentVideos)) await hubLink.refresh();   // пачки компьютера — свежие
+  if (j.hub && (j.sentPrep || j.sentFrames || j.sentVideos)) await hubLink.refresh();   // пачки компьютера — свежие
+  if (j.stage === 'prep') return j.sentPrep ? serPrepWait(j, c) : serPrepSend(j, c);
+  if (j.stage === 'voice') return serVoice(j, c);
   if (j.stage === 'write') return j.retryAt > Date.now() ? null : serWrite(j, c);
   if (j.stage === 'frames') return j.sentFrames ? serFramesWait(j, c) : serFramesSend(j, c);
-  if (j.stage === 'video') return j.sentVideos ? serVideoWait(j) : serVideoSend(j, c);
+  if (j.stage === 'video') return j.sentVideos ? serVideoWait(j, c) : serVideoSend(j, c);
+}
+// 0. только фото героя (пользователь 2026-10-09: «кидаю просто фото перса — и всё»): Flow делает по нему развёртку
+// и инфографику (тема — пожелания к серии или характер героя, нет их — модель выберет сама), без кредитов
+function serPrepTasks(j, c) {
+  const photo = c.photo || c.sheet, topic = (j.idea || c.about || '').replace(/[«»"]/g, '').trim(), flow = {kind: 'image', service: 'flow', model: 'nano-banana-2.1', count: 1, images: [photo]};
+  return [
+    !c.sheet && {...flow, what: 'sheet', prompt: ASSET_KINDS.sheet.prompt, aspect_ratio: '16:9'},
+    !c.info && {...flow, what: 'info', aspect_ratio: '9:16', prompt: `${ASSET_KINDS.info.prompt} ${topic ? `Topic: ${topic}.` : 'Choose yourself a useful, popular topic that fits the person in the reference photo (their look, outfit and likely occupation).'} ` +
+      'Write a short, catchy headline for the topic. The reference photo only shows who the videos are about — do not draw the person.'},
+  ].filter(Boolean);
+}
+async function serPrepSend(j, c) {
+  const tasks = serPrepTasks(j, c);
+  if (!tasks.length) { j.stage = 'write'; return serNote(j, ''); }
+  j.hub = await hubReady();
+  j.prepTasks = tasks.map((t, i) => ({what: t.what, prompt: t.prompt, idx: i, card: null}));
+  if (j.hub) {
+    try {
+      const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks.map(({what, ...t}) => t)})});
+      const js = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(js.error || `компьютер ответил ${res.status}`);
+    } catch (e) { return serFail(j, 'развёртка и инфографика не отправлены: ' + e.message); }
+    hubLink.refresh();
+  } else phoneCards(tasks.map(({what, ...t}) => t)).forEach((x, i) => { j.prepTasks[i].card = x?.id; });
+  Object.assign(j, {psent: tasks.length, sentPrep: Date.now()});
+  serNote(j, j.hub ? 'Компьютер делает во Flow развёртку и инфографику по фото…' : 'Карточки развёртки и инфографики — в галерее: создайте их во Flow и загрузите в карточки, дальше серия пойдёт сама');
+}
+async function serPrepWait(j, c) {
+  for (const p of j.prepTasks.filter(p => !c[p.what])) {
+    let img = null;
+    if (j.hub) {
+      const it = serHubItem(j.sentPrep, p.prompt, p.idx, j.psent, 'image');
+      if (it?.status === 'error') return serFail(j, `${p.what === 'sheet' ? 'развёртка' : 'инфографика'} не вышла: ${it.message || 'ошибка Flow'}`);
+      const f = it?.status === 'done' && (it.files || []).find(f => !f.mime || f.mime.startsWith('image/'));
+      if (f) try { img = await refDataUrl(await (await fetch(hubLink.url(f.url))).blob()); } catch { /* в следующий раз */ }
+    } else {
+      const it = items.find(x => x.id === p.card);
+      if (!it) return serFail(j, 'карточку развёртки или инфографики удалили');
+      if (it.status === 'done' && it.blob) img = await refDataUrl(it.blob);
+    }
+    if (img) { c[p.what] = img; await vc.saveChars(); }
+  }
+  const left = j.prepTasks.filter(p => !c[p.what]).length;
+  if (left) return serNote(j, `Развёртка и инфографика: готово ${j.prepTasks.length - left} из ${j.prepTasks.length}`);
+  j.stage = 'write';
+  serNote(j, '');
 }
 // 1. сценарии: ячейки «Сценариев» на время — материалы персонажа (без кадров: кадры сделает Flow по сценариям).
 // Пишем частями, не больше SER_CHUNK за раз, и дописываем недостающие: длинный ответ ИИ обрывался — и «↻ Повторить»
@@ -906,7 +999,7 @@ async function serVideoSend(j, c) {
   Object.assign(j, {vsent: rows.length, sentVideos: Date.now()});
   serNote(j, j.hub ? 'Компьютер делает видео…' : 'Карточки видео — в галерее: «Создать» на сайте и загрузите результат в карточку');
 }
-async function serVideoWait(j) {
+async function serVideoWait(j, c) {
   const rows = j.rows.filter(r => r.frame && !r.skip && r.vidx != null);
   for (const r of rows) {
     if (j.hub) {
@@ -914,7 +1007,10 @@ async function serVideoWait(j) {
       if (!it) continue;
       r.vstate = it.status === 'done' ? 'done' : it.status === 'error' ? 'error' : 'queued';
       if (it.status === 'error') r.verr = it.message || 'ошибка';
-      if (it.status === 'done') r.vfiles = (it.files || []).filter(f => !f.mime || f.mime.startsWith('video/')).map(f => f.url);
+      if (it.status === 'done') {
+        const vf = (it.files || []).filter(f => !f.mime || f.mime.startsWith('video/'));
+        Object.assign(r, {vfiles: vf.map(f => f.url), vnames: vf.map(f => f.name || f.url)});
+      }
     } else {
       const it = items.find(x => x.id === r.vcard);
       r.vstate = !it ? 'error' : it.status === 'done' && it.blob ? 'done' : 'queued';
@@ -923,8 +1019,34 @@ async function serVideoWait(j) {
   }
   const done = rows.filter(r => r.vstate === 'done').length, left = rows.filter(r => r.vstate === 'queued').length;
   if (left) return serNote(j, `Видео: ${done} из ${rows.length}`);
+  if (j.voice === 'char' && c.sample && done) { j.stage = 'voice'; return serNote(j, ''); }
+  serDone(j);
+}
+// 4. голос персонажа: Flow сказал всё своим голосом — меняем тембр на образец персонажа (charVoice), по одному ролику
+async function serVoice(j, c) {
+  if (!c.sample) return serFail(j, 'у персонажа нет образца голоса — добавьте его в «Точный голос»');
+  const rows = j.rows.filter(r => r.vstate === 'done' && !r.skip), r = rows.find(r => !r.vv && !r.vverr);
+  if (!r) return serDone(j);
+  const it = j.hub ? items.find(x => x.pcName && r.vnames?.includes(x.pcName)) : items.find(x => x.id === r.vcard);
+  if (!it?.blob) {   // видео с компьютера ещё не в галерее — подождём
+    r.vwait = (r.vwait || 0) + 1;
+    if (r.vwait > 45) r.vverr = 'видео не пришло в галерею';
+    return serNote(j, 'Жду видео в галерее…');
+  }
+  const n = `ролик ${rows.indexOf(r) + 1} из ${rows.length}`;
+  try {
+    const {audio, split} = await charVoice(it.blob, c.sample, t => { j.note = `${n}: ${t}`; serShow(); });
+    serNote(j, `${n}: собираю ролик…`);
+    r.vv = (await revoiceSave(it, audio, c.name)).id;
+    j.split = split;
+  } catch (e) { r.vverr = e.message; }
+  serNote(j, '');
+}
+function serDone(j) {
+  const rows = j.rows.filter(r => !r.skip && r.vidx != null), done = rows.filter(r => r.vstate === 'done').length;
+  const vv = rows.filter(r => r.vv).length, bad = rows.find(r => r.vverr);
   Object.assign(j, {stage: 'done', doneAt: Date.now()});
-  serNote(j, `${done} из ${rows.length} видео готовы`);
+  serNote(j, `${done} из ${rows.length} видео готовы${j.voice === 'char' ? ` · голос персонажа — в ${vv} из ${done}${bad ? ` (⚠ ${bad.vverr})` : ''}${vv && !j.split ? ' · без программы на компьютере фон пропал' : ''}` : ''}`);
   toast(`Серия «${vc.char(j.char)?.name || ''}» готова: ${done} ${plur(done, 'видео', 'видео', 'видео')} — «📦 Скачать всё» у персонажа`, {type: 'ok', ms: 9000});
 }
 // «📦 Скачать всё»: видео и подписи к постам — одним архивом (видео уже сжаты — кладём как есть)
@@ -938,7 +1060,7 @@ async function serZip(j, btn) {
     for (const [i, r] of j.rows.entries()) {
       if (r.skip) continue;
       const base = `${String(i + 1).padStart(2, '0')} ${slug(r.title)}`;
-      let blob = r.vcard ? items.find(x => x.id === r.vcard)?.blob || null : null;
+      let blob = items.find(x => x.id === (r.vv || r.vcard))?.blob || null;
       if (!blob && r.vfiles?.length) blob = await fetch(hubLink.url(r.vfiles[0])).then(x => x.ok ? x.blob() : null).catch(() => null);
       if (blob) { files[`${base}.mp4`] = [new Uint8Array(await blob.arrayBuffer()), {level: 0}]; n++; }
       files[`${base}.txt`] = strToU8(`${r.title}${r.angle ? ` (${r.angle})` : ''}\n\n${r.caption || ''}\n\n———\n${fillBlocks(r.video_prompt)}\n`);
@@ -952,7 +1074,7 @@ async function serZip(j, btn) {
 function openSeries(id, fresh = false) {
   const c = vc.char(id);
   if (!c) return;
-  vcUi.serSet ||= {n: 5, frames: 'new', service: 'flow', idea: ''};
+  vcUi.serSet ||= {n: 5, frames: 'new', service: 'flow', idea: '', voice: null};
   Object.assign(vcUi, {view: 'series', from: 'series', serChar: id, serNew: fresh || !serOf(id)});
   vcShow();
 }
@@ -963,7 +1085,8 @@ function serHTML() {
   return j ? serJobHTML(j, c) : serSetupHTML(c);
 }
 function serSetupHTML(c) {
-  const o = vcUi.serSet, hub = hubLink.ok, mine = c.locs?.length || 0, need = charNeeds(c, o.frames === 'mine' ? o.n : 0);
+  const o = vcUi.serSet, hub = hubLink.ok, mine = c.locs?.length || 0, need = charNeeds(c, o.frames === 'mine' ? o.n : 0, true), voice = serVoiceOf(c);
+  const prep = (!c.sheet || !c.info) && !need.length ? [!c.sheet && 'развёртку', !c.info && 'инфографику'].filter(Boolean).join(' и ') : '';
   const m = scnModel('video', 'flow', scnDefault('video', 'flow')), per = m?.[4] || 20, total = o.n * per, acc = Math.ceil(total / 50), left = hubLink.info?.flowLeft;
   return `<p class="set-p">Нажали — и дальше само: ${WRITERS[writerNow()]?.name || 'ИИ'} напишет сценарии (с подписью к посту), Flow сделает кадры «${esc(c.name)} в локации», по ним — видео с его голосом. ${hub
       ? '🟢 Компьютер подключён — всё пойдёт само, готовое появится в галерее.'
@@ -973,6 +1096,13 @@ function serSetupHTML(c) {
       <div class="seg ser-seg"><button data-ser-frames="new" class="${o.frames === 'new' ? 'on' : ''}">🖼 Новые — Flow, без кредитов</button><button data-ser-frames="mine" class="${o.frames === 'mine' ? 'on' : ''}">📍 Мои кадры (${mine})</button></div></div>
     <div class="vc-opt"><span>Где делать видео</span>
       <div class="seg ser-seg"><button data-ser-svc="flow" class="${o.service === 'flow' ? 'on' : ''}">Google Flow</button><button data-ser-svc="auto" class="${o.service === 'auto' ? 'on' : ''}">Авто — Flow · Dola · Arena</button></div></div>
+    ${prep ? `<div class="vc-opt"><span>🪄 Сначала Flow сделает ${prep} по ${c.sheet ? 'развёртке' : 'фото'} — без кредитов</span><div class="vc-sheet-row"><img src="${c.photo || c.sheet}" alt="">${c.photo && !c.sheet ? '<button class="btn small" data-ser-photo>📷 Другое фото</button>' : ''}</div></div>` : ''}
+    <div class="vc-opt"><span>Голос в роликах</span>
+      <div class="seg ser-seg"><button data-ser-voice="flow" class="${voice === 'flow' ? 'on' : ''}">🎙 Голос Flow</button><button data-ser-voice="char" class="${voice === 'char' ? 'on' : ''}" ${c.sample ? '' : 'disabled'}>🎧 Голос персонажа</button></div>
+      <div class="hint vc-note">${!c.sample ? 'Свой голос — нужен образец 5–15 с: «✎ Изменить» → «Точный голос».'
+        : voice === 'flow' ? 'Как во Flow — его голосом, без замены.'
+        : hub && hubHas('split') ? 'Flow говорит своим голосом, потом тембр меняется на образец персонажа: слова, губы и звуки места остаются.'
+        : 'Flow говорит своим голосом, потом он меняется на образец персонажа. Без программы Freefield на компьютере звуки места пропадут — с ней останутся.'}</div></div>
     <div class="vc-opt"><span>Пожелания к роликам (необязательно)</span><textarea class="vc-in" data-ser-idea rows="2" maxlength="400" placeholder="Например: про первые шаги в программировании, с юмором, без рекламы">${esc(o.idea)}</textarea></div>
     <div class="ser-cost">💳 ${o.service === 'flow'
       ? `Flow: ${o.n} × ${per} = <b>${total}</b> ${plur(total, 'кредит', 'кредита', 'кредитов')} — на сегодня ${acc} ${plur(acc, 'аккаунт', 'аккаунта', 'аккаунтов')} Google (по 50 в день)${left != null ? `; сейчас во Flow осталось <b>${left}</b>` : ''}.`
@@ -981,24 +1111,26 @@ function serSetupHTML(c) {
     <div class="vc-foot"><button class="btn free" data-ser-go ${need.length ? 'disabled' : ''}>▶ Запустить: ${o.n} ${plur(o.n, 'видео', 'видео', 'видео')}</button>${serOf(c.id) ? '<button class="btn" data-ser-last>Последняя серия</button>' : ''}<button class="btn" data-vc-back>Отмена</button></div>`;
 }
 // серия остановилась на сценариях, а у персонажа или ИИ чего-то не хватает — «↻ Повторить» без этого бесполезен
-const serBlock = (j, c) => j.stage === 'error' && (j.failed === 'write' || !j.rows?.length) ? charNeeds(c) : [];
+const serBlock = (j, c) => j.stage === 'error' && (j.failed === 'write' || j.failed === 'prep' || !j.rows?.length) ? charNeeds(c, 0, true) : [];
+// голос серии: выбранный, а нет образца — голос Flow
+const serVoiceOf = c => c.sample && vcUi.serSet?.voice !== 'flow' ? 'char' : 'flow';
 function serJobHTML(j, c) {
   const live = serLive(j), sent = !!j.sentVideos, st = s => s === 'done' ? '✓' : s === 'error' ? '⚠' : '⏳', block = serBlock(j, c);
-  const steps = ['write', ...(j.frames === 'new' ? ['frames'] : []), 'video', 'done'], cur = steps.indexOf(j.stage);
+  const steps = [...(j.prepTasks || j.prep ? ['prep'] : []), 'write', ...(j.frames === 'new' ? ['frames'] : []), 'video', ...(j.voice === 'char' ? ['voice'] : []), 'done'], cur = steps.indexOf(j.stage);
   const rows = (j.rows || []).map((r, i) => {
     const f = r.frame ? 'done' : r.err ? 'error' : 'wait', v = r.skip ? '' : r.vstate || (sent ? 'queued' : '');
     return `<div class="ser-row ${r.skip ? 'skip' : ''}">${r.frame ? `<img src="${r.frame}" alt="">` : '<i class="ser-ph">🖼</i>'}
       <div class="ser-main"><b>${i + 1}. ${esc(r.title)}</b>${r.angle ? ` <span class="wr-tag">${esc(r.angle)}</span>` : ''}
-        <small>✍ сценарий ✓ · 🖼 кадр ${f === 'done' ? '✓' : f === 'error' ? '⚠ ' + esc(r.err) : '⏳'} · 🎬 видео ${r.skip ? '— пропущено' : v ? st(v) + (r.verr ? ' ' + esc(r.verr) : '') : '—'}</small></div>
+        <small>✍ сценарий ✓ · 🖼 кадр ${f === 'done' ? '✓' : f === 'error' ? '⚠ ' + esc(r.err) : '⏳'} · 🎬 видео ${r.skip ? '— пропущено' : v ? st(v) + (r.verr ? ' ' + esc(r.verr) : '') : '—'}${j.voice === 'char' && v === 'done' ? ` · 🎧 голос ${r.vv ? '✓' : r.vverr ? '⚠ ' + esc(r.vverr) : '⏳'}` : ''}</small></div>
       ${!sent && !r.skip ? `${r.alt?.length ? `<button class="btn small" data-ser-alt="${i}" title="Взять другой вариант кадра">🔄 Кадр</button>` : ''}<button class="btn small" data-ser-skip="${i}" title="Не делать видео по этому сценарию">✕</button>` : ''}</div>`;
   }).join('');
   return `<div class="ser-head"><b>${SER_STAGE[j.stage]}${j.paused ? ' · ⏸ пауза' : ''}</b><span>${j.n} ${plur(j.n, 'видео', 'видео', 'видео')} · ${j.hub ? '💻 с компьютера' : '📱 карточки'} · ${new Date(j.at).toLocaleString('ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}</span></div>
-    <div class="ser-steps">${steps.map((s, i) => `<span class="${i < cur || j.stage === 'done' ? 'ok' : i === cur ? 'now' : ''}">${SER_STAGE[s].split(' ')[0]} ${['Сценарии', 'Кадры', 'Видео', 'Готово'][['write', 'frames', 'video', 'done'].indexOf(s)]}</span>`).join('<i>→</i>')}</div>
+    <div class="ser-steps">${steps.map((s, i) => `<span class="${i < cur || j.stage === 'done' ? 'ok' : i === cur ? 'now' : ''}">${SER_STAGE[s].split(' ')[0]} ${SER_STEP[s]}</span>`).join('<i>→</i>')}</div>
     ${j.note ? `<div class="wr-note">${live && !j.paused ? '⏳ ' : ''}${esc(j.note)}</div>` : ''}
     ${block.length ? `<div class="ch-video"><b>Повтор даст ту же ошибку — сначала:</b><ul class="ch-need">${block.map(([t, a]) => `<li>${t} — ${a}</li>`).join('')}</ul></div>` : ''}
     <div class="ser-rows">${rows || (live ? '<p class="hint">Сценарии появятся здесь, как только ИИ их напишет.</p>' : '')}</div>
     <div class="vc-foot">
-      ${j.stage === 'done' ? '<button class="btn free" data-ser-zip>📦 Скачать всё</button><button class="btn" data-ser-caps>📋 Подписи к постам</button>' : ''}
+      ${j.stage === 'done' ? `<button class="btn free" data-ser-zip>📦 Скачать всё</button><button class="btn" data-ser-caps>📋 Подписи к постам</button>${j.voice === 'char' && j.rows.some(r => r.vverr) ? '<button class="btn" data-ser-revoice>🎧 Повторить голос</button>' : ''}` : ''}
       ${j.stage === 'error' ? `<button class="btn free" data-ser-retry ${block.length ? 'disabled' : ''}>↻ Повторить</button>` : ''}
       ${live ? `<button class="btn" data-ser-pause>${j.paused ? '▶ Продолжить' : '⏸ Пауза'}</button>` : ''}
       ${live && !j.hub && j.sentFrames ? '<button class="btn" data-ser-gallery>🖼 Карточки в галерее</button>' : ''}
@@ -1007,8 +1139,10 @@ function serJobHTML(j, c) {
 }
 function serStart(c) {
   const o = vcUi.serSet;
-  if (charNeeds(c, o.frames === 'mine' ? o.n : 0).length) return renderVoices();
-  const j = {id: 'ser-' + uid(), char: c.id, n: o.n, frames: o.frames, service: o.service, idea: o.idea.trim(), at: Date.now(), stage: 'write', rows: [], note: ''};
+  if (charNeeds(c, o.frames === 'mine' ? o.n : 0, true).length) return renderVoices();
+  const prep = !c.sheet || !c.info;
+  const j = {id: 'ser-' + uid(), char: c.id, n: o.n, frames: o.frames, service: o.service, idea: o.idea.trim(), voice: serVoiceOf(c), prep,
+    at: Date.now(), stage: prep ? 'prep' : 'write', rows: [], note: ''};
   ser.jobs = [j, ...ser.jobs.filter(x => x.char !== c.id || serLive(x))].slice(0, 20);
   ser.save();
   vcUi.serNew = false;
@@ -1021,6 +1155,8 @@ function serClick(b) {
   if (x.serN) { o.n = +x.serN; return renderVoices(); }
   if (x.serFrames) { o.frames = x.serFrames; return renderVoices(); }
   if (x.serSvc) { o.service = x.serSvc; return renderVoices(); }
+  if (x.serVoice) { o.voice = x.serVoice; return renderVoices(); }
+  if (b.hasAttribute('data-ser-photo')) return pickFile('image/*').then(async f => { if (!f?.type?.startsWith('image/')) return; c.photo = await refDataUrl(f); await vc.saveChars(); renderVoices(); });
   if (b.hasAttribute('data-ser-go')) return serStart(c);
   if (b.hasAttribute('data-ser-last')) { vcUi.serNew = false; return renderVoices(); }
   if (b.hasAttribute('data-ser-new')) { vcUi.serNew = true; return renderVoices(); }
@@ -1032,8 +1168,9 @@ function serClick(b) {
   if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
     if (serBlock(j, c).length) return renderVoices();
     const miss = j.rows?.filter(r => !r.frame && !r.skip);
-    Object.assign(j, {tries: 0, retryAt: 0}, !j.rows?.length || j.failed === 'write' && j.rows.length < j.n ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
-    (j.rows || []).forEach(r => { r.err = null; if (!j.sentVideos) Object.assign(r, {vstate: null, verr: null}); });
+    Object.assign(j, {tries: 0, retryAt: 0}, j.failed === 'prep' ? {stage: 'prep', sentPrep: 0} : j.failed === 'voice' ? {stage: 'voice'}
+      : !j.rows?.length || j.failed === 'write' && j.rows.length < j.n ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
+    (j.rows || []).forEach(r => { r.err = null; Object.assign(r, {vverr: null, vwait: 0}); if (!j.sentVideos) Object.assign(r, {vstate: null, verr: null}); });
     ser.save(); renderVoices(); return serKick();
   }
   if (b.hasAttribute('data-ser-del')) {
@@ -1044,6 +1181,7 @@ function serClick(b) {
   if (x.serAlt) { const r = j.rows[+x.serAlt]; if (r?.alt?.length) { r.alt.push(r.frame); r.frame = r.alt.shift(); ser.save(); } return renderVoices(); }
   if (x.serSkip) { const r = j.rows[+x.serSkip]; if (r) { r.skip = true; ser.save(); } renderVoices(); return serKick(); }
   if (b.hasAttribute('data-ser-zip')) return serZip(j, b);
+  if (b.hasAttribute('data-ser-revoice')) { j.rows.forEach(r => Object.assign(r, {vverr: null, vwait: 0})); Object.assign(j, {stage: 'voice', note: ''}); ser.save(); renderVoices(); return serKick(); }
   if (b.hasAttribute('data-ser-caps')) {
     const t = j.rows.filter(r => !r.skip).map((r, i) => `${i + 1}. ${r.title}\n${r.caption || ''}`).join('\n\n');
     return clCopyText(t).then(ok => toast(ok ? 'Подписи к постам скопированы' : 'Не удалось скопировать', {type: ok ? 'ok' : 'err'}));

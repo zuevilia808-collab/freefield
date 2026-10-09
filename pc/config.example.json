@@ -19,5 +19,9 @@
 
   // «Эхо» (озвучка) — Freefield запускает его сам, без окна: находит ярлык «Эхо — озвучка» на рабочем столе
   // или файл запуска в папке voice. Если не находит — путь к ярлыку или файлу запуска. Пример: "C:\\Users\\illia\\Desktop\\Эхо — озвучка.lnk"
-  "echo_launch": ""
+  "echo_launch": "",
+
+  // «🎧 Голос персонажа»: Freefield отделяет голос ролика от фона (Demucs) — Python ставит в папку Freefield\voice-env сам,
+  // один раз. Нужен Python 3.10+ (python.org, галочка «Add python.exe to PATH»). Если он не в PATH — путь к python.exe
+  "python": ""
 }

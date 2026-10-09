@@ -308,7 +308,7 @@ function exTakesHTML() {
       <small>${esc(t.voice_name || '')} · ${exT(t.duration)} · вариант ${t.take || 1}/${t.takes || 1}${t.created ? ' · ' + exDate(t.created) : ''}</small>
       <div class="ehx-acts"><button class="${t.favorite ? 'on' : ''}" data-ehx-tfav="${esc(t.id)}" title="${t.favorite ? 'Убрать из избранных' : 'В избранные'}">${ic('star')}</button>
         <button class="ehx-btn ghost sm" data-ehx-dl="mp3" data-id="${esc(t.id)}">${ic('download')}MP3</button>${t.wav ? `<button class="ehx-btn ghost sm" data-ehx-dl="wav" data-id="${esc(t.id)}">WAV</button>` : ''}
-        <button data-ehx-tdel="${esc(t.id)}" title="Удалить озвучку">${ic('trash')}</button></div></div>`).join('')
+        <button data-ehx-tdel="${esc(t.id)}" title="Удалить озвучку">${ic('trash')}</button>${ex.line && !ex.line.busy ? `<button class="ehx-btn sm" data-ehx-tomt="${esc(t.id)}" ${ex.line.going ? 'disabled' : ''} title="Вместо голоса клипа #${ex.line.n} в монтаже">→ В монтаж</button>` : ''}</div></div>`).join('')
       : `<p class="ehx-empty">${ex.fav ? 'Избранных пока нет — отметь ☆ у озвучки' : 'Здесь появятся озвучки'}</p>`}</div>`;
 }
 function exPill() {
@@ -323,7 +323,7 @@ function exRender(part) {
   if (!box) return;
   if (!box.querySelector('.ehx')) box.innerHTML = `<div class="ehx">
     <header class="ehx-top"><span class="ehx-logo">${EHX_BARS}</span><div><h2>Эх<span>о</span></h2><small>озвучка голосом из видео</small></div><span class="ehx-pill" id="ehxPill"></span></header>
-    <div id="ehxState"></div>
+    <div id="ehxState"></div><div id="ehxLine"></div>
     <div class="ehx-grid"><div class="ehx-col"><section class="ehx-card" id="ehxSrc"></section><section class="ehx-card" id="ehxVoice"></section><section class="ehx-card" id="ehxSpeak"></section></div>
       <aside class="ehx-card ehx-side" id="ehxTakes"></aside></div>
     <p class="ehx-foot">Всё работает на вашем компьютере и бесплатно — файлы никуда не отправляются. Клонируй только свой голос или голос человека, который на это согласился.</p></div>`;
@@ -332,6 +332,7 @@ function exRender(part) {
   for (const [k, [id, fn]] of Object.entries(parts)) if (!part || part === k) box.querySelector(id).innerHTML = fn();
   $('#ehxPill').innerHTML = exPill();
   $('#ehxState').innerHTML = eh.state === 'ok' ? '' : echoStatusHTML();
+  exLineShow();
   box.querySelector('.ehx-grid').classList.toggle('off', eh.state !== 'ok');
   if (!part || part === 'src') exSelShow();
   if (!part || part === 'speak') exGoShow();
@@ -351,6 +352,56 @@ async function exLoad() {
   if (cl.mode === 'voice') exRender();
   clearTimeout(exTimer);
   if (ex.status?.model === 'loading') exTimer = setTimeout(() => cl.mode === 'voice' && exLoad(), 4000);
+}
+
+/* ---- реплика из «Монтажа» (пользователь 2026-10-09: «голос, который вытащили из видео, перенести в „Озвучку“, чтобы она
+   просканировала, какая реплика говорится, я выбрал голос — и готовое вставил в монтаж»). Голос клипа → /upload → /voice:
+   «Эхо» распознаёт текст (как у любого вырезанного голоса) — он встаёт в «Текст озвучки»; у готовых озвучек — «→ В монтаж» ---- */
+ex.line = null;   // {p, proj, k, n, at, dur, text, busy, err, going}
+function exLineHTML() {
+  const l = ex.line;
+  if (!l) return '';
+  return `<div class="ehx-card ehx-line"><div class="ehx-lh"><b>🎞 Реплика из монтажа</b><span>«${esc(l.proj)}», клип #${l.n} · ${exNum(l.dur)} с</span>
+      <button class="ehx-btn ghost sm" data-ehx-line-x>Отменить</button></div>
+    ${l.busy ? `<small>⏳ ${esc(l.busy)}</small>` : l.err ? `<small class="bad">⚠ ${esc(l.err)}</small>`
+      : `<p data-noicon>${l.text ? '«' + esc(l.text) + '»' : 'Текст не распознан — впишите его в «Текст озвучки»'}</p>
+        <small>Текст уже в «Текст озвучки» (поправьте, если нужно) → выберите голос в «Мои голоса» → «Озвучить» → у готовой озвучки «→ В монтаж»</small>`}</div>`;
+}
+function exLineShow() { const el = $('#ehxLine'); if (el) el.innerHTML = exLineHTML(); }
+async function exFromMontage(line, wav) {
+  ex.line = {...line, text: '', busy: 'Запускаю «Эхо»…', err: ''};
+  exLineShow();
+  await echoEnsure();
+  const l = ex.line;
+  if (l?.k !== line.k) return;
+  if (eh.state !== 'ok') { Object.assign(l, {busy: '', err: eh.state === 'nohub' ? 'нужна программа Freefield на компьютере' : eh.err || '«Эхо» не запустилось'}); return exLineShow(); }
+  try {
+    l.busy = 'Отправляю реплику в «Эхо»…'; exLineShow();
+    const fd = new FormData();
+    fd.append('file', wav, 'line.wav');
+    const up = await echoApi('/upload', fd);
+    const v = await echoJob(await echoApi('/voice', {upload_id: up.id, start: 0, end: +Math.min(up.duration || line.dur, 30).toFixed(2), clean: false}),
+      (m, pr) => { l.busy = 'Распознаю реплику: ' + exProg(m, pr); exLineShow(); });
+    l.text = String(v.text || '').trim(); l.busy = '';
+    // голос реплики — в карточке «Голос» (можно сохранить), текст — в «Текст озвучки»
+    Object.assign(ex, {voice: v, vText: v.text || '', vName: '', vEmo: v.emotion || 'neutral'});
+    if (l.text) { ex.text = l.text; exSave(); }
+    exRender();
+    toast(l.text ? '🎞 Реплика распознана — выберите голос и нажмите «Озвучить»' : 'Реплику не распознать — впишите текст сами', {type: l.text ? 'ok' : 'err', ms: 7000});
+  } catch (e) { Object.assign(l, {busy: '', err: 'реплика не распознана: ' + e.message}); exLineShow(); }
+}
+// озвучка → в монтаж вместо голоса клипа
+async function exToMontage(t) {
+  const l = ex.line;
+  if (!l || l.going) return;
+  l.going = true; exRender('takes');
+  try {
+    const path = /^\/?files\/[\w./-]+\.wav$/.test(t.wav || '') ? t.wav : null;
+    const blob = path ? await fetch(echoUrl('/' + path.replace(/^\//, ''))).then(r => { if (!r.ok) throw new Error('файл не скачался: ' + r.status); return r.blob(); }) : await echoBlob(t);
+    await mtTakeIn(l, blob, `${t.voice_name || 'озвучка'}: ${t.text || ''}`);
+    ex.line = null;
+    if (cl.mode === 'voice') exRender();
+  } catch (e) { l.going = false; exRender('takes'); toast('Не вставилось в монтаж: ' + e.message, {type: 'err', ms: 9000}); }
 }
 
 // загрузить ролик в «Эхо» (с ходом загрузки — видео с телефона бывают большими)
@@ -462,6 +513,8 @@ function exSelDown(e) {
       if (d.ehxPlay === 'seg') return exPlay('seg', ex.up.preview || ex.up.url, ex.a, ex.b);
       return d.src && exPlay(d.ehxPlay, d.src);
     }
+    if ('ehxLineX' in d) { ex.line = null; return exRender(); }
+    if (d.ehxTomt) { const t = take(d.ehxTomt); return t && exToMontage(t); }
     if ('ehxNew' in d) { if (exNow === 'seg') exAud.pause(); ex.up = null; return exRender('src'); }
     if ('ehxClean' in d) { ex.clean = !ex.clean; return exRender('src'); }
     if ('ehxCut' in d) return exCut();
