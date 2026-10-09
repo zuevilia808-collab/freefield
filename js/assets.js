@@ -1,5 +1,5 @@
 'use strict';
-/* ---- «Создание ассетов»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
+/* ---- «Фото»: фото через Google Flow / Dola / Arena на компьютере, с фото-референсами ---- */
 const ASSET_SVC = {
   flow: {what: 'Nano Banana 2.1 · без кредитов · до 4 фото · берёт несколько референсов'},
   dola: {what: 'Seedream 5.0 · без кредитов · обычно 4 варианта'},
@@ -171,7 +171,7 @@ function setAssetKind(k) {
   asset.aspect = K.aspect;
   if (K.count) asset.count = K.count;
   asset.save();
-  // «Персонаж в локации» — по развёртке и инфографике: берём их из «Создания сценария» (или у его персонажа), если там уже есть
+  // «Персонаж в локации» — по развёртке и инфографике: берём их из «Сценариев» (или у его персонажа), если там уже есть
   asset.tookSheet = false;
   if (k === 'loc') {
     const c = vc.char(wr.char), sheet = wr.sheet || c?.sheet, info = wr.info || c?.info;
@@ -186,7 +186,7 @@ function setAssetKind(k) {
   updateLabels();
   openAkindSheet();
 }
-// окно «Сколько нужно?» (1…10) — общее: картинки в «Создании ассетов» и сценарии в «Видео сервисах».
+// окно «Сколько нужно?» (1…10) — общее: картинки в «Фото» и сценарии в «Видео».
 // nums: [{n, sub — подпись под числом, on — выбрано сейчас, off — нельзя, warn — не хватит}]; onPick(n) — нажали число
 const countSheet = {onPick: null};
 function openCountSheet({title, note, nums, plan, onPick}) {
@@ -248,7 +248,7 @@ function openAkindSheet() {
       ' Если окон Chrome открыто больше — задания разойдутся по всем открытым поровну, так ещё быстрее.' +
       (asset.svc === 'flow' && asset.count > 1 ? ` У каждой картинки будет ×${asset.count} варианта — это меняется ниже, в «Вариантов каждой».` : '')});
 }
-// «Видео сервисы» → «＋ Сценарий»: сколько сценариев нужно всего (новые — с настройками последнего)
+// «Видео» → «＋ Сценарий»: сколько сценариев нужно всего (новые — с настройками последнего)
 function openScnCount() {
   const have = cl.scn.length, last = cl.scn.at(-1);
   const site = last && last.service !== 'auto' ? last.service : null, kind = last?.kind || 'video', model = last?.model;
@@ -263,7 +263,7 @@ function openScnCount() {
     plan: (site && simPlan(site, kind, model, kind === 'image' ? 'картинки' : 'видео')) ||
       'Freefield запустит все сразу и разложит по аккаунтам: во Flow — до 4 на аккаунт и не больше, чем хватит кредитов (50 кредитов = 2 видео Omni 1.1 Flash), в Dola и Arena — до 2, в Google Vids — 1; нужно больше — тут же подключит другие профили Chrome.'});
 }
-/* ---- «💳 Проверить баланс» в «Видео сервисах»: какие сервисы проверить и на сколько сценариев хватит ----
+/* ---- «💳 Проверить баланс» в «Видео»: какие сервисы проверить и на сколько сценариев хватит ----
    Flow — остаток кредитов компьютер читает прямо с сайта в каждом открытом окне Chrome; сценарии = кредиты ÷ цена видео
    (Omni 1.1 Flash — 20: 50 кредитов = 2 сценария). Dola называет баллы только после видео, Vids и Arena остаток заранее
    не показывают — для них вход, лимиты и что известно. */
@@ -408,7 +408,7 @@ function setAssetCount(n) {
   if (asset.kind === 'loc') {
     const need = !asset.refs[0] ? 'sheet' : null, took = asset.tookSheet;
     asset.tookSheet = false;
-    if (!need) return toast(`${took ? `Развёртку${asset.info ? ' и инфографику' : ''} взял из «Создания сценария». ` : ''}Место и действие — по желанию у каждого кадра; пустые ${asset.info ? 'подберутся по инфографике' : 'выберет модель'}`, {type: 'ok', ms: 6000});
+    if (!need) return toast(`${took ? `Развёртку${asset.info ? ' и инфографику' : ''} взял из «Сценариев». ` : ''}Место и действие — по желанию у каждого кадра; пустые ${asset.info ? 'подберутся по инфографике' : 'выберет модель'}`, {type: 'ok', ms: 6000});
     toast('Выберите фото развёртки героя', {ms: 6000});
     return assetPick(need);
   }
@@ -538,7 +538,7 @@ async function assetGo() {
   const imgsOf = it => asset.kind === 'loc' ? [...[...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS - (asset.info ? 1 : 0)), ...(asset.info ? [asset.info] : [])]
     : [...(it?.ref ? [it.ref] : []), ...asset.refs].slice(0, ASSET_MAX_REFS);
   const tasks = (list || [null]).map((it, i) => assetTask(composePrompt(prompts[i], state.style, 'image'), imgsOf(it)));
-  if (peek.on) return peekShow('Создание ассетов', {prompts: tasks.map((t, i) => [`Картинка ${i + 1} → ${SITE_SHORT[t.service] || t.service} · ${t.model || ''}`, t.prompt]),
+  if (peek.on) return peekShow('Фото', {prompts: tasks.map((t, i) => [`Картинка ${i + 1} → ${SITE_SHORT[t.service] || t.service} · ${t.model || ''}`, t.prompt]),
     request: {куда: 'программа на компьютере: POST /api/batch', body: {scenarios: tasks}}});
   // без компьютера — карточки для сайтов: «Создать» во Flow, Dola или Arena пользователь нажимает сам
   if (!(await hubReady())) return phoneCards(tasks);

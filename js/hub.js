@@ -18,7 +18,7 @@ const scnEmpty = x => !String(x.prompt || '').trim() && !x.ref;
 // «＋ Сценарий»: новый — с настройками последнего (видео/фото, сервис и модель, формат, стиль, развёртка), текст и кадр — свои
 const scnLike = s => s ? {...blankScn(), kind: s.kind, service: s.service, ...(s.model && {model: s.model}), aspect: scnAspect(s),
   ...(s.style != null && {style: s.style}), ...(s.camera && {camera: s.camera}), ...(s.sheet && {sheet: s.sheet}), ...(s.char && {char: s.char}), ...(s.voice && {voice: s.voice})} : blankScn();
-// раздел «Видео сервисы» открывается с одним сценарием: лишние пустые убираем, заполненные остаются
+// раздел «Видео» открывается с одним сценарием: лишние пустые убираем, заполненные остаются
 const scnTrim = list => { const keep = list.filter(x => !scnEmpty(x)); return keep.length ? keep : [list[0] || blankScn()]; };
 const cl = {
   scn: scnTrim((ls.get('freefield.claude.scn', null) || [blankScn()])
@@ -28,7 +28,7 @@ const cl = {
   vcost() { return 20; },
   sending: false,
   sel: null,   // сценарий, выбранный кнопкой 🎨: стиль из сетки назначается только ему
-  mode: ls.get('freefield.create.cm', 'one'),   // раздел «Создать»: «one» — создание ассетов, «scn» — несколько сценариев
+  mode: ls.get('freefield.create.cm', 'chars'),   // раздел «Создать»: chars — персонажи (первый по порядку работы), one — фото, write — сценарии, scn — видео…
   save() { ls.set('freefield.claude.scn', this.scn.map(({ref, sheet, ...x}) => x)); ls.set('freefield.claude.aspect', this.aspect); ls.set('freefield.claude.seconds', this.seconds); },
   ready() { return this.scn.filter(s => s.prompt.trim().length >= 3); },
 };
@@ -160,6 +160,7 @@ const hubLink = {
       }
     } catch { this.ok = false; }
     renderHubJobs();   // задания на компьютере — живые карточки в галерее
+    renderPcBtn();
     if (this.ok && eh.state === 'nohub' && cl.mode === 'voice') renderEcho();   // связь появилась — «Озвучка» оживает сама
     $$('.cl-live').forEach(el => { el.innerHTML = clLiveHTML(el.dataset.where); });
     $$('.cl-plan').forEach(el => { el.innerHTML = clPlanText(); });
@@ -168,7 +169,7 @@ const hubLink = {
     if (!accState.checking) renderScnAcc();
     $$('#scnCreate [data-to]').forEach(el => { el.innerHTML = scnToHTML(+el.dataset.to); });
     updateGenButton();
-    if (!$('#hubSheet').classList.contains('hidden')) renderHub();
+    if (!$('#accSheet').classList.contains('hidden')) renderHub();
     if (!$('#mcpSheet').classList.contains('hidden')) renderMcp();
     this.timer = setTimeout(() => this.refresh(), this.batches.some(b => !b.done) ? 4000 : 20000);
   },
@@ -264,6 +265,26 @@ const hubLink = {
 };
 // связь с программой Freefield на ПК — одним описанием для всех разделов: ok, denied (ключ сменился), down (компьютер по Wi-Fi
 // не отвечает), pc-off (сайт с GitHub на компьютере, программа не отвечает), none (компьютера нет — телефон без связки)
+// «● Компьютер» в верхней полосе: точка — состояние связи, нажатие — проверить и что делать
+function renderPcBtn() {
+  const b = $('#pcBtn'), st = pcStatus();
+  if (!b) return;
+  b.dataset.pc = st.k;
+  b.title = st.k === 'none' ? (pwa.mobile() || isMobile() ? 'Компьютер не подключён — на компьютере во Freefield: «📱 На телефон»' : 'Программа Freefield на компьютере не найдена') : st.text;
+}
+async function pcBtnClick() {
+  const b = $('#pcBtn');
+  b.dataset.pc = 'wait';
+  if (!hubLink.ok && hubLink.pcSite()) { hubLink.pcUp = null; await hubLink.tryDirect(); }
+  await hubLink.refresh();
+  const st = pcStatus();
+  renderPcBtn();
+  if (st.k === 'ok') return toast(`🟢 Компьютер подключён${hubLink.info?.flowLeft != null ? ` · во Flow осталось ${hubLink.info.flowLeft} из 50 кредитов` : ''}`, {type: 'ok',
+    ...(hubLink.onPc() && {action: '📱 На телефон', onAction: () => { closeSheets(); openInstall(); }})});
+  if (st.k !== 'none') return toast(`${st.icon} ${st.text}`, {type: 'err', ms: 9000});
+  toast(pwa.mobile() || isMobile() ? 'Компьютер не подключён. На компьютере откройте Freefield → «📱 На телефон» и наведите камеру на QR-код — задания пойдут на компьютер'
+    : 'Программа Freefield на компьютере не найдена — откройте Claude Desktop или запустите Freefield из папки', {type: 'err', ms: 10000});
+}
 function pcStatus() {
   if (hubLink.ok) return {k: 'ok', icon: '🟢', text: 'Приложение подключено к компьютеру'};
   if (hubLink.denied) return {k: 'denied', icon: '🔑', text: 'Ключ связи сменился — отсканируйте новый QR-код: на компьютере во Freefield кнопка «📱 На телефон»'};

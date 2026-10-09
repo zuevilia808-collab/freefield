@@ -1094,7 +1094,7 @@ function mtApply(p, edit, refs) {
 function mtNeedKey() {
   mt.tab = 'chat'; mt.save();
   if (cl.mode === 'edit') renderMt();
-  toast('Нужен ИИ: подключите Gemini — бесплатно (или ключ Claude в «Создании сценария»)', {type: 'err', ms: 8000});
+  toast('Нужен ИИ: подключите Gemini — бесплатно (или ключ Claude в «Сценариях»)', {type: 'err', ms: 8000});
 }
 async function mtAsk(text, dry) {
   const p = mtProj();
@@ -1152,10 +1152,10 @@ function renderMtChat() {
         <div class="mt-sa"><button class="btn small" data-mt-scopy="${i}">📋 Копировать</button><button class="btn small" data-mt-prompts="${i}">🎬 Промпты для видео</button></div>` : ''}
       ${m.edit ? `<div class="mt-did">✓ Смонтировал: ${esc(m.edit)}${i === lastEdit ? ` <button class="wr-link" data-mt-undo="${i}">↶ Отменить</button>` : ''}</div>` : ''}
       ${m.scenes ? `<div class="mt-scenes">${m.scenes.map((s, k) => `<details><summary><b>${k + 1}.</b> ${esc(s.title || 'Клип ' + (k + 1))}${s.sec ? ` · ${s.sec} с` : ''}</summary><div class="mt-sp" data-noicon>${blocksHTML(s.prompt)}</div></details>`).join('')}
-        <div class="mt-sa"><button class="btn small primary" data-mt-scn="${i}">🎬 В «Видео сервисы» · ${m.scenes.length}</button><button class="btn small" data-mt-copy="${i}">📋 Копировать</button></div></div>` : ''}
+        <div class="mt-sa"><button class="btn small primary" data-mt-scn="${i}">🎬 В «Видео» · ${m.scenes.length}</button><button class="btn small" data-mt-copy="${i}">📋 Копировать</button></div></div>` : ''}
       ${m.by ? `<small>${esc(m.by)}</small>` : ''}</div>`;
   body.innerHTML = `
-    ${who ? '' : `<div class="mt-key"><button class="btn primary" data-mt-gemini>✦ Подключить Gemini — бесплатно</button><button class="btn" data-mt-paste>📋 Вставить ключ</button></div>`}
+    ${who ? '' : `<div class="mt-key"><button class="btn primary" data-keys-open>✦ Подключить Gemini — бесплатно</button></div>`}
     <div class="mt-chat" id="mtChat">${msgs.map(bubble).join('') || '<div class="mt-msg ai first">Пришлите картинки, инфографику, видео 📎 или просто опишите идею — напишу сценарий. Скажите «собери ролик» — сам расставлю клипы проекта, обрежу лишнее, сделаю переходы и титры.</div>'}
       ${mt.busy ? '<div class="mt-msg ai busy"><i></i><i></i><i></i></div>' : ''}</div>
     <div class="mt-att" id="mtAtt"></div>
@@ -1167,7 +1167,7 @@ function renderMtChat() {
   const chat = $('#mtChat');
   chat.scrollTop = chat.scrollHeight;
 }
-// промпты → «Видео сервисы» (как написаны, формат — как у проекта; персонаж из «Создания сценария» — с его развёрткой и голосом)
+// промпты → «Видео» (как написаны, формат — как у проекта; персонаж из «Сценариев» — с его развёрткой и голосом)
 function mtToScn(m) {
   const p = mt.p, ch = vc.char(wr.char), aspect = p?.aspect && p.aspect !== 'auto' ? p.aspect : '9:16';
   let added = 0;
@@ -1177,10 +1177,10 @@ function mtToScn(m) {
     if (empty >= 0) cl.scn[empty] = scn; else if (cl.scn.length < CL_MAX) cl.scn.push(scn); else break;
     added++;
   }
-  if (!added) return toast(`Уже ${CL_MAX} сценариев — уберите лишние в «Видео сервисах»`, {type: 'err'});
+  if (!added) return toast(`Уже ${CL_MAX} сценариев — уберите лишние в «Видео»`, {type: 'err'});
   cl.save();
   setCreateMode('scn');
-  toast(`🎬 В «Видео сервисы»: ${added} ${plur(added, 'промпт', 'промпта', 'промптов')}${added < m.scenes.length ? ` из ${m.scenes.length} — больше ${CL_MAX} за раз нельзя, остальные отправьте следующим заходом` : ''}. Готовые видео добавьте в монтаж кнопкой 🎞`, {type: 'ok', ms: 9000});
+  toast(`🎬 В «Видео»: ${added} ${plur(added, 'промпт', 'промпта', 'промптов')}${added < m.scenes.length ? ` из ${m.scenes.length} — больше ${CL_MAX} за раз нельзя, остальные отправьте следующим заходом` : ''}. Готовые видео добавьте в монтаж кнопкой 🎞`, {type: 'ok', ms: 9000});
 }
 $('#mtCreate').addEventListener('click', async e => {
   const b = e.target.closest('button');
@@ -1192,8 +1192,6 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtAttFile' in d) { $('#mtAttMenu')?.classList.add('hidden'); for (const f of await pickFile('image/*,video/*', true)) await mtAttach(f, f.name); return; }
   if ('mtAttGal' in d) { $('#mtAttMenu')?.classList.add('hidden'); return mtOpenPick('att'); }
   if (d.mtAttRm) { mt.att = mt.att.filter(a => a.k !== d.mtAttRm); return renderMtAtt(); }
-  if ('mtGemini' in d) return geminiOpen();
-  if ('mtPaste' in d) return geminiPaste();
   if ('mtClear' in d) { if (confirm('Очистить чат этого проекта?')) { p.chat = []; mt.save(); renderMtChat(); } return; }
   if (d.mtUndo) { const m = p.chat[+d.mtUndo]; if (!m?.undo) return; Object.assign(p, m.undo); delete m.undo; m.edit += ' (отменено)'; mt.save(); return renderMt(); }
   if (d.mtScn) return mtToScn(p.chat[+d.mtScn]);

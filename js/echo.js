@@ -611,7 +611,14 @@ function workMount() {
   place($('#echoWork'), $('#ehSlot'));
   place($('#mtWork'), $('#mtSlot'));
 }
-matchMedia('(max-width: 900px)').addEventListener?.('change', () => { if (cl.mode === 'voice' || cl.mode === 'edit') workMount(); });
+// разделы: на ПК — колонка слева в порядке работы, на телефоне — сетка вверху панели
+function railMount() {
+  const cm = $('#createMode'), mob = isMobile(), to = mob ? $('.panel-scroll') : $('.layout');
+  if (cm.parentElement !== to) to.prepend(cm);
+  cm.classList.toggle('rail', !mob);
+  segThumbs.schedule();
+}
+matchMedia('(max-width: 900px)').addEventListener?.('change', () => { railMount(); if (cl.mode === 'voice' || cl.mode === 'edit') workMount(); });
 
 // ⟨/⟩ для разработчика: большая кнопка вкладки проходит свой обычный путь, но перед отправкой показывает промпт и запрос
 const peek = {on: false};
@@ -650,16 +657,15 @@ function openSheet(which) {
   $$('.sheet').forEach(s => s.classList.add('hidden'));
   $(`#${which}Sheet`).classList.remove('hidden');
 }
+// «Мои сервисы» — теперь часть «Аккаунтов»: открыть их и прокрутить к сайтам
 function openHub() {
-  renderHub();
-  if (hubLink.key && hubLink.local()) hubLink.refresh();
-  $$('.sheet').forEach(x => x.classList.add('hidden'));
-  $('#hubSheet').classList.remove('hidden');
+  openAcc();
+  $('#accSites')?.scrollIntoView({block: 'start'});
 }
 
 // окно «Профили» (кнопка в верхней строке): профили Chrome, баланс и вход во Flow / Dola / Arena
 function openAcc() {
-  renderScnAcc();
+  renderScnAcc(); renderHub();
   if (hubLink.key && hubLink.local()) hubLink.refresh();
   else if (!hubLink.ok && hubLink.pcSite() && hubLink.pcUp === null) hubLink.tryDirect().then(() => renderScnAcc());   // сайт с GitHub — ищем программу
   $$('.sheet').forEach(x => x.classList.add('hidden'));

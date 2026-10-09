@@ -399,7 +399,7 @@ async function doAction(act, it, el) {
       break;
     case 'reuse':
       closeLB();
-      // видео — новым сценарием, фото — в «Создание ассетов»
+      // видео — новым сценарием, фото — в «Фото»
       if (it.type === 'video') {
         const s = {...blankScn(), kind: 'video', prompt: it.userPrompt ?? it.prompt};
         const empty = cl.scn.findIndex(x => !x.prompt.trim() && !x.ref);
@@ -408,7 +408,7 @@ async function doAction(act, it, el) {
         toast('Промпт — в сценарии. Меняйте и запускайте', {type: 'ok'});
         break;
       }
-      // фото — промпт в «Создание ассетов»
+      // фото — промпт в «Фото»
       setView('create'); setCreateMode('one');
       $('#prompt').value = state.prompts.image = it.userPrompt ?? it.prompt; saveSettings();
       toast('Промпт загружен — меняйте и создавайте', {type: 'ok'});
@@ -452,7 +452,7 @@ function showLB() {
     <div class="lb-actions">
       ${it.type === 'image' ? '<button class="primary" data-act="animate">🎬 Оживить в видео</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-scn" title="Сделать сценарий с этим фото: Freefield отправит его в Flow / Arena / Dola">📎 В сценарий</button>' : ''}
-      ${it.type === 'image' && it.blob ? '<button data-act="to-asset" title="Взять это фото референсом в «Создание ассетов» — например, развёртку героя">🖼 Референс для ассета</button>' : ''}
+      ${it.type === 'image' && it.blob ? '<button data-act="to-asset" title="Взять это фото референсом в «Фото» — например, развёртку героя">🖼 Референс для ассета</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to-char" title="Сохранить в персонажа: кадр в локации, развёртка или инфографика">🧍 В персонажа</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="to3d" title="Сделать 3D-модель из этой картинки — на компьютере, бесплатно">🧊 3D-модель</button>' : ''}
       ${it.type === 'image' && it.blob ? '<button data-act="upscale" title="Увеличить в 2 или 4 раза — на компьютере, бесплатно">🔍 Увеличить</button>' : ''}

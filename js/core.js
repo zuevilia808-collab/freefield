@@ -702,6 +702,8 @@ const byId = (arr, id) => arr.find(x => x.id === id) || arr[0];
 const fmtTime = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const fmtUSD = v => v == null ? '—' : '$' + (v < 0.1 ? +v.toPrecision(2) : v.toFixed(2));
 const isMobile = () => matchMedia('(max-width: 900px)').matches;
+// длинная инструкция — свёрнута в «?» и раскрывается по нажатию (на экране — только главное)
+const helpHTML = (title, body, cls = '') => `<details class="help ${cls}"><summary><i>?</i>${title}</summary><div class="help-body">${body}</div></details>`;
 const encPrompt = p => encodeURIComponent(p.replace(/[\/\\]/g, ' ').slice(0, 1800));
 const ls = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -809,7 +811,7 @@ const wallet = {
   anthropic: ls.get('freefield.anthropic', ''),   // Claude (Anthropic) — пишет сценарии, платно по ключу пользователя
 };
 ['key', 'hf', 'hfUser', 'horde', 'spend.v1', 'catalog.v1', 'hfQuotaOut', 'nb21'].forEach(k => ls.del('freefield.' + k));
-// ключи в «Настройках» — тем же блоком, что в «Создании сценария» (keyCardHTML)
+// ключи в «Настройках» — тем же блоком, что в «Сценариях» (keyCardHTML)
 function renderWallet() {
   const el = $('#setKeys');
   if (!el) return;

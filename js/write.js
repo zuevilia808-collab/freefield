@@ -1,5 +1,5 @@
 'use strict';
-/* ---- «Создание сценария»: ИИ пишет сценарии рилсов по инфографике (о чём ролик) и развёртке героя (как он выглядит) ---- */
+/* ---- «Сценарии»: ИИ пишет сценарии рилсов по инфографике (о чём ролик) и развёртке героя (как он выглядит) ---- */
 // Кто пишет — модуль выбора ИИ: Claude (ключ Anthropic, платно — лучший сценарист), Gemini (бесплатный ключ Google)
 // или «ИИ в чате» (задание копируется в буфер — для Gemini, Claude, ChatGPT). Dola убрана по просьбе пользователя (2026-09-26): пишет слабо.
 const WRITERS = {
@@ -11,7 +11,7 @@ const CLAUDE_MODELS = [['claude-opus-5-5', 'Opus 5.5 — самый сильны
 // Эталонный промпт пользователя для видео (прислал 2026-09-26): каждый видео-промпт — эти блоки, по строке на блок
 const REF_BLOCKS = ['On-screen text', 'Spoken line', 'Action', 'Automatic subtitles', 'Pose & body language', 'Location', 'Camera & framing', 'Sound design', 'Timing & pacing'];
 const REF_PROMPT = REF_BLOCKS.map(b => b + ': ').join('\n');
-// подписи блоков эталона, который пользователь вписал в «Создании сценария» (строки «Подпись: …»)
+// подписи блоков эталона, который пользователь вписал в «Сценариях» (строки «Подпись: …»)
 const refLabels = () => { const l = [...String(wr.ref || '').matchAll(/^\s*([A-Za-zА-Яа-яЁё][^:\n]{1,40}):/gm)].map(m => m[1].trim()); return l.length ? l : REF_BLOCKS; };
 const isBlockPrompt = t => { const known = new Set([...REF_BLOCKS, ...refLabels()]);
   return [...String(t || '').matchAll(/^\s*([^:\n]{2,40}):/gm)].filter(m => known.has(m[1].trim())).length >= 3; };
@@ -84,7 +84,7 @@ function wrUseChar(c) {
   if (c.info) wr.info = c.info;
   if (c.locs?.length) { wr.locs = [...c.locs]; wr.count = Math.min(CL_MAX, c.locs.length); wrLocsSave(); }
 }
-// что персонаж принёс в «Создание сценария» — для подсказки
+// что персонаж принёс в «Сценарии» — для подсказки
 const wrCharTook = c => [c.sheet && 'развёртка', c.info && 'инфографика', c.locs?.length && `${c.locs.length} ${plur(c.locs.length, 'кадр', 'кадра', 'кадров')} в локациях`, c.flow?.name && `голос во Flow ${c.flow.kind === 'char' ? '@' : '@Voice: '}${c.flow.name}`].filter(Boolean).join(', ');
 // сменили развёртку в ячейке: у персонажа её не было — теперь это его развёртка; была другая — выбор снимаем (иначе ИИ дал бы герою чужой голос)
 function wrCharCheck() {
@@ -250,7 +250,7 @@ function jsonWhole(t) {
 }
 
 const b64 = d => { const m = /^data:((?:image|video)\/[\w.+-]+);base64,(.+)$/.exec(d || ''); if (!m) throw new Error('картинка не прочиталась — загрузите её снова'); return {mime: m[1], data: m[2]}; };
-// media — свои картинки с подписями [[подпись, data URL], …] (ИИ-монтажёр); без них — ячейки «Создания сценария»
+// media — свои картинки с подписями [[подпись, data URL], …] (ИИ-монтажёр); без них — ячейки «Сценариев»
 async function writeClaude(sys, user, media) {
   const img = d => { const x = b64(d); return {type: 'image', source: {type: 'base64', media_type: x.mime, data: x.data}}; };
   const r = await timedFetch('https://api.anthropic.com/v1/messages', {
@@ -272,7 +272,7 @@ async function writeClaude(sys, user, media) {
   }
   return {text: (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n'), cut: j.stop_reason === 'max_tokens', by: 'Claude ' + (CLAUDE_MODELS.find(m => m[0] === wr.claudeModel)?.[1].split(' — ')[0] || wr.claudeModel)};
 }
-// ИИ-писатель для «Создания сценария», «Серии» и ИИ-монтажёра: who — 'claude' или 'gemini'
+// ИИ-писатель для «Сценариев», «Серии» и ИИ-монтажёра: who — 'claude' или 'gemini'
 const aiWrite = (who, sys, user, media) => who === 'claude' ? writeClaude(sys, user, media) : writeGemini(sys, user, media);
 async function writeGemini(sys, user, media) {
   const part = d => { const x = b64(d); return {inline_data: {mime_type: x.mime, data: x.data}}; };
@@ -322,10 +322,10 @@ async function writeGo() {
   if (wr.busy) return;
   if (peek.on) {
     const who = writerNow(), {sys, user, chat} = writeBrief();
-    return peekShow('Создание сценария', {prompts: who === 'chat' ? [['Задание для ИИ в чате (копируется)', chat]] : [['Системный промпт', sys], ['Задание (вместе с картинками)', typeof user === 'string' ? user : JSON.stringify(user, null, 2)]],
+    return peekShow('Сценарии', {prompts: who === 'chat' ? [['Задание для ИИ в чате (копируется)', chat]] : [['Системный промпт', sys], ['Задание (вместе с картинками)', typeof user === 'string' ? user : JSON.stringify(user, null, 2)]],
       request: {ИИ: who === 'chat' ? 'ИИ в чате' : WRITERS[who]?.name, картинки: {инфографика: wr.info || null, развёртка: wr.sheet || null, кадры_в_локациях: wr.locs || []}, сценариев: wr.count}});
   }
-  if (wrNeedKey()) return geminiOpen();
+  if (wrNeedKey()) { openKeys(); return geminiOpen(); }   // ключ вставляется в «Настройках» — они уже открыты, когда вернётесь из AI Studio
   // кадры «персонаж в локации» обязательны при любом ИИ: сколько сценариев, столько кадров (пользователь 2026-09-27)
   const pics = writerNow() === 'chat' ? [] : ['info', 'sheet'].filter(k => !wr[k]), gap = wrLocGap();
   const miss = gap ? [...pics, 'loc'] : pics;
@@ -347,7 +347,7 @@ async function writeGo() {
   }
   if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) {
     toast(`Вставьте ключ ${WRITERS[who].name} — или выберите другой ИИ`, {type: 'err'});
-    return keyInput()?.focus();
+    return openKeys();
   }
   wr.busy = true; wr.note = `${WRITERS[who].name} читает картинки и пишет сценарии…`;
   renderWriteNote(); updateGenButton();
@@ -364,11 +364,11 @@ async function writeGo() {
   $('#writeOut')?.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
-// сам ИИ-сценарист: задание из нынешних ячеек «Создания сценария» → Claude или Gemini → сценарии с голосом героя
+// сам ИИ-сценарист: задание из нынешних ячеек «Сценариев» → Claude или Gemini → сценарии с голосом героя
 async function writeRun() {
   const who = writerNow(), {sys, user} = writeBrief();
-  if (who === 'chat') throw new Error('ИИ для сценариев не подключён — подключите бесплатный Gemini в «Создании сценария»');
-  if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) throw new Error(`нет ключа ${WRITERS[who].name} — вставьте его в «Создании сценария»`);
+  if (who === 'chat') throw new Error('ИИ для сценариев не подключён — подключите бесплатный Gemini в «Сценариях»');
+  if (who === 'claude' && !wallet.anthropic || who === 'gemini' && !wallet.gemini) throw new Error(`нет ключа ${WRITERS[who].name} — вставьте его в «Сценариях»`);
   const r = await aiWrite(who, sys, user);
   const list = parseScenarios(r.text, r.code), voice = wrVoice();
   if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
@@ -472,11 +472,11 @@ function renderWrite() {
   // видео с двумя фото (локация + развёртка) и эталонным промптом без лишних слов (внешность героя не описываем)
   const go = (m, t) => `<button class="wr-link" data-wgo="${m}">${t}</button>`;
   box.innerHTML = `
-    <details class="wr-howto" ${ls.get('freefield.write.howto', true) ? 'open' : ''}><summary>📋 Как сделать ролик — 4 шага</summary><ol>
+    <details class="wr-howto" ${ls.get('freefield.write.howto', false) ? 'open' : ''}><summary>📋 Как сделать ролик — 4 шага</summary><ol>
       <li><b>Развёртка и инфографика.</b> Развёртка героя — вид спереди, сбоку, сзади, лицо, одежда; инфографика — о чём ролик. Загрузите обе ниже.</li>
-      <li><b>Герой в разных локациях.</b> В ${go('one', '🖼 Создании ассетов')} приложите развёртку как референс и сделайте героя в разных местах — по кадру на каждый сценарий: 5 сценариев — 5 разных локаций.</li>
+      <li><b>Герой в разных локациях.</b> В ${go('one', '🖼 Фото')} приложите развёртку как референс и сделайте героя в разных местах — по кадру на каждый сценарий: 5 сценариев — 5 разных локаций.</li>
       <li><b>Эталонный сценарий.</b> Загрузите эти кадры в ячейку «📍 Персонаж в локации» ниже — сколько сценариев, столько кадров. ИИ напишет сценарий 1 по кадру 1, сценарий 2 по кадру 2… В «ИИ в чате» приложите кадры в чат по порядку.</li>
-      <li><b>Видео.</b> В ${go('scn', '🎬 Видео сервисах')} у сценария два фото — его «персонаж в локации» и развёртка (кнопка «🎬 В видео сервисы» приложит их сама) — и эталонный промпт без лишних слов: внешность героя не описываем, её берут из фото; в Location — только место.</li>
+      <li><b>Видео.</b> В ${go('scn', '🎬 Видео')} у сценария два фото — его «персонаж в локации» и развёртка (кнопка «🎬 В видео сервисы» приложит их сама) — и эталонный промпт без лишних слов: внешность героя не описываем, её берут из фото; в Location — только место.</li>
     </ol></details>
     <div class="wr-slots">${slot('info', '📊 Инфографика', `${need} · о чём ролик: товар, факты, выгоды`)}${slot('sheet', vc.char(wr.char)?.sheet ? `🧍 Развёртка · ${esc(vc.char(wr.char).name)}` : '🧍 Развёртка героя', `${need} · вид спереди, сбоку, сзади, лицо, одежда`)}${locSlot()}</div>
     ${wrCharsHTML()}
@@ -496,7 +496,7 @@ function renderWrite() {
   renderWriteAi();
   renderWriteNote();
 }
-// «Создание сценария» → кто говорит: выбран персонаж — его развёртка в ячейке, его голос ИИ впишет в каждый сценарий
+// «Сценарии» → кто говорит: выбран персонаж — его развёртка в ячейке, его голос ИИ впишет в каждый сценарий
 function wrCharsHTML() {
   const c = vc.char(wr.char), v = wrVoice();
   return `<div class="block-head" style="margin-top:12px"><span class="lbl">🎙 Герой и голос</span><span class="hint"><button class="wr-link" data-wgo="chars">все персонажи</button></span></div>
@@ -523,18 +523,25 @@ function renderWriteAi() {
     return `<button class="wr-ai ${wr.ai === id ? 'on' : ''}" data-wai="${id}"><b><span class="mc-ico" style="background:${w.color}">${esc(w.ico)}</span>${w.name}</b>${w.what}<i class="${c}">${t}</i></button>`; };
   const setup = {
     claude: `${CLAUDE_MODELS.length ? `<select data-wmodel aria-label="Модель Claude">${CLAUDE_MODELS.map(([v, t]) => `<option value="${v}" ${wr.claudeModel === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
-      ${keyCardHTML('claude')}`,
-    gemini: keyCardHTML('gemini'),
+      ${wallet.anthropic ? '✓ Ключ Claude есть — оплата с вашего счёта Anthropic за каждый сценарий.' : '<button class="btn small free" data-keys-open>🔑 Вставить ключ Claude — в «Настройках»</button>'}`,
+    gemini: wallet.gemini ? '✓ Ключ Gemini есть — пишет Gemini Flash, бесплатно.' : '<button class="btn small free" data-keys-open>🔑 Подключить Gemini — в «Настройках», бесплатно</button>',
     chat: 'Задание скопируется в буфер вместе с вашим эталонным промптом. Вставьте его в чат с Gemini, Claude или ChatGPT и приложите картинки — инфографику, развёртку и кадры «персонаж в локации» по порядку (сценарий 1 — первый кадр…). ИИ ответит по вашей структуре: название, Block 1. Photo, Block 2. Video prompt, Block 3. Post caption — каждый блок с кнопкой «копировать».',
   };
   el.innerHTML = `
     <div class="block-head" style="margin-top:14px"><span class="lbl">Кто пишет сценарий</span><span class="hint">${wr.ai === 'auto' ? 'сейчас: ' + WRITERS[who].name : ''}</span></div>
     <div class="wr-ais"><button class="wr-ai auto ${wr.ai === 'auto' ? 'on' : ''}" data-wai="auto"><b>⚡ Авто</b>Лучший из доступных: Claude → Gemini → ИИ в чате</button>
       ${Object.keys(WRITERS).map(tile).join('')}</div>
-    <div class="wr-setup" id="wrSetup">${wrNeedKey() ? keyCardHTML('gemini', '<div class="wr-lead">✨ <b>Чтобы ИИ писал сценарии прямо здесь, не выходя из приложения</b> — подключите Gemini: бесплатно, один раз, около минуты.</div>') +
+    <div class="wr-setup" id="wrSetup">${wrNeedKey() ? '<div class="wr-lead">✨ <b>Чтобы ИИ писал сценарии прямо здесь</b> — подключите Gemini: бесплатно, один раз, около минуты.</div><button class="btn free" data-keys-open>🔑 Подключить Gemini</button>' +
       '<div class="hint" style="margin-top:6px">Без ключа — выберите «ИИ в чате»: задание скопируется, и вставите его в чат с ИИ.</div>' : setup[who]}</div>`;
 }
-// ключ ИИ — один вид везде («Настройки», «Создание сценария»): сохранён — что он даёт и «Удалить»; нет — как получить и поле ввода
+// ключи ИИ живут только в «Настройках»: остальные разделы ведут туда этой кнопкой
+function openKeys() {
+  openSheet('settings');
+  $('#setKeys')?.scrollIntoView({block: 'start'});
+  keyInput()?.focus();
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-keys-open]')) openKeys(); });
+// ключ ИИ — один вид («Настройки»): сохранён — что он даёт и «Удалить»; нет — как получить и поле ввода
 function keyCardHTML(id, lead = '') {
   const row = ph => `<div class="key-row"><input data-wkey-in="${id}" type="text" placeholder="${ph}" autocomplete="off" spellcheck="false"><button class="btn free" data-wkey-save="${id}">Сохранить</button></div>`;
   const del = `<button class="btn small danger" data-wkey-del="${id}">Удалить ключ</button>`;
@@ -550,7 +557,7 @@ function keyCardHTML(id, lead = '') {
       <li>Вернитесь сюда: <button class="btn small ${wr.keyWait ? 'free wr-pulse' : ''}" data-wkey-paste>📋 Вставить ключ</button> — или вставьте его в поле:</li></ol>
     ${row('AQ.… или AIza…')}<div class="hint" style="margin-top:6px">Бесплатно, в пределах дневных лимитов Google. Ключ хранится только в этом браузере и уходит только в Google.</div>`;
 }
-// поле ключа, которое сейчас на экране (в «Настройках» или в «Создании сценария»)
+// поле ключа, которое сейчас на экране (в «Настройках» или в «Сценариях»)
 const keyInput = id => $$(`[data-wkey-in${id ? `="${id}"` : ''}]`).find(el => el.offsetParent);
 // «Авто», а ключей нет — не уходим в чат, а предлагаем подключить бесплатный Gemini (пользователь 2026-09-28: писать сценарий в приложении)
 const wrNeedKey = () => wr.ai === 'auto' && writerNow() === 'chat';
@@ -558,7 +565,7 @@ const GEMINI_KEY_URL = 'https://aistudio.google.com/apikey';
 function geminiOpen() {
   wr.keyWait = true;
   openSide(GEMINI_KEY_URL, 'aistudio');
-  renderWriteAi();
+  renderWallet();
   toast('В Google AI Studio: «Create API key» → скопируйте ключ, вернитесь и нажмите «📋 Вставить ключ»', {type: 'ok', ms: 10000});
 }
 async function geminiPaste() {
@@ -571,9 +578,9 @@ async function geminiPaste() {
 }
 // вернулись из AI Studio — подсвечиваем «📋 Вставить ключ»
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || !wr.keyWait || wallet.gemini || cl.mode !== 'write') return;
-  renderWriteAi();
-  $('#writeCreate [data-wkey-paste]')?.scrollIntoView({behavior: 'smooth', block: 'center'});
+  if (document.visibilityState !== 'visible' || !wr.keyWait || wallet.gemini || $('#settingsSheet').classList.contains('hidden')) return;
+  renderWallet();
+  $('#setKeys [data-wkey-paste]')?.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
 function writeOutHTML() {
   const r = wr.result;
@@ -589,10 +596,10 @@ function writeOutHTML() {
       <div class="cl-row">
         <button class="btn small" data-wcopy-video="${i}" title="Скопировать сценарий — заполненный эталонный промпт, по блокам">📋 Копировать</button>
         ${s.asset_prompt ? `<button class="btn small" data-wasset="${i}" title="Flow · Nano Banana 2.1 · 3:4 · ×4 с развёрткой героя — без кредитов">🖼 Ассет ×4</button>` : ''}
-        <button class="btn small" data-wscn="${i}" title="Добавить сценарий в «Видео сервисы»">🎬 В видео сервисы</button></div>
+        <button class="btn small" data-wscn="${i}" title="Добавить сценарий в «Видео»">🎬 В видео сервисы</button></div>
     </div>`).join('') +
     `<div class="cl-row"><button class="btn" data-wasset="all" title="Для каждого сценария — 4 фото героя в его локации (Flow, без кредитов)">🖼 Ассеты для всех</button>
-      <button class="btn" data-wscn="all">🎬 Все в «Видео сервисы»</button><button class="btn small" data-wclear>✕ Убрать</button></div>`;
+      <button class="btn" data-wscn="all">🎬 Все в «Видео»</button><button class="btn small" data-wclear>✕ Убрать</button></div>`;
 }
 // «🖼 Ассет ×4»: Flow · Nano Banana 2 · 3:4 · ×4, развёртка героя — «ингредиент» (так пользователь делает референсы для рилсов)
 async function writeAssets(list) {
@@ -608,7 +615,7 @@ async function writeAssets(list) {
   } catch (e) { toast('Не удалось отправить: ' + e.message, {type: 'err'}); }
   hubLink.refresh();
 }
-// «🎬 В видео сервисы»: видео-промпт — в «Видео сервисы» (как написан: без авто-улучшения, речь остаётся по-русски)
+// «🎬 В видео сервисы»: видео-промпт — в «Видео» (как написан: без авто-улучшения, речь остаётся по-русски)
 function writeToScn(idxs) {
   const list = wr.result?.scenarios || [], ch = vc.char(wr.result?.char), sheet = ch?.sheet || wr.sheet;
   let added = 0, full = 0, withLoc = 0;
@@ -624,12 +631,12 @@ function writeToScn(idxs) {
     if (loc) withLoc++;
     if (loc && sheet) full++;
   }
-  if (!added) return toast(`Уже ${CL_MAX} сценариев — уберите лишние в «Видео сервисах»`, {type: 'err'});
+  if (!added) return toast(`Уже ${CL_MAX} сценариев — уберите лишние в «Видео»`, {type: 'err'});
   cl.save();
   setCreateMode('scn');
   const each = added > 1 ? 'К каждому приложен его' : 'Приложен';
-  toast(`Добавлено в «Видео сервисы»: ${added}.${full === added ? ` ${each} кадр «персонаж в локации» и развёртка`
-    : withLoc === added ? ` ${each} кадр «персонаж в локации»; развёртку добавьте кнопкой 🧍 или загрузите её в «Создании сценария»`
+  toast(`Добавлено в «Видео»: ${added}.${full === added ? ` ${each} кадр «персонаж в локации» и развёртка`
+    : withLoc === added ? ` ${each} кадр «персонаж в локации»; развёртку добавьте кнопкой 🧍 или загрузите её в «Сценариях»`
     : ' Приложите к сценарию кадр «персонаж в локации» (📎) и развёртку (🧍)'}`, {type: 'ok', ms: 8000});
 }
 async function writeAddImage(k, files) {
@@ -741,7 +748,7 @@ async function clTasks(list, phone = false) {
   const plan = clPlan(list);
   let out = list.map((s, i) => ({site: plan[i].site, char: s.kind === 'video' ? vc.char(s.char) : null, prompt: s.prompt.trim(), kind: s.kind, service: s.service, aspect_ratio: scnAspect(s), seconds: s.kind === 'video' ? cl.seconds : undefined, model: s.service !== 'auto' ? s.model || undefined : undefined, image: s.ref || undefined, sheet: s.sheet || undefined, fixed: s.fixed, style: s.style, camera: s.kind === 'video' ? s.camera : undefined, voice: s.kind === 'video' ? scnVoice(s) : null}));
   // промпты не «улучшаем» (переключатель убран по просьбе пользователя) — только переводим русское на английский как есть;
-  // готовые промпты из «Создания сценария» не трогаем, в эталонном (блочном) — переводим по блокам, реплики в «» остаются
+  // готовые промпты из «Сценариев» не трогаем, в эталонном (блочном) — переводим по блокам, реплики в «» остаются
   out = await Promise.all(out.map(async s => {
     if (s.fixed || !/[а-яё]/i.test(s.prompt)) return s;
     try { return {...s, prompt: isBlockPrompt(s.prompt) ? await translateBlocks(s.prompt) : await translateKeepQuotes(s.prompt)}; } catch { return s; }
@@ -809,7 +816,7 @@ function phoneCards(tasks, {quiet = false} = {}) {
   return made;
 }
 
-// «Видео сервисы» без компьютера: сервис и модель — по тому же плану, что у компьютера
+// «Видео» без компьютера: сервис и модель — по тому же плану, что у компьютера
 async function scnPhone(own) {
   const list = own || cl.ready();
   if (!list.length) return toast('Напишите хотя бы один сценарий', {type: 'err'});
@@ -911,12 +918,12 @@ function bindClaude() {
     else if (b.hasAttribute('data-acc-close-all')) return accAction('close-all', null, b);
     else if (b.dataset.accOpen) return accAction('open', null, b, +b.dataset.accOpen);
     else if (b.dataset.accClose) return accAction('close', null, b, +b.dataset.accClose);
-    else if (b.hasAttribute('data-ref-add') && wr.locs.length) cl.pickFor = idx(e);   // сначала — кадры из «Создания сценария»
+    else if (b.hasAttribute('data-ref-add') && wr.locs.length) cl.pickFor = idx(e);   // сначала — кадры из «Сценариев»
     else if (b.hasAttribute('data-ref-add') || b.hasAttribute('data-ref-file')) { const i = idx(e); cl.pickFor = null; renderScn(); return scnPickRef(i, 'ref'); }
     else if (b.dataset.locPick) { cl.scn[idx(e)].ref = wr.locs[+b.dataset.locPick]; cl.pickFor = null; }
     else if (b.hasAttribute('data-pick-x')) cl.pickFor = null;
     else if (b.hasAttribute('data-ref-rm')) delete cl.scn[idx(e)].ref;
-    else if (b.hasAttribute('data-sheet-add')) {   // развёртка — та, что загружена в «Создании сценария»; её нет — выбрать файл
+    else if (b.hasAttribute('data-sheet-add')) {   // развёртка — та, что загружена в «Сценариях»; её нет — выбрать файл
       if (!wr.sheet) return scnPickRef(idx(e), 'sheet');
       cl.scn[idx(e)].sheet = wr.sheet;
     }

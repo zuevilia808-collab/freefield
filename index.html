@@ -140,9 +140,8 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
     <span class="wordmark">Free<b>field</b></span>
   </div>
   <div class="top-right">
-    <button class="wallet acc-btn" id="accBtn" title="Профили Chrome и аккаунты Google Flow, Dola, Arena: баланс, вход и выход, новый профиль"><svg class="ic"><use href="#i-users"/></svg><span class="wl-text">Профили</span></button>
-    <button class="wallet hub-btn" id="mcpBtn" title="Ссылка на MCP-сервер Freefield — подключить Claude Code, Cursor и другие программы"><svg class="ic"><use href="#i-plug"/></svg><span class="wl-text">MCP</span></button>
-    <button class="wallet hub-btn" id="hubBtn" title="Мои сервисы с бесплатными кредитами"><svg class="ic"><use href="#i-gift"/></svg><span class="wl-text">Мои сервисы</span></button>
+    <button class="wallet pc-btn" id="pcBtn" data-pc="none" title="Программа Freefield на компьютере"><i class="pc-dot"></i><span class="wl-text">Компьютер</span></button>
+    <button class="wallet acc-btn" id="accBtn" title="Аккаунты: профили Chrome с Google Flow, Dola, Arena и сайты с бесплатными кредитами"><svg class="ic"><use href="#i-users"/></svg><span class="wl-text">Аккаунты</span></button>
     <button class="icon-btn" id="settingsBtn" title="Настройки"><svg class="ic"><use href="#i-settings"/></svg></button>
   </div>
 </header>
@@ -152,13 +151,13 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
     <div class="panel-scroll">
 
       <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit keep-voice" id="createMode">
-        <button data-cm="one" class="on" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Создание ассетов</span></button>
-        <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Создание сценария</span></button>
-        <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео сервисы</span></button>
-        <button data-cm="chars" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
-        <button data-cm="3d" title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
-        <button data-cm="voice" title="Озвучка голосом персонажа — «Эхо» на этом компьютере: клон голоса, эмоции, варианты"><svg class="ic"><use href="#i-mic"/></svg><span>Озвучка</span></button>
+        <button data-cm="chars" class="on" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
+        <button data-cm="one" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Фото</span></button>
+        <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Сценарии</span></button>
+        <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео</span></button>
         <button data-cm="edit" title="Монтаж: видео из галереи — в один длинный ролик; ИИ-монтажёр пишет сценарий и монтирует сам"><svg class="ic"><use href="#i-film"/></svg><span>Монтаж</span></button>
+        <button data-cm="voice" title="Озвучка голосом персонажа — «Эхо» на этом компьютере: клон голоса, эмоции, варианты"><svg class="ic"><use href="#i-mic"/></svg><span>Озвучка</span></button>
+        <button data-cm="3d" title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
       </div>
       <section class="only-write" id="writeCreate"></section>
       <section class="only-chars" id="charsCreate"></section>
@@ -214,17 +213,12 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
       <span class="count" id="countLabel"></span>
     </div>
 
-    <!-- пустая галерея: что здесь появится и с чего начать — три раздела «Создать» по порядку ролика -->
+    <!-- пустая галерея: что здесь появится и с чего начать — три шага с галочками -->
     <div class="empty" id="empty">
       <div class="empty-field" aria-hidden="true"><b></b><i></i></div>
       <h1>Здесь появятся<br><span>ваши фото и видео</span></h1>
       <p>Всё, что Freefield сделает в Google Flow, Google Vids, Dola и Arena, приходит сюда само.</p>
-      <div class="features">
-        <button class="feat" data-go="one"><b><svg class="ic"><use href="#i-image"/></svg>1. Ассеты</b><span>Герой по развёртке — в разных локациях, по фото на каждый сценарий.</span></button>
-        <button class="feat" data-go="write"><b><svg class="ic"><use href="#i-pen"/></svg>2. Сценарий</b><span>ИИ пишет сценарии по инфографике и кадрам героя в локациях.</span></button>
-        <button class="feat" data-go="scn"><b><svg class="ic"><use href="#i-clapper"/></svg>3. Видео</b><span>Сценарии уходят в Google Vids, Flow, Dola и Arena — на бесплатных кредитах.</span></button>
-        <button class="feat" data-go="chars"><b><svg class="ic"><use href="#i-users"/></svg>4. Персонажи</b><span>Ваши герои: внешность, инфографика, кадры, голос — один раз, для всех роликов.</span></button>
-      </div>
+      <div class="features steps3" id="firstSteps"></div>
       <div class="empty-act" id="emptyAct"></div>
     </div>
 
@@ -270,8 +264,9 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
 <!-- профили Chrome и аккаунты сервисов -->
 <div class="sheet hidden" id="accSheet">
   <div class="sheet-panel">
-    <div class="sheet-head"><h2>Профили и аккаунты</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
-    <div class="sheet-body"><div class="cl-sec" style="margin-top:0">Google Flow · Dola · Arena — по профилям Chrome</div><div id="scnAcc"></div><div id="accSvc"></div></div>
+    <div class="sheet-head"><h2>Аккаунты</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
+    <div class="sheet-body"><div class="cl-sec" style="margin-top:0">Google Flow · Dola · Arena — по профилям Chrome</div><div id="scnAcc"></div>
+      <div class="cl-sec" id="accSites">Сайты с бесплатными кредитами</div><div id="hubBody"></div></div>
   </div>
 </div>
 
@@ -328,7 +323,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
   </div>
 </div>
 
-<!-- «Видео сервисы» → «💳 Проверить баланс»: какие сервисы проверить и на сколько сценариев хватит -->
+<!-- «Видео» → «💳 Проверить баланс»: какие сервисы проверить и на сколько сценариев хватит -->
 <div class="sheet hidden" id="tokSheet">
   <div class="sheet-panel">
     <div class="sheet-head"><h2>Баланс токенов</h2><button class="icon-btn" data-close title="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button></div>
@@ -342,7 +337,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
   </div>
 </div>
 
-<!-- «Создание ассетов» → «Что создаём»: сколько картинок нужно (у каждой — свой промпт) -->
+<!-- «Фото» → «Что создаём»: сколько картинок нужно (у каждой — свой промпт) -->
 <div class="sheet hidden" id="akindSheet">
   <div class="sheet-panel">
     <div class="sheet-head"><h2 id="akindTitle">Сколько нужно?</h2><button class="icon-btn" data-close title="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button></div>
@@ -355,13 +350,6 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
 </div>
 
 <!-- мои сервисы -->
-<div class="sheet hidden" id="hubSheet">
-  <div class="sheet-panel">
-    <div class="sheet-head"><h2>Мои сервисы</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
-    <div class="sheet-body" id="hubBody"></div>
-  </div>
-</div>
-
 <!-- install -->
 <div class="sheet hidden" id="installSheet">
   <div class="sheet-panel">
@@ -376,6 +364,12 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
     <div class="sheet-head"><h2>Настройки</h2><button class="icon-btn" data-close title="Закрыть">✕</button></div>
     <div class="sheet-body">
       <div id="setKeys"></div>
+
+      <div class="set-h">🔌 Claude и другие программы</div>
+      <button class="btn" id="mcpOpen">🔌 Подключить Claude к Freefield (MCP)</button>
+
+      <div class="set-h">🛠 Для разработчика</div>
+      <label class="toggle"><input type="checkbox" id="devMode"><span></span>Режим разработчика — кнопки ⟨/⟩: какой промпт и запрос уйдёт</label>
 
       <div class="set-h">📲 Приложение</div>
       <button class="btn" id="installOpen">📲 Установить Freefield на телефон или компьютер</button>
