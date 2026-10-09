@@ -321,7 +321,8 @@ function exTakesHTML() {
         <div><p><span class="ehx-mtl-tag">🎞 Из монтажа</span> ${t.text ? '«' + esc(t.text) + '»' : ''}</p>${exWave('m:' + t.id, src, 64)}</div></div>
       <small>«${esc(t.proj || '')}», клип #${t.n} · ${exNum(t.dur || 0)} с · ${exDate(t.created)}</small>
       <div class="ehx-acts"><button class="ehx-btn ghost sm" data-ehx-mdl="${esc(t.id)}">${ic('download')}WAV</button>
-        <button data-ehx-mdel="${esc(t.id)}" title="Убрать реплику из списка">${ic('trash')}</button></div></div>`; };
+        <button data-ehx-mdel="${esc(t.id)}" title="Убрать реплику из списка">${ic('trash')}</button>
+        <button class="ehx-btn sm" data-ehx-tadd="${esc(t.id)}" title="Новой дорожкой на таймлайн монтажа, с бегунка — остальные дорожки не трогаются">＋ В монтаж</button></div></div>`; };
   return `<div class="ehx-h"><span class="ehx-logo sm">${EHX_BARS}</span><div><h3>Готовые озвучки</h3><small>Слушай и скачивай</small></div></div>
     <div class="ehx-seg tabs"><button class="${ex.fav ? '' : 'on'}" data-ehx-fav="">Все</button><button class="${ex.fav ? 'on' : ''}" data-ehx-fav="1">${ic('star')}Избранные</button></div>
     <div class="ehx-takes">${list.length ? list.map(t => t.kind === 'ex-mtl' ? mtlHTML(t) : `<div class="ehx-take ${ex.fresh.has(t.id) ? 'new' : ''}">
@@ -330,7 +331,8 @@ function exTakesHTML() {
       <small>${esc(t.voice_name || '')} · ${exT(t.duration)} · вариант ${t.take || 1}/${t.takes || 1}${t.created ? ' · ' + exDate(t.created) : ''}</small>
       <div class="ehx-acts"><button class="${t.favorite ? 'on' : ''}" data-ehx-tfav="${esc(t.id)}" title="${t.favorite ? 'Убрать из избранных' : 'В избранные'}">${ic('star')}</button>
         <button class="ehx-btn ghost sm" data-ehx-dl="mp3" data-id="${esc(t.id)}">${ic('download')}MP3</button>${t.wav ? `<button class="ehx-btn ghost sm" data-ehx-dl="wav" data-id="${esc(t.id)}">WAV</button>` : ''}
-        <button data-ehx-tdel="${esc(t.id)}" title="Удалить озвучку">${ic('trash')}</button>${ex.line && !ex.line.busy ? `<button class="ehx-btn sm" data-ehx-tomt="${esc(t.id)}" ${ex.line.going ? 'disabled' : ''} title="Вместо голоса клипа #${ex.line.n} в монтаже">→ В монтаж</button>` : ''}</div></div>`).join('')
+        <button data-ehx-tdel="${esc(t.id)}" title="Удалить озвучку">${ic('trash')}</button>
+        <button class="ehx-btn sm" data-ehx-tadd="${esc(t.id)}" title="Новой дорожкой на таймлайн монтажа, с бегунка — остальные дорожки не трогаются">＋ В монтаж</button>${ex.line && !ex.line.busy ? `<button class="ehx-btn ghost sm" data-ehx-tomt="${esc(t.id)}" ${ex.line.going ? 'disabled' : ''} title="Вместо голоса клипа #${ex.line.n} в монтаже">↺ Вместо реплики</button>` : ''}</div></div>`).join('')
       : `<p class="ehx-empty">${ex.fav ? 'Избранных пока нет — отметь ☆ у озвучки' : 'Здесь появятся озвучки'}</p>`}</div>`;
 }
 function exPill() {
@@ -436,6 +438,24 @@ async function exVoiceFromMontage(wav, from) {
     $('#echoWork [data-ehx-f="vName"]')?.focus();
     toast('Голос из монтажа готов — впишите имя (например, имя персонажа) и нажмите «Сохранить»', {type: 'ok', ms: 9000});
   } catch (er) { show(''); toast('Голос не вырезан: ' + er.message, {type: 'err', ms: 9000}); }
+}
+// «＋ В монтаж» (пользователь 2026-10-09: «каждую дорожку отправить в монтаж — не вместо какой-либо, а дополнительно»):
+// озвучка или реплика — новой дорожкой «🎵» в открытом проекте, с места бегунка; голоса клипов и другие дорожки остаются
+async function exAddToMontage(t, btn) {
+  if (!t) return;
+  if (btn) btn.disabled = true;
+  try {
+    let blob = t.blob;
+    if (!blob) {
+      const path = /^\/?files\/[\w./-]+\.wav$/.test(t.wav || '') ? t.wav : null;
+      blob = path ? await fetch(echoUrl('/' + path.replace(/^\//, ''))).then(r => { if (!r.ok) throw new Error('файл не скачался: ' + r.status); return r.blob(); }) : await echoBlob(t);
+    }
+    const name = t.kind === 'ex-mtl' ? `Реплика: ${t.text || '«' + (t.proj || '') + '», клип #' + t.n}` : `${t.voice_name || 'озвучка'}: ${t.text || ''}`;
+    const a = await mtAddAudio(blob, name, {at: mtPv.t, voice: true});
+    if (!a) return;
+    toast(`＋ В монтаж «${mt.p.name}» — новая дорожка с ${mtClock(a.at)}`, {type: 'ok', ms: 6000, action: 'Открыть монтаж', onAction: () => { setView('create'); setCreateMode('edit'); }});
+  } catch (e) { toast('Не добавилось в монтаж: ' + e.message, {type: 'err', ms: 9000}); }
+  finally { if (btn) btn.disabled = false; }
 }
 // озвучка → в монтаж вместо голоса клипа
 async function exToMontage(t) {
@@ -562,6 +582,7 @@ function exSelDown(e) {
     }
     if ('ehxLineX' in d) { ex.line = null; return exRender(); }
     if (d.ehxTomt) { const t = take(d.ehxTomt); return t && exToMontage(t); }
+    if (d.ehxTadd) return exAddToMontage(take(d.ehxTadd) || ex.mtl?.find(x => x.id === d.ehxTadd), b);
     if (d.ehxMdl) { const t = ex.mtl?.find(x => x.id === d.ehxMdl); return t && saveFile(t.blob, `реплика-${(t.proj || 'монтаж').replace(/[\\/:*?"<>|]+/g, '')}-клип${t.n}.wav`); }
     if (d.ehxMdel) {
       if (!confirm('Убрать эту реплику из списка?')) return;
