@@ -220,7 +220,7 @@ function writeBrief() {
   const voice = wrVoice(), hero = VC_G[voice?.g || vc.char(wr.char)?.g]?.[2] || 'the man', him = {'the man': 'him', 'the woman': 'her'}[hero] || 'the hero';
   const about = (vc.char(wr.char)?.about || '').trim().replace(/[«»]/g, '"');   // «кто он» из «Персонажей»
   // язык речи героя (пользователь 2026-09-28: герой может говорить по-английски) — реплики, надписи и субтитры на нём
-  const lang = vc.char(wr.char)?.lang === 'en' ? 'English' : 'Russian', en = lang === 'English';
+  const lang = vc.char(wr.char)?.lang === 'ru' ? 'Russian' : 'English', en = lang === 'English';
   // подсказки — только к тем блокам, что есть в эталоне пользователя
   const guide = [
     ['Scenes & Shot cuts', 'what each shot shows and where the cut is; the first shot starts exactly like the location image'],

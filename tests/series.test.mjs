@@ -101,7 +101,7 @@ await suite('серия роликов: 3 видео одной кнопкой',
   t.ok(geminiCalls.length === 1, 'ИИ написал сценарии за один запрос', geminiCalls.length);
   const [frames, videos] = sent;
   t.ok(sent.length === 2, 'на компьютер ушли две пачки: кадры и видео', sent.length);
-  t.ok(frames?.length === 3 && frames.every(s => s.kind === 'image' && s.service === 'flow' && s.aspect_ratio === '9:16' && s.images?.length === 1), 'кадры: 3 фото во Flow, 9:16, с развёрткой', frames);
+  t.ok(frames?.length === 3 && frames.every(s => s.kind === 'image' && s.service === 'flow' && s.aspect_ratio === '9:16' && s.count === 4 && s.images?.length >= 1), 'кадры: 3 фото во Flow, 9:16, с развёрткой', frames);
   t.ok(videos?.length === 3 && videos.every(s => s.kind === 'video' && s.images?.length >= 1) && new Set(videos.map(s => s.prompt)).size === 3, 'видео: 3 разных сценария с первым кадром',
     videos?.map(s => ({kind: s.kind, service: s.service, imgs: s.images?.length, sheet: !!s.sheet})));
   await sleep(2000);
@@ -119,13 +119,13 @@ await suite('серия роликов: 3 видео одной кнопкой',
   await q.goto(site.url); await sleep(1500);
   await setup()(q); await sleep(300);
   await startSeries(q, 3);
-  await q.waitForFunction(() => serOf('ch-test')?.sentFrames, null, {timeout: 20000}).catch(() => {});
-  const cards = await q.evaluate(() => { const j = serOf('ch-test'); return {hub: j?.hub, cards: j?.rows.filter(r => items.some(i => i.id === r.card)).length}; });
+  await q.waitForFunction(() => serOf('ch-test')?.sentLocs, null, {timeout: 20000}).catch(() => {});
+  const cards = await q.evaluate(() => { const j = serOf('ch-test'); return {hub: j?.hub, cards: (j?.locs || []).filter(l => items.some(i => i.id === l.card)).length}; });
   t.ok(cards.hub === false && cards.cards === 3, 'без компьютера: 3 карточки кадров в галерее', cards);
   // «загрузили» кадры в карточки
   await q.evaluate(async () => {
     const blob = await (await fetch(vc.char('ch-test').sheet)).blob();
-    for (const r of serOf('ch-test').rows) Object.assign(items.find(i => i.id === r.card), {status: 'done', blob});
+    for (const l of serOf('ch-test').locs) Object.assign(items.find(i => i.id === l.card), {status: 'done', blob});
   });
   await q.waitForFunction(() => serOf('ch-test')?.sentVideos, null, {timeout: 20000}).catch(() => {});
   const vc2 = await q.evaluate(() => { const j = serOf('ch-test'); return {stage: j.stage, cards: j.rows.filter(r => items.some(i => i.id === r.vcard && i.type === 'video')).length}; });

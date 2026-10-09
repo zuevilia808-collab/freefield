@@ -106,7 +106,7 @@ function vcOpenChar(c, from) {
   // Голос во Flow обязателен (пользователь 2026-09-28): пока его не переименовали — это имя персонажа
   const guess = [from === 'pick' && cl.scn[vcUi.i]?.sheet, wr.sheet].find(x => x && !vc.chars.some(y => y.sheet === x)) || null;
   vcUi.edit = c ? {about: '', lang: 'ru', info: null, ...c, flow: {kind: c.flow?.kind === 'char' ? 'char' : 'voice', name: c.flow?.name || c.name}, flowAuto: !c.flow?.name, locs: [...(c.locs || [])]}
-    : {id: null, name: '', sheet: guess, about: '', lang: 'ru', info: null, locs: [], voice: null, sample: null, sampleSec: 0, flow: {kind: 'voice', name: ''}, flowAuto: true};
+    : {id: null, name: '', sheet: guess, about: '', lang: 'en', info: null, locs: [], voice: null, sample: null, sampleSec: 0, flow: {kind: 'voice', name: ''}, flowAuto: true};
   Object.assign(vcUi, {view: 'char', from});
   vcShow();
 }
@@ -146,7 +146,7 @@ function vcCharHTML() {
     <div class="vc-opt"><span>Кто он — характер, манера речи, словечки (необязательно: ИИ учтёт в каждом сценарии)</span>
       <textarea class="vc-in" data-vc-about rows="2" maxlength="400" placeholder="Например: ворчливый, но добрый дед-огородник; говорит поговорками, обращается «внучок»">${esc(d.about || '')}</textarea></div>
     <div class="vc-opt"><span>Язык речи — на нём он говорит в роликах; на нём ИИ пишет реплики, надписи и субтитры</span>
-      <div class="seg">${[['ru', 'Русский'], ['en', 'English']].map(([k, t]) => `<button data-vc-lang="${k}" class="${(d.lang || 'ru') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+      <div class="seg">${[['ru', 'Русский'], ['en', 'English']].map(([k, t]) => `<button data-vc-lang="${k}" class="${(d.lang || 'en') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
     <div class="vc-opt"><span>📊 Инфографика — о чём ролики с ним (необязательно)</span><div class="vc-sheet-row">${d.info ? `<img src="${d.info}" alt="">` : ''}
       <button class="btn small" data-vc-img="info">📁 ${d.info ? 'Другая' : 'Загрузить'}</button>
       ${!d.info && wr.info ? '<button class="btn small" data-vc-info-wr>Из «Сценариев»</button>' : ''}
@@ -201,7 +201,7 @@ async function vcSaveChar() {
   const owner = d.voice && vc.owner(d.voice, d.id);
   if (owner) return toast(`Этот голос уже у персонажа «${owner.name}» — у каждого свой`, {type: 'err'});
   const flow = {kind: d.flow?.kind === 'char' ? 'char' : 'voice', name: (d.flow?.name || '').trim().replace(/^@\s*(Voice:\s*)?/i, '') || name};
-  const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, about: (d.about || '').trim(), lang: d.lang === 'en' ? 'en' : 'ru', info: d.info || null, locs: (d.locs || []).slice(0, CL_MAX),
+  const c = {id: d.id || 'ch-' + uid(), name, sheet: d.sheet || null, about: (d.about || '').trim(), lang: d.lang === 'ru' ? 'ru' : 'en', info: d.info || null, locs: (d.locs || []).slice(0, CL_MAX),
     voice: d.voice || null, g: d.g || vc.voice(d.voice)?.g || 'm', sample: d.sample || null, sampleSec: d.sample ? d.sampleSec : 0, flow}, i = vc.chars.findIndex(x => x.id === c.id);
   const oldSheet = i >= 0 ? vc.chars[i].sheet : null;
   if (i >= 0) vc.chars[i] = c; else vc.chars.push(c);
@@ -805,9 +805,9 @@ function charNeeds(c, mineFrames = 0, prep = false) {
 // начинается сам, как только результат загружен в карточку. Состояние — в базе: закрытая вкладка серию не теряет.
 const SER_ID = 'freefield-series', FFLATE = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js';
 const ser = {jobs: [], busy: false, timer: 0, writing: new Set(), save() { return DB.put({id: SER_ID, jobs: this.jobs}).catch(() => {}); }};
-const SER_STAGE = {prep: '🪄 Развёртка и инфографика', write: '✍ ИИ пишет сценарии', frames: '🖼 Кадры во Flow', video: '🎬 Видео', voice: '🎙 Голос персонажа',
+const SER_STAGE = {prep: '🪄 Развёртка и инфографика', locs: '📍 Герой в локациях', write: '✍ ИИ пишет сценарии', frames: '🖼 Кадры во Flow', video: '🎬 Видео', voice: '🎙 Голос персонажа',
   done: '✅ Серия готова', error: '⚠ Серия остановлена'};
-const SER_STEP = {prep: 'Подготовка', write: 'Сценарии', frames: 'Кадры', video: 'Видео', voice: 'Голос', done: 'Готово'};
+const SER_STEP = {prep: 'Подготовка', locs: 'Локации', write: 'Сценарии', frames: 'Кадры', video: 'Видео', voice: 'Голос', done: 'Готово'};
 const serLive = j => j && !['done', 'error'].includes(j.stage);
 const serOf = id => ser.jobs.filter(j => j.char === id).sort((a, b) => b.at - a.at)[0] || null;
 async function serLoad() {
@@ -843,6 +843,7 @@ async function serStep(j) {
   if (!c) return serFail(j, 'персонаж удалён');
   if (j.hub && (j.sentPrep || j.sentFrames || j.sentVideos)) await hubLink.refresh();   // пачки компьютера — свежие
   if (j.stage === 'prep') return j.sentPrep ? serPrepWait(j, c) : serPrepSend(j, c);
+  if (j.stage === 'locs') return j.sentLocs ? serLocsWait(j, c) : serLocsSend(j, c);
   if (j.stage === 'voice') return serVoice(j, c);
   if (j.stage === 'write') return j.retryAt > Date.now() ? null : serWrite(j, c);
   if (j.stage === 'frames') return j.sentFrames ? serFramesWait(j, c) : serFramesSend(j, c);
@@ -850,12 +851,23 @@ async function serStep(j) {
 }
 // 0. только фото героя (пользователь 2026-10-09: «кидаю просто фото перса — и всё»): Flow делает по нему развёртку
 // и инфографику (тема — пожелания к серии или характер героя, нет их — модель выберет сама), без кредитов
+// Инфографика — о мире героя (пользователь 2026-10-09: «не по теме — я тему не задавал, а на фото вообще обезьяна»):
+// тема — из пожеланий, а нет их — из того, кто герой на развёртке и какой у него характер; надписи — на языке роликов, без опечаток
+function serPrepInfo(j, c) {
+  const q = t => String(t || '').replace(/[«»"]/g, '').trim(), wish = q(j.idea), about = q(c.about), lang = c.lang === 'ru' ? 'Russian' : 'English';
+  let p = ASSET_KINDS.info.prompt;
+  // пользователь 2026-10-09: «инфографика — о том, кто наш персонаж, чем занимается, в каких локах бывает и почему на него интересно смотреть в рилсах»
+  p = photoSet(p, 'Topic', `a character card of the hero of the reference image${about ? ` (${about})` : ''}: who he is, what he does, 3–4 real places where he is usually filmed, and why people love watching him in Reels, Shorts and TikTok${wish ? `; the author's wishes: ${wish}` : ''}`);
+  p = photoSet(p, 'Headline', `his name «${q(c.name)}» and a short catchy tagline about him, in ${lang}`);
+  p = photoSet(p, 'Content', 'four sections, each with a small flat icon and a short label: who he is · what he does · his places (3–4, each named) · why it is fun to watch him');
+  p = photoSet(p, 'Language', `every word on the poster is in ${lang} and spelled correctly — no made-up or misspelled words`);
+  return photoSet(p, 'Reference', 'the reference image only shows whose videos these are — do not draw him');
+}
 function serPrepTasks(j, c) {
-  const photo = c.photo || c.sheet, topic = (j.idea || c.about || '').replace(/[«»"]/g, '').trim(), flow = {kind: 'image', service: 'flow', model: 'nano-banana-2.1', count: 1, images: [photo]};
+  const photo = c.photo || c.sheet, flow = {kind: 'image', service: 'flow', model: 'nano-banana-2.1', count: 1, images: [photo]};
   return [
     !c.sheet && {...flow, what: 'sheet', prompt: ASSET_KINDS.sheet.prompt, aspect_ratio: '16:9'},
-    !c.info && {...flow, what: 'info', aspect_ratio: '9:16', prompt: `${ASSET_KINDS.info.prompt} ${topic ? `Topic: ${topic}.` : 'Choose yourself a useful, popular topic that fits the person in the reference photo (their look, outfit and likely occupation).'} ` +
-      'Write a short, catchy headline for the topic. The reference photo only shows who the videos are about — do not draw the person.'},
+    !c.info && {...flow, what: 'info', aspect_ratio: '9:16', prompt: serPrepInfo(j, c)},
   ].filter(Boolean);
 }
 async function serPrepSend(j, c) {
@@ -891,6 +903,81 @@ async function serPrepWait(j, c) {
   }
   const left = j.prepTasks.filter(p => !c[p.what]).length;
   if (left) return serNote(j, `Развёртка и инфографика: готово ${j.prepTasks.length - left} из ${j.prepTasks.length}`);
+  j.stage = j.locsFirst ? 'locs' : 'write';
+  serNote(j, '');
+}
+// 0½. герой в N разных локациях — по инфографике (места героя), с развёрткой; сценарии потом пишутся по этим кадрам
+// (пользователь 2026-10-09: «как получишь 3 разных фото с 3 разными локациями — к написанию сценариев, опираясь на то, кто наш персонаж»)
+function serLocTask(j, c, i, hub) {
+  let p = ASSET_KINDS.loc.prompt;
+  p = photoSet(p, 'Location', `place number ${i + 1} of the hero's places listed on the reference infographic (if there are fewer, a new real place from his world); it must differ from his other ${j.n - 1} shots — idea: ${LOC_SCENES[i % LOC_SCENES.length]}`);
+  p = photoSet(p, 'Action', 'one clear action typical for him in this place, with his hands or a prop');
+  p = photoSet(p, 'Camera & framing', 'vertical 9:16, medium shot, eye level, 35 mm lens, sharp focus on the face, room above his head for text');
+  p = photoSet(p, 'Infographic', 'the second reference image only explains who he is and where he goes — never show it, its text, icons or charts');
+  return {prompt: p, kind: 'image', service: 'flow', model: 'nano-banana-2.1', aspect_ratio: '9:16', count: hub ? 4 : 1, images: [c.sheet, c.info].filter(Boolean)};
+}
+// из вариантов кадра — лучший: Claude смотрит на развёртку и варианты (артефакты, «плывущие» руки и лица, реализм, сходство);
+// Claude недоступен или ответил непонятно — первый вариант
+async function serPickBest(imgs, c) {
+  if (imgs.length < 2) return 0;
+  const who = ['sub', 'claude', 'gemini'].find(writerReady);
+  if (!who) return 0;
+  try {
+    const r = await aiWrite(who, 'You are a strict photo editor for photorealistic social-media videos. Answer with one number only.',
+      `Images 1–${imgs.length} are variants of the same shot of the character from the REFERENCE sheet. Pick the single best one: fully photorealistic, no AI artifacts (extra or melted fingers, warped face, smeared or floating details, broken anatomy, garbled text), the character matches the reference exactly (face, clothes, hat, boots), sharp and natural. Reply with just its number.`,
+      [['REFERENCE — character sheet:', c.sheet], ...imgs.map((d, i) => [`IMAGE ${i + 1}:`, d])]);
+    const n = parseInt(String(r.text).match(/\d+/)?.[0], 10);
+    return n >= 1 && n <= imgs.length ? n - 1 : 0;
+  } catch { return 0; }
+}
+async function serLocsSend(j, c) {
+  j.hub = await hubReady();
+  const tasks = Array.from({length: j.n}, (_, i) => serLocTask(j, c, i, j.hub));
+  j.locs = tasks.map((t, i) => ({prompt: t.prompt, idx: i, frame: null, alt: [], err: null, card: null}));
+  if (j.hub) {
+    try {
+      const res = await fetch(hubLink.url('/api/batch'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({scenarios: tasks})});
+      const js = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(js.error || `компьютер ответил ${res.status}`);
+    } catch (e) { return serFail(j, 'кадры в локациях не отправлены: ' + e.message); }
+    hubLink.refresh();
+  } else phoneCards(tasks).forEach((x, i) => { j.locs[i].card = x?.id; });
+  j.sentLocs = Date.now();
+  serNote(j, j.hub ? `Компьютер делает во Flow ${j.n} ${plur(j.n, 'кадр', 'кадра', 'кадров')} героя в разных локациях…` : 'Карточки кадров — в галерее: создайте их во Flow и загрузите результат');
+}
+async function serLocsWait(j, c) {
+  for (const l of j.locs.filter(l => !l.frame && !l.err)) {
+    if (j.hub) {
+      const it = serHubItem(j.sentLocs, l.prompt, l.idx, j.locs.length, 'image');
+      if (it?.status === 'error') { l.err = it.message || 'Flow не сделал кадр'; continue; }
+      if (it?.status !== 'done') continue;
+      const imgs = [];
+      for (const f of (it.files || []).filter(f => !f.mime || f.mime.startsWith('image/'))) {
+        try { imgs.push(await refDataUrl(await (await fetch(hubLink.url(f.url))).blob())); } catch { /* следующий файл */ }
+      }
+      if (imgs.length) l.imgs = imgs;
+    } else {
+      const it = items.find(x => x.id === l.card);
+      if (!it) l.err = 'карточку кадра удалили';
+      else if (it.status === 'done' && it.blob) l.frame = await refDataUrl(it.blob);
+    }
+  }
+  // все кадры пришли — лучшие варианты выбирает Claude, все сразу
+  if (j.locs.every(l => l.frame || l.err || l.imgs) && j.locs.some(l => l.imgs)) {
+    serNote(j, 'Claude выбирает лучший вариант каждого кадра — без артефактов, реалистичный…');
+    await Promise.all(j.locs.filter(l => l.imgs).map(async l => {
+      const k = await serPickBest(l.imgs, c);
+      Object.assign(l, {frame: l.imgs[k], alt: l.imgs.filter((_, i) => i !== k), picked: k + 1});
+      delete l.imgs;
+    }));
+  }
+  const ready = j.locs.filter(l => l.frame), left = j.locs.filter(l => !l.frame && !l.err).length;
+  if (left) return serNote(j, `Кадры в локациях: ${ready.length} из ${j.locs.length}`);
+  if (!ready.length) return serFail(j, 'ни одного кадра в локации — проверьте Flow и нажмите «↻ Повторить»');
+  j.locs = ready;   // сценариев — столько, сколько вышло кадров
+  j.n = ready.length;
+  const room = CL_MAX - (c.locs?.length || 0);
+  if (room > 0) { c.locs = [...(c.locs || []), ...ready.map(l => l.frame).filter(f => !(c.locs || []).includes(f)).slice(0, room)]; await vc.saveChars(); }
   j.stage = 'write';
   serNote(j, '');
 }
@@ -905,7 +992,8 @@ async function serWrite(j, c) {
   const have = j.rows.length, k = Math.min(SER_CHUNK, j.n - have);
   const keep = {char: wr.char, info: wr.info, sheet: wr.sheet, locs: wr.locs, count: wr.count, idea: wr.idea};
   const was = have ? `\nУже написаны — придумай другие углы и темы, не повторяй их: ${j.rows.map(r => `«${r.title}»${r.angle ? ` (${r.angle})` : ''}`).join(', ')}` : '';
-  Object.assign(wr, {char: c.id, info: c.info, sheet: c.sheet, locs: j.frames === 'mine' ? c.locs.slice(have, have + k) : [], count: k, idea: (j.idea || '') + was});
+  const pool = j.locs ? j.locs.map(l => l.frame) : j.frames === 'mine' ? c.locs : null;   // кадры, по которым пишутся сценарии
+  Object.assign(wr, {char: c.id, info: c.info, sheet: c.sheet, locs: pool ? pool.slice(have, have + k) : [], count: k, idea: (j.idea || '') + was});
   serNote(j, `${WRITERS[writerNow()].name} пишет ${have ? 'ещё ' : ''}${k} ${plur(k, 'сценарий', 'сценария', 'сценариев')}${have ? ` (готово ${have} из ${j.n})` : ''}…`);
   try {
     const {r, list} = await writeRun();
@@ -913,9 +1001,9 @@ async function serWrite(j, c) {
     if (!list?.length) throw Object.assign(new Error(r.cut ? 'ответ ИИ оборвался на полуслове' : 'ИИ ответил не по формату'), {transient: true});
     const add = scrAdd(list.slice(0, k), r.by);
     j.rows.push(...add.map((x, i) => ({scr: x.id, title: x.title, angle: x.angle, video_prompt: x.video_prompt, asset_prompt: x.asset_prompt, caption: x.caption,
-      frame: j.frames === 'mine' ? c.locs[have + i] || null : null, alt: []})));
+      frame: pool ? pool[have + i] || null : null, alt: j.locs?.[have + i]?.alt || []})));
     Object.assign(j, {by: r.by, tries: 0, retryAt: 0});
-    if (j.rows.length >= j.n) j.stage = j.frames === 'mine' ? 'video' : 'frames';
+    if (j.rows.length >= j.n) j.stage = pool ? 'video' : 'frames';
     serNote(j, j.rows.length < j.n ? `Готово ${j.rows.length} из ${j.n} — пишу остальные…` : '');
   } catch (e) {
     if (e.transient && (j.tries || 0) < 5) {
@@ -1115,7 +1203,7 @@ const serBlock = (j, c) => j.stage === 'error' && (j.failed === 'write' || j.fai
 const serVoiceOf = c => c.sample && vcUi.serSet?.voice !== 'flow' ? 'char' : 'flow';
 function serJobHTML(j, c) {
   const live = serLive(j), sent = !!j.sentVideos, st = s => s === 'done' ? '✓' : s === 'error' ? '⚠' : '⏳', block = serBlock(j, c);
-  const steps = [...(j.prepTasks || j.prep ? ['prep'] : []), 'write', ...(j.frames === 'new' ? ['frames'] : []), 'video', ...(j.voice === 'char' ? ['voice'] : []), 'done'], cur = steps.indexOf(j.stage);
+  const steps = [...(j.prepTasks || j.prep ? ['prep'] : []), ...(j.locsFirst ? ['locs'] : []), 'write', ...(j.frames === 'new' && !j.locsFirst ? ['frames'] : []), 'video', ...(j.voice === 'char' ? ['voice'] : []), 'done'], cur = steps.indexOf(j.stage);
   const rows = (j.rows || []).map((r, i) => {
     const f = r.frame ? 'done' : r.err ? 'error' : 'wait', v = r.skip ? '' : r.vstate || (sent ? 'queued' : '');
     return `<div class="ser-row ${r.skip ? 'skip' : ''}">${r.frame ? `<img src="${r.frame}" alt="">` : '<i class="ser-ph">🖼</i>'}
@@ -1140,8 +1228,9 @@ function serStart(c) {
   const o = vcUi.serSet;
   if (charNeeds(c, o.frames === 'mine' ? o.n : 0, true).length) return renderVoices();
   const prep = !c.sheet || !c.info;
-  const j = {id: 'ser-' + uid(), char: c.id, n: o.n, frames: o.frames, service: o.service, idea: o.idea.trim(), voice: serVoiceOf(c), prep,
-    at: Date.now(), stage: prep ? 'prep' : 'write', rows: [], note: ''};
+  const locsFirst = o.frames === 'new';
+  const j = {id: 'ser-' + uid(), char: c.id, n: o.n, frames: o.frames, service: o.service, idea: o.idea.trim(), voice: serVoiceOf(c), prep, locsFirst,
+    at: Date.now(), stage: prep ? 'prep' : locsFirst ? 'locs' : 'write', rows: [], note: ''};
   ser.jobs = [j, ...ser.jobs.filter(x => x.char !== c.id || serLive(x))].slice(0, 20);
   ser.save();
   vcUi.serNew = false;
@@ -1167,7 +1256,7 @@ function serClick(b) {
   if (b.hasAttribute('data-ser-retry')) {   // с того места, где остановилась
     if (serBlock(j, c).length) return renderVoices();
     const miss = j.rows?.filter(r => !r.frame && !r.skip);
-    Object.assign(j, {tries: 0, retryAt: 0}, j.failed === 'prep' ? {stage: 'prep', sentPrep: 0} : j.failed === 'voice' ? {stage: 'voice'}
+    Object.assign(j, {tries: 0, retryAt: 0}, j.failed === 'prep' ? {stage: 'prep', sentPrep: 0} : j.failed === 'locs' ? {stage: 'locs', sentLocs: 0} : j.failed === 'voice' ? {stage: 'voice'}
       : !j.rows?.length || j.failed === 'write' && j.rows.length < j.n ? {stage: 'write'} : miss.length && j.frames === 'new' ? {stage: 'frames', sentFrames: 0} : {stage: 'video', sentVideos: 0}, {note: ''});
     (j.rows || []).forEach(r => { r.err = null; Object.assign(r, {vverr: null, vwait: 0}); if (!j.sentVideos) Object.assign(r, {vstate: null, verr: null}); });
     ser.save(); renderVoices(); return serKick();

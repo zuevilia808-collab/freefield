@@ -1390,7 +1390,7 @@ function renderMtAtt() {
 const mtMime = b => b.type === 'video/quicktime' ? 'video/mov' : b.type;
 // что видит ИИ: вложения (a1…), проект (c1…), видео галереи вне проекта (g1…), кадры, персонаж, разговор
 async function mtBrief(p, text, who, frames = true) {
-  const sec = cl.seconds || 10, ch = vc.char(wr.char), lang = ch?.lang === 'en' ? 'English' : 'Russian';
+  const sec = cl.seconds || 10, ch = vc.char(wr.char), lang = ch?.lang === 'ru' ? 'Russian' : 'English';
   const segs = mtSegs(p), bySeg = new Map(segs.map(s => [s.c, s])), refs = new Map(), media = [];
   const inP = new Set(p.clips.map(c => c.id));
   const gal = items.filter(x => x.type === 'video' && x.status === 'done' && x.blob && !inP.has(x.id) && !x.mt).slice(0, 30);

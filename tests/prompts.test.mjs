@@ -16,7 +16,7 @@ await suite('эталон с таймкодами, фото — блоками',
     const v = withVoice(one, {en: 'deep calm male voice'});
     const sc = parseScenarios(JSON.stringify({scenarios: [{title: 'Т', video_prompt: one, asset_prompt: 'Subject: man Pose & expression: smiling Action: typing Location: cafe Lighting: soft Camera & framing: vertical 3:4 Style: photo Avoid: text'}]}));
     return {ref: wr.ref === REF_PROMPT, prev, labels: refLabels(), timed: /rescale them to 8 s — \(0:00–0:02\) \/ \(0:02–0:06\) \/ \(0:06–0:08\)/.test(sys),
-      tpl: sys.includes('(0:03–0:07) Scene 2 — MAIN: [What we see]'), subs: sys.includes('«[Exact subtitle text 1]»') && /Subtitles — the EXACT Russian text/.test(sys) && !sys.includes('Automatic subtitles:'), photo: sys.includes('Pose & expression: the pose'), chatPhoto: chat.includes('Pose & expression: <'),
+      tpl: sys.includes('(0:03–0:07) Scene 2 — MAIN: [What we see]'), subs: sys.includes('«[Exact subtitle text 1]»') && /Subtitles — the EXACT English text/.test(sys) && !sys.includes('Automatic subtitles:'), photo: sys.includes('Pose & expression: the pose'), chatPhoto: chat.includes('Pose & expression: <'),
       one, v, asset: sc?.[0]?.asset_prompt};
   });
   t.ok(r.ref && r.prev?.startsWith('On-screen text: свой'), 'новый эталон встал, прежний свой — сохранён в запас', r.prev);
