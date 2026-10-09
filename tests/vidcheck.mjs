@@ -8,7 +8,13 @@ import http from 'node:http';
 const [video, out] = process.argv.slice(2);
 fs.mkdirSync(out, {recursive: true});
 const srv = http.createServer((q, r) => {
-  if (q.url === '/v.mp4') { r.writeHead(200, {'Content-Type': 'video/mp4', 'Content-Length': fs.statSync(video).size}); return fs.createReadStream(video).pipe(r); }
+  if (q.url === '/v.mp4') {   // кусками (Range) — иначе видео не перематывается и все кадры — первый
+    const size = fs.statSync(video).size, m = /bytes=(\d+)-(\d*)/.exec(q.headers.range || '');
+    if (!m) { r.writeHead(200, {'Content-Type': 'video/mp4', 'Content-Length': size, 'Accept-Ranges': 'bytes'}); return fs.createReadStream(video).pipe(r); }
+    const a = +m[1], b = m[2] ? +m[2] : size - 1;
+    r.writeHead(206, {'Content-Type': 'video/mp4', 'Content-Length': b - a + 1, 'Content-Range': `bytes ${a}-${b}/${size}`, 'Accept-Ranges': 'bytes'});
+    return fs.createReadStream(video, {start: a, end: b}).pipe(r);
+  }
   r.writeHead(200, {'Content-Type': 'text/html'}); r.end('<!doctype html><body></body>');
 }).listen(0);
 const url = `http://127.0.0.1:${srv.address().port}/`;

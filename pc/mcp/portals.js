@@ -618,16 +618,29 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
   return res;
 }
 
+// снимок страницы сайта — в outputs/problems (путь — в текст ошибки, журнал неполадок его сохранит)
+async function problemShot(page, site) {
+  try {
+    const dir = path.join(process.env.FREEFIELD_OUTPUT_DIR || path.join(HERE, '..', 'outputs'), 'problems');
+    fs.mkdirSync(dir, {recursive: true});
+    const file = path.join(dir, `${site}-${new Date().toLocaleString('sv-SE').replace(/[: ]/g, '-')}.png`);
+    await page.screenshot({path: file, timeout: 10000});
+    return file;
+  } catch { return null; }
+}
 // Ждёт свои плитки, затем скачивает их; для видео — сам видеофайл
 async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits}) {
   const t0 = Date.now();
   const got = [];
   const take = m => { const id = flowId(m.src); if (!got.some(g => flowId(g.src) === id)) { got.push(m); flowClaimed.add(id); markOurs('flow', [id]); } };
-  let lost = 0, failed = [], started = false;
+  let lost = 0, failed = [], started = false, lastMove = Date.now(), lastSig = '';
   while (got.length < count) {
-    if (Date.now() - t0 > timeoutMs) {
+    // нет движения (процентов, новых плиток, готовых файлов) 2,5 минуты — не ждём до конца: снимок экрана и следующая попытка
+    const stalled = started && Date.now() - lastMove > 150000;
+    if (Date.now() - t0 > timeoutMs || stalled) {
       if (got.length) break;
-      throw new PortalError(`Flow не выдал результат за ${Math.round(timeoutMs / 1000)} с. Посмотрите в окно Chrome Freefield.`, 'busy');
+      const shot = await ui(() => problemShot(page, 'flow')).catch(() => null);
+      throw new PortalError(`Flow ${stalled ? 'завис: 2,5 мин без движения' : `не выдал результат за ${Math.round(timeoutMs / 1000)} с`}${shot ? ` · снимок: ${shot}` : ''}`, 'busy');
     }
     await sleep(3000);
     await captchaCheck(page, 'flow');
@@ -648,6 +661,8 @@ async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onSt
     if (!started && Date.now() - t0 > 90000)
       throw new PortalError(`Flow не начал генерацию — промпт не принят${s.toast ? ': «' + s.toast + '»' : ''}. Посмотрите в окно Chrome Freefield.`, 'busy');
     const pct = s.mine.map(x => x.pct).filter(Boolean);
+    const sig = `${pct.join(',')}|${s.pending}|${s.mine.length}|${got.length}|${s.mine.filter(x => x.failed).length}`;
+    if (sig !== lastSig) { lastSig = sig; lastMove = Date.now(); }
     onStatus(`Flow генерирует: готово ${got.length} из ${count}${pct.length ? ` · ${pct.join('%, ')}%` : ''} (${Math.round((Date.now() - t0) / 1000)} с)`);
   }
   if (!got.length) throw flowFail(failed[0]?.text || 'генерация не удалась');
@@ -908,7 +923,7 @@ export const flowSync = ({onStatus = () => {}} = {}) => siteRun('flow', () => ui
 }));
 
 export const flowImage = o => siteSlot('flow', () => flowGenerate({kind: 'image', timeoutMs: 180000, ...o}));
-export const flowVideo = o => siteSlot('flow', () => flowGenerate({kind: 'video', timeoutMs: 600000, ...o}));
+export const flowVideo = o => siteSlot('flow', () => flowGenerate({kind: 'video', timeoutMs: 300000, ...o}));
 
 // ============================== Dola ==============================
 export const DOLA_IMAGE_MODELS = {
