@@ -14,7 +14,10 @@
 //       "speed": 1,                            // 0.25–4 (звук тоже, высота тона сохраняется)
 //       "volume": 1, "mute": false,            // звук самого клипа
 //       "transition": {"type": "fadewhite", "duration": 0.18},   // переход В этот клип (fx.js TRANSITIONS); cut — склейка
-//       "fx": {"punch": [0, 1.93], "punch_amount": 0.07, "drift": 0.05}   // «удары» зумом (секунды от начала клипа на шкале) и наезд
+//       "fx": {"punch": [0, 1.93], "punch_amount": 0.07, "drift": 0.05,   // «удары» зумом (секунды от начала клипа на шкале) и наезд
+//              "zoom": 1.1, "reframe": [[t, x, y]],                        // этап 2: постоянный зум, окно кадрирования (центр 0…1)
+//              "shake": {"amount": 0.5, "on": "beats"}, "flash": true, "rgb": true, "blur": true, "reverse": true,
+//              "freeze": [1.2], "ramp": [{"at": 0.8, "speed": 0.4}], "smooth": true}   // этап 3 — эффекты, см. fx.js
 //     }],
 //     "audio": [{"src": {…}, "in": 0, "out": null, "at": 0, "volume": 1, "fade_in": 0, "fade_out": 0.6,
 //                "role": "music" | "voice" | "sfx", "duck": true}],   // duck — музыка уступает речи клипов и озвучке
@@ -23,6 +26,9 @@
 //     "gfx":   [{"template": "titles" | "cards" | "launch", "props": {"title": "", "subtitle": "", "items": [], "cta": ""}}],
 //     "captions": {"style": "pop", "words": [{"text": "Шаг", "start": 0.12, "end": 0.45}]}   // субтитры по словам, шкала ролика
 //   },
+//   "look": {"preset": "teal_orange" | "film" | "bw" | "neon" | "warm" | "cold" | "aura", "vignette": true, "grain": 0.4, "letterbox": true},
+//   "sfx": {"transitions": true, "hits": true, "riser": true, "volume": 0.6},   // звуковые удары (синтез ffmpeg)
+//   "music": {"bpm": 124, "beats": […], "drop": 3.87},          // drop — момент дропа на шкале ролика (для riser)
 //   "audio_mix": {"loudness": -14, "speech": false}   // громкость готового ролика, LUFS (Reels / TikTok); speech — в клипах речь (музыка с duck уступает)
 // }
 //

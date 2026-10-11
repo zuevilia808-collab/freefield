@@ -118,7 +118,8 @@ export function lookChain(look, inLbl, outLbl) {
   let cur = inLbl, n = 0;
   const step = f => { const o = `[lk${n++}]`; parts.push(`${cur}${f}${o}`); cur = o; };
   if (L?.glow) {
-    parts.push(`${cur}split=2[lga][lgb]`, `[lgb]gblur=sigma=18,eq=brightness=0.04[lgc]`, `[lga][lgc]blend=all_mode=screen:all_opacity=0.38[lgd]`);
+    // свечение смешиваем в RGB (в YUV «экран» сдвигает цвет в пурпур)
+    parts.push(`${cur}format=gbrp,split=2[lga][lgb]`, `[lgb]gblur=sigma=18[lgc]`, `[lga][lgc]blend=all_mode=screen:all_opacity=0.38,format=yuv420p[lgd]`);
     cur = '[lgd]';
   }
   if (L?.vf) step(L.vf);
