@@ -199,7 +199,8 @@ window.SETUP = cfg => {
     }
     flush();
     const box = $('cap');
-    Object.assign(box.style, {top: (H * (H > W ? 0.66 : 0.72)) + 'px', fontSize: (U * (H > W ? 7.2 : 5.6)) + 'px'});
+    // безопасная зона Reels / TikTok / Shorts: справа колонка кнопок (~14 %), снизу подпись и музыка (~20 %)
+    Object.assign(box.style, {top: (H * (H > W ? 0.66 : 0.72)) + 'px', fontSize: (U * (H > W ? 7.2 : 5.6)) + 'px', ...(H > W ? {left: '7%', right: '15%'} : {})});
     parts.push(t => {
       // страница: от первого слова до начала следующей (не дольше 0,6 с после последнего слова)
       let pi = -1;

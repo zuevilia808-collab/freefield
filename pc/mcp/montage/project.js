@@ -32,6 +32,7 @@
 //   {"ref": "mf-<sha1>.mp4"}      файл, загруженный приложением через POST /api/montage/file.
 import fs from 'node:fs';
 import path from 'node:path';
+import {fxNorm, lookNorm, sfxNorm} from './fx.js';
 
 export const FORMAT = 'freefield-montage', VERSION = 1;
 export const ASPECTS = {'9:16': [1080, 1920], '1:1': [1080, 1080], '4:5': [1080, 1350], '16:9': [1920, 1080]};
@@ -76,7 +77,11 @@ export function normalize(p) {
       ? {type: str(c.transition.type, 30), duration: num(c.transition.duration, 0.25, 0.04, 2)} : {type: 'cut', duration: 0};
     const v = {src: c.src, in: inn, out, at: c.at == null ? null : num(c.at, 0, 0),   // null — встык (render.js узнаёт длины файлов)
       speed, volume: num(c.volume, 1, 0, 4), mute: !!c.mute, transition: tr,
-      fx: {punch: arr(c.fx?.punch).map(x => num(x, 0, 0)).slice(0, 200), punch_amount: num(c.fx?.punch_amount, 0.07, 0, 0.5), drift: num(c.fx?.drift, 0.05, -0.5, 0.5)}};
+      fx: {punch: arr(c.fx?.punch).map(x => num(x, 0, 0)).slice(0, 200), punch_amount: num(c.fx?.punch_amount, 0.07, 0, 0.5), drift: num(c.fx?.drift, 0.05, 0, 0.5),
+        zoom: num(c.fx?.zoom, 1, 1, 2),
+        // кадрирование: [[t, x, y]] — центр окна (0…1 ширины / высоты) во времени от начала клипа на шкале
+        reframe: arr(c.fx?.reframe).filter(k => Array.isArray(k)).slice(0, 600).map(([t, x, y]) => [num(t, 0, 0), num(x, 0.5, 0, 1), num(y, 0.5, 0, 1)]),
+        ...fxNorm(c.fx)}};
     return v;
   });
   const audio = arr(t.audio).slice(0, 50).map(a => ({src: a.src, in: num(a.in, 0, 0), out: a.out == null ? null : num(a.out, null, 0), at: num(a.at, 0, 0),
@@ -93,8 +98,10 @@ export function normalize(p) {
     format: FORMAT, version: VERSION, name: str(p.name || 'Монтаж', 120),
     aspect: ASPECTS[p.aspect] ? p.aspect : '9:16', fps: num(p.fps, 30, 12, 60), fit: p.fit === 'contain' ? 'contain' : 'cover',
     duration: p.duration == null ? null : num(p.duration, null, 0.5, 600),
-    music: p.music ? {bpm: num(p.music.bpm, null), beats: arr(p.music.beats).map(Number).filter(Number.isFinite).slice(0, 4000)} : null,
+    music: p.music ? {bpm: num(p.music.bpm, null), beats: arr(p.music.beats).map(Number).filter(Number.isFinite).slice(0, 4000),
+      drop: p.music.drop == null ? null : num(p.music.drop, null, 0)} : null,
     tracks: {video, audio, photo, text, gfx, captions: {style: str(t.captions?.style || 'pop', 20), words}},
+    look: lookNorm(p.look), sfx: sfxNorm(p.sfx),   // этап 3: цвет всего ролика, звуковые удары (fx.js)
     audio_mix: {loudness: num(p.audio_mix?.loudness, -14, -30, -6), speech: !!p.audio_mix?.speech},
   };
 }

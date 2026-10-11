@@ -8,7 +8,7 @@ import {chromium} from 'playwright-core';
 import {run, lastErr} from '../avtools.js';
 import {tools, ff, info} from './analyze.js';
 import {normalize, sourcePath, ASPECTS} from './project.js';
-import {transitionOf, zoomExpr, hasZoom} from './fx.js';
+import {transitionOf, cameraExpr, hasCamera, reframeXY, clipFxFilters, lookChain, SFX} from './fx.js';
 import {gfxHtml} from './templates/gfx.js';
 
 const CHROME = process.env.FREEFIELD_CHROME || [
@@ -43,7 +43,20 @@ async function layout(P, ctx) {
     const out = Math.min(c.out ?? (fi.image ? inn + 3 : srcLen), srcLen);   // фото без конца — 3 с
     const len = Math.max(0.1, (out - inn) / c.speed);
     const at = c.at ?? cursor;
-    segs.push({...c, i, file, fi, in: inn, out, len, at, srcLen});
+    if (c.fx.ramp?.length && !fi.image) {
+      // speed ramp: длина на шкале та же, что без него; кусок режется на участки со своей скоростью (склейкой, без перехода)
+      const marks = [{at: 0, speed: c.speed}, ...c.fx.ramp.filter(k => k.at > 0 && k.at < len)];
+      let p = inn;
+      for (const [j, m] of marks.entries()) {
+        const t0 = m.at, t1 = marks[j + 1]?.at ?? len, take = Math.min((t1 - t0) * m.speed, Math.max(0.04, srcLen - p));
+        const shift = p => p - t0;
+        segs.push({...c, i, file, fi, in: p, out: p + take, speed: m.speed, len: t1 - t0, at: at + t0, srcLen,
+          transition: j ? {type: 'cut', duration: 0} : c.transition,
+          fx: {...c.fx, punch: c.fx.punch.map(shift).filter(x => x >= 0 && x < t1 - t0), freeze: (c.fx.freeze || []).map(shift).filter(x => x >= 0 && x < t1 - t0),
+            reframe: c.fx.reframe?.length ? c.fx.reframe.map(([t, x, y]) => [t - t0, x, y]) : c.fx.reframe}});
+        p = Math.min(srcLen - 0.04, p + take);
+      }
+    } else segs.push({...c, i, file, fi, in: inn, out, len, at, srcLen});
     cursor = at + len;
   }
   segs.sort((a, b) => a.at - b.at);
@@ -121,7 +134,7 @@ async function renderAudio(P, L, D, work, ctx, note) {
       for (let x = s.speed; x > 2.0001 || x < 0.4999;) { const f = x > 2 ? 2 : 0.5; tempo.push(`atempo=${f}`); x /= f; }
       const rest = s.speed / tempo.reduce((m, t) => m * +t.split('=')[1], 1);
       if (Math.abs(rest - 1) > 1e-3) tempo.push(`atempo=${rest.toFixed(4)}`);
-      fc.push(`[${i}:a]asetpts=PTS-STARTPTS,${tempo.length ? tempo.join(',') + ',' : ''}aresample=48000,aformat=channel_layouts=stereo,volume=${s.volume},` +
+      fc.push(`[${i}:a]${s.fx?.reverse ? 'areverse,' : ''}asetpts=PTS-STARTPTS,${tempo.length ? tempo.join(',') + ',' : ''}aresample=48000,aformat=channel_layouts=stereo,volume=${s.volume},` +
         `${lead > 0 ? `adelay=${Math.round(lead * 1000)}:all=1,` : ''}apad,atrim=duration=${total.toFixed(3)}[ca${k}]`);
       lbl = `[ca${k}]`;
     }
@@ -163,6 +176,24 @@ async function renderAudio(P, L, D, work, ctx, note) {
     parts.push('[voice1]', '[mud]');
   } else parts.push('[voice]');
   parts.push(...plain.map(m => m.lbl));
+  // звуковые удары (этап 3): свист на переходах, удар на сильных долях клипов, нарастание перед дропом
+  if (P.sfx) {
+    const ev = {whoosh: [], hit: [], riser: []};
+    for (const [k, s] of L.lin.entries()) {
+      if (k && !s.black && P.sfx.transitions && s.transition?.type !== 'cut') ev.whoosh.push(s.at - 0.28);
+      if (!s.black && P.sfx.hits) for (const p of s.fx?.punch || []) if (p > 0.05 || !k) ev.hit.push(s.at + p);
+    }
+    if (P.sfx.riser && P.music?.drop) ev.riser.push(P.music.drop - SFX.riser.d);
+    const sl = [];
+    for (const [name, times] of Object.entries(ev)) {
+      const ts = times.filter(t => t >= 0 && t < D - 0.1).slice(0, 60);
+      if (!ts.length) continue;
+      const i = input('-f', 'lavfi', '-i', SFX[name].src);
+      fc.push(`[${i}:a]${SFX[name].af},aformat=channel_layouts=stereo,volume=${P.sfx.volume},asplit=${ts.length}${ts.map((_, j) => `[x${name}${j}]`).join('')}`);
+      ts.forEach((t, j) => { fc.push(`[x${name}${j}]adelay=${Math.round(t * 1000)}:all=1,apad,atrim=duration=${D.toFixed(3)}[y${name}${j}]`); sl.push(`[y${name}${j}]`); });
+    }
+    if (sl.length) { fc.push(`${sl.join('')}amix=inputs=${sl.length}:duration=first:normalize=0[sfx]`); parts.push('[sfx]'); }
+  }
   fc.push(`${parts.join('')}amix=inputs=${parts.length}:duration=first:normalize=0,afade=t=out:st=${Math.max(0, D - 0.6).toFixed(3)}:d=0.6[mix]`);
   const mix = path.join(work, 'mix.wav');
   note('Свожу звук…');
@@ -217,15 +248,23 @@ export async function render(project, {outFile, quality = 'final', ctx, onStatus
         const lead = s.fi.image ? 0 : Math.max(0, s.pre - s.in / s.speed);   // не хватило кадров до начала — первый кадр стоит
         const i = s.fi.image ? input('-loop', '1', '-t', total.toFixed(3), '-i', s.file)
           : input('-ss', from.toFixed(3), '-t', ((total - lead) * s.speed + 0.2).toFixed(3), '-i', s.file);
+        // кадр другой формы: окно кадрирования едет по ключам fx.reframe (этап 2); время потока здесь — до tpad начала
+        const rf = s.fx.reframe?.length ? reframeXY(s.fx.reframe, s.pre - lead) : null;
         const fit = (w, h) => P.fit === 'contain'
           ? `scale=${w}:${h}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black`
-          : `scale=${w}:${h}:force_original_aspect_ratio=increase:flags=lanczos,crop=${w}:${h}`;
-        const z = hasZoom(s.fx);
-        const steps = [`setpts=(PTS-STARTPTS)/${s.speed}`, `fps=${fps}`];
+          : `scale=${w}:${h}:force_original_aspect_ratio=increase:flags=lanczos,crop=${w}:${h}:x=${rf ? `'${rf.x}'` : '(iw-ow)/2'}:y=${rf ? `'${rf.y}'` : '(ih-oh)/2'}`;
+        const z = hasCamera(s.fx);
+        const steps = [];
+        if (s.fx.reverse) steps.push('reverse');
+        steps.push(`setpts=(PTS-STARTPTS)/${s.speed}`);
+        // плавное слоумо: недостающие кадры досчитываются по движению (черновик — смешиванием, быстрее)
+        if (s.fx.smooth && s.speed < 1) steps.push(`minterpolate=fps=${fps}:mi_mode=${quality === 'final' ? 'mci:mc_mode=aobmc:me_mode=bidir' : 'blend'}`);
+        steps.push(`fps=${fps}`);
         steps.push(z ? fit(W * zoomScale, H * zoomScale) : fit(W, H));
         steps.push('setsar=1');
         if (lead > 0) steps.push(`tpad=start_mode=clone:start_duration=${lead.toFixed(3)}`);
-        if (z) steps.push(`zoompan=z='${zoomExpr(s.fx, {fps, pre: s.pre, len: s.len})}':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${fps}`);
+        if (z) { const c = cameraExpr(s.fx, {fps, pre: s.pre, len: s.len}); steps.push(`zoompan=z='${c.z}':d=1:x='${c.x}':y='${c.y}':s=${W}x${H}:fps=${fps}`); }
+        steps.push(...clipFxFilters(s.fx, {pre: s.pre, fps}));
         steps.push(`tpad=stop_mode=clone:stop_duration=${total.toFixed(3)}`, `trim=duration=${total.toFixed(3)}`, 'setpts=PTS-STARTPTS', 'format=yuv420p', 'settb=AVTB');   // одна шкала времени у всех кусков — иначе xfade после concat не соединяет
         chain = `[${i}:v]${steps.join(',')}`;
       }
@@ -237,6 +276,8 @@ export async function render(project, {outFile, quality = 'final', ctx, onStatus
     if (acc === null) { const i = input('-f', 'lavfi', '-t', D.toFixed(3), '-i', `color=c=black:s=${W}x${H}:r=${fps}`); acc = `[${i}:v]`; }
     fc.push(`${acc}tpad=stop_mode=add:stop_duration=${D.toFixed(3)}:color=black,trim=duration=${D.toFixed(3)},setpts=PTS-STARTPTS[base]`);
     let v = '[base]';
+    // цвет и атмосфера всего ролика (этап 3) — до графики, чтобы титры остались чистыми
+    if (P.look && (P.look.preset !== 'none' || P.look.vignette || P.look.grain || P.look.letterbox)) { fc.push(...lookChain(P.look, v, '[looked]')); v = '[looked]'; }
     // фото поверх
     for (const [k, ph] of P.tracks.photo.entries()) {
       const i = input('-loop', '1', '-t', ph.duration.toFixed(3), '-i', sourcePath(ph.src, ctx));

@@ -110,13 +110,24 @@ export function findBeats(x, sr) {
     for (let ph = 0; ph < p; ph++) { let q = 0; for (let f = ph; f < frames; f += p) q += onset[Math.round(f)] || 0; if (q > s) s = q; }
     if (s > bs) { bs = s; period = p; }
   }
+  // фаза: где стоят доли. Хэты на слабых долях дают много «шума» во всех частотах и перетягивают сетку на полудоли,
+  // поэтому для фазы атаки баса (бочка) весят вдвое больше остальных
+  const lowOn = new Float32Array(frames);
+  for (let f = 0; f < frames; f++) {
+    let s = 0, c = 0;
+    for (let k = Math.max(0, f - M); k <= Math.min(frames - 1, f + M); k++) { s += low[k]; c++; }
+    lowOn[f] = Math.max(0, low[f] - s / c);
+  }
+  const mean = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+  const lw = mean(lowOn) > 0 ? 2 * mean(onset) / mean(lowOn) : 0;
+  const pon = onset.map((v, f) => v + lw * lowOn[f]);
   let phase = 0, bp = -1;
-  for (let ph = 0; ph < period; ph += 0.25) { let q = 0; for (let f = ph; f < frames; f += period) q += onset[Math.round(f)] || 0; if (q > bp) { bp = q; phase = ph; } }
+  for (let ph = 0; ph < period; ph += 0.25) { let q = 0; for (let f = ph; f < frames; f += period) q += pon[Math.round(f)] || 0; if (q > bp) { bp = q; phase = ph; } }
   // каждый бит подтягиваем к ближайшей атаке (±40 мс), сетку не ломаем
   const beats = [], tol = Math.round(hz * 0.04);
   for (let f = phase; f < frames; f += period) {
     let at = Math.round(f), m = -1;
-    for (let k = Math.max(0, at - tol); k <= Math.min(frames - 1, at + tol); k++) if (onset[k] > m) { m = onset[k]; at = k; }
+    for (let k = Math.max(0, at - tol); k <= Math.min(frames - 1, at + tol); k++) if (pon[k] > m) { m = pon[k]; at = k; }
     beats.push((at * HOP + N / 2) / sr);
   }
   // сильная доля: из четырёх сдвигов тот, где больше всего баса
@@ -129,7 +140,7 @@ export function findBeats(x, sr) {
 
 // биты трека с кэшем; env (громкость во времени) — по сохранённому rms
 export async function trackBeats(file, outDir, note = () => {}) {
-  const c = cached(outDir, file, 'beats', 'v1');
+  const c = cached(outDir, file, 'beats', 'v2');
   let b = c.get();
   if (!b) {
     note('Ищу биты в треке…');
@@ -147,6 +158,62 @@ export async function trackBeats(file, outDir, note = () => {}) {
 export function gridBeats(bpm = 120, seconds = 300) {
   const period = 60 / bpm, beats = Array.from({length: Math.ceil(seconds / period)}, (_, i) => +(i * period).toFixed(4));
   return {bpm, period, beats, downbeats: beats.filter((_, i) => i % 4 === 0), env: () => 1, frames: seconds * 100, hz: 100, duration: seconds};
+}
+
+/* ---------- кадры клипа (этап 2): резкость, движение, свет, смены сцен, центр интереса по X ---------- */
+// ffmpeg отдаёт уменьшенные серые кадры (6 в секунду), считаем на JS. Результат — ряды по времени, кэшируется.
+export async function shots(file, outDir, note = () => {}) {
+  const c = cached(outDir, file, 'shots', 'v3');
+  const hit = c.get();
+  if (hit) return hit;
+  const fi = await info(file);
+  if (!fi.video) return null;
+  note(`Смотрю кадры: ${path.basename(file)}…`);
+  const fps = 6, w = 96, h = Math.max(2, Math.round(w * fi.height / Math.max(1, fi.width) / 2) * 2);
+  const t = await tools(), chunks = [];
+  const r = await run(t.ffmpeg, ['-v', 'error', '-i', file, '-t', '180', '-vf', `fps=${fps},scale=${w}:${h},format=gray`, '-f', 'rawvideo', '-'], {stdout: d => chunks.push(d)});
+  if (r.code !== 0) throw new Error('кадры не читаются: ' + lastErr(r.tail));
+  const buf = Buffer.concat(chunks), size = w * h, n = Math.floor(buf.length / size);
+  const sharp = [], motion = [], bright = [], cx = [], cy = [];
+  let prev = null;
+  for (let f = 0; f < n; f++) {
+    const px = buf.subarray(f * size, (f + 1) * size);
+    let sum = 0, lap = 0, lap2 = 0, mot = 0, wx = 0, wy = 0, ww = 0;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x, v = px[i];
+      const l = 4 * v - px[i - 1] - px[i + 1] - px[i - w] - px[i + w];   // лапласиан — резкость и края
+      lap += l; lap2 += l * l; sum += v;
+      const d = prev ? Math.abs(v - prev[i]) : 0;
+      mot += d;
+      const wgt = d * d + 0.02 * Math.abs(l);   // куда смотрит зритель: прежде всего туда, где движется (квадрат разницы), чуть-чуть — на детали
+      wx += wgt * x; wy += wgt * y; ww += wgt;
+    }
+    const cnt = (w - 2) * (h - 2);
+    sharp.push(+(lap2 / cnt - (lap / cnt) ** 2).toFixed(1));
+    motion.push(+(mot / cnt).toFixed(2));
+    bright.push(+(sum / cnt).toFixed(1));
+    cx.push(+(ww ? wx / ww / (w - 1) : 0.5).toFixed(3));
+    cy.push(+(ww ? wy / ww / (h - 1) : 0.5).toFixed(3));
+    prev = px;
+  }
+  // смены сцен: скачок движения намного выше обычного
+  const med = [...motion].sort((a, b) => a - b)[Math.floor(motion.length / 2)] || 1;
+  const cuts = motion.map((m, i) => i && m > Math.max(18, med * 4) ? +(i / fps).toFixed(2) : null).filter(x => x != null);
+  return c.set({fps, n, sharp, motion, bright, cx, cy, cuts, duration: fi.duration});
+}
+
+// дроп трека: сильная доля, после которой громкость резко выше, чем до неё (самый мощный момент)
+export function findDrop(beat, minAt = 4) {
+  if (!beat.rms?.length) return null;
+  const mean = (a, b) => { let s = 0, c = 0; for (let t = a; t < b; t += 0.1) { s += beat.env(t); c++; } return c ? s / c : 0; };
+  let best = null, bs = 0;
+  for (const d of beat.downbeats) {
+    if (d < minAt || d + 4 > beat.duration) continue;
+    const before = mean(d - 4, d - 0.2), after = mean(d, d + 4);
+    const s = after - before * 1.15;
+    if (after > 0 && s > bs) { bs = s; best = d; }
+  }
+  return best;
 }
 
 /* ---------- речь: whisper.cpp по словам ---------- */

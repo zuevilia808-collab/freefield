@@ -3,7 +3,7 @@
 // Рендеры идут по одному: каждый занимает видеокарту и все ядра.
 import fs from 'node:fs';
 import path from 'node:path';
-import {info, speech, trackBeats, gridBeats, tools} from './analyze.js';
+import {info, speech, shots, trackBeats, gridBeats, tools} from './analyze.js';
 import {toProject} from './plan.js';
 import {render} from './render.js';
 import {normalize, ASPECTS} from './project.js';
@@ -47,7 +47,9 @@ export function montage(opts) {
       clips.push({file, ...i});
     }
     if (!clips.length) throw new Error('ни один файл не открылся как видео');
-    const aspect = ASPECTS[opts.aspect] ? opts.aspect : (clips[0].width > clips[0].height * 1.2 ? '16:9' : clips[0].width > clips[0].height * 0.9 ? '1:1' : '9:16');
+    // формат не задан — как у большинства клипов (рилсы обычно вертикальные, при равенстве — 9:16)
+    const wide = clips.filter(c => c.width > c.height * 1.2).length, square = clips.filter(c => c.width <= c.height * 1.2 && c.width > c.height * 0.9).length;
+    const aspect = ASPECTS[opts.aspect] ? opts.aspect : wide > clips.length / 2 ? '16:9' : square > clips.length / 2 ? '1:1' : '9:16';
 
     // речь клипов по словам (для субтитров и чтобы не рвать фразы)
     let lang = opts.language && opts.language !== 'auto' ? opts.language : 'auto';
@@ -62,6 +64,8 @@ export function montage(opts) {
       }
     }
     if (opts.captions !== false && !clips.some(c => c.speech)) warnings.push('в клипах нет речи — субтитры не нужны');
+    // кадры клипов: лучшие куски и кадрирование (этап 2)
+    for (const c of clips) c.shots = await shots(c.file, root, note).catch(e => { warnings.push(e.message); return null; });
 
     let music = opts.music && fs.existsSync(opts.music) ? opts.music : null, beat = null;
     if (opts.music && !music) warnings.push('трек не найден: ' + opts.music + ' — монтаж без музыки');
@@ -81,7 +85,7 @@ export function montage(opts) {
     const r = await render(project, {outFile, quality, ctx: {outDir: root, uploadDir: path.join(root, 'montage-src')}, onStatus: note});
     const projectFile = outFile.replace(/\.mp4$/, '.montage.json');
     fs.writeFileSync(projectFile, JSON.stringify(normalize(project), null, 1));
-    return {...r, bpm: beat.bpm, music_start: +plan.start.toFixed(2), pace: plan.pace, style: project.tracks.gfx[0]?.template || 'none',
+    return {...r, bpm: beat.bpm, music_start: +plan.start.toFixed(2), drop: plan.drop, pace: plan.pace, style: project.tracks.gfx[0]?.template || 'none',
       captions: project.tracks.captions.words.length, language: lang, project: projectFile,
       clips: plan.segs.map((s, k) => ({clip: path.basename(clips[s.clip].file), from: +s.from.toFixed(2), at: +s.t0.toFixed(2), len: +s.len.toFixed(2),
         transition: project.tracks.video[k + 1]?.transition.type || null})),
