@@ -105,7 +105,7 @@ export function cutPlan(clips, beat, opts) {
   const total = Math.min(local.length - 1, bars * 4);           // сколько битов в ролике
   const duration = local[total] ?? target;
   const speech = clips.some(c => c.speech);
-  const pace = opts.pace === 'auto' ? (speech ? 'speech' : period < 0.42 ? 'medium' : 'fast') : opts.pace;
+  const pace = opts.pattern?.length && opts.pace !== 'speech' ? 'pattern' : opts.pace === 'auto' ? (speech ? 'speech' : period < 0.42 ? 'medium' : 'fast') : opts.pace;
   const segs = [];
   if (pace === 'speech') {
     // каждый клип с речью — его речь без пауз, до первого бита после её конца: фразы не рвём, поэтому ролик с речью может выйти
@@ -141,7 +141,8 @@ export function cutPlan(clips, beat, opts) {
     const used = clips.map(() => []);
     let b = 0, i = 0;
     while (b < total) {
-      const n = Math.min(step, total - b), c = i % clips.length;
+      // по образцу (этап 5) — длины кадров в долях по кругу; вариант — клипы в другом порядке
+      const n = Math.min(opts.pattern?.length ? opts.pattern[i % opts.pattern.length] : step, total - b), c = (i + (opts.variant || 0)) % clips.length;
       const len = local[b + n] - local[b];
       const from = bestWindow(clips[c], len, used[c]);
       used[c].push([from, from + len]);
@@ -156,13 +157,13 @@ export function cutPlan(clips, beat, opts) {
 // clips: [{file, duration, width, height, audio, speech, words, shots}], beat — trackBeats/gridBeats, opts — как у montage() (+ recipe шаблона)
 export function toProject(clips, beat, opts) {
   const R = opts.recipe || {};
-  const P = cutPlan(clips, beat, {...opts, pace: opts.pace && opts.pace !== 'auto' ? opts.pace : R.pace || 'auto', clean_speech: opts.clean_speech ?? R.clean_speech});
+  const P = cutPlan(clips, beat, {...opts, pace: opts.pace && opts.pace !== 'auto' ? opts.pace : R.pace || 'auto', clean_speech: opts.clean_speech ?? R.clean_speech, pattern: R.pattern});
   const [W, H] = ASPECTS[opts.aspect] || ASPECTS['9:16'];
   const set = R.transitions?.length ? R.transitions : BEAT_SET;
   const video = [], pieceMap = [];
   for (const [k, s] of P.segs.entries()) {
     const c = clips[s.clip];
-    const tr = k ? set[(k - 1) % set.length] : 'cut';
+    const tr = k ? set[(k - 1 + (opts.variant || 0) * 3) % set.length] : 'cut';
     // кадр другой формы, чем ролик (16:9 в 9:16) — окно едет за интересным
     const reframe = opts.reframe !== false && c.width && Math.abs(Math.log((c.width / c.height) / (W / H))) > 0.15;
     let at = s.t0;

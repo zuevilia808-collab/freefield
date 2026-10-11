@@ -870,70 +870,245 @@ server.registerTool('image_to_3d', {
   return waitJob(job, WAIT_MS, extra);
 });
 
-/* ---- Монтаж под бит: клипы + трек → ролик с переходами, субтитрами по словам и моушн-графикой (пользователь 2026-10-10) ---- */
+/* ---- Монтаж (пользователь 2026-10-10/11, план «лучше Katana»): автомонтаж под бит, шаблоны, по образцу, Claude-режиссёр, экспорт ---- */
 const montageMod = () => import('./montage.js');
+const todayDir = () => path.join(OUT, new Date().toISOString().slice(0, 10));
+// общие параметры автомонтажа (montage, montage_plan, montage_variants, montage_from_reference)
+const MONTAGE_ARGS = {
+  clips: z.array(z.string()).max(8).optional().describe('Видео по порядку (абсолютные пути). Не задано — последние 4 видео из outputs'),
+  music: z.string().optional().describe('Трек (mp3/wav/m4a). Подобрать по темпу и настроению — montage_music. Без трека — ровный ритм 120 BPM и звук клипов'),
+  duration: z.number().min(6).max(60).default(20).describe('Длина, с (подгоняется к целым тактам; ролик с речью может выйти до 1,5× длиннее — фразы не рвутся)'),
+  template: z.string().max(40).optional().describe('Шаблон: aura, velocity, launch, demo, reel, talking или свой (из montage_from_reference) — список: montage_templates'),
+  style: z.enum(['titles', 'cards', 'launch', 'none']).optional().describe('Графика (по умолчанию — из шаблона, без шаблона — titles)'),
+  caption_style: z.enum(['pop', 'karaoke', 'word', 'box', 'outline', 'neon', 'minimal', 'typewriter', 'bounce', 'gradient']).optional().describe('Стиль субтитров'),
+  look: z.enum(['teal_orange', 'film', 'bw', 'neon', 'warm', 'cold', 'aura', 'none']).optional().describe('Цвет всего ролика (по умолчанию — из шаблона)'),
+  title: z.string().max(80).optional().describe('Заголовок / имя продукта'),
+  subtitle: z.string().max(120).optional().describe('Подзаголовок (в launch — подпись под кнопкой)'),
+  items: z.array(z.string().max(60)).max(5).optional().describe('Тезисы для cards / фишки для launch'),
+  cta: z.string().max(40).optional().describe('Призыв в конце («Подпишись», «Ссылка в профиле»)'),
+  hook: z.string().max(90).optional().describe('Хук-текст на первые 2 с (шаблон reel; по умолчанию — title)'),
+  captions: z.boolean().default(true).describe('Субтитры по словам из речи клипов'),
+  language: z.string().max(5).default('auto').describe('Язык речи: auto, ru, en…'),
+  pace: z.enum(['auto', 'speech', 'fast', 'medium', 'slow']).default('auto').describe('auto: речь — по фразам; без речи — смена кадра каждые 1–2 такта; fast = каждые 2 бита'),
+  aspect: z.enum(['auto', '9:16', '1:1', '4:5', '16:9']).default('auto'),
+  music_start: z.number().min(0).optional().describe('С какой секунды трека (по умолчанию — дроп сразу после хука или самый громкий кусок)'),
+  brand: z.object({accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), font: z.string().max(40).optional(), logo: z.string().optional()}).optional()
+    .describe('Бренд-набор: акцентный цвет #rrggbb, шрифт заголовков из Google Fonts (с кириллицей), логотип (путь к png) в углу'),
+  quality: z.enum(['final', 'draft']).default('final').describe('draft — черновик 540p за секунды (сначала показать, потом финал)'),
+};
+const badInput = msg => toolResult({status: 'error', error_kind: 'input', error: msg}, {text: 'Ошибка: ' + msg, isError: true});
+// параметры MCP → параметры montage(); ошибка — строкой
+function montageOpts(args, M) {
+  const clips = (args.clips?.length ? args.clips : M.latestVideos(OUT, 4)).map(f => path.resolve(f));
+  const bad = clips.find(f => !fs.existsSync(f));
+  if (bad || !clips.length) return {error: bad ? 'нет файла ' + bad : 'в outputs нет видео — передай clips'};
+  if (args.music && !fs.existsSync(args.music)) return {error: 'нет трека ' + args.music};
+  const {quality, ...rest} = args;
+  return {opts: {...rest, clips, music: args.music && path.resolve(args.music), style: args.style ?? (args.template ? undefined : 'titles'),
+    look: args.look === 'none' ? {preset: 'none'} : args.look ? {preset: args.look, vignette: true} : undefined,
+    brand: args.brand && {...args.brand, logo: args.brand.logo ? {path: path.resolve(args.brand.logo)} : null}, outDir: todayDir()}, quality};
+}
+const montageText = r => [`Готово: ${r.duration} с, ${r.width}×${r.height}${r.quality === 'draft' ? ' (черновик)' : ''}, ${r.cuts} кусков${r.bpm ? ` под бит (${r.bpm} BPM)` : ''}` +
+  `${r.captions != null ? `, субтитры: ${r.captions ? r.captions + ' слов' : 'нет'}` : ''}${r.template ? `, шаблон ${r.template}` : ''}`,
+  `Файл: ${r.path}`, `Проект: ${r.project} (править — montage_edit / montage_render)`, `Время: ${r.seconds} с`, ...(r.warnings || []).map(w => '⚠ ' + w)].join('\n');
+const recordMontage = (r, title) => recordGen({kind: 'video', site: 'freefield', model: `монтаж · ${r.template || r.style || 'проект'}${r.quality === 'draft' ? ' · черновик' : ''}`,
+  prompt: `монтаж: ${title}`, aspect: r.aspect, files: [{path: r.path, mime: r.mime}]});
+// картинка с диска → содержимое MCP (раскадровка для глаз Claude)
+const imageContent = async (file, width = 1200) => ({type: 'image', mimeType: 'image/jpeg',
+  data: (await (await import('sharp')).default(fs.readFileSync(file)).resize({width, withoutEnlargement: true}).jpeg({quality: 80}).toBuffer()).toString('base64')});
+
 server.registerTool('montage', {
   title: 'Смонтировать ролик под бит',
-  description: 'Автомонтаж бесплатно на этом компьютере: 2–8 клипов + музыка → ролик 15–30 с. Находит биты трека, режет клипы так, что швы на битах ' +
-    '(клипы с речью — кусками от начала, шов в паузе речи), переходы и «удары» зумом на сильных долях, субтитры по словам из речи клипов (whisper.cpp, ' +
-    'активное слово — лаймовым), моушн-графика по стилю: titles — кинетический заголовок + финальная надпись; cards — заголовок + карточки-тезисы (items) + призыв; ' +
-    'launch — «NEW», имя продукта, фишки (items) на бит, кнопка-призыв в ритм; none — только субтитры. Под речь музыка тише и уступает голосу. ' +
-    'Первый запуск сам ставит ffmpeg и Whisper в Freefield\\tools (~300 МБ, несколько минут). Рендер 1,5–3 мин — вернётся job_id, жди через check_job. ' +
-    'Готовый mp4 — в outputs/<дата> и в галерее приложения. Тексты (title, subtitle, items, cta, hook) пиши на языке ролика (по умолчанию по-русски). ' +
-    'Умная нарезка: лучшие куски клипов по оценке кадров, дроп трека сразу после хука, паузы и «эээ» вырезаны, кадр 16:9 в 9:16 едет за действием. ' +
-    'Шаблон (template) задаёт ритм, эффекты, цвет, звуковые удары, графику и субтитры — список и описания: montage_templates. Черновик 540p (quality=draft) — за секунды.',
-  inputSchema: {
-    clips: z.array(z.string()).max(8).optional().describe('Видео по порядку (абсолютные пути). Не задано — последние 4 видео из outputs'),
-    music: z.string().optional().describe('Трек (mp3/wav/m4a). Без него — ровный ритм 120 BPM и звук клипов'),
-    duration: z.number().min(6).max(60).default(20).describe('Длина, с (подгоняется к целым тактам)'),
-    template: z.enum(['aura', 'velocity', 'launch', 'demo', 'reel', 'talking']).optional().describe('Шаблон: aura, velocity, launch (запуск продукта), demo (запись экрана), reel (рилс по формуле: хук → речь → призыв), talking (говорящая голова)'),
-    style: z.enum(['titles', 'cards', 'launch', 'none']).optional().describe('Графика (по умолчанию — из шаблона, без шаблона — titles)'),
-    caption_style: z.enum(['pop', 'karaoke', 'word', 'box', 'outline', 'neon', 'minimal', 'typewriter', 'bounce', 'gradient']).optional().describe('Стиль субтитров (по умолчанию — из шаблона, иначе pop)'),
-    look: z.enum(['teal_orange', 'film', 'bw', 'neon', 'warm', 'cold', 'aura', 'none']).optional().describe('Цвет всего ролика (по умолчанию — из шаблона)'),
-    hook: z.string().max(90).optional().describe('Хук-текст на первые 2 с (шаблон reel; по умолчанию — title)'),
-    brand: z.object({accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), font: z.string().max(40).optional(), logo: z.string().optional()}).optional()
-      .describe('Бренд-набор: акцентный цвет #rrggbb, шрифт заголовков из Google Fonts (с кириллицей), логотип (путь к png) в левом верхнем углу'),
-    quality: z.enum(['final', 'draft']).default('final').describe('draft — черновик 540p, быстро'),
-    title: z.string().max(80).optional().describe('Заголовок / имя продукта'),
-    subtitle: z.string().max(120).optional().describe('Подзаголовок (в launch — подпись под кнопкой)'),
-    items: z.array(z.string().max(60)).max(5).optional().describe('Тезисы для cards / фишки для launch'),
-    cta: z.string().max(40).optional().describe('Призыв в конце («Подпишись», «Ссылка в профиле»)'),
-    captions: z.boolean().default(true).describe('Субтитры по словам из речи клипов'),
-    language: z.string().max(5).default('auto').describe('Язык речи: auto, ru, en…'),
-    pace: z.enum(['auto', 'speech', 'fast', 'medium', 'slow']).default('auto').describe('auto: речь — куски от начала клипа; без речи — смена кадра каждые 1–2 такта; fast = каждые 2 бита'),
-    aspect: z.enum(['auto', '9:16', '1:1', '4:5', '16:9']).default('auto'),
-    music_start: z.number().min(0).optional().describe('С какой секунды трека (по умолчанию — самый громкий кусок, со сильной доли)'),
-  },
+  description: 'Автомонтаж бесплатно на этом компьютере (уровень Higgsfield Katana): 2–8 клипов + музыка → ролик. Биты и дроп трека, швы на битах, ' +
+    'лучшие куски клипов по оценке кадров, речь без пауз и «эээ», кадр 16:9 в 9:16 едет за действием, переходы, «удары» зумом, эффекты, цвет, ' +
+    'звуковые удары, субтитры по словам (whisper.cpp), моушн-графика, громкость −14 LUFS, видеокарта (NVENC). Шаблон (template) задаёт всё сразу — montage_templates. ' +
+    'Порядок работы режиссёра: montage_analyze (посмотреть клипы) → montage (quality=draft, за секунды) → показать → montage_edit словами → финал. ' +
+    'Не хватает кадров — сгенерируй их (batch_generate во Flow / Arena), нужен голос — echo_speak, музыка — montage_music. ' +
+    'Первый запуск сам ставит ffmpeg и Whisper (~300 МБ). Долго — вернётся job_id, жди через check_job. Готовый mp4 — в outputs/<дата> и в галерее приложения. ' +
+    'Тексты (title, subtitle, items, cta, hook) — на языке ролика (по умолчанию по-русски).',
+  inputSchema: MONTAGE_ARGS,
   annotations: {readOnlyHint: false, openWorldHint: false},
 }, async (args, extra) => {
   const M = await montageMod();
-  const clips = (args.clips?.length ? args.clips : M.latestVideos(OUT, 4)).map(f => path.resolve(f));
-  const bad = clips.find(f => !fs.existsSync(f));
-  if (bad || clips.length < 1) return toolResult({status: 'error', error_kind: 'input', error: bad ? 'нет файла: ' + bad : 'в outputs нет видео'}, {text: 'Ошибка: ' + (bad ? 'нет файла ' + bad : 'в outputs нет видео — передай clips'), isError: true});
-  if (args.music && !fs.existsSync(args.music)) return toolResult({status: 'error', error_kind: 'input', error: 'нет трека: ' + args.music}, {text: 'Ошибка: нет трека ' + args.music, isError: true});
+  const {opts, quality, error} = montageOpts(args, M);
+  if (error) return badInput(error);
   const job = startJob('montage', async status => {
-    const r = await M.montage({...args, clips, music: args.music && path.resolve(args.music), style: args.style ?? (args.template ? undefined : 'titles'),
-      look: args.look === 'none' ? {preset: 'none'} : args.look ? {preset: args.look, vignette: true} : undefined,
-      brand: args.brand && {...args.brand, logo: args.brand.logo ? {path: path.resolve(args.brand.logo)} : null},
-      outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), onStatus: status});
-    recordGen({kind: 'video', site: 'freefield', model: `монтаж · ${r.style} · ${r.bpm} BPM`, prompt: `монтаж под бит: ${args.title || clips.map(f => path.basename(f)).join(', ')}`,
-      aspect: r.aspect, files: [{path: r.path, mime: r.mime}]});
-    return toolResult(r, {text: [`Готово: ${r.duration} с, ${r.width}×${r.height}, ${r.cuts} кусков под бит (${r.bpm} BPM), субтитры: ${r.captions ? r.captions + ' слов (' + r.language + ')' : 'нет'}, стиль ${r.style}`,
-      `Файл: ${r.path}`, `Время монтажа: ${r.seconds} с`, ...r.warnings.map(w => '⚠ ' + w)].join('\n')});
+    const r = await M.montage({...opts, quality, onStatus: status});
+    recordMontage(r, args.title || opts.clips.map(f => path.basename(f)).join(', '));
+    return toolResult(r, {text: montageText(r)});
   });
   return waitJob(job, WAIT_MS, extra);
 });
 
 server.registerTool('montage_templates', {
   title: 'Шаблоны монтажа',
-  description: 'Список шаблонов монтажа (для montage template), стилей субтитров (caption_style) и цвета (look) с описаниями — чтобы выбрать под бриф пользователя.',
+  description: 'Шаблоны монтажа (встроенные и свои, сделанные по образцу), стили субтитров и цвета — чтобы выбрать под бриф. Превью встроенных — outputs/montage-templates/<id>.mp4.',
   inputSchema: {},
   annotations: {readOnlyHint: true, openWorldHint: false},
 }, async () => {
   const M = await montageMod();
-  const r = {templates: M.recipeList(), caption_styles: M.CAPTION_STYLES, looks: Object.entries(M.LOOKS).map(([id, l]) => ({id, label: l.label})), graphics: M.STYLES};
-  return toolResult(r, {text: ['Шаблоны:', ...r.templates.map(t => `• ${t.id} — ${t.label}: ${t.desc}`), '', `Субтитры: ${r.caption_styles.join(', ')}`,
+  const r = {templates: M.recipeList(OUT), caption_styles: M.CAPTION_STYLES, looks: Object.entries(M.LOOKS).map(([id, l]) => ({id, label: l.label})), graphics: M.STYLES};
+  return toolResult(r, {text: ['Шаблоны:', ...r.templates.map(t => `• ${t.id}${t.own ? ' (свой)' : ''} — ${t.label}: ${t.desc}`), '', `Субтитры: ${r.caption_styles.join(', ')}`,
     `Цвет: ${r.looks.map(l => `${l.id} (${l.label})`).join(', ')}`].join('\n')});
+});
+
+server.registerTool('montage_analyze', {
+  title: 'Посмотреть клипы перед монтажом',
+  description: 'Режиссёру: по каждому клипу — раскадровка (картинки ниже, смотри сам: что в кадре, где лучшие моменты, есть ли текст), речь целиком, ' +
+    'лучшие моменты по оценке кадров, смены сцен, движение. Дальше — выбрать порядок клипов, шаблон, хук и тексты для montage.',
+  inputSchema: {clips: z.array(z.string()).min(1).max(8).describe('Видео (абсолютные пути)')},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async ({clips}, extra) => {
+  const M = await montageMod();
+  const files = clips.map(f => path.resolve(f)), bad = files.find(f => !fs.existsSync(f));
+  if (bad) return badInput('нет файла ' + bad);
+  const job = startJob('montage_analyze', async status => {
+    const r = await M.analyzeClips(files, {outDir: todayDir(), onStatus: status});
+    const images = [];
+    for (const c of r) if (c.sheet) images.push(await imageContent(c.sheet, 900));
+    return toolResult({clips: r}, {images, text: r.map((c, i) => c.error ? `${i + 1}. ${path.basename(c.file)} — ${c.error}` :
+      `${i + 1}. ${path.basename(c.file)} — ${c.duration} с, ${c.size}${c.speech ? `, речь (${c.language}): «${c.speech.slice(0, 300)}»` : ', без речи'}; ` +
+      `лучшие моменты: ${c.best_moments.map(b => `${b.from}–${b.to} с`).join(', ') || '—'}; смен сцен: ${c.scene_cuts.length}; движение ${c.motion}`).join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_plan', {
+  title: 'План монтажа без рендера',
+  description: 'Собрать проект montage.json (куски клипов, переходы, эффекты, субтитры, графика) без рендера — посмотреть и поправить JSON, потом montage_render. ' +
+    'Формат проекта описан в начале файла mcp/montage/project.js.',
+  inputSchema: MONTAGE_ARGS,
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async (args, extra) => {
+  const M = await montageMod();
+  const {opts, error} = montageOpts(args, M);
+  if (error) return badInput(error);
+  const job = startJob('montage_plan', async status => {
+    const r = await M.planMontage({...opts, onStatus: status});
+    return toolResult(r, {text: [`План: ${r.duration} с, ${r.clips.length} кусков (${r.pace}), BPM ${r.bpm}`, `Проект: ${r.project}`, ...r.warnings.map(w => '⚠ ' + w)].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_render', {
+  title: 'Отрендерить проект монтажа',
+  description: 'Проект montage.json (файл project или сам объект project_json) → mp4 в галерею. Для своих правок проекта: поменял JSON — отрендерил.',
+  inputSchema: {
+    project: z.string().optional().describe('Путь к .montage.json'),
+    project_json: z.record(z.string(), z.any()).optional().describe('Проект целиком (вместо файла)'),
+    quality: z.enum(['final', 'draft']).default('final'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({project, project_json, quality}, extra) => {
+  const M = await montageMod();
+  if (!project_json && !(project && fs.existsSync(project))) return badInput('нужен project (путь к .montage.json) или project_json');
+  const P = project_json || JSON.parse(fs.readFileSync(project, 'utf8'));
+  const job = startJob('montage_render', async status => {
+    const r = await M.renderProject(P, {outDir: todayDir(), quality, onStatus: status});
+    recordMontage({...r, template: P.meta?.opts?.template}, P.name || 'проект');
+    return toolResult(r, {text: montageText(r)});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_edit', {
+  title: 'Поправить монтаж словами',
+  description: 'Правка ролика, собранного montage: «быстрее» (faster), «медленнее» (slower), «короче на 3 с» (shorter: 3), «длиннее» (longer), «ещё вариант» (variant), ' +
+    'другой шаблон / цвет / стиль субтитров / тексты / клипы / трек. Пересобирает по тем же клипам (черновик по умолчанию) — новый проект и mp4 в галерею.',
+  inputSchema: {
+    project: z.string().describe('Путь к .montage.json прошлого монтажа (из ответа montage)'),
+    faster: z.boolean().optional(), slower: z.boolean().optional(), shorter: z.number().min(1).max(30).optional(), longer: z.number().min(1).max(30).optional(),
+    variant: z.boolean().optional().describe('Другой вариант: клипы в другом порядке, другие переходы'),
+    template: z.string().max(40).optional(), look: MONTAGE_ARGS.look, caption_style: MONTAGE_ARGS.caption_style, style: MONTAGE_ARGS.style,
+    title: z.string().max(80).optional(), subtitle: z.string().max(120).optional(), items: MONTAGE_ARGS.items, cta: z.string().max(40).optional(), hook: z.string().max(90).optional(),
+    clips: MONTAGE_ARGS.clips, music: z.string().optional(), duration: z.number().min(6).max(60).optional(),
+    quality: z.enum(['final', 'draft']).default('draft'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({project, quality, ...ops}, extra) => {
+  const M = await montageMod();
+  if (!fs.existsSync(project)) return badInput('нет файла проекта ' + project);
+  if (ops.clips) ops.clips = ops.clips.map(f => path.resolve(f));
+  if (ops.music) ops.music = path.resolve(ops.music);
+  const job = startJob('montage_edit', async status => {
+    const r = await M.editMontage(project, ops, {outDir: todayDir(), quality, onStatus: status});
+    recordMontage(r, 'правка: ' + Object.keys(ops).join(', '));
+    return toolResult(r, {text: montageText(r)});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_variants', {
+  title: 'Несколько вариантов монтажа',
+  description: 'Те же клипы и трек → 2–4 варианта черновиками (другой порядок клипов и переходы, третий — с другим цветом), все в галерею — пусть пользователь выберет.',
+  inputSchema: {...MONTAGE_ARGS, count: z.number().int().min(2).max(4).default(3), quality: z.enum(['final', 'draft']).default('draft')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({count, ...args}, extra) => {
+  const M = await montageMod();
+  const {opts, quality, error} = montageOpts(args, M);
+  if (error) return badInput(error);
+  const job = startJob('montage_variants', async status => {
+    const rs = await M.variants({...opts, quality, onStatus: status}, count);
+    rs.forEach((r, i) => !r.error && recordMontage(r, `вариант ${i + 1}: ${args.title || 'монтаж'}`));
+    return toolResult({variants: rs}, {text: rs.map((r, i) => `Вариант ${i + 1}: ` + (r.error ? 'ошибка — ' + r.error : `${r.duration} с, ${r.cuts} кусков · ${r.path}\n   проект: ${r.project}`)).join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_from_reference', {
+  title: 'Смонтировать по образцу',
+  description: 'Как Katana, но прозрачно: рилс-образец (файл) → рецепт: длины кадров в долях бита, переходы (склейка / вспышка / смаз / через чёрное), цвет, ' +
+    'движение, речь — понятным описанием + раскадровка образца (картинка ниже: прочитай текст на экране, шрифты, композицию и перенеси их в title/hook/items). ' +
+    'Рецепт сразу применяется к клипам (clips) — 3 варианта черновиками в галерею; save_as сохраняет его своим шаблоном (дальше — montage template=имя).',
+  inputSchema: {...MONTAGE_ARGS, reference: z.string().describe('Рилс-образец (видео, абсолютный путь)'), save_as: z.string().max(40).optional().describe('Сохранить рецепт шаблоном под этим именем'),
+    variants: z.number().int().min(0).max(4).default(3).describe('Сколько вариантов собрать (0 — только разобрать образец)'), quality: z.enum(['final', 'draft']).default('draft')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({reference, save_as, variants: n, ...args}, extra) => {
+  const M = await montageMod();
+  if (!fs.existsSync(reference)) return badInput('нет образца ' + reference);
+  const prep = n ? montageOpts(args, M) : {opts: {outDir: todayDir()}, quality: args.quality};
+  if (prep.error) return badInput(prep.error);
+  const job = startJob('montage_from_reference', async status => {
+    const r = await M.fromReference({...prep.opts, quality: prep.quality, reference: path.resolve(reference), save_as, variants: n, onStatus: status});
+    r.results.forEach((x, i) => !x.error && recordMontage(x, `по образцу, вариант ${i + 1}`));
+    const images = [await imageContent(r.sheet, 1000)];
+    return toolResult({reference: r.reference, template: r.template, variants: r.results}, {images, text: [
+      'Образец:', ...r.reference.description.map(d => '• ' + d), r.reference.transcript ? `Речь образца: «${r.reference.transcript.slice(0, 400)}»` : '',
+      r.template ? `Рецепт сохранён шаблоном «${r.template}» — montage template=${r.template}` : '',
+      ...r.results.map((x, i) => `Вариант ${i + 1}: ` + (x.error ? 'ошибка — ' + x.error : `${x.duration} с, ${x.cuts} кусков · ${x.path}`))].filter(Boolean).join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_music', {
+  title: 'Музыка пользователя для монтажа',
+  description: 'Треки с этого компьютера (по умолчанию папки «Музыка», «Загрузки», outputs/music) с темпом (BPM), энергией, настроением, длиной и дропом — ' +
+    'выбрать трек под настроение ролика и передать в montage music. Первый раз считает несколько минут, потом из кэша.',
+  inputSchema: {folders: z.array(z.string()).max(5).optional().describe('Свои папки с музыкой'), limit: z.number().int().min(1).max(60).default(30)},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async ({folders, limit}, extra) => {
+  const M = await montageMod();
+  const job = startJob('montage_music', async status => {
+    const r = await M.musicLibrary({folders: folders?.map(f => path.resolve(f)), outDir: todayDir(), limit, onStatus: status});
+    return toolResult({tracks: r}, {text: r.length ? r.map(t => `• ${t.name} — ${t.bpm} BPM, ${t.mood}, ${Math.round(t.duration)} с${t.drop != null ? `, дроп на ${t.drop} с` : ''}\n  ${t.file}`).join('\n')
+      : 'Музыки не нашлось — положите треки в папку «Музыка» или outputs/music, или назовите свою папку'});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_export', {
+  title: 'Выгрузить монтаж в DaVinci / Premiere / CapCut',
+  description: 'Проект montage.json → FCPXML (DaVinci Resolve, Final Cut, Premiere — импорт XML), OTIO (OpenTimelineIO) и SRT-субтитры (CapCut, YouTube). ' +
+    'Файлы — рядом с проектом; клипы ссылаются на файлы этого компьютера. Эффекты и графика Freefield не переносятся — резка, порядок, переходы, звук, субтитры.',
+  inputSchema: {project: z.string().describe('Путь к .montage.json'), formats: z.array(z.enum(['fcpxml', 'otio', 'srt'])).default(['fcpxml', 'otio', 'srt'])},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({project, formats}) => {
+  const M = await montageMod();
+  if (!fs.existsSync(project)) return badInput('нет файла проекта ' + project);
+  try {
+    const r = await M.exportProject(project, {outDir: todayDir(), formats});
+    return toolResult(r, {text: Object.entries(r).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join('\n') || 'нечего выгружать'});
+  } catch (e) { return toolResult({status: 'error', error: e.message}, {text: 'Ошибка: ' + e.message, isError: true}); }
 });
 
 server.registerTool('upscale_image', {

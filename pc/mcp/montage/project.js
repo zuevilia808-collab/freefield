@@ -110,12 +110,15 @@ export function normalize(p) {
     duration: p.duration == null ? null : num(p.duration, null, 0.5, 600),
     music: p.music ? {bpm: num(p.music.bpm, null), beats: arr(p.music.beats).map(Number).filter(Number.isFinite).slice(0, 4000),
       drop: p.music.drop == null ? null : num(p.music.drop, null, 0)} : null,
-    tracks: {video, audio, photo, text, gfx, captions: {style: CAPTION_STYLES.includes(t.captions?.style) ? t.captions.style : 'pop', words}},
+    tracks: {video, audio, photo, text, gfx, captions: {style: CAPTION_STYLES.includes(t.captions?.style) ? t.captions.style : 'pop', words,
+      auto: !!t.captions?.auto, language: /^(auto|[a-z]{2})$/.test(t.captions?.language || '') ? t.captions.language : 'auto'}},   // auto — распознать речь клипов при рендере
     // бренд-набор: акцентный цвет (#rrggbb), шрифт заголовков (Google Fonts), логотип в углу
     brand: p.brand ? {accent: /^#[0-9a-f]{6}$/i.test(p.brand.accent || '') ? p.brand.accent : null, font: /^[A-Za-z0-9 ]{2,40}$/.test(p.brand.font || '') ? p.brand.font : null,
       logo: p.brand.logo || null, logo_pos: ['tl', 'tr', 'bl', 'br'].includes(p.brand.logo_pos) ? p.brand.logo_pos : 'tl'} : null,
     look: lookNorm(p.look), sfx: sfxNorm(p.sfx),   // этап 3: цвет всего ролика, звуковые удары (fx.js)
     audio_mix: {loudness: num(p.audio_mix?.loudness, -14, -30, -6), speech: !!p.audio_mix?.speech},
+    // как проект собран автомонтажом (параметры montage) — чтобы править словами («быстрее», «короче», «ещё вариант»)
+    ...(p.meta && typeof p.meta === 'object' && JSON.stringify(p.meta).length < 20000 ? {meta: p.meta} : {}),
   };
 }
 

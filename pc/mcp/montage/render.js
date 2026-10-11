@@ -6,8 +6,9 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {chromium} from 'playwright-core';
 import {run, lastErr} from '../avtools.js';
-import {tools, ff, info} from './analyze.js';
-import {normalize, sourcePath, ASPECTS} from './project.js';
+import {tools, ff, info, speech} from './analyze.js';
+import {FILLER} from './plan.js';
+import {normalize, sourcePath, ASPECTS, wordsOnTimeline} from './project.js';
 import {transitionOf, cameraExpr, hasCamera, reframeXY, clipFxFilters, lookChain, SFX} from './fx.js';
 import {gfxHtml} from './templates/gfx.js';
 
@@ -290,6 +291,16 @@ export async function render(project, {outFile, quality = 'final', ctx, onStatus
         `fade=t=in:d=0.25:alpha=1,fade=t=out:st=${Math.max(0, ph.duration - 0.25).toFixed(3)}:d=0.25:alpha=1,setpts=PTS-STARTPTS+${ph.at.toFixed(3)}/TB[ph${k}]`);
       fc.push(`${v}[ph${k}]overlay=x=${xy[0]}:y=${xy[1]}:eof_action=pass:enable='between(t,${ph.at.toFixed(3)},${(ph.at + ph.duration).toFixed(3)})'[pv${k}]`);
       v = `[pv${k}]`;
+    }
+    // автосубтитры (проект из редактора): речь клипов распознаётся здесь (кэш), слова — на шкалу ролика
+    if (P.tracks.captions.auto && !P.tracks.captions.words.length) {
+      const pieces = [];
+      for (const s of L.lin) {
+        if (s.black || s.mute || !s.fi?.audio) continue;
+        const sp = await speech(s.file, ctx.outDir, {lang: P.tracks.captions.language, note}).catch(() => null);
+        if (sp?.words?.length) pieces.push({at: s.at, in: s.in, len: s.len, speed: s.speed, words: sp.words.filter(w => !FILLER.test(w.text))});
+      }
+      P.tracks.captions.words = wordsOnTimeline(pieces).filter(w => w.start < D - 0.1);
     }
     // графика, титры, субтитры
     const g0 = P.tracks.gfx[0];
