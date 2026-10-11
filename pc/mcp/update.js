@@ -1,4 +1,4 @@
-// Обновление программы Freefield из репозитория (GitHub, ветка main): все pc/mcp/*.js и *.mjs → эта папка,
+// Обновление программы Freefield из репозитория (GitHub, ветка main): pc/mcp/*.js, *.mjs и подпапки модулей (montage/…) → эта папка,
 // а страница приложения (index.html, css/, js/) — с GitHub Pages в папку app рядом (запасная копия на случай без интернета).
 // Прежние версии изменённых файлов — в mcp/backup-<дата>. Настройки, профили и готовые файлы не трогаем.
 // Новый код начнёт работать после перезапуска программы (Claude Desktop или ярлыка Freefield).
@@ -11,9 +11,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const RAW = `https://raw.githubusercontent.com/${REPO}/main/pc/mcp/`;
 
 export async function updateFromGithub({dir = HERE, log = () => {}} = {}) {
-  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/pc/mcp?ref=main`, {headers: {'User-Agent': 'freefield-update', Accept: 'application/vnd.github+json'}});
+  // всё дерево одним запросом: pc/mcp/*.js и подпапки модулей (montage/, montage/templates/…), кроме dev/
+  const r = await fetch(`https://api.github.com/repos/${REPO}/git/trees/main?recursive=1`, {headers: {'User-Agent': 'freefield-update', Accept: 'application/vnd.github+json'}});
   if (!r.ok) throw new Error(r.status === 403 ? 'GitHub временно не отвечает (лимит запросов) — попробуйте через час' : `GitHub ответил ${r.status}`);
-  const list = (await r.json()).filter(f => f.type === 'file' && /^[\w.-]+\.m?js$/.test(f.name));
+  const list = ((await r.json()).tree || []).filter(f => f.type === 'blob' && f.path.startsWith('pc/mcp/'))
+    .map(f => ({name: f.path.slice('pc/mcp/'.length)}))
+    .filter(f => /^(?:[\w-]+\/)*[\w.-]+\.(?:m?js|json|html|css)$/.test(f.name) && !f.name.startsWith('dev/') && f.name !== 'package.json' && f.name !== 'package-lock.json');
   if (!list.length) throw new Error('в репозитории нет файлов программы');
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
   const backup = path.join(dir, 'backup-' + stamp), changed = [];
@@ -23,7 +26,8 @@ export async function updateFromGithub({dir = HERE, log = () => {}} = {}) {
     const buf = Buffer.from(await res.arrayBuffer()), dst = path.join(dir, f.name);
     const old = fs.existsSync(dst) ? fs.readFileSync(dst) : null;
     if (old && old.equals(buf)) continue;
-    if (old) { fs.mkdirSync(backup, {recursive: true}); fs.copyFileSync(dst, path.join(backup, f.name)); }
+    if (old) { fs.mkdirSync(path.dirname(path.join(backup, f.name)), {recursive: true}); fs.copyFileSync(dst, path.join(backup, f.name)); }
+    fs.mkdirSync(path.dirname(dst), {recursive: true});
     fs.writeFileSync(dst + '.new', buf);
     fs.renameSync(dst + '.new', dst);
     changed.push(f.name);

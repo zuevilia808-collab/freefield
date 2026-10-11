@@ -929,7 +929,11 @@ function renderMtEdit() {
     ${gone ? `<div class="mt-fl mt-gone">${gone} ${plur(gone, 'клип удалён', 'клипа удалены', 'клипов удалены')} из галереи <button class="btn small" data-mt-gone>Убрать</button></div>` : ''}
     <div class="block-head"><span class="lbl">Кадр</span></div>
     ${seg('aspect', MT_ASPECT, p.aspect || 'auto')}
-    <div class="mt-row2">${seg('fit', [['cover', 'Заполнить'], ['contain', 'Целиком']], p.fit || 'cover')}<label class="mt-chk"><input type="checkbox" data-mt-audio ${p.audio ? 'checked' : ''}> Звук клипов</label></div>`;
+    <div class="mt-row2">${seg('fit', [['cover', 'Заполнить'], ['contain', 'Целиком']], p.fit || 'cover')}<label class="mt-chk"><input type="checkbox" data-mt-audio ${p.audio ? 'checked' : ''}> Звук клипов</label></div>
+    <div class="block-head"><span class="lbl">Рендер на компьютере</span></div>
+    <div class="mt-fl"><button class="btn small" data-mt-pc="final" ${mt.pcBusy ? 'disabled' : ''} title="Программа Freefield на компьютере соберёт ролик 1080p (видеокарта, громкость −14 LUFS) — работает и с телефона">🖥 Отрендерить на компьютере</button>
+      <button class="btn small" data-mt-pc="draft" ${mt.pcBusy ? 'disabled' : ''} title="Быстрый черновик 540p — проверить монтаж">Черновик 540p</button></div>
+    <div class="mt-fl"><span class="mt-note" id="mtPcNote">${mt.pcBusy ? '⏳ готовлю…' : ''}</span></div>`;
 }
 // после правки: длины, таймлайн, просмотр, свойства
 function mtRefresh() {
@@ -967,6 +971,7 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtDup' in d) return mtDup();
   if ('mtDelSel' in d) return mtDelSel();
   if ('mtGone' in d) { p.clips = p.clips.filter(c => mtItem(c)); mt.save(); return mtRefresh(); }
+  if (d.mtPc) return mtPcRender(d.mtPc);
   // голос клипа
   if ('mtSep' in d && o) return mtSep(o);
   if ('mtGsel' in d && o) { mt.sel = {t: 'g', k: o.k}; renderMtEdit(); return mtTl(); }
@@ -1276,6 +1281,70 @@ async function mtExport(p = mt.p) {
     renderMtProg(); updateGenButton();
   }
 }
+/* ---- «🖥 Отрендерить на компьютере» (план монтажа, этап 1): проект → montage.json → программа Freefield на ПК (ffmpeg, видеокарта),
+   готовый ролик — карточкой в галерею. Файлы, которые сделал компьютер, не пересылаются (pcName), остальные — один раз (по содержимому) ---- */
+const mtPcRefs = new Map();   // Blob → {ref}
+async function mtPcSrc(blob, pcName, note) {
+  if (pcName) return {out: pcName};
+  if (mtPcRefs.has(blob)) return mtPcRefs.get(blob);
+  const ext = (blob.type.split('/')[1] || 'bin').replace('quicktime', 'mov').replace('mpeg', 'mp3').replace('x-wav', 'wav').replace(/;.*/, '');
+  note(`отправляю файл на компьютер (${Math.round(blob.size / 1e6)} МБ)…`);
+  const r = await fetch(hubLink.url('/api/montage/file?ext=' + encodeURIComponent(ext)), {method: 'POST', body: blob});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ref) throw new Error(j.error || `компьютер ответил ${r.status}${r.status === 404 ? ' — обновите программу Freefield на компьютере' : ''}`);
+  mtPcRefs.set(blob, {ref: j.ref});
+  return {ref: j.ref};
+}
+// проект приложения → montage.json (формат — pc/mcp/montage/project.js)
+async function mtPcProject(p, note) {
+  const segs = mtSegs(p), [W, H] = mtOutDims(p, segs), warn = [];
+  const video = [];
+  for (const s of segs) {
+    if (s.c.sep || s.c.vox) warn.push('голос клипа с эффектами');
+    // «Плавно» в приложении — наплыв длиной d, его середина = шов montage.json
+    const at = s.inK === 'fade' ? s.start + s.inD / 2 : s.start;
+    video.push({src: await mtPcSrc(s.it.blob, s.it.pcName, note), in: s.a, out: s.b, at, volume: s.c.vol ?? 1, mute: !p.audio || !!s.c.mute,
+      transition: s.inK === 'cut' ? {type: 'cut'} : {type: s.inK, duration: s.inD}});
+  }
+  const photo = [];
+  for (const o of p.photos || []) {
+    const it = items.find(x => x.id === o.id && x.blob);
+    if (it) photo.push({src: await mtPcSrc(it.blob, it.pcName, note), at: o.at || 0, duration: o.dur || 3, pos: o.pos || 'full', scale: o.size ?? 0.6});
+  }
+  const audio = [];
+  for (const a of p.audios || []) {
+    const got = await mtAudGet(a.src);
+    if (!got?.blob) continue;
+    if (a.fx && !vfxIsDef(a.fx)) warn.push('эффекты голоса озвучки');
+    audio.push({src: await mtPcSrc(got.blob, null, note), in: a.a || 0, out: a.b ?? null, at: a.at || 0, volume: a.vol ?? 1,
+      fade_in: a.fadeIn || 0, fade_out: a.fadeOut || 0, role: a.voice ? 'voice' : 'music', duck: true});
+  }
+  return {warn: [...new Set(warn)], project: {format: 'freefield-montage', version: 1, name: p.name, fps: 30, fit: p.fit || 'cover',
+    aspect: p.aspect && p.aspect !== 'auto' ? p.aspect : W > H * 1.2 ? '16:9' : W > H * 0.9 ? '1:1' : '9:16',
+    tracks: {video, audio, photo, text: (p.titles || []).map(t => ({text: t.text, at: t.at || 0, duration: t.dur || 3, pos: t.pos || 'bottom'})), gfx: []},
+    audio_mix: {loudness: -14, speech: !!p.audio}}};
+}
+async function mtPcRender(quality) {
+  const p = mtProj();
+  if (!mtSegs(p).length) { toast('Добавьте видео из галереи', {type: 'err'}); return mtOpenPick(); }
+  if (mt.pcBusy) return;
+  mt.pcBusy = true; renderMtEdit();
+  const note = t => { const el = $('#mtPcNote'); if (el) el.textContent = '⏳ ' + t; };
+  try {
+    if (!(await hubReady())) return toast('Нужна программа Freefield на компьютере: откройте Freefield с компьютера или по QR-коду', {type: 'err', ms: 8000});
+    const {project, warn} = await mtPcProject(p, note);
+    if (peek.on) return peekShow('Монтаж на компьютере', {request: {куда: 'программа на компьютере: POST /api/montage', quality, project}});
+    note('отправляю проект…');
+    const r = await fetch(hubLink.url('/api/montage'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({project, quality})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id) throw new Error(j.error || `компьютер ответил ${r.status}${r.status === 404 ? ' — обновите программу Freefield на компьютере' : ''}`);
+    toast(`🖥 ${quality === 'draft' ? 'Черновик' : 'Ролик'} рендерится на компьютере — карточка в галерее покажет ход${warn.length ? `. Без: ${warn.join(', ')} (это — только в «Склеить» здесь)` : ''}`, {type: 'ok', ms: 8000});
+    if (isMobile()) setView('gallery');
+    hubLink.refresh();
+  } catch (e) { toast('Не получилось отправить: ' + e.message, {type: 'err', ms: 9000}); }
+  finally { mt.pcBusy = false; renderMtEdit(); }
+}
+
 // большая кнопка «🎞 Склеить видео» → готовый ролик в галерею
 async function mtGo() {
   const p = mtProj();

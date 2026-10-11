@@ -1,5 +1,5 @@
 // Моушн-графика монтажа: HTML-страница с покадровой анимацией (бесплатно, без Remotion).
-// montage.js открывает её в Chrome без окна, для каждого кадра зовёт FRAME(t) и снимает прозрачный PNG → ffmpeg кладёт поверх видео.
+// render.js открывает её в Chrome без окна, для каждого кадра зовёт FRAME(t) и снимает прозрачный PNG → ffmpeg кладёт поверх видео.
 // FRAME(t) — чистая функция времени: тот же t → тот же кадр; возвращает «ключ» кадра — одинаковые кадры не снимаются дважды.
 // Стили: titles (титры), cards (карточки), launch (запуск продукта), none; субтитры по словам — во всех.
 export const STYLES = {
@@ -37,6 +37,7 @@ html,body{margin:0;background:transparent;overflow:hidden}
 .grid{left:-50%;width:200%;transform-origin:50% 0;
    background-image:linear-gradient(rgba(212,255,58,.85) 2px,transparent 2px),linear-gradient(90deg,rgba(212,255,58,.85) 2px,transparent 2px)}
 .flash{left:0;top:0;width:100%;height:100%;background:#fff}
+.ptext{left:7%;right:7%;text-align:center;font-family:var(--font);font-weight:800;color:#fff;line-height:1.2;white-space:pre-line;paint-order:stroke fill;-webkit-text-stroke:.16em rgba(0,0,0,.85)}
 </style></head><body><div id="stage"></div>
 <script>
 const $ = (cls, html = '') => { const e = document.createElement('div'); e.className = 'abs ' + cls; e.innerHTML = html; S.appendChild(e); return e; };
@@ -48,9 +49,12 @@ const back = x => { const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c *
 let S, C, W, H, U, KEY = [];
 // одна запись стиля = часть ключа кадра
 function st(el, o) { for (const k in o) { const v = typeof o[k] === 'number' ? +o[k].toFixed(3) : o[k]; KEY.push(v); el.style[k] = v; } }
-const show = (el, op, tf) => st(el, {opacity: op, transform: tf || 'none', visibility: op > 0.002 ? 'visible' : 'hidden'});
+// невидимый элемент не двигаем: его позиция не должна делать кадры «разными» (одинаковые кадры не снимаются заново)
+const show = (el, op, tf) => op > 0.002 ? st(el, {opacity: op, transform: tf || 'none', visibility: 'visible'}) : st(el, {opacity: 0, visibility: 'hidden'});
 const lastBeat = t => { let b = -9; for (const x of C.beats) { if (x <= t + 1e-4) b = x; else break; } return b; };
-const pulse = (t, k = 9) => Math.exp(-Math.max(0, t - lastBeat(t)) * k);
+// затухание после удара; через 0,35 с — ровно 0, чтобы кадры между ударами были одинаковыми (их не снимаем заново)
+const decay = (dt, k) => dt < 0 || dt > 0.35 ? 0 : Math.exp(-dt * k);
+const pulse = (t, k = 9) => decay(t - lastBeat(t), k);
 const beatAfter = t => C.beats.find(x => x >= t) ?? t;
 const parts = [];
 
@@ -112,7 +116,7 @@ window.SETUP = cfg => {
         show(name, n * (1 - out), 'translateY(' + (-out * U * 10) + 'px)');
         st(name, {letterSpacing: (0.55 * (1 - n) - 0.025) + 'em', filter: 'blur(' + (1 - n) * 10 + 'px)'});
         if (sub) show(sub, eo(P(t, b1 + 0.6, b1 + 1.1)) * (1 - out), 'translateY(' + ((1 - eo(P(t, b1 + 0.6, b1 + 1.1))) * U * 4 - out * U * 10) + 'px)');
-        show(flash, 0.85 * Math.exp(-Math.max(0, t - b1) * 14) * (t >= b1 ? 1 : 0));
+        show(flash, 0.85 * decay(t - b1, 14));
       });
     } else {
       const ttl = $('title', esc(cfg.title).split(/\s+/).map(w => '<span class="tw">' + w + '</span>').join(' '));
@@ -161,13 +165,25 @@ window.SETUP = cfg => {
         let y = H * 0.13;
         chips.forEach((el, i) => {
           const q = back(P(t, at[i], at[i] + 0.35));
-          const hit = Math.exp(-Math.max(0, t - at[i]) * 10) * (t >= at[i] ? 1 : 0);
+          const hit = decay(t - at[i], 10);
           show(el, t >= at[i] ? (1 - out) : 0, 'translate(' + (U * 6) + 'px,' + y + 'px) scale(' + (q * (1 + 0.08 * hit)) + ')');
           st(el, {transformOrigin: '0 50%'});
           y += el.offsetHeight + U * 2.4;
         });
       });
     }
+  }
+
+  // ---- простые титры (дорожка text проекта): белые с обводкой, появляются и гаснут за 0,3 с ----
+  for (const x of cfg.texts || []) {
+    const el = $('ptext', esc(x.text));
+    el.style.fontSize = (U * 6.2) + 'px';
+    parts.push(t => {
+      const u = t - x.at, v = x.at + x.duration - t;
+      const h = el.offsetHeight, top = x.pos === 'top' ? H * 0.12 : x.pos === 'center' ? (H - h) / 2 : H * 0.8 - h;
+      st(el, {top: top + 'px'});
+      show(el, u < 0 || v <= 0 ? 0 : Math.min(1, u / 0.3, v / 0.3));
+    });
   }
 
   // ---- субтитры по словам ----

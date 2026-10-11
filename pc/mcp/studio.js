@@ -309,6 +309,50 @@ export const hubApi = {
     })();
     return {id: b.id};
   },
+  // «Отрендерить на компьютере» (монтаж из приложения): файл из браузера → outputs/montage-src/mf-<sha1>.<ext> (одинаковые не дублируются)
+  montageFile: async (stream, ext) => {
+    const dir = path.join(OUT, 'montage-src');
+    fs.mkdirSync(dir, {recursive: true});
+    const tmp = path.join(dir, `up-${crypto.randomBytes(6).toString('hex')}.part`);
+    const h = crypto.createHash('sha1'), out = fs.createWriteStream(tmp);
+    let size = 0;
+    try {
+      for await (const chunk of stream) {
+        size += chunk.length;
+        if (size > 600e6) throw Object.assign(new Error('файл больше 600 МБ'), {code: 413});
+        h.update(chunk);
+        if (!out.write(chunk)) await new Promise(r => out.once('drain', r));
+      }
+      await new Promise((r, j) => out.end(e => e ? j(e) : r()));
+      if (size < 100) throw new Error('пустой файл');
+      const ref = `mf-${h.digest('hex')}.${ext === 'jpeg' ? 'jpg' : ext}`, dst = path.join(dir, ref);
+      if (fs.existsSync(dst)) fs.rmSync(tmp, {force: true}); else fs.renameSync(tmp, dst);
+      return {ref};
+    } catch (e) { out.destroy(); fs.rmSync(tmp, {force: true}); throw e; }
+  },
+  // проект montage.json → рендер на этом компьютере; как пакет: приложение показывает живую карточку, готовый ролик забирает в галерею
+  montageStart: async ({project, quality}) => {
+    const M = await import('./montage.js');
+    const P = M.normalize(project);
+    if (!P.tracks.video.length) throw new Error('в проекте нет видео');
+    const q = quality === 'draft' ? 'draft' : 'final';
+    const it = {n: 1, prompt: `монтаж: ${P.name}`, kind: 'video', site: 'montage', siteLabel: q === 'draft' ? 'монтаж · черновик 540p' : 'монтаж на компьютере',
+      status: 'running', message: 'в очереди', note: '', aspect: P.aspect, files: []};
+    const b = {id: `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'phone', created: Date.now(), done: false, pid: process.pid, items: [it]};
+    batches.set(b.id, b);
+    persistBatches();
+    (async () => {
+      try {
+        const r = await M.renderProject(P, {outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), uploadDir: path.join(OUT, 'montage-src'), quality: q,
+          onStatus: m => { it.message = m; persistBatches(); }});
+        Object.assign(it, {status: 'done', message: '', model: `${r.width}×${r.height} · ${r.encoder === 'h264_nvenc' ? 'видеокарта' : 'процессор'}`,
+          note: [`${r.duration} с`, r.lufs != null && `${r.lufs} LUFS`, `${r.seconds} с рендера`].filter(Boolean).join(' · '), files: [{path: r.path, mime: r.mime}]});
+      } catch (e) { Object.assign(it, {status: 'error', message: e.message}); }
+      b.done = true;
+      persistBatches();
+    })();
+    return {id: b.id};
+  },
   // файл галереи, который сделал этот компьютер (по имени) — чтобы не пересылать его обратно и чтобы Flow мог его увеличить
   findOutput: name => {
     if (!/^[\w.\-]+$/.test(name || '')) return null;

@@ -240,6 +240,17 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
           return fs.createReadStream(file).pipe(res);
         }
+        // «Отрендерить на компьютере»: файл для проекта монтажа (видео, звук, фото из браузера) → {ref}; сам проект montage.json → задание
+        if (url.pathname === '/api/montage/file' && req.method === 'POST' && api.montageFile) {
+          const ext = String(url.searchParams.get('ext') || 'bin').toLowerCase();
+          if (!/^(mp4|mov|webm|m4v|mkv|mp3|wav|m4a|aac|ogg|opus|png|jpg|jpeg|webp)$/.test(ext)) return send(400, {error: 'такой файл монтаж не берёт'});
+          try { return send(200, await api.montageFile(req, ext)); } catch (e) { return send(e.code === 413 ? 413 : 400, {error: e.message}); }
+        }
+        if (url.pathname === '/api/montage' && req.method === 'POST' && api.montageStart) {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 8e6) return send(413, {error: 'проект слишком большой'}); }
+          try { return send(200, await api.montageStart(JSON.parse(body || '{}'))); } catch (e) { return send(400, {error: e.message}); }
+        }
         if (url.pathname === '/api/outputs' && req.method === 'GET') return send(200, await api.outputs());
         if (url.pathname === '/api/sync' && req.method === 'POST') return send(200, await api.sync());
         const m = url.pathname.match(/^\/api\/file\/([\w-]+)\/(\d+)\/(\d+)$/);
