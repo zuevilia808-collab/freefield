@@ -13,6 +13,7 @@ if (-not $dir) { Write-Host 'Не нашёл папку Freefield\mcp на ра�
 Write-Host "Freefield: $dir"
 # всё дерево одним запросом: pc/mcp/*.js и подпапки модулей (montage/, montage/templates/…), кроме dev/
 $tree = Invoke-RestMethod "https://api.github.com/repos/$repo/git/trees/main?recursive=1" -Headers @{ 'User-Agent' = 'freefield-update' }
+if ($tree.truncated) { Write-Host 'GitHub прислал неполный список файлов — обновление остановлено, попробуйте позже.' -ForegroundColor Red; return }
 $bak = Join-Path $dir ('backup-' + (Get-Date -Format 'yyyy-MM-dd-HH-mm'))
 $n = 0
 foreach ($f in $tree.tree) {

@@ -1287,7 +1287,11 @@ const mtPcRefs = new Map();   // Blob → {ref}
 async function mtPcSrc(blob, pcName, note) {
   if (pcName) return {out: pcName};
   if (mtPcRefs.has(blob)) return mtPcRefs.get(blob);
-  const ext = (blob.type.split('/')[1] || 'bin').replace('quicktime', 'mov').replace('mpeg', 'mp3').replace('x-wav', 'wav').replace(/;.*/, '');
+  // тип файла → расширение; не узнали (пустой тип) — bin: программа узнает формат по содержимому
+  const MIME = {'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'video/x-matroska': 'mkv', 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3',
+    'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/vnd.wave': 'wav', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a',
+    'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/opus': 'opus', 'audio/flac': 'flac', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp'};
+  const ext = MIME[blob.type.split(';')[0].trim().toLowerCase()] || (/\.(\w{2,4})$/.exec(blob.name || '')?.[1].toLowerCase()) || 'bin';
   note(`отправляю файл на компьютер (${Math.round(blob.size / 1e6)} МБ)…`);
   const r = await fetch(hubLink.url('/api/montage/file?ext=' + encodeURIComponent(ext)), {method: 'POST', body: blob});
   const j = await r.json().catch(() => ({}));
@@ -1301,9 +1305,10 @@ async function mtPcProject(p, note) {
   const video = [];
   for (const s of segs) {
     if (s.c.sep || s.c.vox) warn.push('голос клипа с эффектами');
-    // «Плавно» в приложении — наплыв длиной d, его середина = шов montage.json
-    const at = s.inK === 'fade' ? s.start + s.inD / 2 : s.start;
-    video.push({src: await mtPcSrc(s.it.blob, s.it.pcName, note), in: s.a, out: s.b, at, volume: s.c.vol ?? 1, mute: !p.audio || !!s.c.mute,
+    // «Плавно» в приложении — наплыв длиной d: клип начинается за d до стыка. В montage.json шов — середина наплыва, а запас d/2 до шва
+    // берётся из файла, поэтому кадр s.a должен стоять на s.start: in сдвигаем на d/2 (иначе всё после наплыва уезжало бы на d/2)
+    const half = s.inK === 'fade' ? s.inD / 2 : 0;
+    video.push({src: await mtPcSrc(s.it.blob, s.it.pcName, note), in: s.a + half, out: s.b, at: s.start + half, volume: s.c.vol ?? 1, mute: !p.audio || !!s.c.mute,
       transition: s.inK === 'cut' ? {type: 'cut'} : {type: s.inK, duration: s.inD}});
   }
   const photo = [];

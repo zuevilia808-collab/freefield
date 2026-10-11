@@ -14,7 +14,9 @@ export async function updateFromGithub({dir = HERE, log = () => {}} = {}) {
   // всё дерево одним запросом: pc/mcp/*.js и подпапки модулей (montage/, montage/templates/…), кроме dev/
   const r = await fetch(`https://api.github.com/repos/${REPO}/git/trees/main?recursive=1`, {headers: {'User-Agent': 'freefield-update', Accept: 'application/vnd.github+json'}});
   if (!r.ok) throw new Error(r.status === 403 ? 'GitHub временно не отвечает (лимит запросов) — попробуйте через час' : `GitHub ответил ${r.status}`);
-  const list = ((await r.json()).tree || []).filter(f => f.type === 'blob' && f.path.startsWith('pc/mcp/'))
+  const tree = await r.json();
+  if (tree.truncated) throw new Error('GitHub прислал неполный список файлов — обновите вручную (pc/update.ps1)');
+  const list = (tree.tree || []).filter(f => f.type === 'blob' && f.path.startsWith('pc/mcp/'))
     .map(f => ({name: f.path.slice('pc/mcp/'.length)}))
     .filter(f => /^(?:[\w-]+\/)*[\w.-]+\.(?:m?js|json|html|css)$/.test(f.name) && !f.name.startsWith('dev/') && f.name !== 'package.json' && f.name !== 'package-lock.json');
   if (!list.length) throw new Error('в репозитории нет файлов программы');

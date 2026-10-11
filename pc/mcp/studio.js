@@ -328,7 +328,12 @@ export const hubApi = {
       const ref = `mf-${h.digest('hex')}.${ext === 'jpeg' ? 'jpg' : ext}`, dst = path.join(dir, ref);
       if (fs.existsSync(dst)) fs.rmSync(tmp, {force: true}); else fs.renameSync(tmp, dst);
       return {ref};
-    } catch (e) { out.destroy(); fs.rmSync(tmp, {force: true}); throw e; }
+    } catch (e) {
+      // файл удаляем, когда поток его закрыл (на Windows открытый файл не удалить), и не теряем исходную ошибку
+      await new Promise(r => { out.once('close', r); out.destroy(); });
+      try { fs.rmSync(tmp, {force: true}); } catch { /* уберёт следующая загрузка */ }
+      throw e;
+    }
   },
   // проект montage.json → рендер на этом компьютере; как пакет: приложение показывает живую карточку, готовый ролик забирает в галерею
   montageStart: async ({project, quality}) => {
@@ -343,7 +348,7 @@ export const hubApi = {
     persistBatches();
     (async () => {
       try {
-        const r = await M.renderProject(P, {outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), uploadDir: path.join(OUT, 'montage-src'), quality: q,
+        const r = await M.renderProject(P, {outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), uploadDir: path.join(OUT, 'montage-src'), quality: q, restrict: true,
           onStatus: m => { it.message = m; persistBatches(); }});
         Object.assign(it, {status: 'done', message: '', model: `${r.width}×${r.height} · ${r.encoder === 'h264_nvenc' ? 'видеокарта' : 'процессор'}`,
           note: [`${r.duration} с`, r.lufs != null && `${r.lufs} LUFS`, `${r.seconds} с рендера`].filter(Boolean).join(' · '), files: [{path: r.path, mime: r.mime}]});

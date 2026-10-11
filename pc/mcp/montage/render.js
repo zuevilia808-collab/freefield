@@ -40,7 +40,7 @@ async function layout(P, ctx) {
     if (!fi.video && !fi.image) throw new Error(`клип ${i + 1} — не видео: ${path.basename(file)}`);
     const srcLen = fi.image ? 3600 : fi.duration;
     const inn = Math.min(c.in, Math.max(0, srcLen - 0.1));
-    const out = Math.min(c.out ?? srcLen, srcLen);
+    const out = Math.min(c.out ?? (fi.image ? inn + 3 : srcLen), srcLen);   // фото без конца — 3 с
     const len = Math.max(0.1, (out - inn) / c.speed);
     const at = c.at ?? cursor;
     segs.push({...c, i, file, fi, in: inn, out, len, at, srcLen});
@@ -53,7 +53,9 @@ async function layout(P, ctx) {
     const prev = lin[lin.length - 1];
     if (prev) {
       const gap = s.at - (prev.at + prev.len);
-      if (gap > 0.04) lin.push({black: true, at: prev.at + prev.len, len: gap, transition: {type: 'cut'}});
+      // маленький зазор перед переходом — не чёрная дыра, а встык (иначе переход молча стал бы склейкой через чёрное)
+      if (gap > 0.04 && gap < 0.35 && s.transition?.type && s.transition.type !== 'cut') s.at = prev.at + prev.len;
+      else if (gap > 0.04) lin.push({black: true, at: prev.at + prev.len, len: gap, transition: {type: 'cut'}});
       else if (gap < -0.04) { prev.len = Math.max(0.1, s.at - prev.at); }
       else s.at = prev.at + prev.len;   // встык
     } else if (s.at > 0.04) lin.push({black: true, at: 0, len: s.at, transition: {type: 'cut'}});

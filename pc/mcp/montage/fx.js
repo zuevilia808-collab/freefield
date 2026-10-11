@@ -17,8 +17,13 @@ export const TRANSITIONS = {
   pixelize: {xfade: 'pixelize', d: 0.3, label: 'Пиксели'},
   // xfade zoomin даёт тёмный пиксельный кадр — не используем; «удар» зумом делает fx.punch
 };
+// переходы ffmpeg xfade, которые можно назвать в проекте напрямую; неизвестное имя — «плавно» (имя уходит в команду ffmpeg)
+export const XFADE = new Set(['fade', 'fadeblack', 'fadewhite', 'fadegrays', 'distance', 'wipeleft', 'wiperight', 'wipeup', 'wipedown', 'slideleft', 'slideright',
+  'slideup', 'slidedown', 'smoothleft', 'smoothright', 'smoothup', 'smoothdown', 'circlecrop', 'rectcrop', 'circleopen', 'circleclose', 'vertopen', 'vertclose',
+  'horzopen', 'horzclose', 'dissolve', 'pixelize', 'radial', 'hblur', 'wipetl', 'wipetr', 'wipebl', 'wipebr', 'squeezeh', 'squeezev', 'hlslice', 'hrslice',
+  'vuslice', 'vdslice', 'hlwind', 'hrwind', 'vuwind', 'vdwind', 'coverleft', 'coverright', 'coverup', 'coverdown', 'revealleft', 'revealright', 'revealup', 'revealdown']);
 export const transitionOf = t => {
-  const def = TRANSITIONS[t?.type] || (t?.type ? {xfade: t.type, d: 0.25} : TRANSITIONS.cut);
+  const def = TRANSITIONS[t?.type] || (XFADE.has(t?.type) ? {xfade: t.type, d: 0.25} : t?.type ? TRANSITIONS.fade : TRANSITIONS.cut);
   return {xfade: def.xfade, d: def.xfade ? Math.max(0.04, t.duration || def.d) : 0};
 };
 // набор для автомонтажа под бит: разные, но предсказуемые

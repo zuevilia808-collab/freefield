@@ -40,9 +40,15 @@ const str = (v, max = 300) => String(v ?? '').slice(0, max);
 const arr = v => Array.isArray(v) ? v : [];
 
 // путь источника: resolve(src) → абсолютный путь или ошибка
-export function sourcePath(src, {outDir, uploadDir}) {
+// restrict — проект пришёл по сети (приложение, телефон): path только внутри outputs, иначе чужой мог бы забрать любой файл компьютера
+export function sourcePath(src, {outDir, uploadDir, restrict = false}) {
   if (!src || typeof src !== 'object') throw new Error('у элемента нет источника (src)');
-  if (src.path) { const p = path.resolve(String(src.path)); if (!fs.existsSync(p)) throw new Error('нет файла: ' + p); return p; }
+  if (src.path) {
+    const p = path.resolve(String(src.path));
+    if (restrict && !p.startsWith(path.resolve(outDir) + path.sep)) throw new Error('по сети можно брать только файлы Freefield (outputs) — ' + path.basename(p));
+    if (!fs.existsSync(p)) throw new Error('нет файла: ' + p);
+    return p;
+  }
   if (src.ref) {
     if (!/^mf-[0-9a-f]{40}\.\w{2,5}$/.test(src.ref)) throw new Error('неверная ссылка на загруженный файл');
     const p = path.join(uploadDir, src.ref);

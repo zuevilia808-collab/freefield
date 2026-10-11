@@ -19,11 +19,12 @@ const slug = s => String(s || 'montage').toLowerCase().replace(/[^a-z0-9а-яё]
 const outName = (dir, title, quality) => path.join(dir, `freefield-montage-${slug(title)}${quality === 'draft' ? '-draft' : ''}-${Date.now().toString(36)}.mp4`);
 
 // готовый проект → mp4 (+ рядом .montage.json, чтобы открыть и поправить)
-export function renderProject(project, {outDir, uploadDir, quality = 'final', onStatus = () => {}}) {
+// restrict — проект пришёл по сети: файлы только из outputs (project.js sourcePath)
+export function renderProject(project, {outDir, uploadDir, quality = 'final', restrict = false, onStatus = () => {}}) {
   return queued(async () => {
     const P = normalize(project);
     const outFile = outName(outDir, P.name, quality);
-    const r = await render(P, {outFile, quality, ctx: {outDir: path.dirname(outDir), uploadDir}, onStatus});
+    const r = await render(P, {outFile, quality, ctx: {outDir: path.dirname(outDir), uploadDir, restrict}, onStatus});
     fs.writeFileSync(outFile.replace(/\.mp4$/, '.montage.json'), JSON.stringify(P, null, 1));
     return {...r, project: outFile.replace(/\.mp4$/, '.montage.json')};
   });

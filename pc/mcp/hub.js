@@ -243,7 +243,8 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
         // «Отрендерить на компьютере»: файл для проекта монтажа (видео, звук, фото из браузера) → {ref}; сам проект montage.json → задание
         if (url.pathname === '/api/montage/file' && req.method === 'POST' && api.montageFile) {
           const ext = String(url.searchParams.get('ext') || 'bin').toLowerCase();
-          if (!/^(mp4|mov|webm|m4v|mkv|mp3|wav|m4a|aac|ogg|opus|png|jpg|jpeg|webp)$/.test(ext)) return send(400, {error: 'такой файл монтаж не берёт'});
+          // bin — браузер не назвал тип файла: ffmpeg узнает его по содержимому
+          if (!/^(mp4|mov|webm|m4v|mkv|mp3|wav|m4a|aac|ogg|oga|opus|flac|png|jpg|jpeg|webp|bin)$/.test(ext)) return send(400, {error: 'такой файл монтаж не берёт'});
           try { return send(200, await api.montageFile(req, ext)); } catch (e) { return send(e.code === 413 ? 413 : 400, {error: e.message}); }
         }
         if (url.pathname === '/api/montage' && req.method === 'POST' && api.montageStart) {
