@@ -40,6 +40,11 @@ export function cameraExpr(fx, {fps, pre, len}) {
   if (fx.drift) z.push(`${fx.drift}*max(0,${ot}-${pre.toFixed(3)})/${Math.max(0.1, len).toFixed(3)}`);
   z.push(...pulses(ot, (fx.punch || []).map(p => pre + p), 11, fx.punch_amount));
   let x = 'iw/2-(iw/zoom/2)', y = 'ih/2-(ih/zoom/2)';
+  // камера следит за действием (демо интерфейса): центр окна — по ключам fx.focus
+  if (fx.focus?.length) {
+    x = `clip(iw*(${keyAxis(fx.focus, 1, ot, pre)})-iw/zoom/2,0,iw-iw/zoom)`;
+    y = `clip(ih*(${keyAxis(fx.focus, 2, ot, pre)})-ih/zoom/2,0,ih-ih/zoom)`;
+  }
   if (fx.shake?.amount) {
     // тряска: на ударах (затухает) или всё время; запас под неё — небольшой зум
     const a = fx.shake.amount * 0.035;
@@ -53,19 +58,19 @@ export function cameraExpr(fx, {fps, pre, len}) {
 export const hasCamera = fx => !!(fx.drift || fx.punch?.length || (fx.zoom || 1) > 1 || fx.shake?.amount);
 
 // кадрирование: центр окна по ключам [[t, x, y]] → выражения crop x и y (t потока = t ключа + shift)
+// значение ключей [[t, x, y]] (столбец j) во времени tv — ломаная по ключам
+function keyAxis(keys, j, tv, shift) {
+  const k = keys.map(r => [r[0] + shift, r[j] ?? 0.5]);
+  let e = k[k.length - 1][1].toFixed(3);
+  for (let i = k.length - 2; i >= 0; i--) {
+    const [t0, v0] = k[i], [t1, v1] = k[i + 1];
+    e = `if(lt(${tv},${t1.toFixed(3)}),${v0.toFixed(3)}+(${(v1 - v0).toFixed(3)})*(${tv}-${t0.toFixed(3)})/${Math.max(0.01, t1 - t0).toFixed(3)},${e})`;
+  }
+  return k[0][0] > 0 ? `if(lt(${tv},${k[0][0].toFixed(3)}),${k[0][1].toFixed(3)},${e})` : e;
+}
 export function reframeXY(keys, shift) {
   if (!keys?.length) return {x: '(iw-ow)/2', y: '(ih-oh)/2'};
-  const k = keys.map(([t, x, y]) => [t + shift, x, y ?? 0.5]);
-  const axis = (j, full, win) => {
-    let e = k[k.length - 1][j].toFixed(3);
-    for (let i = k.length - 2; i >= 0; i--) {
-      const t0 = k[i][0], t1 = k[i + 1][0], v0 = k[i][j], v1 = k[i + 1][j];
-      e = `if(lt(t,${t1.toFixed(3)}),${v0.toFixed(3)}+(${(v1 - v0).toFixed(3)})*(t-${t0.toFixed(3)})/${Math.max(0.01, t1 - t0).toFixed(3)},${e})`;
-    }
-    if (k[0][0] > 0) e = `if(lt(t,${k[0][0].toFixed(3)}),${k[0][j].toFixed(3)},${e})`;
-    return `clip(${full}*(${e})-${win}/2,0,${full}-${win})`;
-  };
-  return {x: axis(1, 'iw', 'ow'), y: axis(2, 'ih', 'oh')};
+  return {x: `clip(iw*(${keyAxis(keys, 1, 't', shift)})-ow/2,0,iw-ow)`, y: `clip(ih*(${keyAxis(keys, 2, 't', shift)})-oh/2,0,ih-oh)`};
 }
 
 /* ---------- этап 3: эффекты клипа (fx в montage.json) ---------- */

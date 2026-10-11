@@ -169,19 +169,34 @@ export function toProject(clips, beat, opts) {
     for (const [j, p] of s.parts.entries()) {
       const len = j === s.parts.length - 1 ? s.t1 - at : p.len;
       // «удары» на сильных долях внутри куска (и в начале сегмента) — секунды от начала куска
-      const punch = P.beats.filter((b, i) => i % 4 === 0 && b >= at - 1e-3 && b < at + len).map(b => +(b - at).toFixed(3));
+      let punch = P.beats.filter((b, i) => i % 4 === 0 && b >= at - 1e-3 && b < at + len).map(b => +(b - at).toFixed(3));
       if (!j && !punch.includes(0)) punch.unshift(0);
-      video.push({src: {path: c.file}, in: +p.from.toFixed(3), out: +(p.from + len).toFixed(3), at: +at.toFixed(3), speed: 1, volume: 1,
+      // «говорящая голова»: удары на ключевых словах (длинных, не чаще раза в 1,2 с) вместо долей
+      if (R.keyword_punch && c.words?.length) {
+        punch = [];
+        for (const w of c.words) {
+          const tt = w.start - p.from;
+          if (tt < 0.1 || tt >= len - 0.2 || w.text.replace(/[^\p{L}]/gu, '').length < 7 || FILLER.test(w.text)) continue;
+          if (!punch.length || tt - punch[punch.length - 1] > 1.2) punch.push(+tt.toFixed(3));
+        }
+      }
+      // speed ramp по долям длины куска; ускорение в начале (at = 0) — скорость самого клипа
+      const ramp = R.ramp && len >= 1.2 ? R.ramp.map(k => ({at: +(k.at * len).toFixed(3), speed: k.speed})) : null;
+      const speed0 = ramp?.find(k => k.at === 0)?.speed ?? 1;
+      // запись экрана: камера приближена и едет за действием (центр — по движению в кадре)
+      const focus = R.focus ? reframeKeys(c, p.from, len) : null;
+      video.push({src: {path: c.file}, in: +p.from.toFixed(3), out: +(p.from + len * speed0).toFixed(3), at: +at.toFixed(3), speed: speed0, volume: 1,
         transition: j ? {type: 'cut'} : {type: tr, duration: (TRANSITIONS[tr] || TRANSITIONS.fade).d},
         fx: {punch, punch_amount: R.punch_amount ?? 0.07, drift: R.drift ?? 0.05, ...(j % 2 ? {zoom: 1.1} : {}),   // прыжок после вырезанной паузы — с лёгким зумом
-          ...(reframe ? {reframe: reframeKeys(c, p.from, len)} : {}), ...(R.fx || {})}});
+          ...(reframe ? {reframe: reframeKeys(c, p.from, len)} : {}), ...(R.fx || {}),
+          ...(ramp ? {ramp: ramp.filter(k => k.at > 0)} : {}), ...(focus ? {focus, zoom: R.focus.zoom || 1.5} : {})}});
       pieceMap.push({at, in: p.from, len, speed: 1, words: (c.words || []).filter(w => !FILLER.test(w.text))});
       at += len;
     }
   }
   const speech = clips.some(c => c.speech);
   const words = opts.captions === false ? [] : wordsOnTimeline(pieceMap);
-  const style = ['titles', 'cards', 'launch'].includes(opts.style) ? opts.style : R.gfx || null;
+  const style = ['titles', 'cards', 'launch'].includes(opts.style) ? opts.style : opts.style === 'none' ? null : R.gfx || null;
   return {
     plan: P,
     project: {
@@ -191,11 +206,14 @@ export function toProject(clips, beat, opts) {
       tracks: {
         video,
         audio: opts.music ? [{src: {path: opts.music}, in: +P.start.toFixed(3), at: 0, volume: 1, fade_in: 0.05, fade_out: 0.6, role: 'music', duck: true}] : [],
-        photo: [], text: [],
+        photo: [],
+        // рилс по формуле: хук-текст первые ~2 с, призыв с текстом в конце
+        text: [...(R.hook && (opts.hook || opts.title) ? [{text: opts.hook || opts.title, at: 0.1, duration: 2.2, pos: 'center', style: 'hook'}] : []),
+          ...(R.cta && opts.cta ? [{text: opts.cta, at: Math.max(0, P.duration - 2.6), duration: 2.5, pos: 'center', style: 'cta'}] : [])],
         gfx: style ? [{template: style, props: {title: opts.title || '', subtitle: opts.subtitle || '', items: opts.items || [], cta: opts.cta || ''}}] : [],
         captions: {style: opts.caption_style || R.captions || 'pop', words},
       },
-      ...(R.look ? {look: R.look} : {}), ...(R.sfx ? {sfx: R.sfx} : {}),
+      ...(opts.look || R.look ? {look: opts.look || R.look} : {}), ...(R.sfx && opts.sfx !== false ? {sfx: R.sfx} : {}), ...(opts.brand ? {brand: opts.brand} : {}),
       // без речи звук клипов тише — главная музыка
       audio_mix: {loudness: -14, speech},
     },

@@ -41,6 +41,8 @@ import path from 'node:path';
 import {fxNorm, lookNorm, sfxNorm} from './fx.js';
 
 export const FORMAT = 'freefield-montage', VERSION = 1;
+// стили субтитров (templates/gfx.js): pop, karaoke, word, box, outline, neon, minimal, typewriter, bounce, gradient
+export const CAPTION_STYLES = ['pop', 'karaoke', 'word', 'box', 'outline', 'neon', 'minimal', 'typewriter', 'bounce', 'gradient'];
 export const ASPECTS = {'9:16': [1080, 1920], '1:1': [1080, 1080], '4:5': [1080, 1350], '16:9': [1920, 1080]};
 const num = (v, d, lo = -Infinity, hi = Infinity) => Number.isFinite(+v) && v !== null && v !== '' ? Math.min(hi, Math.max(lo, +v)) : d;
 const str = (v, max = 300) => String(v ?? '').slice(0, max);
@@ -87,6 +89,8 @@ export function normalize(p) {
         zoom: num(c.fx?.zoom, 1, 1, 2),
         // кадрирование: [[t, x, y]] — центр окна (0…1 ширины / высоты) во времени от начала клипа на шкале
         reframe: arr(c.fx?.reframe).filter(k => Array.isArray(k)).slice(0, 600).map(([t, x, y]) => [num(t, 0, 0), num(x, 0.5, 0, 1), num(y, 0.5, 0, 1)]),
+        // камера следит за действием (zoom > 1): те же ключи [[t, x, y]] — центр приближенного окна
+        focus: arr(c.fx?.focus).filter(k => Array.isArray(k)).slice(0, 600).map(([t, x, y]) => [num(t, 0, 0), num(x, 0.5, 0, 1), num(y, 0.5, 0, 1)]),
         ...fxNorm(c.fx)}};
     return v;
   });
@@ -96,7 +100,7 @@ export function normalize(p) {
   const photo = arr(t.photo).slice(0, 50).map(x => ({src: x.src, at: num(x.at, 0, 0), duration: num(x.duration, 3, 0.1, 600),
     pos: ['full', 'center', 'tl', 'tr', 'bl', 'br'].includes(x.pos) ? x.pos : 'full', scale: num(x.scale, 0.4, 0.05, 1)}));
   const text = arr(t.text).slice(0, 100).map(x => ({text: str(x.text, 400), at: num(x.at, 0, 0), duration: num(x.duration, 3, 0.1, 600),
-    pos: ['top', 'center', 'bottom'].includes(x.pos) ? x.pos : 'bottom'})).filter(x => x.text.trim());
+    pos: ['top', 'center', 'bottom'].includes(x.pos) ? x.pos : 'bottom', style: ['plain', 'hook', 'cta'].includes(x.style) ? x.style : 'plain'})).filter(x => x.text.trim());
   const gfx = arr(t.gfx).slice(0, 5).map(g => ({template: str(g.template, 30), props: {title: str(g.props?.title, 80), subtitle: str(g.props?.subtitle, 120),
     items: arr(g.props?.items).map(s => str(s, 60)).filter(Boolean).slice(0, 5), cta: str(g.props?.cta, 40)}}));
   const words = arr(t.captions?.words).slice(0, 3000).map(w => ({text: str(w.text, 40), start: num(w.start, 0, 0), end: num(w.end, 0, 0)})).filter(w => w.text);
@@ -106,7 +110,10 @@ export function normalize(p) {
     duration: p.duration == null ? null : num(p.duration, null, 0.5, 600),
     music: p.music ? {bpm: num(p.music.bpm, null), beats: arr(p.music.beats).map(Number).filter(Number.isFinite).slice(0, 4000),
       drop: p.music.drop == null ? null : num(p.music.drop, null, 0)} : null,
-    tracks: {video, audio, photo, text, gfx, captions: {style: str(t.captions?.style || 'pop', 20), words}},
+    tracks: {video, audio, photo, text, gfx, captions: {style: CAPTION_STYLES.includes(t.captions?.style) ? t.captions.style : 'pop', words}},
+    // бренд-набор: акцентный цвет (#rrggbb), шрифт заголовков (Google Fonts), логотип в углу
+    brand: p.brand ? {accent: /^#[0-9a-f]{6}$/i.test(p.brand.accent || '') ? p.brand.accent : null, font: /^[A-Za-z0-9 ]{2,40}$/.test(p.brand.font || '') ? p.brand.font : null,
+      logo: p.brand.logo || null, logo_pos: ['tl', 'tr', 'bl', 'br'].includes(p.brand.logo_pos) ? p.brand.logo_pos : 'tl'} : null,
     look: lookNorm(p.look), sfx: sfxNorm(p.sfx),   // этап 3: цвет всего ролика, звуковые удары (fx.js)
     audio_mix: {loudness: num(p.audio_mix?.loudness, -14, -30, -6), speech: !!p.audio_mix?.speech},
   };

@@ -9,12 +9,14 @@ export const STYLES = {
   none: 'Без графики — только субтитры',
 };
 
-export const gfxHtml = () => String.raw`<!doctype html>
+// бренд-набор: свой шрифт заголовков (Google Fonts, с кириллицей) — подключается ссылкой; цвет — в SETUP
+const famOk = f => /^[A-Za-z0-9 ]{2,40}$/.test(f || '');
+export const gfxHtml = (brand = {}) => String.raw`<!doctype html>
 <html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Onest:wght@500;600;800&family=Unbounded:wght@600;800;900&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@500;600;800&family=Unbounded:wght@600;800;900${famOk(brand.font) ? '&family=' + brand.font.replace(/ /g, '+') + ':wght@600;800;900' : ''}&display=block" rel="stylesheet">
 <style>
-:root{--lime:#d4ff3a;--ink:#0b0d08;--display:'Unbounded',system-ui,sans-serif;--font:'Onest',system-ui,sans-serif}
+:root{--lime:#d4ff3a;--ink:#0b0d08;--display:${famOk(brand.font) ? `'${brand.font}',` : ''}'Unbounded',system-ui,sans-serif;--font:'Onest',system-ui,sans-serif}
 html,body{margin:0;background:transparent;overflow:hidden}
 #stage{position:relative;overflow:hidden}
 .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
@@ -27,17 +29,30 @@ html,body{margin:0;background:transparent;overflow:hidden}
 .sub span{display:inline-block;background:rgba(12,14,10,.78);border-radius:.5em;padding:.25em .7em}
 .bar{height:.16em;background:var(--lime);border-radius:99px;transform-origin:0 50%}
 .card{left:6%;width:74%;display:flex;gap:.7em;align-items:center;padding:.8em 1em;border-radius:.9em;background:rgba(12,14,10,.78);
-   border:2px solid rgba(212,255,58,.55);color:#fff;font-family:var(--font);font-weight:600;line-height:1.2;box-shadow:0 .4em 1.6em rgba(0,0,0,.45)}
+   border:2px solid color-mix(in srgb,var(--lime) 55%,transparent);color:#fff;font-family:var(--font);font-weight:600;line-height:1.2;box-shadow:0 .4em 1.6em rgba(0,0,0,.45)}
 .num{flex:none;font-family:var(--display);font-weight:900;color:var(--ink);background:var(--lime);border-radius:.45em;padding:.25em .45em;font-size:.9em}
 .pill{font-family:var(--display);font-weight:800;color:var(--ink);background:var(--lime);border-radius:99px;padding:.32em .9em;letter-spacing:.04em}
 .chip{font-family:var(--font);font-weight:800;color:#fff;background:rgba(12,14,10,.8);border:2px solid var(--lime);border-radius:99px;padding:.45em 1em;white-space:nowrap}
-.cta{font-family:var(--display);font-weight:900;color:var(--ink);background:var(--lime);border-radius:99px;padding:.6em 1.3em;white-space:nowrap;box-shadow:0 0 0 .18em rgba(212,255,58,.25),0 .5em 2em rgba(0,0,0,.5)}
+.cta{font-family:var(--display);font-weight:900;color:var(--ink);background:var(--lime);border-radius:99px;padding:.6em 1.3em;white-space:nowrap;box-shadow:0 0 0 .18em color-mix(in srgb,var(--lime) 25%,transparent),0 .5em 2em rgba(0,0,0,.5)}
 .small{font-family:var(--font);font-weight:600;color:#fff;opacity:.9;text-shadow:0 2px 12px rgba(0,0,0,.7)}
 .shade{left:0;top:0;width:100%;height:100%;background:linear-gradient(180deg,rgba(0,0,0,.0) 25%,rgba(0,0,0,.62) 100%)}
 .grid{left:-50%;width:200%;transform-origin:50% 0;
-   background-image:linear-gradient(rgba(212,255,58,.85) 2px,transparent 2px),linear-gradient(90deg,rgba(212,255,58,.85) 2px,transparent 2px)}
+   background-image:linear-gradient(color-mix(in srgb,var(--lime) 85%,transparent) 2px,transparent 2px),linear-gradient(90deg,color-mix(in srgb,var(--lime) 85%,transparent) 2px,transparent 2px)}
 .flash{left:0;top:0;width:100%;height:100%;background:#fff}
 .ptext{left:7%;right:7%;text-align:center;font-family:var(--font);font-weight:800;color:#fff;line-height:1.2;white-space:pre-line;paint-order:stroke fill;-webkit-text-stroke:.16em rgba(0,0,0,.85)}
+.hook{font-family:var(--display);font-weight:900;-webkit-text-stroke:0;line-height:1.15;transform-origin:50% 50%}
+.hook span{display:inline;background:#fff;color:var(--ink);padding:.12em .35em;border-radius:.25em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.cta-t span{background:var(--lime)}
+.cap-karaoke,.cap-minimal{text-transform:none}
+.cap-karaoke .w{-webkit-text-stroke:.06em #000}
+.cap-box .w{padding:0 .18em;border-radius:.18em;-webkit-text-stroke:.08em #000;text-shadow:0 .05em .2em rgba(0,0,0,.5)}
+.cap-box{text-shadow:none}
+.cap-outline .w{-webkit-text-stroke:.16em #000;text-shadow:none}
+.cap-neon .w{color:var(--lime);-webkit-text-stroke:0}
+.cap-minimal .w{font-family:var(--font);font-weight:600;-webkit-text-stroke:0;text-shadow:none;margin:0 .1em}
+.cap-minimal{background:rgba(10,12,8,.62);border-radius:.6em;padding:.35em .6em;left:12%!important;right:18%!important}
+.cap-word .w{-webkit-text-stroke:.07em #000}
+.w.grad{background:linear-gradient(90deg,var(--lime),#3ad9ff);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-stroke:0}
 </style></head><body><div id="stage"></div>
 <script>
 const $ = (cls, html = '') => { const e = document.createElement('div'); e.className = 'abs ' + cls; e.innerHTML = html; S.appendChild(e); return e; };
@@ -62,6 +77,7 @@ window.SETUP = cfg => {
   C = cfg; W = cfg.W; H = cfg.H; U = Math.min(W, H) / 100;   // U — 1% короткой стороны
   S = document.getElementById('stage');
   Object.assign(S.style, {width: W + 'px', height: H + 'px', fontSize: (U * 4) + 'px'});
+  if (/^#[0-9a-f]{6}$/i.test(cfg.brand?.accent || '')) document.documentElement.style.setProperty('--lime', cfg.brand.accent);
   const T = cfg.duration, style = cfg.style;
   const intro = cfg.title ? (style === 'launch' ? 3.2 : 2.7) : 0;
   const outroAt = T - (style === 'none' ? 0 : 2.6);
@@ -174,33 +190,44 @@ window.SETUP = cfg => {
     }
   }
 
-  // ---- простые титры (дорожка text проекта): белые с обводкой, появляются и гаснут за 0,3 с ----
+  // ---- титры (дорожка text проекта). style: plain — белые с обводкой; hook — крупный хук на плашке (первые секунды рилса);
+  //      cta — призыв на лаймовой плашке, пульсирует в ритм ----
   for (const x of cfg.texts || []) {
-    const el = $('ptext', esc(x.text));
-    el.style.fontSize = (U * 6.2) + 'px';
+    const kind = x.style || 'plain';
+    const el = $(kind === 'plain' ? 'ptext' : 'ptext hook' + (kind === 'cta' ? ' cta-t' : ''), kind === 'plain' ? esc(x.text) : '<span>' + esc(x.text) + '</span>');
+    el.style.fontSize = (U * (kind === 'plain' ? 6.2 : kind === 'hook' ? 8.2 : 7)) + 'px';
     parts.push(t => {
       const u = t - x.at, v = x.at + x.duration - t;
-      const h = el.offsetHeight, top = x.pos === 'top' ? H * 0.12 : x.pos === 'center' ? (H - h) / 2 : H * 0.8 - h;
+      const h = el.offsetHeight, top = x.pos === 'top' ? H * 0.12 : x.pos === 'center' ? (H - h) / 2 : H * 0.78 - h;
       st(el, {top: top + 'px'});
-      show(el, u < 0 || v <= 0 ? 0 : Math.min(1, u / 0.3, v / 0.3));
+      const op = u < 0 || v <= 0 ? 0 : Math.min(1, u / (kind === 'plain' ? 0.3 : 0.15), v / 0.3);
+      const pop = kind === 'plain' ? 1 : back(P(u, 0, 0.35)) + (kind === 'cta' ? 0.06 * pulse(t, 7) : 0);
+      show(el, op, kind === 'plain' ? 'none' : 'scale(' + pop + ')');
     });
   }
 
-  // ---- субтитры по словам ----
-  const pages = [];
+  // ---- субтитры по словам: 10 стилей (cfg.capStyle) ----
+  // pop — слово выпрыгивает, звучащее — акцентным цветом; karaoke — фраза видна сразу, звучащие слова закрашиваются;
+  // word — одно слово крупно; box — звучащее слово на плашке (как у Хормози); outline — белые с толстой обводкой, без подсветки;
+  // neon — светящиеся; minimal — мелко, обычными буквами, на полупрозрачной плашке; typewriter — буквы печатаются;
+  // bounce — звучащее слово подпрыгивает; gradient — звучащее слово с градиентом
+  const pages = [], cs = CAP_STYLES.includes(cfg.capStyle) ? cfg.capStyle : 'pop';
   if (cfg.captions && cfg.words?.length) {
+    const maxWords = cs === 'word' ? 1 : cs === 'minimal' ? 6 : cs === 'karaoke' ? 5 : 3, maxLen = cs === 'minimal' || cs === 'karaoke' ? 34 : 18;
     let cur = [];
     const flush = () => { if (cur.length) pages.push(cur); cur = []; };
     for (const w of cfg.words) {
       const prev = cur[cur.length - 1];
       const len = cur.reduce((n, x) => n + x.text.length + 1, 0) + w.text.length;
-      if (prev && (w.start - prev.end > 0.45 || len > 18 || cur.length >= 3 || /[.!?…]$/.test(prev.text))) flush();
+      if (prev && (w.start - prev.end > 0.45 || len > maxLen || cur.length >= maxWords || /[.!?…]$/.test(prev.text))) flush();
       cur.push(w);
     }
     flush();
-    const box = $('cap');
+    const box = $('cap cap-' + cs);
     // безопасная зона Reels / TikTok / Shorts: справа колонка кнопок (~14 %), снизу подпись и музыка (~20 %)
-    Object.assign(box.style, {top: (H * (H > W ? 0.66 : 0.72)) + 'px', fontSize: (U * (H > W ? 7.2 : 5.6)) + 'px', ...(H > W ? {left: '7%', right: '15%'} : {})});
+    const fs = cs === 'word' ? 12 : cs === 'minimal' ? 4.6 : cs === 'karaoke' ? 6 : 7.2;
+    Object.assign(box.style, {top: (H * (H > W ? (cs === 'word' ? 0.58 : cs === 'minimal' ? 0.72 : 0.66) : 0.72)) + 'px', fontSize: (U * (H > W ? fs : fs * 0.78)) + 'px',
+      ...(H > W ? {left: '7%', right: '15%'} : {})});
     parts.push(t => {
       // страница: от первого слова до начала следующей (не дольше 0,6 с после последнего слова)
       let pi = -1;
@@ -212,16 +239,24 @@ window.SETUP = cfg => {
       if (pi < 0) { show(box, 0); return; }
       if (box.dataset.p !== String(pi)) { box.dataset.p = pi; box.innerHTML = pages[pi].map(w => '<span class="w">' + esc(w.text) + '</span>').join(' '); }
       KEY.push('p' + pi);
-      show(box, 1);
+      show(box, cs === 'minimal' || cs === 'outline' ? Math.min(1, P(t, pages[pi][0].start - 0.06, pages[pi][0].start + 0.12)) : 1);
       [...box.children].forEach((el, i) => {
         const w = pages[pi][i], q = P(t, w.start - 0.04, w.start + 0.14);
         const nx = pages[pi][i + 1], on = t >= w.start - 0.04 && t < (nx ? nx.start - 0.04 : w.end + 0.35);   // горит одно слово — то, что звучит
-        st(el, {opacity: q > 0 ? 1 : 0.0, transform: 'translateY(' + (1 - eo(q)) * 0.35 + 'em) scale(' + (q > 0 ? (0.55 + 0.45 * back(q)) * (on ? 1.06 : 1) : 0.55) + ')',
-          color: on ? 'var(--lime)' : '#fff'});
+        const said = t >= w.start - 0.04;
+        if (cs === 'pop' || cs === 'word') st(el, {opacity: q > 0 ? 1 : 0, transform: 'translateY(' + (1 - eo(q)) * 0.35 + 'em) scale(' + (q > 0 ? (0.55 + 0.45 * back(q)) * (on && cs === 'pop' ? 1.06 : 1) : 0.55) + ')', color: on && cs === 'pop' ? 'var(--lime)' : '#fff'});
+        else if (cs === 'karaoke') st(el, {color: said ? 'var(--lime)' : 'rgba(255,255,255,.62)'});
+        else if (cs === 'box') st(el, {opacity: q > 0 ? 1 : 0, background: on ? 'var(--lime)' : 'transparent', color: on ? 'var(--ink)' : '#fff', webkitTextStroke: on ? '0' : '.08em #000', textShadow: on ? 'none' : '0 .05em .2em rgba(0,0,0,.5)', transform: 'scale(' + (on ? 1 + 0.06 * back(q) : 1) + ')'});
+        else if (cs === 'outline' || cs === 'minimal') st(el, {opacity: 1});
+        else if (cs === 'neon') st(el, {opacity: q > 0 ? 0.35 + 0.65 * q : 0, textShadow: on ? '0 0 .25em var(--lime),0 0 .6em var(--lime)' : '0 0 .2em color-mix(in srgb,var(--lime) 50%,transparent)'});
+        else if (cs === 'typewriter') { const n = Math.ceil(w.text.length * P(t, w.start - 0.04, Math.min(w.end, w.start + 0.35))); st(el, {opacity: n ? 1 : 0}); if (el.dataset.n !== String(n)) { el.dataset.n = n; el.textContent = w.text.slice(0, n) || ' '; } KEY.push(n); }
+        else if (cs === 'bounce') st(el, {opacity: q > 0 ? 1 : 0, transform: 'translateY(' + (on ? -0.22 * Math.sin(Math.PI * P(t, w.start - 0.04, w.start + 0.26)) : 0) + 'em)', color: on ? 'var(--lime)' : '#fff'});
+        else if (cs === 'gradient') { st(el, {opacity: q > 0 ? 1 : 0}); el.classList.toggle('grad', on); KEY.push(on ? 'g' : ''); }
       });
     });
   }
 };
+const CAP_STYLES = ['pop', 'karaoke', 'word', 'box', 'outline', 'neon', 'minimal', 'typewriter', 'bounce', 'gradient'];
 
 window.FRAME = t => { KEY = []; for (const f of parts) f(t); return KEY.join('|'); };
 window.EMPTY = () => !S || [...S.children].every(e => e.style.visibility === 'hidden');

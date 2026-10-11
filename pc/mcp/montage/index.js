@@ -6,10 +6,12 @@ import path from 'node:path';
 import {info, speech, shots, trackBeats, gridBeats, tools} from './analyze.js';
 import {toProject} from './plan.js';
 import {render} from './render.js';
-import {normalize, ASPECTS} from './project.js';
+import {normalize, ASPECTS, CAPTION_STYLES} from './project.js';
 import {STYLES} from './templates/gfx.js';
+import {RECIPES, recipeList} from './templates/recipes.js';
+import {LOOKS} from './fx.js';
 
-export {STYLES, normalize};
+export {STYLES, normalize, RECIPES, recipeList, CAPTION_STYLES, LOOKS};
 const VIDEO_EXT = /\.(mp4|mov|webm|mkv|m4v)$/i;
 
 let queue = Promise.resolve();
@@ -75,7 +77,10 @@ export function montage(opts) {
     }
     beat ||= gridBeats(120);
     const duration = Math.min(60, Math.max(6, +opts.duration || 20));
-    const {project, plan} = toProject(clips, beat, {...opts, music, aspect, duration, pace: opts.pace || 'auto'});
+    // шаблон (этап 4): рецепт ритма, эффектов, цвета и графики; явные параметры вызова важнее шаблона
+    const recipe = opts.template && RECIPES[opts.template] ? RECIPES[opts.template] : null;
+    if (opts.template && !recipe) warnings.push('нет шаблона ' + opts.template + ' — монтаж без шаблона');
+    const {project, plan} = toProject(clips, beat, {...opts, recipe, music, aspect, duration, pace: opts.pace || 'auto'});
     note(`План: ${plan.segs.length} кусков под бит (${plan.pace}), ${plan.duration.toFixed(1)} с`);
     const used = new Set(plan.segs.map(x => x.clip)), left = clips.filter((_, i) => !used.has(i));
     if (left.length) warnings.push(`не поместились (речь длинная, ролик стал бы больше ${Math.round(Math.max(duration * 1.5, duration + 6))} с): ${left.map(c => path.basename(c.file)).join(', ')}`);

@@ -53,7 +53,8 @@ async function layout(P, ctx) {
         segs.push({...c, i, file, fi, in: p, out: p + take, speed: m.speed, len: t1 - t0, at: at + t0, srcLen,
           transition: j ? {type: 'cut', duration: 0} : c.transition,
           fx: {...c.fx, punch: c.fx.punch.map(shift).filter(x => x >= 0 && x < t1 - t0), freeze: (c.fx.freeze || []).map(shift).filter(x => x >= 0 && x < t1 - t0),
-            reframe: c.fx.reframe?.length ? c.fx.reframe.map(([t, x, y]) => [t - t0, x, y]) : c.fx.reframe}});
+            reframe: c.fx.reframe?.length ? c.fx.reframe.map(([t, x, y]) => [t - t0, x, y]) : c.fx.reframe,
+            focus: c.fx.focus?.length ? c.fx.focus.map(([t, x, y]) => [t - t0, x, y]) : c.fx.focus}});
         p = Math.min(srcLen - 0.04, p + take);
       }
     } else segs.push({...c, i, file, fi, in: inn, out, len, at, srcLen});
@@ -93,7 +94,7 @@ async function renderGfx(dir, cfg, note) {
   const browser = await chromium.launch({executablePath: CHROME, headless: true, args: ['--hide-scrollbars', '--force-device-scale-factor=1']});
   try {
     const page = await browser.newPage({viewport: {width: cfg.W, height: cfg.H}, deviceScaleFactor: 1});
-    await page.setContent(gfxHtml(), {waitUntil: 'load', timeout: 30000}).catch(() => {});
+    await page.setContent(gfxHtml(cfg.brand || {}), {waitUntil: 'load', timeout: 30000}).catch(() => {});
     await page.evaluate(() => Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 6000))]));
     await page.evaluate(c => window.SETUP(c), cfg);
     const n = Math.ceil(cfg.duration * cfg.fps);
@@ -279,7 +280,9 @@ export async function render(project, {outFile, quality = 'final', ctx, onStatus
     // цвет и атмосфера всего ролика (этап 3) — до графики, чтобы титры остались чистыми
     if (P.look && (P.look.preset !== 'none' || P.look.vignette || P.look.grain || P.look.letterbox)) { fc.push(...lookChain(P.look, v, '[looked]')); v = '[looked]'; }
     // фото поверх
-    for (const [k, ph] of P.tracks.photo.entries()) {
+    // логотип бренда — как фото в углу на весь ролик
+    const photos = [...P.tracks.photo, ...(P.brand?.logo ? [{src: P.brand.logo, at: 0, duration: D, pos: P.brand.logo_pos, scale: 0.16}] : [])];
+    for (const [k, ph] of photos.entries()) {
       const i = input('-loop', '1', '-t', ph.duration.toFixed(3), '-i', sourcePath(ph.src, ctx));
       const full = ph.pos === 'full', bw = Math.round(W * (full ? 1 : ph.scale) / 2) * 2, bh = Math.round(H * (full ? 1 : ph.scale) / 2) * 2, m = Math.round(Math.min(W, H) * 0.04);
       const xy = {full: ['0', '0'], center: ['(W-w)/2', '(H-h)/2'], tl: [m, m], tr: [`W-w-${m}`, m], bl: [m, `H-h-${m}`], br: [`W-w-${m}`, `H-h-${m}`]}[ph.pos];
@@ -291,7 +294,8 @@ export async function render(project, {outFile, quality = 'final', ctx, onStatus
     // графика, титры, субтитры
     const g0 = P.tracks.gfx[0];
     const cfg = {W, H, fps, duration: D, style: g0?.template || 'none', title: g0?.props.title || '', subtitle: g0?.props.subtitle || '', items: g0?.props.items || [],
-      cta: g0?.props.cta || '', captions: P.tracks.captions.words.length > 0, words: P.tracks.captions.words, beats: P.music?.beats || [], texts: P.tracks.text};
+      cta: g0?.props.cta || '', captions: P.tracks.captions.words.length > 0, words: P.tracks.captions.words, beats: P.music?.beats || [], texts: P.tracks.text,
+      capStyle: P.tracks.captions.style, brand: P.brand || {}};
     let g = null;
     if (cfg.captions || cfg.texts.length || (cfg.style !== 'none' && (cfg.title || cfg.cta || cfg.items.length))) {
       g = await renderGfx(path.join(work, 'gfx'), cfg, note);
