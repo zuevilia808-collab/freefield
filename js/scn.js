@@ -343,6 +343,8 @@ async function refToScenario(blob) {
   $$('#scnCreate [data-prompt]')[empty >= 0 ? empty : cl.scn.length - 1]?.focus();
 }
 function setCreateMode(m) {
+  // открыли раздел (в т. ч. кнопкой на карточке галереи) — на ПК уходим из «Галереи» в этот раздел
+  if (document.body.classList.contains('pcgal') && typeof setPcGallery === 'function') setPcGallery(false);
   const prev = cl.mode;
   cl.mode = ['scn', 'write', 'chars', '3d', 'edit', 'voice', 'site'].includes(m) ? m : 'one';
   if (prev === 'edit' && cl.mode !== 'edit') mtPause();

@@ -252,6 +252,8 @@ function updateCounts() {
   $('#queueInfo').textContent = n ? `⏳ В работе: ${n}` : 'Ctrl+Enter';
   $('#navBadge').textContent = n;
   $('#navBadge').classList.toggle('hidden', !n);
+  const rb = $('#railBadge');
+  if (rb) { rb.textContent = n; rb.classList.toggle('hidden', !n); }
 }
 function tick() {
   const now = Date.now();

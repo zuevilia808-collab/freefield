@@ -731,6 +731,17 @@ function workMount() {
   place($('#mtWork'), $('#mtSlot'));
 }
 // разделы: на ПК — колонка слева в порядке работы, на телефоне — сетка вверху панели
+// ПК (пользователь 2026-10-15: «нет кнопки галерея слева», «галерея зачем-то показывается в других разделах»):
+// «Галерея» — свой пункт левого меню во весь экран; в остальных разделах галереи справа нет
+function setPcGallery(on) {
+  document.body.classList.toggle('pcgal', !!on);
+  ls.set('freefield.pcgal', !!on);
+  $$('#createMode [data-cm]').forEach(b => b.classList.toggle('on', !on && b.dataset.cm === cl.mode));
+  $('#createMode [data-pcgal]')?.classList.toggle('on', !!on);
+  if (on && cl.mode === 'edit') mtPause();
+  segThumbs.schedule();
+  if (on) requestAnimationFrame(() => { if (colCount() !== lastCols) render(); });
+}
 function railMount() {
   const cm = $('#createMode'), mob = isMobile(), to = mob ? $('.panel-scroll') : $('.layout');
   if (cm.parentElement !== to) to.prepend(cm);

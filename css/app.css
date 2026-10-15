@@ -1437,3 +1437,18 @@ body:not(.dev) .peek-btn,body:not(.dev) .peek-mini,body:not(.dev) [data-up-peek]
 .mt-fl input[type=text]:focus{border-color:var(--free)}
 .mt-fl input[type=color]{width:36px;height:28px;margin-left:4px;padding:2px;background:var(--panel3);border:1px solid var(--line2);border-radius:8px;vertical-align:middle;cursor:pointer}
 .mt-fl label:has(input[type=text]){display:flex;align-items:center;flex:1;min-width:0;gap:4px}
+
+/* ПК: «Галерея» — пункт левого меню во весь экран; в разделах галереи справа нет, раздел шире (пользователь 2026-10-15) */
+#createMode .rail-only{display:none}
+#createMode.rail .rail-only{display:flex;position:relative}
+#createMode.rail [data-pcgal] .nb{position:absolute;top:4px;right:6px;background:var(--lime-grad);color:var(--ink);font-size:10px;font-weight:800;border-radius:99px;padding:1px 6px;min-width:18px}
+#createMode.rail [data-pcgal] .nb.hidden{display:none}
+@media (min-width:901px){
+  body.pcgal .layout{grid-template-columns:84px 1fr}
+  body.pcgal .panel,body.pcgal .work{display:none!important}
+  body.pcgal .feed{display:block!important}
+  body:not(.pcgal) .feed{display:none}
+  body:not(.pcgal):not([data-cm=edit]):not([data-cm=voice]) .layout{grid-template-columns:84px 1fr}
+  body:not(.pcgal):not([data-cm=edit]):not([data-cm=voice]) .panel{border-right:0;align-items:center}
+  body:not(.pcgal):not([data-cm=edit]):not([data-cm=voice]) .panel > *{width:min(100%,880px)}
+}

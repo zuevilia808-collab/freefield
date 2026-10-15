@@ -149,6 +149,7 @@ function drawQR(box, text) {
   setView('create');
   railMount();
   setCreateMode(cl.mode);
+  if (!isMobile() && ls.get('freefield.pcgal', false)) setPcGallery(true);
   renderWallet();
   try {
     await DB.open();

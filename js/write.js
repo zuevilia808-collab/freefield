@@ -1058,7 +1058,11 @@ function bindClaude() {
       cl.save(); renderScn(); updateGenButton();   // у другого сервиса — свои форматы
     }
   });
-  $('#createMode').addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (b) setCreateMode(b.dataset.cm); });
+  $('#createMode').addEventListener('click', e => {
+    if (e.target.closest('[data-pcgal]')) return setPcGallery(true);
+    const b = e.target.closest('[data-cm]');
+    if (b) { if (document.body.classList.contains('pcgal')) setPcGallery(false); setCreateMode(b.dataset.cm); }
+  });
   const onClick = e => {
     const b = e.target.closest('button');
     if (!b) return;
