@@ -58,6 +58,8 @@ function mtProHTML(p) {
     <div class="mt-fl"><button class="btn small" data-mtx-beats ${music ? '' : 'disabled'} title="${music ? 'Программа найдёт биты трека: метки на таймлайне, клипы прилипают к ним' : 'Сначала добавьте музыку (＋ Звук)'}">🥁 ${p.beatsTL?.length ? `Биты: ${p.bpm} BPM ✓` : 'Найти биты трека'}</button></div>
     <div class="block-head"><span class="lbl">✦ Автомонтаж по шаблону</span></div>
     <div class="mt-note">Компьютер сам нарежет клипы проекта под бит музыки: лучшие куски, речь без пауз, переходы, эффекты, субтитры, графика.</div>
+    <div class="mt-fl mtx-track"><button class="btn small ${music ? '' : 'primary'}" data-mtx-track title="Песня или бит с телефона / компьютера: Freefield найдёт темп и дроп и смонтирует эдит под него">🎵 ${music ? 'Другой трек' : 'Загрузить трек'}</button>
+      <span class="mt-note">${music ? `«${esc(music.name)}»${p.bpm ? ` · ${p.bpm} BPM` : ''}` : 'без трека — ровный ритм 120 BPM'}</span></div>
     ${tpl ? `<div class="mtx-tpl">${tpl.templates.map(t => `<button class="mtx-card ${cur === t.id ? 'on' : ''}" data-mtx-tpl="${esc(t.id)}" title="${esc(t.desc)}">
         ${t.preview ? `<video muted loop playsinline preload="none" data-src="${esc(hubLink.url(t.preview))}"></video>` : '<i></i>'}<b>${esc(t.label)}</b>${t.own ? '<small>свой</small>' : ''}</button>`).join('')}</div>`
       : `<div class="mt-fl"><button class="btn small" data-mtx-load ${mtx.tplLoading ? 'disabled' : ''}>${mtx.tplLoading ? '⏳ Загружаю шаблоны…' : '🎞 Показать шаблоны'}</button></div>`}
@@ -131,8 +133,10 @@ function mtxChatIntent(text) {
   const last = mt.p?.autoTpl;
   if (last && /^\s*(финал|давай финал|в 1080|чисто|готово|делай финал)(?=[\s.,!?]|$)/i.test(t)) return {template: last, mode: 'final'};
   if (last && /^\s*(ещё|еще)\s*(3|три)?\s*вариант/i.test(t)) return {template: last, mode: 'variants'};
-  const tpl = MTX_INTENT.find(([, re]) => re.test(t))?.[0];
-  if (!tpl || !/эдит|edit|смонтир|монтаж|нарежь|сделай|собери|ролик|видео|рилс|reel/i.test(t) && !/аур|aura|velocity|велосит/i.test(t)) return null;
+  let tpl = MTX_INTENT.find(([, re]) => re.test(t))?.[0];
+  // «сделай эдит под этот трек» без стиля — по темпу трека: быстрый (от 115 BPM) — velocity, медленный — aura
+  if (!tpl && /эдит|edit|под (этот |мой )?трек|под (эту )?музык|под (эту )?песн/i.test(t)) tpl = (mt.p?.bpm || 0) >= 115 ? 'velocity' : 'aura';
+  if (!tpl || !/эдит|edit|смонтир|монтаж|нарежь|сделай|собери|ролик|видео|рилс|reel|трек|музык|песн/i.test(t) && !/аур|aura|velocity|велосит/i.test(t)) return null;
   const hook = /[«"“]([^»"”]{2,90})[»"”]/.exec(t)?.[1];
   const sec = +(/(\d{1,2})\s*(?:сек|с(?=[\s.,!?]|$)|s(?=[\s.,!?]|$))/i.exec(t)?.[1] || 0);
   return {template: tpl, hook, duration: sec >= 6 && sec <= 60 ? sec : /коротк/i.test(t) ? 15 : /длинн/i.test(t) ? 30 : null,
@@ -144,17 +148,32 @@ async function mtxChatRun(p, text, it) {
   const box = $('#mtAskIn');
   if (box) box.value = '';
   if (!mtSegs(p).length) {
-    p.chat.push({role: 'ai', text: 'Сначала добавьте в проект клипы из галереи (вкладка «🎞 Монтаж» → ＋ Видео), а лучше и музыку (＋ Звук) — и напишите ещё раз.', at: Date.now()});
+    p.chat.push({role: 'ai', text: 'Сначала добавьте в проект клипы из галереи (вкладка «🎞 Монтаж» → ＋ Видео), а трек приложите скрепкой 📎 сюда или кнопкой «🎵 Загрузить трек» — и напишите ещё раз.', at: Date.now()});
     mt.save(); return renderMtChat();
   }
   p.autoTpl = it.template;
   if (it.hook) p.autoTitle = it.hook;
   if (it.duration) p.autoDur = it.duration;
-  p.chat.push({role: 'ai', text: `Собираю «${label}» на компьютере из ${mtSegs(p).length} клипов${(p.audios || []).some(a => !a.voice) ? ' под ваш трек' : ' (музыки в проекте нет — ровный ритм; добавьте трек для монтажа под бит)'}` +
+  p.chat.push({role: 'ai', text: `Собираю «${label}» на компьютере из ${mtSegs(p).length} клипов${(p.audios || []).some(a => !a.voice) ? ' под ваш трек' : ' (трека нет — ровный ритм 120 BPM; приложите трек скрепкой 📎, и эдит смонтируется под него)'}` +
     `${it.mode === 'variants' ? ', 3 варианта черновиками' : it.mode === 'final' ? ', сразу в 1080p' : ', черновиком 540p — понравится, нажмите «🎬 Смонтировать» или напишите «финал»'}. ` +
     'Карточка в галерее покажет ход, готовый ролик придёт туда же.', at: Date.now(), by: 'Freefield на компьютере'});
   mt.save(); renderMtChat();
   await mtxAuto(it.mode, true);   // шаблон из чата — целиком: цвет и субтитры шаблона, не настройки панели
+}
+
+// свой трек для эдита (пользователь 2026-10-15: «добавь возможность загрузить трек и сделать эдит под него»): трек проекта заменяется,
+// компьютер сразу находит его темп и дроп — эдит («Смонтировать», шаблон или «сделай эдит» в «ИИ-монтажёре») режется под него
+async function mtxSetTrack(file, name, fromChat = false) {
+  const p = mtProj();
+  name = String(name || file.name || 'трек').replace(/\.\w+$/, '').slice(0, 80);
+  p.audios = (p.audios || []).filter(a => a.voice);   // прежняя музыка уходит, озвучка остаётся
+  p.beatsTL = p.downTL = null; p.bpm = null;
+  await mtAddAudio(file, name, {at: 0, vol: 1, fadeOut: 1.5});
+  if (!(p.audios || []).some(a => !a.voice)) return;   // не прочитался — mtAddAudio уже сказал
+  mt.save(); mtTl.rk = ''; renderMt();
+  if (fromChat) { (p.chat ||= []).push({role: 'ai', text: `🎵 Трек «${name}» — эдит смонтирую под него. Напишите стиль: «сделай эдит типа аура», «velocity», «кино-трейлер» — или просто «сделай эдит под трек».`, at: Date.now(), by: 'Freefield'}); mt.save(); renderMtChat(); }
+  else toast(`🎵 Трек «${name}» в проекте — выберите шаблон и нажмите «Смонтировать»`, {type: 'ok', ms: 6000});
+  if (hubLink.ok || await hubReady().catch(() => false)) mtxBeats();   // темп и дроп — сразу
 }
 
 // автомонтаж клипов проекта
@@ -224,6 +243,7 @@ $('#mtCreate').addEventListener('click', e => {
   }
   if (d.mtxSpeed) { const c = p.clips.find(x => x.k === d.k); if (c) { (c.fx ||= {}).speed = +d.mtxSpeed; mt.save(); renderMtEdit(); } return; }
   if ('mtxLoad' in d) return mtxLoadTpl();
+  if ('mtxTrack' in d) return pickFile('audio/*,video/*', false).then(f => f && mtxSetTrack(f, f.name));
   if (d.mtxTpl !== undefined) { p.autoTpl = p.autoTpl === d.mtxTpl ? '' : d.mtxTpl; mt.save(); renderMtEdit(); return setTimeout(mtxPreviews, 50); }
   if (d.mtxAuto) return mtxAuto(d.mtxAuto);
   if ('mtxBeats' in d) return mtxBeats();

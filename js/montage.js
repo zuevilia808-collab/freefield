@@ -1457,6 +1457,8 @@ function mtGrab(blob, at = [0.5], max = 512) {
   });
 }
 async function mtAttach(blob, name, from) {
+  // трек в чат «ИИ-монтажёра» — это музыка для эдита (js/montage-pro.js), не вложение для ИИ
+  if (/^audio\//.test(blob?.type) && typeof mtxSetTrack === 'function') return mtxSetTrack(blob, name, true);
   const kind = /^video\//.test(blob?.type) ? 'video' : /^image\//.test(blob?.type) ? 'image' : null;
   if (!kind) return toast('Можно картинку или видео', {type: 'err'});
   if (mt.att.length >= 8) return toast('Не больше 8 вложений в одном сообщении', {type: 'err'});
@@ -1626,7 +1628,7 @@ function renderMtChat() {
     <div class="mt-chat" id="mtChat">${msgs.map(bubble).join('') || '<div class="mt-msg ai first">Пришлите картинки, инфографику, видео 📎 или просто опишите идею — напишу сценарий. Скажите «собери ролик» — сам расставлю клипы проекта, обрежу лишнее, сделаю переходы и титры.</div>'}
       ${mt.busy ? '<div class="mt-msg ai busy"><i></i><i></i><i></i></div>' : ''}</div>
     <div class="mt-att" id="mtAtt"></div>
-    <div class="mt-ask"><button class="btn" data-mt-attach title="Приложить картинку, инфографику или видео" ${mt.busy ? 'disabled' : ''}>📎</button><textarea id="mtAskIn" rows="2" placeholder="Идея, вопрос или что смонтировать…" ${mt.busy ? 'disabled' : ''}></textarea><button class="btn primary" data-mt-send title="Отправить (Enter)" ${mt.busy ? 'disabled' : ''}>➤</button></div>
+    <div class="mt-ask"><button class="btn" data-mt-attach title="Приложить картинку, инфографику, видео или трек для эдита" ${mt.busy ? 'disabled' : ''}>📎</button><textarea id="mtAskIn" rows="2" placeholder="Идея, вопрос или что смонтировать…" ${mt.busy ? 'disabled' : ''}></textarea><button class="btn primary" data-mt-send title="Отправить (Enter)" ${mt.busy ? 'disabled' : ''}>➤</button></div>
     <div class="mt-attm hidden" id="mtAttMenu"><button class="chip" data-mt-att-file>💻 С компьютера</button><button class="chip" data-mt-att-gal>🖼 Из галереи</button></div>
     <div class="chips mt-quick">${MT_QUICK.map(q => `<button class="chip" data-mt-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
     ${who ? `<div class="mt-who">${WRITERS[who].ico} ${WRITERS[who].name}${msgs.length ? ' · <button class="wr-link" data-mt-clear>Очистить чат</button>' : ''}</div>` : ''}`;
@@ -1656,7 +1658,7 @@ $('#mtCreate').addEventListener('click', async e => {
   if ('mtSend' in d) return mtAsk($('#mtAskIn')?.value);
   if (d.mtQ) { const box = $('#mtAskIn'); if (box) { box.value = d.mtQ; box.focus(); } return; }
   if ('mtAttach' in d) return $('#mtAttMenu')?.classList.toggle('hidden');
-  if ('mtAttFile' in d) { $('#mtAttMenu')?.classList.add('hidden'); for (const f of await pickFile('image/*,video/*', true)) await mtAttach(f, f.name); return; }
+  if ('mtAttFile' in d) { $('#mtAttMenu')?.classList.add('hidden'); for (const f of await pickFile('image/*,video/*,audio/*', true)) await mtAttach(f, f.name); return; }
   if ('mtAttGal' in d) { $('#mtAttMenu')?.classList.add('hidden'); return mtOpenPick('att'); }
   if (d.mtAttRm) { mt.att = mt.att.filter(a => a.k !== d.mtAttRm); return renderMtAtt(); }
   if ('mtClear' in d) { if (await askYes('Очистить чат этого проекта?')) { p.chat = []; mt.save(); renderMtChat(); } return; }
@@ -1674,7 +1676,7 @@ $('#mtCreate').addEventListener('dragover', e => { if (mt.tab === 'chat') e.prev
 $('#mtCreate').addEventListener('drop', async e => {
   if (mt.tab !== 'chat') return;
   e.preventDefault();
-  for (const f of [...(e.dataTransfer?.files || [])].filter(f => /^(image|video)\//.test(f.type))) await mtAttach(f, f.name);
+  for (const f of [...(e.dataTransfer?.files || [])].filter(f => /^(image|video|audio)\//.test(f.type))) await mtAttach(f, f.name);
 });
 document.addEventListener('paste', e => {
   if (cl.mode !== 'edit' || mt.tab !== 'chat') return;
