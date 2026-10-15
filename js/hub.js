@@ -229,7 +229,8 @@ const hubLink = {
     const got = {video: 0, image: 0, model: 0};
     for (const b of this.batches) {
       // только сделанное через Freefield: старые синхронизации тащили с сайтов всё подряд — их не берём
-      if (b.created < this.since || (b.source === 'sync' && !b.ours)) continue;
+      // свежее (за 2 дня) — всегда: иначе ролики, сделанные до того, как Freefield открыли по новой ссылке, не попадали в галерею (2026-10-15)
+      if ((b.created < this.since && Date.now() - b.created > 2 * 864e5) || (b.source === 'sync' && !b.ours)) continue;
       for (const it of b.items) {
         if (it.kind === '3d') { if (it.status === 'done') try { await this.importModel(b, it, got); } catch { /* в следующий раз */ } continue; }
         for (const f of it.files || []) {
