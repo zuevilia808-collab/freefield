@@ -611,7 +611,23 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
     await box.click();
     await box.fill(prompt);
     await sleep(400);
-    await page.getByRole('button', {name: /Начать генерацию|Generate|Create/i}).last().click();
+    // кончились кредиты — Flow вместо кнопки «Создать» показывает оранжевый круг ⓘ (пользователь 2026-10-15: «когда видишь это —
+    // сменяй аккаунт, это значит токены кончились»): не ждём и не повторяем, а ставим этому аккаунту 0 и уходим на другой
+    const gen = page.getByRole('button', {name: /Начать генерацию|Generate|Create/i}).last();
+    if (!(await gen.isVisible({timeout: 6000}).catch(() => false))) {
+      const info = await page.evaluate(() => {
+        const box = document.querySelector('[contenteditable="true"]');
+        let root = box;
+        for (let i = 0; i < 6 && root?.parentElement; i++) root = root.parentElement;   // строка ввода с кнопками
+        return [...(root || document).querySelectorAll('button, [role=button]')].some(b => {
+          const t = (b.innerText || '').trim(), a = b.getAttribute('aria-label') || b.title || '';
+          return /^(info|error|warning|info_outline|error_outline|priority_high)$/i.test(t) || /кредит|credit|недостаточно|insufficient|limit|лимит/i.test(a);
+        });
+      }).catch(() => false);
+      writeState({flowCredits: {date: today(), left: 0, at: Date.now()}});
+      throw new PortalError(`Flow: на этом аккаунте кончились кредиты${info ? ' (вместо «Создать» — значок ⓘ)' : ' (кнопки «Создать» нет)'} — беру другой аккаунт`, 'credits');
+    }
+    await gen.click();
     for (let i = 0; i < 20; i++) {
       await sleep(1000);
       const s = await flowScan(page, {tag, key: key(), count});
