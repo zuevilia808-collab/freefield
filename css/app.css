@@ -1417,3 +1417,15 @@ body:not(.dev) .peek-btn,body:not(.dev) .peek-mini,body:not(.dev) [data-up-peek]
 .ehx-line small.bad{color:var(--danger)}
 .ehx-take.mtl{border-color:rgba(212,255,58,.28)}
 .ehx-mtl-tag{display:inline-block;padding:2px 8px;margin-right:4px;border-radius:999px;background:rgba(212,255,58,.14);color:#d4ff3a;font-size:11px;font-weight:600;white-space:nowrap}
+
+/* Монтаж PRO (js/montage-pro.js): шаблоны с превью, эффекты клипа, метки битов */
+.mtx-chips{flex-wrap:wrap;gap:6px}
+.mtx-chips .chip.on,.mt-fl .chip.on{background:var(--free);color:#0b0d08;border-color:var(--free)}
+.mtx-tpl{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin:6px 0 10px}
+.mtx-card{position:relative;display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:inherit;cursor:pointer;text-align:left;font:inherit}
+.mtx-card video,.mtx-card>i{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:9px;background:#111;display:block}
+.mtx-card b{font-size:11.5px;line-height:1.2;font-weight:700}
+.mtx-card small{position:absolute;top:8px;left:8px;font-size:10px;background:var(--free);color:#0b0d08;border-radius:6px;padding:1px 5px}
+.mtx-card.on{border-color:var(--free);box-shadow:0 0 0 2px color-mix(in srgb,var(--free) 35%,transparent)}
+#mtRuler .tl-beat{position:absolute;bottom:0;width:1px;height:6px;background:color-mix(in srgb,var(--free) 55%,transparent);pointer-events:none}
+#mtRuler .tl-beat.down{height:11px;width:2px;background:var(--free)}

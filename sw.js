@@ -4,7 +4,7 @@
 // там секретный ключ, свежие статусы и видео по сотне МБ (v3 их кэшировал — смена версии кэш чистит).
 const CACHE = 'freefield-v8';   // v5: страница разбита на css/ и js/; v6: голос персонажа в серии; v7: голос в монтаже (vfx.js); v8: site.js, сверка с сайтом
 const SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
-  './css/app.css', './js/core.js', './js/services.js', './js/gallery.js', './js/m3d.js', './js/vfx.js', './js/montage.js', './js/echo.js', './js/controls.js', './js/hub.js', './js/scn.js', './js/assets.js', './js/chars.js', './js/write.js', './js/site.js', './js/init.js'];
+  './css/app.css', './js/core.js', './js/services.js', './js/gallery.js', './js/m3d.js', './js/vfx.js', './js/montage.js', './js/montage-pro.js', './js/echo.js', './js/controls.js', './js/hub.js', './js/scn.js', './js/assets.js', './js/chars.js', './js/write.js', './js/site.js', './js/init.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

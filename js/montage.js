@@ -488,12 +488,15 @@ function mtTl() {
   const segs = mtPv.segs, pps = mtPv.pps = mtPps(), end = mtTEnd(p) + 4, sel = mt.sel;
   inner.style.width = Math.max((mtEl.sc.clientWidth || 0) - 2, Math.ceil(end * pps)) + 'px';
   // линейка — только когда сменились масштаб или длина; шаг подписей — чтобы не налезали
-  const rk = pps + '|' + Math.ceil(end);
+  const rk = pps + '|' + Math.ceil(end) + '|' + (p.beatsTL?.length || 0);
   if (mtTl.rk !== rk) {
     mtTl.rk = rk;
     const step = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find(s => s * pps >= 56) || 600;
     let rl = '';
     for (let t = 0; t <= end; t += step) rl += `<i style="left:${t * pps}px">${mtClock(t)}</i>`;
+    // биты трека (js/montage-pro.js): метки, сильные доли — ярче; при мелком масштабе — только сильные доли
+    const down = new Set(p.downTL || []);
+    if (p.beatsTL?.length) for (const b of pps * (p.beatsTL[1] - p.beatsTL[0] || 0.5) >= 6 ? p.beatsTL : p.downTL || []) rl += `<b class="tl-beat ${down.has(b) ? 'down' : ''}" style="left:${b * pps}px"></b>`;
     $('#mtRuler').innerHTML = rl;
   }
   // видео
@@ -546,7 +549,7 @@ const mtHead = () => mtSet(mtEl.head, 'left', mtPv.t * (mtPv.pps || mtPps()) + '
 let mtDrag = null;
 const mtSnap = (T, pps, except) => {   // прилипание к бегунку, началу, стыкам клипов, краям титров и звука
   const p = mt.p, pts = [0, mtPv.t, ...mtPv.segs.filter(s => s.c.k !== except).flatMap(s => [s.start, s.end]), ...[...(p.titles || []), ...(p.photos || [])].filter(x => x.k !== except).flatMap(x => [x.at, x.at + x.dur]),
-    ...(p.audios || []).filter(x => x.k !== except).flatMap(x => [x.at, x.at + mtALen(x)])];
+    ...(p.audios || []).filter(x => x.k !== except).flatMap(x => [x.at, x.at + mtALen(x)]), ...(p.beatsTL || [])];   // и к битам трека
   let best = T, d = 8 / pps;
   for (const x of pts) if (Math.abs(x - T) < d) { d = Math.abs(x - T); best = x; }
   return best;
@@ -902,7 +905,8 @@ function renderMtEdit() {
       <div class="mt-fl mt-rng"><button class="icon-btn ${o.mute ? 'off' : ''}" data-mt-mute="${o.k}" title="${o.mute ? 'Включить звук клипа' : 'Без звука'}">${o.mute ? '🔇' : '🔊'}</button>${o.sep ? '<span>Фон</span>' : ''}<input type="range" min="0" max="1.5" step="0.05" value="${o.vol ?? 1}" data-mt-f="vol" data-k="${o.k}" ${o.mute ? 'disabled' : ''}><b>${Math.round((o.vol ?? 1) * 100)}%</b></div>
       <div class="mt-fl">${o.sep ? `<button class="btn small" data-mt-gsel>🗣 Голос отделён — изменить голос</button>`
         : `<button class="btn small" data-mt-sep ${mt.sepJob ? 'disabled' : ''} title="Голос аватара — на свою дорожку, звуки места и музыка остаются у клипа">🗣 Отделить голос</button>`}</div>
-      ${mt.sepJob?.k === o.k ? `<div class="mt-note" id="mtSepNote">⏳ ${esc(mt.sepJob.note)}</div>` : ''}`;
+      ${mt.sepJob?.k === o.k ? `<div class="mt-note" id="mtSepNote">⏳ ${esc(mt.sepJob.note)}</div>` : ''}
+      ${typeof mtProClipHTML === 'function' ? mtProClipHTML(o) : ''}`;
   } else if (o && s.t === 'g') {
     sel = mtVoxHTML(o);
   } else if (o && s.t === 't') {
@@ -933,7 +937,8 @@ function renderMtEdit() {
     <div class="block-head"><span class="lbl">Рендер на компьютере</span></div>
     <div class="mt-fl"><button class="btn small" data-mt-pc="final" ${mt.pcBusy ? 'disabled' : ''} title="Программа Freefield на компьютере соберёт ролик 1080p (видеокарта, громкость −14 LUFS) — работает и с телефона">🖥 Отрендерить на компьютере</button>
       <button class="btn small" data-mt-pc="draft" ${mt.pcBusy ? 'disabled' : ''} title="Быстрый черновик 540p — проверить монтаж">Черновик 540p</button></div>
-    <div class="mt-fl"><span class="mt-note" id="mtPcNote">${mt.pcBusy ? '⏳ готовлю…' : ''}</span></div>`;
+    <div class="mt-fl"><span class="mt-note" id="mtPcNote">${mt.pcBusy ? '⏳ готовлю…' : ''}</span></div>
+    ${typeof mtProHTML === 'function' ? mtProHTML(p) : ''}`;
 }
 // после правки: длины, таймлайн, просмотр, свойства
 function mtRefresh() {
@@ -1324,10 +1329,12 @@ async function mtPcProject(p, note) {
     audio.push({src: await mtPcSrc(got.blob, null, note), in: a.a || 0, out: a.b ?? null, at: a.at || 0, volume: a.vol ?? 1,
       fade_in: a.fadeIn || 0, fade_out: a.fadeOut || 0, role: a.voice ? 'voice' : 'music', duck: true});
   }
-  return {warn: [...new Set(warn)], project: {format: 'freefield-montage', version: 1, name: p.name, fps: 30, fit: p.fit || 'cover',
+  const project = {format: 'freefield-montage', version: 1, name: p.name, fps: 30, fit: p.fit || 'cover',
     aspect: p.aspect && p.aspect !== 'auto' ? p.aspect : W > H * 1.2 ? '16:9' : W > H * 0.9 ? '1:1' : '9:16',
     tracks: {video, audio, photo, text: (p.titles || []).map(t => ({text: t.text, at: t.at || 0, duration: t.dur || 3, pos: t.pos || 'bottom'})), gfx: []},
-    audio_mix: {loudness: -14, speech: !!p.audio}}};
+    audio_mix: {loudness: -14, speech: !!p.audio}};
+  if (typeof mtProApply === 'function') mtProApply(project, p, segs);   // эффекты, цвет, субтитры, бренд, биты (js/montage-pro.js)
+  return {warn: [...new Set(warn)], project};
 }
 async function mtPcRender(quality) {
   const p = mtProj();
@@ -1556,6 +1563,9 @@ async function mtAsk(text, dry) {
   const p = mtProj();
   text = String(text || '').trim() || (dry ? '(ваше сообщение)' : mt.att.length ? 'Напиши сценарий по вложениям' : '');
   if (!text) return toast('Напишите, что сделать с роликом', {type: 'err'});
+  // «сделай эдит типа аура фарминг» → шаблон автомонтажа на компьютере (js/montage-pro.js), ключ ИИ не нужен
+  const auto = !dry && !mt.att.length && typeof mtxChatIntent === 'function' ? mtxChatIntent(text) : null;
+  if (auto) return mtxChatRun(p, text, auto);
   if (['auto', 'sub'].includes(wr.ai) && !hubLink.ok) await hubReady().catch(() => false);
   const who = mtWho();
   if (dry) {

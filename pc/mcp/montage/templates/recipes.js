@@ -11,7 +11,7 @@
 export const RECIPES = {
   aura: {
     label: 'Aura edit', desc: 'Слоумо, свечение, тряска на сильных долях, крупные слова по одному — «эстетичный» эдит',
-    pace: 'slow', transitions: ['white', 'fade', 'dissolve'], punch_amount: 0.05, drift: 0.06,
+    pace: 'slow', transitions: ['white', 'fade', 'fadewhite'], punch_amount: 0.05, drift: 0.06,
     fx: {shake: {amount: 0.3}, flash: true, smooth: true}, ramp: [{at: 0.45, speed: 0.5}],
     look: {preset: 'aura', vignette: true, grain: 0.3}, sfx: {hits: true, riser: true, volume: 0.5}, gfx: 'titles', captions: 'word',
   },

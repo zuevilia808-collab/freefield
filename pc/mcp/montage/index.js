@@ -68,15 +68,17 @@ async function prepare(opts) {
   const aspect = ASPECTS[opts.aspect] ? opts.aspect : wide > clips.length / 2 ? '16:9' : square > clips.length / 2 ? '1:1' : '9:16';
 
   // речь клипов по словам (для субтитров и чтобы не рвать фразы)
-  let lang = opts.language && opts.language !== 'auto' ? opts.language : 'auto';
+  // язык — у каждого клипа свой (auto): клипы на разных языках не переводятся Whisper-ом в язык первого
+  const want = opts.language && opts.language !== 'auto' ? opts.language : 'auto', langs = new Set();
   for (const c of clips) {
     if (!c.audio) continue;
     try {
-      const sp = await speech(c.file, root, {lang, note});
+      const sp = await speech(c.file, root, {lang: want, note});
       Object.assign(c, {speech: sp.speech, words: sp.words});
-      if (sp.speech && lang === 'auto') lang = sp.language;
+      if (sp.speech) langs.add(sp.language);
     } catch (e) { warnings.push(e.message); break; }
   }
+  const lang = [...langs].join('+') || want;
   if (opts.captions !== false && !clips.some(c => c.speech)) warnings.push('в клипах нет речи — субтитры не нужны');
   // кадры клипов: лучшие куски и кадрирование (этап 2)
   for (const c of clips) c.shots = await shots(c.file, root, note).catch(e => { warnings.push(e.message); return null; });

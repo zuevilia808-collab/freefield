@@ -247,6 +247,25 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           if (!/^(mp4|mov|webm|m4v|mkv|mp3|wav|m4a|aac|ogg|oga|opus|flac|png|jpg|jpeg|webp|bin)$/.test(ext)) return send(400, {error: 'такой файл монтаж не берёт'});
           try { return send(200, await api.montageFile(req, ext)); } catch (e) { return send(e.code === 413 ? 413 : 400, {error: e.message}); }
         }
+        // редактор монтажа (этап 7): шаблоны с превью, автомонтаж выбранных клипов, биты трека, экспорт в другие редакторы
+        if (url.pathname === '/api/montage/templates' && req.method === 'GET' && api.montageTemplates) return send(200, await api.montageTemplates());
+        const mp = url.pathname.match(/^\/api\/montage\/preview\/([a-z0-9_-]{1,40})\.mp4$/);
+        if (mp && req.method === 'GET' && api.montagePreview) {
+          const file = await api.montagePreview(mp[1]);
+          if (!file) return send(404, {error: 'нет превью'});
+          res.writeHead(200, {'Content-Type': 'video/mp4', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'max-age=3600', ...cors});
+          return fs.createReadStream(file).pipe(res);
+        }
+        if (['/api/montage/auto', '/api/montage/beats', '/api/montage/export'].includes(url.pathname) && req.method === 'POST' && api.montageAuto) {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 8e6) return send(413, {error: 'слишком большой запрос'}); }
+          const j = JSON.parse(body || '{}');
+          try {
+            if (url.pathname === '/api/montage/auto') return send(200, await api.montageAuto(j));
+            if (url.pathname === '/api/montage/beats') return send(200, await api.montageBeats(j));
+            return send(200, await api.montageExport(j));
+          } catch (e) { return send(400, {error: e.message}); }
+        }
         if (url.pathname === '/api/montage' && req.method === 'POST' && api.montageStart) {
           let body = '';
           for await (const chunk of req) { body += chunk; if (body.length > 8e6) return send(413, {error: 'проект слишком большой'}); }

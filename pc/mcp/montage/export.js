@@ -5,8 +5,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {normalize, sourcePath, ASPECTS} from './project.js';
-import {info} from './analyze.js';
+import {normalize, sourcePath, ASPECTS, wordsOnTimeline} from './project.js';
+import {FILLER} from './plan.js';
+import {info, speech} from './analyze.js';
 
 const xml = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;'}[c]));
 const srtTime = t => { const ms = Math.max(0, Math.round(t * 1000)); const h = Math.floor(ms / 3600e3), m = Math.floor(ms / 60e3) % 60, s = Math.floor(ms / 1000) % 60;
@@ -32,6 +33,18 @@ async function resolved(P, ctx) {
   return {clips, audio, end: Math.max(cursor, ...clips.map(c => c.at + c.len), 0)};
 }
 
+// проект из редактора с автосубтитрами: слова ещё не распознаны — распознать (кэш) и положить на шкалу
+export async function withAutoCaptions(P, ctx) {
+  if (!P.tracks.captions.auto || P.tracks.captions.words.length) return P;
+  const R = await resolved(P, ctx), pieces = [];
+  for (const c of R.clips) {
+    if (c.mute || !c.fi.audio) continue;
+    const sp = await speech(c.file, ctx.outDir, {lang: P.tracks.captions.language}).catch(() => null);
+    if (sp?.words?.length) pieces.push({at: c.at, in: c.in, len: c.len, speed: c.speed, words: sp.words.filter(w => !FILLER.test(w.text))});
+  }
+  return {...P, tracks: {...P.tracks, captions: {...P.tracks.captions, words: wordsOnTimeline(pieces)}}};
+}
+
 // субтитры: фразы по 2–6 слов (как читают в CapCut), разрыв на паузе или конце предложения
 export function srt(P) {
   const words = P.tracks.captions.words, lines = [];
@@ -43,7 +56,8 @@ export function srt(P) {
     cur.push(w);
   }
   flush();
-  return lines.map((l, i) => `${i + 1}\n${srtTime(l[0].start)} --> ${srtTime(Math.max(l[l.length - 1].end, l[0].start + 0.4))}\n${l.map(w => w.text).join(' ')}\n`).join('\n');
+  // конец строки — не позже начала следующей (плееры и CapCut не любят наложений)
+  return lines.map((l, i) => `${i + 1}\n${srtTime(l[0].start)} --> ${srtTime(Math.min(lines[i + 1]?.[0].start ?? 1e9, Math.max(l[l.length - 1].end, l[0].start + 0.4)))}\n${l.map(w => w.text).join(' ')}\n`).join('\n');
 }
 
 export async function fcpxml(P, ctx) {

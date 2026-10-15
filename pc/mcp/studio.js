@@ -358,6 +358,64 @@ export const hubApi = {
     })();
     return {id: b.id};
   },
+  // редактор монтажа (этап 7): шаблоны (встроенные и свои) с превью, стили субтитров, цвета
+  montageTemplates: async () => {
+    const M = await import('./montage.js');
+    const dir = path.join(OUT, 'montage-templates');
+    return {templates: M.recipeList(OUT).map(t => ({...t, preview: fs.existsSync(path.join(dir, t.id + '.mp4')) ? `/api/montage/preview/${t.id}.mp4` : null})),
+      caption_styles: M.CAPTION_STYLES, looks: Object.entries(M.LOOKS).map(([id, l]) => ({id, label: l.label}))};
+  },
+  montagePreview: async id => { const p = path.join(OUT, 'montage-templates', id + '.mp4'); return fs.existsSync(p) ? p : null; },
+  // автомонтаж выбранных в приложении клипов (источники — файлы компьютера или загруженные): как пакет — карточка в галерее, ролик туда же
+  montageAuto: async o => {
+    const M = await import('./montage.js'), {sourcePath} = await import('./montage/project.js');
+    const ctx = {outDir: OUT, uploadDir: path.join(OUT, 'montage-src'), restrict: true};
+    const clips = (o.clips || []).slice(0, 8).map(s => sourcePath(s, ctx));
+    if (!clips.length) throw new Error('нет клипов');
+    const music = o.music ? sourcePath(o.music, ctx) : undefined;
+    const q = o.quality === 'draft' ? 'draft' : 'final', n = Math.max(1, Math.min(4, +o.variants || 1));
+    const pick = (v, list) => list.includes(v) ? v : undefined;
+    const opts = {clips, music, duration: Math.min(60, Math.max(6, +o.duration || 20)), template: typeof o.template === 'string' ? o.template.slice(0, 40) : undefined,
+      title: String(o.title || '').slice(0, 80) || undefined, hook: String(o.hook || '').slice(0, 90) || undefined, cta: String(o.cta || '').slice(0, 40) || undefined,
+      items: Array.isArray(o.items) ? o.items.map(s => String(s).slice(0, 60)).filter(Boolean).slice(0, 5) : undefined,
+      caption_style: pick(o.caption_style, M.CAPTION_STYLES), captions: o.captions !== false,
+      look: o.look && M.LOOKS[o.look] ? {preset: o.look, vignette: true} : o.look === 'none' ? {preset: 'none'} : undefined,
+      brand: o.brand ? {accent: o.brand.accent, font: o.brand.font} : undefined, aspect: pick(o.aspect, ['9:16', '1:1', '4:5', '16:9']),
+      style: o.template ? undefined : 'titles', outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), quality: q};
+    const items = Array.from({length: n}, (_, i) => ({n: i + 1, prompt: `автомонтаж${o.template ? ' · ' + o.template : ''}${n > 1 ? ` · вариант ${i + 1}` : ''}`, kind: 'video', site: 'montage',
+      siteLabel: q === 'draft' ? 'монтаж · черновик 540p' : 'монтаж на компьютере', status: 'running', message: 'в очереди', note: '', aspect: opts.aspect || '9:16', files: []}));
+    const b = {id: `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'phone', created: Date.now(), done: false, pid: process.pid, items};
+    batches.set(b.id, b);
+    persistBatches();
+    (async () => {
+      for (const [i, it] of items.entries()) {
+        try {
+          const r = await M.montage({...opts, variant: i, ...(i === 2 && !opts.look ? {look: {preset: 'teal_orange', vignette: true}} : {}), onStatus: m => { it.message = m; persistBatches(); }});
+          Object.assign(it, {status: 'done', message: '', model: `${r.width}×${r.height} · ${r.cuts} кусков · ${r.bpm} BPM`,
+            note: [`${r.duration} с`, r.lufs != null && `${r.lufs} LUFS`, `${r.seconds} с рендера`, ...r.warnings].filter(Boolean).join(' · '), files: [{path: r.path, mime: r.mime}]});
+        } catch (e) { Object.assign(it, {status: 'error', message: e.message}); }
+        persistBatches();
+      }
+      b.done = true;
+      persistBatches();
+    })();
+    return {id: b.id};
+  },
+  // биты трека (метки на таймлайне редактора и прилипание к ним)
+  montageBeats: async o => {
+    const {sourcePath} = await import('./montage/project.js'), A = await import('./montage/analyze.js');
+    const file = sourcePath(o.src, {outDir: OUT, uploadDir: path.join(OUT, 'montage-src'), restrict: true});
+    const b = await A.trackBeats(file, OUT);
+    return {bpm: b.bpm, beats: b.beats, downbeats: b.downbeats, drop: A.findDrop(b), duration: b.duration};
+  },
+  // проект → FCPXML / OTIO / SRT (текстом — приложение сохранит файлы; клипы ссылаются на файлы этого компьютера)
+  montageExport: async ({project, formats}) => {
+    const E = await import('./montage/export.js'), {normalize} = await import('./montage/project.js');
+    const ctx = {outDir: OUT, uploadDir: path.join(OUT, 'montage-src'), restrict: true}, P = await E.withAutoCaptions(normalize(project), ctx);
+    const want = Array.isArray(formats) ? formats : ['fcpxml', 'otio', 'srt'];
+    return {...(want.includes('fcpxml') ? {fcpxml: await E.fcpxml(P, ctx)} : {}), ...(want.includes('otio') ? {otio: await E.otio(P, ctx)} : {}),
+      ...(want.includes('srt') && P.tracks.captions.words.length ? {srt: E.srt(P)} : {})};
+  },
   // файл галереи, который сделал этот компьютер (по имени) — чтобы не пересылать его обратно и чтобы Flow мог его увеличить
   findOutput: name => {
     if (!/^[\w.\-]+$/.test(name || '')) return null;
