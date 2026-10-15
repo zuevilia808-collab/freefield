@@ -81,7 +81,8 @@ export function cutPlan(clips, beat, opts) {
   let start = opts.music_start ?? null, drop = null;
   if (start == null) {
     drop = opts.music ? findDrop(beat) : null;
-    const bar = 4 * period, hook = bar >= 1.5 ? bar : 2 * bar;
+    // до дропа — хук: 1–2 такта, а в шаблонах с нарастанием (pace drop) — столько тактов, сколько велит рецепт
+    const bar = 4 * period, hook = opts.build_bars ? opts.build_bars * bar : bar >= 1.5 ? bar : 2 * bar;
     if (drop != null && drop - hook >= 0 && drop - hook + target <= trackLen) start = drop - hook;
     else {
       drop = null;
@@ -136,6 +137,25 @@ export function cutPlan(clips, beat, opts) {
       segs.push({clip: i, from: parts[0].from, b0: b, b1: b + n, parts});
       b += n;
     }
+  } else if (pace === 'drop') {
+    // драматургия вирусного эдита: нарастание длинными планами → на дропе частые склейки по долям → финальный «геройский» кадр.
+    // Клипы: первый — хук нарастания, последний — финал (порядок задаёт режиссёр), в середине — по кругу без повторов кусков
+    const di = drop != null ? local.findIndex(b => Math.abs(b - (drop - start)) < period / 2) : -1;
+    const dropB = di >= 2 ? di : 8;   // дроп не нашёлся — «взрыв» на третьем такте
+    const buildStep = opts.build_step || 4, dropSteps = opts.drop_steps || [2, 2, 1, 1, 2, 1, 1, 2], endB = opts.end_beats || 4;
+    const used = clips.map(() => []);
+    const take = (c, b, n, phase) => {
+      const len = local[b + n] - local[b];
+      const from = bestWindow(clips[c], len, used[c]);
+      used[c].push([from, from + len]);
+      segs.push({clip: c, from, b0: b, b1: b + n, parts: [{from, len}], phase});
+    };
+    const v = opts.variant || 0, mid = clips.length > 2 ? clips.slice(1, -1).map((_, i) => i + 1) : clips.map((_, i) => i);
+    let b = 0, k = 0, i = 0;
+    while (b < Math.min(dropB, total)) { const n = Math.min(buildStep, dropB - b); take(k++ ? mid[(k + v) % mid.length] : 0, b, n, 'build'); b += n; }
+    const endAt = Math.max(b, total - endB);
+    while (b < endAt) { const n = Math.min(dropSteps[i % dropSteps.length], endAt - b); take(mid[(i + v * 2 + 1) % mid.length], b, n, i ? 'drop' : 'hit'); b += n; i++; }
+    if (b < total) take(clips.length - 1, b, total - b, 'end');
   } else {
     const step = {fast: 2, medium: 4, slow: 8}[pace] || 4;
     const used = clips.map(() => []);
@@ -157,20 +177,24 @@ export function cutPlan(clips, beat, opts) {
 // clips: [{file, duration, width, height, audio, speech, words, shots}], beat — trackBeats/gridBeats, opts — как у montage() (+ recipe шаблона)
 export function toProject(clips, beat, opts) {
   const R = opts.recipe || {};
-  const P = cutPlan(clips, beat, {...opts, pace: opts.pace && opts.pace !== 'auto' ? opts.pace : R.pace || 'auto', clean_speech: opts.clean_speech ?? R.clean_speech, pattern: R.pattern});
+  const P = cutPlan(clips, beat, {...opts, pace: opts.pace && opts.pace !== 'auto' ? opts.pace : R.pace || 'auto', clean_speech: opts.clean_speech ?? R.clean_speech, pattern: R.pattern,
+    build_bars: R.build_bars, build_step: R.build_step, drop_steps: R.drop_steps, end_beats: R.end_beats});
   const [W, H] = ASPECTS[opts.aspect] || ASPECTS['9:16'];
   const set = R.transitions?.length ? R.transitions : BEAT_SET;
   const video = [], pieceMap = [];
   for (const [k, s] of P.segs.entries()) {
     const c = clips[s.clip];
-    const tr = k ? set[(k - 1 + (opts.variant || 0) * 3) % set.length] : 'cut';
+    // фаза драматургии (pace drop): build — нарастание, hit — удар на дропе, drop — частые склейки, end — финал; у каждой свои переходы, скорость, эффекты
+    const ph = (s.phase && R.phases?.[s.phase]) || {};
+    const pset = ph.transitions?.length ? ph.transitions : set;
+    const tr = k ? pset[(k - 1 + (opts.variant || 0) * 3) % pset.length] : 'cut';
     // кадр другой формы, чем ролик (16:9 в 9:16) — окно едет за интересным
     const reframe = opts.reframe !== false && c.width && Math.abs(Math.log((c.width / c.height) / (W / H))) > 0.15;
     let at = s.t0;
     for (const [j, p] of s.parts.entries()) {
       const len = j === s.parts.length - 1 ? s.t1 - at : p.len;
       // «удары» на сильных долях внутри куска (и в начале сегмента) — секунды от начала куска
-      let punch = P.beats.filter((b, i) => i % 4 === 0 && b >= at - 1e-3 && b < at + len).map(b => +(b - at).toFixed(3));
+      let punch = P.beats.filter((b, i) => i % (ph.punch_every || 4) === 0 && b >= at - 1e-3 && b < at + len).map(b => +(b - at).toFixed(3));
       if (!j && !punch.includes(0)) punch.unshift(0);
       // «говорящая голова»: удары на ключевых словах (длинных, не чаще раза в 1,2 с) вместо долей
       if (R.keyword_punch && c.words?.length) {
@@ -182,14 +206,15 @@ export function toProject(clips, beat, opts) {
         }
       }
       // speed ramp по долям длины куска; ускорение в начале (at = 0) — скорость самого клипа
-      const ramp = R.ramp && len >= 1.2 ? R.ramp.map(k => ({at: +(k.at * len).toFixed(3), speed: k.speed})) : null;
-      const speed0 = ramp?.find(k => k.at === 0)?.speed ?? 1;
+      const rr = ph.ramp || (s.phase ? null : R.ramp);
+      const ramp = rr && len >= 1.2 ? rr.map(k => ({at: +(k.at * len).toFixed(3), speed: k.speed})) : null;
+      const speed0 = ramp?.find(k => k.at === 0)?.speed ?? ph.speed ?? 1;
       // запись экрана: камера приближена и едет за действием (центр — по движению в кадре)
       const focus = R.focus ? reframeKeys(c, p.from, len) : null;
-      video.push({src: {path: c.file}, in: +p.from.toFixed(3), out: +(p.from + len * speed0).toFixed(3), at: +at.toFixed(3), speed: speed0, volume: 1,
+      video.push({src: {path: c.file}, in: +p.from.toFixed(3), out: +(p.from + len * speed0).toFixed(3), at: +at.toFixed(3), speed: speed0, volume: c.speech ? 1 : 0.25,   // без речи звук клипа (ветер, шаги) — тихо под музыку
         transition: j ? {type: 'cut'} : {type: tr, duration: (TRANSITIONS[tr] || TRANSITIONS.fade).d},
-        fx: {punch, punch_amount: R.punch_amount ?? 0.07, drift: R.drift ?? 0.05, ...(j % 2 ? {zoom: 1.1} : {}),   // прыжок после вырезанной паузы — с лёгким зумом
-          ...(reframe ? {reframe: reframeKeys(c, p.from, len)} : {}), ...(R.fx || {}),
+        fx: {punch, punch_amount: ph.punch_amount ?? R.punch_amount ?? 0.07, drift: ph.drift ?? R.drift ?? 0.05, ...(j % 2 ? {zoom: 1.1} : {}),   // прыжок после вырезанной паузы — с лёгким зумом
+          ...(reframe ? {reframe: reframeKeys(c, p.from, len)} : {}), ...(R.fx || {}), ...(ph.fx || {}),
           ...(ramp ? {ramp: ramp.filter(k => k.at > 0)} : {}), ...(focus ? {focus, zoom: R.focus.zoom || 1.5} : {})}});
       pieceMap.push({at, in: p.from, len, speed: 1, words: (c.words || []).filter(w => !FILLER.test(w.text))});
       at += len;
@@ -210,6 +235,11 @@ export function toProject(clips, beat, opts) {
         photo: [],
         // рилс по формуле: хук-текст первые ~2 с, призыв с текстом в конце
         text: [...(R.hook && (opts.hook || opts.title) ? [{text: opts.hook || opts.title, at: 0.1, duration: 2.2, pos: 'center', style: 'hook'}] : []),
+          // кино-трейлер: тезисы — крупно на кадрах нарастания, название — на финальном кадре
+          ...(R.cards ? P.segs.filter(s => s.phase === 'build').slice(0, (opts.items || []).length)
+            .map((s, i) => ({text: opts.items[i], at: +(s.t0 + 0.35).toFixed(3), duration: +Math.max(0.8, s.len - 0.6).toFixed(3), pos: 'center', style: 'hook'})) : []),
+          ...(R.cards && opts.title ? P.segs.filter(s => s.phase === 'end').slice(0, 1)
+            .map(s => ({text: opts.title, at: +(s.t0 + 0.4).toFixed(3), duration: +Math.max(1, P.duration - s.t0 - 0.6).toFixed(3), pos: 'center', style: 'cta'})) : []),
           ...(R.cta && opts.cta ? [{text: opts.cta, at: Math.max(0, P.duration - 2.6), duration: 2.5, pos: 'center', style: 'cta'}] : [])],
         gfx: style ? [{template: style, props: {title: opts.title || '', subtitle: opts.subtitle || '', items: opts.items || [], cta: opts.cta || ''}}] : [],
         captions: {style: opts.caption_style || R.captions || 'pop', words},

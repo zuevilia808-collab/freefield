@@ -8,18 +8,45 @@
 //   keyword_punch— «удары» зумом на ключевых (длинных) словах речи
 //   look, sfx    — цвет всего ролика и звуковые удары (fx.js); gfx — графика (titles/cards/launch); captions — стиль субтитров
 //   hook, cta    — крупный хук-текст в начале и призыв в конце (дорожка text)
+//   pace: drop   — драматургия вирусного эдита: нарастание (build_bars тактов, кадр на build_step долей) → удар на дропе (hit) →
+//                  частые склейки по drop_steps долям → финальный кадр (end_beats долей); phases — свои скорость, эффекты и переходы у каждой части
+//   cards        — тезисы (items) крупным текстом на кадрах нарастания, title — в финале (кино-трейлер)
 export const RECIPES = {
   aura: {
-    label: 'Aura edit', desc: 'Слоумо, свечение, тряска на сильных долях, крупные слова по одному — «эстетичный» эдит',
-    pace: 'slow', transitions: ['white', 'fade', 'fadewhite'], punch_amount: 0.05, drift: 0.06,
-    fx: {shake: {amount: 0.3}, flash: true, smooth: true}, ramp: [{at: 0.45, speed: 0.5}],
-    look: {preset: 'aura', vignette: true, grain: 0.3}, sfx: {hits: true, riser: true, volume: 0.5}, gfx: 'titles', captions: 'word',
+    label: 'Aura edit', desc: 'Нарастание в слоумо со свечением → на дропе вспышка и тряска → частые склейки на доли → финал в слоумо',
+    pace: 'drop', build_bars: 2, build_step: 4, drop_steps: [2, 2, 1, 1, 2, 2, 1, 1], end_beats: 4,
+    transitions: ['fade', 'white'], punch_amount: 0.06, drift: 0.06,
+    phases: {
+      build: {speed: 0.6, fx: {smooth: true}, transitions: ['fade'], punch_amount: 0, drift: 0.09},
+      hit: {fx: {flash: true, shake: {amount: 0.9}, rgb: true}, transitions: ['white'], punch_amount: 0.16, punch_every: 1},
+      drop: {fx: {flash: true, shake: {amount: 0.4}}, transitions: ['cut', 'flash', 'cut', 'hblur'], punch_amount: 0.08, punch_every: 2},
+      end: {speed: 0.5, fx: {smooth: true}, transitions: ['white'], punch_amount: 0, drift: 0.12},
+    },
+    look: {preset: 'aura', vignette: true, grain: 0.3}, sfx: {hits: true, riser: true, transitions: true, volume: 0.5}, gfx: 'titles', captions: 'word',
   },
   velocity: {
-    label: 'Velocity edit', desc: 'Ускорение → резкое замедление под бит, вспышки, глитч, тряска — динамичный эдит',
-    pace: 'fast', transitions: ['cut', 'flash', 'hblur', 'cut', 'fadewhite'], punch_amount: 0.09, drift: 0.02,
-    fx: {shake: {amount: 0.55}, rgb: true, smooth: true}, ramp: [{at: 0, speed: 1.7}, {at: 0.55, speed: 0.45}],
+    label: 'Velocity edit', desc: 'Ускорение → резкое замедление под фонк, на дропе вспышки, глитч и тряска, склейка на каждую долю',
+    pace: 'drop', build_bars: 2, build_step: 4, drop_steps: [1, 1, 2, 1, 1, 1, 2, 1], end_beats: 8,
+    transitions: ['cut', 'flash', 'hblur', 'cut', 'fadewhite'], punch_amount: 0.09, drift: 0.02,
+    phases: {
+      build: {ramp: [{at: 0, speed: 1.6}, {at: 0.6, speed: 0.4}], fx: {smooth: true, shake: {amount: 0.3}}, transitions: ['hblur', 'smoothleft']},
+      hit: {fx: {flash: true, shake: {amount: 1}, rgb: true}, transitions: ['white'], punch_amount: 0.15, punch_every: 1},
+      drop: {fx: {shake: {amount: 0.6}, rgb: true}, transitions: ['cut', 'flash', 'cut', 'smoothleft', 'cut', 'hblur'], punch_amount: 0.1, punch_every: 1},
+      end: {speed: 0.4, fx: {smooth: true}, transitions: ['white'], punch_amount: 0, drift: 0.1},
+    },
     look: {preset: 'teal_orange', vignette: true}, sfx: {transitions: true, hits: true, riser: true, volume: 0.6}, captions: 'box',
+  },
+  trailer: {
+    label: 'Кино-трейлер', desc: 'Полосы кино, затемнения, крупные титры-удары на нарастании, на дропе — вспышка и быстрые кадры, финал с названием',
+    pace: 'drop', build_bars: 3, build_step: 4, drop_steps: [2, 2, 2, 1, 1, 2], end_beats: 4,
+    transitions: ['black'], punch_amount: 0.06, drift: 0.07, cards: true,
+    phases: {
+      build: {speed: 0.75, fx: {smooth: true}, transitions: ['black'], punch_amount: 0, drift: 0.08},
+      hit: {fx: {flash: true, shake: {amount: 0.8}}, transitions: ['white'], punch_amount: 0.14, punch_every: 1},
+      drop: {fx: {shake: {amount: 0.35}}, transitions: ['cut', 'black', 'cut', 'flash'], punch_amount: 0.07, punch_every: 2},
+      end: {speed: 0.6, fx: {smooth: true}, transitions: ['black'], punch_amount: 0, drift: 0.1},
+    },
+    look: {preset: 'teal_orange', vignette: true, grain: 0.35, letterbox: true}, sfx: {hits: true, riser: true, transitions: true, volume: 0.55}, captions: 'outline',
   },
   launch: {
     label: 'Запуск продукта', desc: '«NEW», имя продукта, фишки на бит, кнопка-призыв в ритм — в стиле Apple-анонса',

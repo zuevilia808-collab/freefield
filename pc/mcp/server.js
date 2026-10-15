@@ -878,7 +878,7 @@ const MONTAGE_ARGS = {
   clips: z.array(z.string()).max(8).optional().describe('Видео по порядку (абсолютные пути). Не задано — последние 4 видео из outputs'),
   music: z.string().optional().describe('Трек (mp3/wav/m4a). Подобрать по темпу и настроению — montage_music. Без трека — ровный ритм 120 BPM и звук клипов'),
   duration: z.number().min(6).max(60).default(20).describe('Длина, с (подгоняется к целым тактам; ролик с речью может выйти до 1,5× длиннее — фразы не рвутся)'),
-  template: z.string().max(40).optional().describe('Шаблон: aura, velocity, launch, demo, reel, talking или свой (из montage_from_reference) — список: montage_templates'),
+  template: z.string().max(40).optional().describe('Шаблон: aura, velocity, trailer (кино-трейлер), launch, demo, reel, talking или свой (из montage_from_reference) — список: montage_templates'),
   style: z.enum(['titles', 'cards', 'launch', 'none']).optional().describe('Графика (по умолчанию — из шаблона, без шаблона — titles)'),
   caption_style: z.enum(['pop', 'karaoke', 'word', 'box', 'outline', 'neon', 'minimal', 'typewriter', 'bounce', 'gradient']).optional().describe('Стиль субтитров'),
   look: z.enum(['teal_orange', 'film', 'bw', 'neon', 'warm', 'cold', 'aura', 'none']).optional().describe('Цвет всего ролика (по умолчанию — из шаблона)'),
@@ -1083,11 +1083,18 @@ server.registerTool('montage_from_reference', {
 server.registerTool('montage_music', {
   title: 'Музыка пользователя для монтажа',
   description: 'Треки с этого компьютера (по умолчанию папки «Музыка», «Загрузки», outputs/music) с темпом (BPM), энергией, настроением, длиной и дропом — ' +
-    'выбрать трек под настроение ролика и передать в montage music. Первый раз считает несколько минут, потом из кэша.',
-  inputSchema: {folders: z.array(z.string()).max(5).optional().describe('Свои папки с музыкой'), limit: z.number().int().min(1).max(60).default(30)},
-  annotations: {readOnlyHint: true, openWorldHint: false},
-}, async ({folders, limit}, extra) => {
+    'выбрать трек под настроение ролика и передать в montage music. Первый раз считает несколько минут, потом из кэша. ' +
+    'Своей музыки нет — make: aura (медленный «аура-фонк» 84 BPM с нарастанием и дропом), drift (быстрый фонк 128 BPM для velocity), trailer (кино-трейлер 90 BPM): ' +
+    'трек синтезируется здесь же, без лицензий, с точным темпом и дропом.',
+  inputSchema: {folders: z.array(z.string()).max(5).optional().describe('Свои папки с музыкой'), limit: z.number().int().min(1).max(60).default(30),
+    make: z.enum(['aura', 'drift', 'trailer']).optional().describe('Сделать свой трек в этом стиле'), variant: z.number().int().min(0).max(20).default(0).describe('Другой вариант мелодии')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({folders, limit, make, variant}, extra) => {
   const M = await montageMod();
+  if (make) {
+    const r = await M.makeTrack(make, {outRoot: OUT, variant});
+    return toolResult(r, {text: `Трек готов: ${r.path} — ${r.bpm} BPM, дроп на ${r.drop} с, ${r.duration} с`});
+  }
   const job = startJob('montage_music', async status => {
     const r = await M.musicLibrary({folders: folders?.map(f => path.resolve(f)), outDir: todayDir(), limit, onStatus: status});
     return toolResult({tracks: r}, {text: r.length ? r.map(t => `• ${t.name} — ${t.bpm} BPM, ${t.mood}, ${Math.round(t.duration)} с${t.drop != null ? `, дроп на ${t.drop} с` : ''}\n  ${t.file}`).join('\n')

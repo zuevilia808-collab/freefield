@@ -21,6 +21,7 @@ import {analyzeReference, saveRecipe, userRecipes, contactSheet} from './referen
 import {exportProject as exportFiles} from './export.js';
 
 export {STYLES, normalize, RECIPES, CAPTION_STYLES, LOOKS};
+export {makeTrack, MUSIC_STYLES} from './music.js';
 const VIDEO_EXT = /\.(mp4|mov|webm|mkv|m4v)$/i, AUDIO_EXT = /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i;
 
 let queue = Promise.resolve();

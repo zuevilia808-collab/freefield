@@ -151,6 +151,15 @@ export async function trackBeats(file, outDir, note = () => {}) {
     b = c.set({bpm: r.bpm, period: r.period, beats: r.beats.map(v => +v.toFixed(4)), downbeats: r.downbeats.map(v => +v.toFixed(4)), hz: r.hz, frames: r.frames,
       rms: Array.from(r.rms, v => +v.toFixed(4)), duration: i.duration});
   }
+  // трек сделал сам Freefield (music.js): точные темп и дроп лежат рядом — сетка битов от них
+  try {
+    const meta = JSON.parse(fs.readFileSync(file + '.json', 'utf8'));
+    if (meta.bpm > 40 && meta.bpm < 220) {
+      const period = 60 / meta.bpm, beats = [];
+      for (let t = meta.offset || 0; t < b.duration; t += period) beats.push(+t.toFixed(4));
+      b = {...b, bpm: meta.bpm, period, beats, downbeats: beats.filter((_, i) => i % 4 === 0), drop: meta.drop ?? null};
+    }
+  } catch { /* обычный трек */ }
   b.env = t => b.rms[Math.min(b.frames - 1, Math.max(0, Math.round(t * b.hz)))] || 0;
   return b;
 }
@@ -204,6 +213,7 @@ export async function shots(file, outDir, note = () => {}) {
 
 // дроп трека: сильная доля, после которой громкость резко выше, чем до неё (самый мощный момент)
 export function findDrop(beat, minAt = 4) {
+  if (beat.drop != null) return beat.drop;   // известен заранее (трек Freefield)
   if (!beat.rms?.length) return null;
   const mean = (a, b) => { let s = 0, c = 0; for (let t = a; t < b; t += 0.1) { s += beat.env(t); c++; } return c ? s / c : 0; };
   let best = null, bs = 0;
