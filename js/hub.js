@@ -54,6 +54,7 @@ const hubLink = {
   key: null, ok: false, denied: false, info: null, batches: [], timer: null,
   since: ls.get('freefield.hubSince', 0),
   imported: ls.get('freefield.claude.imported', {}),
+  failed: {},   // имя файла → почему не забрался (карточка покажет ошибку, а не вечное «забираю»)
   // base — адрес программы Freefield на этом компьютере, когда сайт открыт с GitHub (иначе — тот же сайт, путь относительный)
   base: '', direct: false, pcUp: null,
   url(p) { return this.base + p + (p.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(this.key); },
@@ -175,10 +176,15 @@ const hubLink = {
   },
   // один файл с компьютера → в галерею (каждый файл один раз: помним по имени)
   async importFile(url, name, meta, got) {
-    if (this.imported[name]) return false;
+    if (this.imported[name] || this.failed[name]) return false;
     const r = await fetch(this.url(url));
-    if (!r.ok) return false;
+    if (!r.ok) { if (r.status === 404) this.failed[name] = 'файла нет на компьютере (удалён или не скачался)'; return false; }
     const blob = await r.blob();
+    // вместо видео — веб-страница (2026-10-17: Google Vids отдал страницу входа): не крутим «забираю» вечно, а говорим, что не так
+    if (/text\/html/.test(blob.type) || /^\s*<(!doctype|html)/i.test(await blob.slice(0, 64).text())) {
+      this.failed[name] = 'вместо видео сайт отдал страницу входа Google — войдите в Google в окне этого сервиса (Chrome Freefield) и запустите сцену ещё раз';
+      return false;
+    }
     const kind = (meta.mime || blob.type).startsWith('video/') ? 'video' : 'image';
     const d = kind === 'video' ? await videoDims(blob) : await dims(blob);
     const duration = kind === 'video' ? await new Promise(res => { const v = document.createElement('video'); v.preload = 'metadata';

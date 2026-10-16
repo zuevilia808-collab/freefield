@@ -290,7 +290,12 @@ function hubJobs() {
     for (const it of b.items || []) {
       const key = `${b.id}:${it.n}`, files = it.files || [];
       if (jobHidden.has(key)) continue;
-      if (it.status === 'done' && files.every(f => hubLink.imported[f.name || f.url])) continue;
+      const nm = f => f.name || f.url;
+      if (it.status === 'done' && files.every(f => hubLink.imported[nm(f)] || hubLink.failed[nm(f)])) {
+        const bad = files.find(f => hubLink.failed[nm(f)] && !hubLink.imported[nm(f)]);
+        if (bad) out.push({key, b, it: {...it, status: 'error', message: hubLink.failed[nm(bad)]}});
+        continue;
+      }
       out.push({key, b, it});
     }
   }
