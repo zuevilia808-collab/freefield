@@ -33,6 +33,7 @@ export function saveOutput(buf, mime, prompt, seed = randSeed()) {
 
 // ---- история: пакеты сценариев (от Claude, с телефона, синхронизация) ----
 const BATCH_FILE = path.join(HERE, '.batches.json');
+const trendJobs = new Map();   // «🔥 Тренды»: поиск с идеями из приложения (id → ход)
 const batches = new Map();
 const readBatches = () => { try { return JSON.parse(fs.readFileSync(BATCH_FILE, 'utf8')); } catch { return []; } };
 const plainBatch = b => ({id: b.id, source: b.source, created: b.created, done: b.done, pid: b.pid, items: b.items,
@@ -125,7 +126,7 @@ export const hubApi = {
     const {lanAddresses} = await import('./hub.js');
     // что умеет эта версия программы: приложение видит, что программу на компьютере пора обновить
     return {ok: true, name: 'Freefield', ...profiles[0], profiles, active, open, multi, unknown, app, mcp: !!hubApi.mcp, lan: lanAddresses(), port: HUB_PORT,
-      features: ['echo', 'echo-start', 'update', 'split', 'site', ...((await import('./write.js')).claudeExe() ? ['claude'] : [])], echoPort: (await import('./echo.js')).ECHO.port};
+      features: ['echo', 'echo-start', 'update', 'split', 'site', 'trends', ...((await import('./write.js')).claudeExe() ? ['claude'] : [])], echoPort: (await import('./echo.js')).ECHO.port};
   },
   // выход и вход — в своём профиле Chrome (если открыт другой, Chrome Freefield переключится, когда там не идут генерации)
   switchAccount: async (site, p = 1) => {
@@ -242,6 +243,52 @@ export const hubApi = {
   siteList: async () => (await import('./site.js')).siteList(),
   siteSrcFile: async (id, n) => (await import('./site.js')).siteSrcFile(id, n),
   siteDelete: async id => (await import('./site.js')).siteDelete(id),
+  // «🔥 Тренды»: лента (outputs/trends/trends.json), поиск с идеями (Claude Code по подписке), «Сделать с моим героем» — в галерее с ходом работы
+  trendsGet: async () => (await import('./trends.js')).trendsList(),
+  trendDelete: async id => (await import('./trends.js')).trendDelete(id),
+  trendsFind: async o => {
+    const id = crypto.randomBytes(8).toString('hex');
+    const job = {id, status: 'running', message: 'начинаю', at: Date.now()};
+    trendJobs.set(id, job);
+    (async () => {
+      try {
+        const T = await import('./trends.js');
+        const st = m => { job.message = m; };
+        const r = await T.findTrends({query: o.query, limit: 12, onStatus: st});
+        let items = r.items, ideas, note = '';
+        const w = await T.writeIdeas(items, o.heroes || [], st);
+        if (w.error) note = w.error;
+        else { const by = new Map(w.items.map(x => [x.url, x])); items = items.map(x => ({...x, ...(by.get(x.url) || {})})); ideas = w.ideas; }
+        T.saveTrends({items, ideas});
+        Object.assign(job, {status: 'done', message: '', found: items.length, note});
+      } catch (e) { Object.assign(job, {status: 'error', message: e.message}); }
+    })();
+    return {id};
+  },
+  trendsJob: async id => trendJobs.get(id) || null,
+  trendsMake: async o => {
+    const {saveDataUrl} = await import('./refs.js');
+    const hero = o.heroPc || saveDataUrl(OUT, o.hero);
+    const loc = o.locationImage ? saveDataUrl(OUT, o.locationImage) : null;
+    const it = {n: 1, prompt: `🔥 Тренд → ${o.heroName || 'мой герой'}${o.locationText ? ' · ' + o.locationText : ''}`, kind: 'video', site: 'motion', siteLabel: 'перенос движения',
+      status: 'running', message: 'в очереди', note: '', aspect: '9:16', files: []};
+    const b = {id: `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'phone', created: Date.now(), done: false, pid: process.pid, items: [it]};
+    batches.set(b.id, b);
+    persistBatches();
+    (async () => {
+      try {
+        const T = await import('./trends.js');
+        const r = await T.motionTransfer({source: o.url, hero, location: o.location || '', locationImage: loc, mode: o.mode, start: o.start, seconds: o.seconds,
+          quality: o.quality, name: o.heroName || '', onStatus: m => { it.message = m; persistBatches(); }});
+        Object.assign(it, {status: 'done', message: '', model: r.engine, aspect: r.height >= r.width ? '9:16' : '16:9',
+          note: `${r.seconds} с · ${r.mode === 'move' ? 'новая локация' : 'та же локация'} · ${r.audio} · ≈ ${r.gpu_seconds} с GPU`,
+          files: [{path: r.path, mime: 'video/mp4'}]});
+      } catch (e) { Object.assign(it, {status: 'error', message: e.message}); }
+      b.done = true;
+      persistBatches();
+    })();
+    return {id: b.id};
+  },
   filePath: async (id, n, j) => {
     const p = allBatches().find(b => b.id === id)?.items.find(i => i.n === n)?.files?.[j]?.path;
     const root = path.resolve(OUT) + path.sep;

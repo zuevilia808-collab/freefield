@@ -366,6 +366,7 @@ const SERVER_OPTS = {
     'Бесплатно и в лучшем качестве — через сайты под аккаунтом пользователя: flow_video / flow_image (Google Flow), arena_video (Arena, 2 видео за раз), dola_image (Dola). ' +
     'Несколько сценариев сразу — batch_generate: он сам разложит их по сервисам. Задания с телефона — phone_tasks, подключить телефон — phone_link. ' +
     'Картинки для сайта по чужим образцам — site_tasks (порядок работы — в его описании), итог — site_task_update. ' +
+    'Вирусные ролики сейчас, идеи брейнрота и перенос движения из ролика на героя пользователя (motion control) — trends. ' +
     'Рабочий порядок: пользователь пишет сценарии в чат — сразу перепиши каждый в подробный английский промпт и запусти batch_generate (для картинок по умолчанию ' +
     'Nano Banana 2.1 во Flow и Seedream 5.0 в Dola — без кредитов), не переспрашивай по мелочам. Прислал фото в чат — вызови chat_photos, получи путь и передай его ' +
     'как image_path: для видео — оживить фото (Arena), для картинки — сделать по референсу (Flow / Dola). Готовые файлы сами появляются в галерее приложения ' +
@@ -1289,6 +1290,105 @@ server.registerTool('echo_clone_voice', {
       {text: `Голос «${v.name}» (${v.emotion || 'neutral'}) сохранён в «Эхо». Распознанный текст образца: ${v.text || '—'}`});
   });
   return waitJob(job, WAIT_MS, extra);
+});
+
+/* ---- «🔥 Тренды» (пользователь 2026-10-17): вирусные ролики → идеи брейнрота → движение и звук ролика, а в кадре — герой пользователя ---- */
+const TREND_FLOW = 'Порядок: 1) action=find — Freefield сам берёт свежие самые просматриваемые YouTube Shorts (просмотры в день). ' +
+  'Если в этом чате есть vidIQ — добавь TikTok и Reels: vidiq_instagram_tiktok_outlier_search (embeddingType "format", запрос про вирусный танец / мем-движение / тренд со звуком, ' +
+  'datePostedAfter — 2 недели назад, viewsMin 300000, durationMax 30) и vidiq_trending_videos (videoFormat "short", sortBy "vph"); движение конкретного ролика — vidiq_watch_shortform_content. ' +
+  'Иначе — веб-поиск («viral TikTok dance trend this week»). 2) action=save — тренды с полями url, title, author, views, growth (например «37× медианы автора» или «2,5 млн в день»), ' +
+  'about / motion / sound (по-русски, коротко), fit 0–10 (подходит ли для переноса движения: 10 — один человек в полный рост, статичная камера, понятный танец или жест), ' +
+  'ideas — 3 идеи брейнрота с героями пользователя (title, hero, how), плюс общие ideas «что снять сейчас». Они появятся в приложении в разделе «🔥 Тренды». ' +
+  '3) action=make — только по ролику, который выбрал пользователь: скачать → Wan 2.2 Animate переносит движение на героя → исходный звук. ' +
+  'Без location — герой встаёт на место человека в той же локации (swap); с location (по-английски) или location_image — кадр «герой в новой локации» делает Google Flow, и движение переносится на него (move). ' +
+  'Квота — ZeroGPU аккаунта Hugging Face пользователя (вход в huggingface.co в окне Chrome Freefield): бесплатный аккаунт — 5 мин GPU в день ≈ один ролик до 10 с (360p, Freefield поднимает до 720p); PRO — до 20 с. ' +
+  'Предупреди пользователя: чужая музыка в ролике может отключить звук или монетизацию на площадке.';
+server.registerTool('trends', {
+  title: 'Тренды: вирусные ролики и перенос движения',
+  description: 'Раздел «🔥 Тренды» Freefield: самые вирусные короткие ролики сейчас, идеи брейнрота под героев пользователя (например «дырявая рохля» — outputs/refs/rohlya-ref.jpg) ' +
+    'и motion control: движение людей и звук из ролика остаются, вместо людей — герой, локацию можно сменить. action: find | save | list | download | make. ' + TREND_FLOW,
+  inputSchema: {
+    action: z.enum(['find', 'save', 'list', 'download', 'make']),
+    query: z.string().max(200).optional().describe('find: хэштеги или тема через пробел (по умолчанию — brainrot, dancetrend, trend, meme, funny, viral, trending)'),
+    limit: z.number().int().min(3).max(25).default(12).describe('find: сколько трендов вернуть'),
+    write_ideas: z.boolean().default(false).describe('find: true — идеи напишет Claude Code этого компьютера (по подписке). Обычно идеи пишешь ты и сохраняешь через save'),
+    heroes: z.array(z.object({name: z.string().max(80), about: z.string().max(300).optional()})).max(8).optional().describe('герои пользователя для идей'),
+    items: z.array(z.object({url: z.string().max(500), title: z.string().max(300).optional(), author: z.string().max(80).optional(), views: z.number().optional(),
+      growth: z.string().max(80).optional(), views_per_day: z.number().optional(), duration: z.number().optional(), thumb: z.string().max(500).optional(),
+      about: z.string().max(600).optional(), motion: z.string().max(400).optional(), sound: z.string().max(200).optional(), fit: z.number().min(0).max(10).optional(),
+      ideas: z.array(z.object({title: z.string().max(300), hero: z.string().max(80).optional(), how: z.string().max(600).optional()})).max(6).optional(),
+      source: z.string().max(40).optional()})).max(30).optional().describe('save: тренды (новые или дополненные — по url)'),
+    ideas: z.array(z.object({title: z.string().max(300), hero: z.string().max(80).optional(), how: z.string().max(600).optional(), trend: z.string().max(500).optional()})).max(12).optional()
+      .describe('save: общие идеи «что снять сейчас»'),
+    replace: z.boolean().default(false).describe('save: true — заменить всю ленту'),
+    url: z.string().max(500).optional().describe('download / make: ссылка на ролик (TikTok, YouTube Shorts, Reels), который выбрал пользователь'),
+    video_path: z.string().optional().describe('make: уже скачанный ролик (вместо url)'),
+    hero_image: z.string().optional().describe('make: фото героя (абсолютный путь), лучше в полный рост'),
+    hero_name: z.string().max(60).optional(),
+    location: z.string().max(400).optional().describe('make: новая локация по-английски (тогда mode move)'),
+    location_image: z.string().optional().describe('make: фото новой локации'),
+    mode: z.enum(['auto', 'swap', 'move']).default('auto'),
+    start: z.number().min(0).default(0).describe('make: с какой секунды ролика'),
+    seconds: z.number().min(2).max(20).optional().describe('make: сколько секунд (по умолчанию — сколько влезает в квоту: 10 с на бесплатном аккаунте)'),
+    quality: z.enum(['low', 'medium']).default('low').describe('make: low — 360p (до 10 с на бесплатной квоте), medium — 480p (до 5 с на бесплатной, PRO — больше)'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async (a, extra) => {
+  const T = await import('./trends.js');
+  const bad = msg => toolResult({status: 'error', error_kind: 'input', error: msg}, {text: 'Ошибка: ' + msg, isError: true});
+  const fmt = it => [`• ${it.title || it.url}`, `  ${it.url}`, '  ' + [it.views != null && `${it.views.toLocaleString('ru')} просмотров`, it.growth, it.age_days != null && `${it.age_days} дн. назад`, it.duration && `${it.duration} с`].filter(Boolean).join(' · '),
+    it.sound && `  звук: ${it.sound}`, it.motion && `  движение: ${it.motion}`, it.fit != null && `  для переноса движения: ${it.fit}/10`,
+    ...(it.ideas || []).map(i => `  💡 ${i.title}${i.hero ? ` (${i.hero})` : ''}${i.how ? ' — ' + i.how : ''}`)].filter(Boolean).join('\n');
+  try {
+    if (a.action === 'list') {
+      const s = T.trendsList();
+      return toolResult(s, {text: s.items.length ? [`Лента «🔥 Тренды»: ${s.items.length} (обновлена ${new Date(s.updated).toLocaleString('ru')})`, ...s.items.map(fmt),
+        ...(s.ideas?.length ? ['', 'Что снять сейчас:', ...s.ideas.map(i => `💡 ${i.title}${i.hero ? ` (${i.hero})` : ''}${i.how ? ' — ' + i.how : ''}`)] : [])].join('\n') : 'Лента пуста — вызови action=find.'});
+    }
+    if (a.action === 'save') {
+      const r = T.saveTrends({items: a.items || [], ideas: a.ideas, replace: a.replace});
+      return {content: [{type: 'text', text: `Сохранено: новых ${r.added}, всего ${r.total}. Пользователь видит их в приложении: «Создать» → «🔥 Тренды».`}]};
+    }
+    if (a.action === 'find') {
+      const job = startJob('trends', async status => {
+        const r = await T.findTrends({query: a.query, limit: a.limit, onStatus: status});
+        let items = r.items, ideas, note = '';
+        if (a.write_ideas) {
+          const w = await T.writeIdeas(items, a.heroes || [], status);
+          if (w.error) note = w.error;
+          else { const by = new Map(w.items.map(x => [x.url, x])); items = items.map(x => ({...x, ...(by.get(x.url) || {})})); ideas = w.ideas; }
+        }
+        T.saveTrends({items, ideas});
+        return toolResult({items, ideas: ideas || [], scanned: r.scanned, tags: r.tags}, {text: [`Свежие вирусные Shorts (просмотрено ${r.scanned} по #${r.tags.join(' #')}), по просмотрам в день:`,
+          ...items.map(fmt), note && '⚠ ' + note, '', a.write_ideas ? '' : 'Дальше: добавь TikTok/Reels через vidIQ (если есть), напиши about/motion/sound/fit и по 3 идеи брейнрота на тренд — и сохрани: trends action=save.',
+          TREND_FLOW].filter(Boolean).join('\n')});
+      });
+      return waitJob(job, WAIT_MS, extra);
+    }
+    if (a.action === 'download') {
+      if (!a.url) return bad('нужен url ролика');
+      const job = startJob('trend_dl', async status => {
+        const r = await T.downloadTrend(a.url, {onStatus: status});
+        return toolResult(r, {text: `Скачано: ${r.video} (${r.duration} с, ${r.width}×${r.height})${r.audio ? `\nЗвук: ${r.audio}` : '\nВ ролике нет звука'}`});
+      });
+      return waitJob(job, WAIT_MS, extra);
+    }
+    // make
+    const src = a.video_path ? path.resolve(a.video_path) : a.url;
+    if (!src) return bad('нужен url или video_path ролика');
+    if (!a.hero_image) return bad('нужно фото героя: hero_image');
+    try { readLocalImage(a.hero_image); if (a.location_image) readLocalImage(a.location_image); } catch (e) { return bad(e.message); }
+    if (a.location && /[а-яё]/i.test(a.location)) return bad('location — по-английски (переведи как есть)');
+    const job = startJob('motion', async status => {
+      const r = await T.motionTransfer({source: src, hero: path.resolve(a.hero_image), location: a.location || '', locationImage: a.location_image ? path.resolve(a.location_image) : null,
+        mode: a.mode, start: a.start, seconds: a.seconds, quality: a.quality, name: a.hero_name || '', onStatus: status});
+      recordGen({kind: 'video', site: 'freefield', model: `тренд · ${r.engine}`, prompt: `🔥 Тренд → ${a.hero_name || 'герой'}${a.location ? ' · ' + a.location : ''} · ${a.url || path.basename(src)}`,
+        aspect: r.height >= r.width ? '9:16' : '16:9', files: [{path: r.path, mime: 'video/mp4'}]});
+      return toolResult({status: 'done', ...r, files: [fileInfo(r.path)]}, {text: [`Готово: ${r.path}`, `${r.seconds} с · ${r.width}×${r.height} · ${r.mode === 'move' ? 'новая локация' : 'та же локация'} · ${r.audio}`,
+        `Движок: ${r.engine} · ≈ ${r.gpu_seconds} с GPU из квоты`, r.ref_frame && `Кадр героя в локации: ${r.ref_frame}`, '⚠ Чужая музыка в ролике может отключить звук или монетизацию на площадке.'].filter(Boolean).join('\n')});
+    });
+    return waitJob(job, WAIT_MS, extra);
+  } catch (e) { return toolResult({status: 'error', error: e.message}, {text: 'Ошибка: ' + e.message, isError: true}); }
 });
 
 server.registerTool('sync_sites', {

@@ -31,6 +31,15 @@ function updateGenButton() {
     $('#etaLine').textContent = 'Задание ждёт Claude на компьютере · картинки — бесплатно, Flow и Dola';
     return;
   }
+  if (cl.mode === 'trends') {
+    const btn = $('#genBtn'), n = tr.data.items.length;
+    btn.classList.remove('paid');
+    btn.disabled = !!tr.finding;
+    $('#genLabel').textContent = tr.finding ? '⏳ Ищу тренды…' : '🔥 Найти тренды сейчас';
+    $('#genSub').textContent = n ? `в ленте ${n}` : 'бесплатно';
+    $('#etaLine').textContent = 'Свежие Shorts на компьютере + идеи от Claude по подписке · перенос движения — Wan 2.2 Animate на Hugging Face';
+    return;
+  }
   if (cl.mode === 'chars') {
     const n = vc.chars.length, btn = $('#genBtn');
     btn.classList.remove('paid');

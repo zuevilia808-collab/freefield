@@ -43,7 +43,7 @@ export function quotaError(raw, title) {
 
 // ---- транспорт «token»: запросы из программы ----
 function nodeTransport(token) {
-  const auth = {Authorization: `Bearer ${token}`};
+  const auth = token ? {Authorization: `Bearer ${token}`} : {};   // без токена — анонимно (только для проверки: квота 2 мин)
   const streams = new Map();
   return {
     mode: 'token',
@@ -153,9 +153,9 @@ function frameTransport(frame) {
 
 // ---- сессия Space ----
 // open({space, frame?}) — frame передаёт mesh3d.js (окно Space в Chrome), иначе нужен токен.
-export async function openSpace({space, frame = null, profile = currentProfile(), onStatus = () => {}}) {
+export async function openSpace({space, frame = null, profile = currentProfile(), anonymous = false, onStatus = () => {}}) {
   const token = frame ? '' : hfToken(profile);
-  if (!frame && !token) throw new HfError('нет токена Hugging Face для этого профиля', 'auth');
+  if (!frame && !token && !anonymous) throw new HfError('нет токена Hugging Face для этого профиля', 'auth');
   // FREEFIELD_SPACE_HOSTS — адреса Spaces вручную (зеркало или проверка на своём компьютере): {"owner/name": "http://…"}
   const host = frame ? new URL(frame.url()).origin : (JSON.parse(process.env.FREEFIELD_SPACE_HOSTS || '{}')[space] || spaceHost(space));
   const T = frame ? frameTransport(frame) : nodeTransport(token);

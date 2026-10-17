@@ -256,6 +256,32 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
           return fs.createReadStream(file).pipe(res);
         }
+        // «🔥 Тренды»: лента; поиск с идеями (ход — GET /api/trends/find/<id>); «Сделать с моим героем» — задание в галерее; убрать тренд
+        if (url.pathname === '/api/trends' && req.method === 'GET' && api.trendsGet) return send(200, await api.trendsGet());
+        if (url.pathname === '/api/trends/find' && req.method === 'POST' && api.trendsFind) {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 1e5) return send(413, {error: 'слишком большой запрос'}); }
+          const j = JSON.parse(body || '{}');
+          const heroes = (Array.isArray(j.heroes) ? j.heroes : []).slice(0, 8).map(h => ({name: String(h?.name || '').slice(0, 80), about: String(h?.about || '').slice(0, 300)})).filter(h => h.name);
+          return send(200, await api.trendsFind({query: String(j.query || '').slice(0, 200), heroes}));
+        }
+        const tf = url.pathname.match(/^\/api\/trends\/find\/([0-9a-f]{16})$/);
+        if (tf && req.method === 'GET' && api.trendsJob) { const j = await api.trendsJob(tf[1]); return j ? send(200, j) : send(404, {error: 'нет такого поиска — программу перезапускали?'}); }
+        if (url.pathname === '/api/trends/make' && req.method === 'POST' && api.trendsMake) {
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (body.length > 60e6) return send(413, {error: 'слишком большие фото — уменьшите их'}); }
+          const j = JSON.parse(body || '{}');
+          if (!/^https:\/\/(www\.|m\.|vm\.)?(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)\//.test(String(j.url || ''))) return send(400, {error: 'нужна ссылка на ролик TikTok, YouTube или Instagram'});
+          const heroPc = j.hero_pc ? api.findOutput(String(j.hero_pc)) : null;
+          if (!heroPc && !photo(j.hero)) return send(400, {error: 'нужно фото героя (png, jpg, webp)'});
+          if (j.location_image && !photo(j.location_image)) return send(400, {error: 'фото локации — png, jpg или webp'});
+          const loc = String(j.location || '').slice(0, 400);
+          return send(200, await api.trendsMake({url: j.url, hero: j.hero, heroPc, heroName: String(j.hero_name || '').slice(0, 60), location: loc, locationText: String(j.location_text || loc).slice(0, 200),
+            locationImage: j.location_image || null, mode: ['auto', 'swap', 'move'].includes(j.mode) ? j.mode : 'auto', start: Math.max(0, Math.min(600, +j.start || 0)),
+            seconds: +j.seconds >= 2 && +j.seconds <= 20 ? Math.round(+j.seconds) : undefined, quality: j.quality === 'medium' ? 'medium' : 'low'}));
+        }
+        const td = url.pathname.match(/^\/api\/trends\/([a-z]{1,2}-[\w-]{4,40})$/);
+        if (td && req.method === 'DELETE' && api.trendDelete) return send(200, {ok: await api.trendDelete(td[1])});
         // «Отрендерить на компьютере»: файл для проекта монтажа (видео, звук, фото из браузера) → {ref}; сам проект montage.json → задание
         if (url.pathname === '/api/montage/file' && req.method === 'POST' && api.montageFile) {
           const ext = String(url.searchParams.get('ext') || 'bin').toLowerCase();

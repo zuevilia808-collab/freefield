@@ -1462,3 +1462,49 @@ body:not(.dev) .peek-btn,body:not(.dev) .peek-mini,body:not(.dev) [data-up-peek]
   body:not(.pcgal):not([data-cm=edit]):not([data-cm=voice]) .panel{border-right:0;align-items:center}
   body:not(.pcgal):not([data-cm=edit]):not([data-cm=voice]) .panel > *{width:min(100%,880px)}
 }
+
+/* «🔥 Тренды»: лента вирусных роликов, идеи брейнрота, форма «Сделать с моим героем» */
+.only-trends{display:none}
+body[data-cm=trends] .panel-scroll > :not(.only-trends):not(.keep-trends){display:none}
+body[data-cm=trends] .only-trends{display:block}
+.tr-warn{margin:8px 0 10px;padding:8px 11px;border-radius:10px;background:rgba(255,170,40,.1);border:1px solid rgba(255,170,40,.35);color:#ffcf85;font-size:12.5px;line-height:1.4}
+.tr-search{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.tr-search .site-in{flex:1;min-width:0}
+.tr-status{margin:4px 0 6px;color:var(--free);font-size:12.5px}
+.tr-tip{margin:4px 0 0;font-size:11.5px;color:var(--muted);line-height:1.4}
+.tr-ideas{margin:6px 0 0;padding:0 0 0 18px;display:grid;gap:6px;font-size:13px;line-height:1.35}
+.tr-ideas .hint{font-size:12px}
+.tr-hero{font-size:11px;padding:1px 6px;border-radius:6px;background:rgba(212,255,58,.12);color:var(--free);white-space:nowrap}
+.tr-feed{display:grid;gap:12px;margin-top:6px}
+.tr-card{border:1px solid var(--line);border-radius:14px;background:var(--panel2);padding:10px}
+.tr-top{display:flex;gap:10px;align-items:flex-start;position:relative}
+.tr-thumb{flex:0 0 84px;height:150px;border-radius:10px;overflow:hidden;background:var(--panel3);display:grid;place-items:center;position:relative;text-decoration:none;color:inherit}
+.tr-thumb img{width:100%;height:100%;object-fit:cover}
+.tr-thumb i{font-size:28px;font-style:normal}
+.tr-thumb span{position:absolute;left:4px;bottom:4px;font-size:9.5px;padding:1px 5px;border-radius:5px;background:rgba(0,0,0,.65);color:#fff}
+.tr-info{flex:1;min-width:0;font-size:12.5px;line-height:1.4}
+.tr-info p{margin:4px 0 0}
+.tr-title{display:block;font-size:13.5px;line-height:1.3;padding-right:26px;overflow-wrap:anywhere}
+.tr-meta{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:4px;color:var(--muted);font-size:11.5px}
+.tr-fit{padding:0 6px;border-radius:6px}
+.tr-fit.ok{background:rgba(212,255,58,.14);color:var(--free)}.tr-fit.mid{background:rgba(255,200,60,.12);color:#ffd36e}.tr-fit.low{background:rgba(255,90,90,.12);color:#ff9b9b}
+.tr-rm{position:absolute;top:-4px;right:-4px}
+.tr-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tr-act .btn{text-decoration:none}
+.tr-form{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.tr-chars{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.tr-char{flex:0 0 72px;display:grid;gap:4px;justify-items:center;padding:5px;border-radius:10px;border:1px solid var(--line);background:var(--panel3);color:var(--text);font:inherit;font-size:11px;cursor:pointer}
+.tr-char img,.tr-char i{width:58px;height:72px;border-radius:7px;object-fit:cover;display:grid;place-items:center;font-style:normal;font-size:22px;background:var(--panel2)}
+.tr-char span{max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr-char.on,.tr-imgs button.on{border-color:var(--free);box-shadow:0 0 0 1px var(--free) inset}
+.tr-imgs{display:flex;gap:6px;overflow-x:auto;margin-top:6px}
+.tr-imgs button{flex:0 0 48px;height:60px;padding:0;border-radius:7px;overflow:hidden;border:1px solid var(--line);background:none;cursor:pointer}
+.tr-imgs img{width:100%;height:100%;object-fit:cover}
+.tr-loc{margin:2px 0 8px}
+.tr-locimg{display:flex;gap:8px;align-items:center;margin:8px 0 4px}
+.tr-locimg img{width:48px;height:60px;object-fit:cover;border-radius:7px}
+.tr-row{display:flex;flex-wrap:wrap;gap:8px 12px;margin:10px 0 4px;font-size:12px;color:var(--muted)}
+.tr-row label{display:grid;gap:3px}
+.tr-row input,.tr-row select{background:var(--panel3);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text);font:inherit;font-size:13px;width:110px}
+.tr-row select[data-tr-f=quality]{width:auto;min-width:140px}
+.tr-go{width:100%;margin-top:10px}

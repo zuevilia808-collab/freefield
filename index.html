@@ -40,6 +40,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
 <script defer src="js/chars.js"></script>
 <script defer src="js/write.js"></script>
 <script defer src="js/site.js"></script>
+<script defer src="js/trends.js"></script>
 <script defer src="js/init.js"></script>
 </head>
 <body data-mode="image" data-view="create">
@@ -130,6 +131,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
 <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M21.5 12.5h-5.5l-2 3h-4l-2-3H2.5"/><path d="M5.5 5h13l3 7.5v5A2.5 2.5 0 0 1 19 20H5a2.5 2.5 0 0 1-2.5-2.5v-5z"/></symbol>
 <symbol id="i-shirt" viewBox="0 0 24 24"><path d="M8.5 3 4 5.5 2.5 10l3.5 1.5V21h12v-9.5l3.5-1.5L20 5.5 15.5 3a3.5 3.5 0 0 1-7 0z"/></symbol>
 <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M7.5 3v18M16.5 3v18M3 7.5h4.5M3 12h18M3 16.5h4.5M16.5 7.5H21M16.5 16.5H21"/></symbol>
+<symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21.5c-3.9 0-7-2.8-7-6.8 0-3.1 2-5.2 3.6-7 .4 1.8 1.4 3 2.7 3.6C11 7.5 12.3 4.6 15 2.5c.2 3.2 1.6 5 2.9 6.7A8 8 0 0 1 19 14.7c0 4-3.1 6.8-7 6.8z"/><path d="M12 21.5c-1.7 0-3-1.3-3-3.1 0-1.6 1.2-2.8 2-3.9.4 1 1 1.6 1.7 1.9.2-1.4.8-2.5 1.7-3.3.4 1.8 1.6 2.9 1.6 4.8 0 2.1-1.6 3.6-4 3.6z"/></symbol>
 <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.8"/><circle cx="6" cy="18" r="2.8"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/></symbol>
 </svg>
 
@@ -154,11 +156,12 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
   <aside class="panel">
     <div class="panel-scroll">
 
-      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit keep-voice keep-site" id="createMode">
+      <div class="seg create-mode keep-scn keep-write keep-chars keep-3d keep-edit keep-voice keep-site keep-trends" id="createMode">
         <button data-cm="chars" class="on" title="Ваши герои: развёртка, инфографика, кадры в локациях, голос — выбрали героя, и всё встало на место"><svg class="ic"><use href="#i-users"/></svg><span>Персонажи</span></button>
         <button data-cm="one" title="Фото героя в новых локациях, кадры и референсы для видео — через Google Flow, Dola или Arena"><svg class="ic"><use href="#i-image"/></svg><span>Фото</span></button>
         <button data-cm="write" title="ИИ напишет сценарии рилсов по инфографике, развёртке героя и его кадрам в локациях"><svg class="ic"><use href="#i-pen"/></svg><span>Сценарии</span></button>
         <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео</span></button>
+        <button data-cm="trends" title="Самые вирусные ролики сейчас и идеи брейнрота: движение и звук из ролика, а в кадре — ваш герой"><svg class="ic"><use href="#i-flame"/></svg><span>Тренды</span></button>
         <button data-cm="edit" title="Монтаж: видео из галереи — в один длинный ролик; ИИ-монтажёр пишет сценарий и монтирует сам"><svg class="ic"><use href="#i-film"/></svg><span>Монтаж</span></button>
         <button data-cm="voice" title="Озвучка голосом персонажа — «Эхо» на этом компьютере: клон голоса, эмоции, варианты"><svg class="ic"><use href="#i-mic"/></svg><span>Озвучка</span></button>
         <button data-cm="3d" hidden title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
@@ -173,6 +176,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
       <section class="only-scn" id="scnCreate"></section>
       <section class="only-asset" id="assetCreate"></section>
       <section class="only-site" id="siteCreate"></section>
+      <section class="only-trends" id="trendsCreate"></section>
 
       <section>
         <div class="block-head">
