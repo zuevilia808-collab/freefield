@@ -95,12 +95,24 @@ let wrEtalonSent = '', wrEtalonTimer = null;
 function wrEtalonPush(now) {
   clearTimeout(wrEtalonTimer);
   const go = () => {
-    const t = (wr.ref || '').trim() || REF_PROMPT;
-    if (!hubLink.ok || t === wrEtalonSent) return;
-    fetch(hubLink.url('/api/etalon'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: t})})
-      .then(r => { if (r.ok || r.status === 404) wrEtalonSent = t; }).catch(() => {});   // 404 — программа на компьютере старая
+    const t = (wr.ref || '').trim() || REF_PROMPT, key = t + '|' + wr.mode;
+    if (!hubLink.ok || key === wrEtalonSent) return;
+    fetch(hubLink.url('/api/etalon'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: t, mode: wr.mode})})
+      .then(r => { if (r.ok || r.status === 404) wrEtalonSent = key; }).catch(() => {});   // 404 — программа на компьютере старая
   };
   if (now) go(); else wrEtalonTimer = setTimeout(go, 1500);
+}
+// режим переключил агент на компьютере (video_etalon) позже, чем здесь, — берём его; иначе отправляем свой
+async function wrEtalonSync() {
+  if (!hubLink.ok) return;
+  const pc = await fetch(hubLink.url('/api/etalon')).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (pc?.mode && pc.mode !== wr.mode && (pc.modeAt || 0) > ls.get('freefield.write.modeAt', 0)) {
+    wr.mode = pc.mode; ls.set('freefield.write.mode', wr.mode); ls.set('freefield.write.modeAt', pc.modeAt);
+    wrEtalonSent = ((wr.ref || '').trim() || REF_PROMPT) + '|' + wr.mode;
+    if ($('#writeCreate')?.offsetParent) renderWrite();
+    return;
+  }
+  wrEtalonPush(true);
 }
 const isBlockPrompt = t => { const known = new Set([...REF_BLOCKS, ...REF_OLD, ...refLabels()]);
   return [...String(t || '').matchAll(/^\s*([^:\n]{2,40}):/gm)].filter(m => known.has(m[1].trim())).length >= 3; };
@@ -147,10 +159,11 @@ const wr = {
     if (v >= 4) return r;
     if (r && r.trim() !== REF_OLD.map(b => b + ':').join('\n')) ls.set('freefield.write.ref.prev', r);
     ls.set('freefield.write.ref.v', 4); ls.set('freefield.write.ref', REF_PROMPT); return REF_PROMPT; })(ls.get('freefield.write.ref', REF_PROMPT)),   // эталонный промпт: по нему ИИ пишет видео-промпты
+  mode: ls.get('freefield.write.mode', 'etalon'),   // 'etalon' — рилс по эталону, 'brainrot' — мем-ролик (переключатель вверху «Сценариев»)
   char: ls.get('freefield.write.char', null),       // персонаж роликов: его развёртка — в ячейке, его голос ИИ впишет в каждый сценарий
   busy: false, note: '', pick: 'info',
   save() {
-    for (const k of ['ai', 'claudeModel', 'count', 'idea', 'result', 'ref', 'char']) ls.set('freefield.write.' + k, this[k]);
+    for (const k of ['ai', 'claudeModel', 'count', 'idea', 'result', 'ref', 'char', 'mode']) ls.set('freefield.write.' + k, this[k]);
     // картинки — только пока хватает места в браузере (без них раздел просто попросит загрузить их снова)
     ls.set('freefield.write.info', this.info); ls.set('freefield.write.sheet', this.sheet);
   },
@@ -222,6 +235,7 @@ const blocksHTML = t => fillBlocks(t).split('\n').filter(l => l.trim()).map(l =>
 // задание для ИИ: структура рилса пользователя (хук → речь с жестами → призыв); на выходе — эталонный промпт, только заполненный
 // (пользователь 2026-09-26: «выходной промпт для сценария должен быть ровно такой, как эталонный — только заполненный»)
 function writeBrief() {
+  if (wrBrainrot()) return brainrotBrief();
   const n = wr.count, sec = cl.seconds, words = Math.round(sec * 2.3);
   // три части ролика, как в эталоне (0–3 / 3–7 / 7–10 при 10 с) — под длину ролика
   const a1 = Math.max(2, Math.round(sec * 0.3)), mid = Math.max(a1 + 2, Math.round(sec * 0.7)), tc = s => `0:${String(s).padStart(2, '0')}`;
@@ -329,6 +343,76 @@ ${fence}
 
 Пожелания: ${wr.idea.trim()}` : ''}`;
   return {sys, user, chat};
+}
+
+// Режим «🧠 Брейнрот» (пользователь 2026-10-17: «раздели воркфлоу — отдельно брейнрот и отдельно видео с эталонным промптом, пусть будет переключатель»;
+// «брейнрот получается такой себе — плохие сценарии и неуместные субтитры»): абсурдный мем-ролик без эталона, без надписей и субтитров.
+// Картинки необязательны: фото героя и кадры в локациях — если есть
+const wrBrainrot = () => wr.mode === 'brainrot';
+function brainrotBrief() {
+  const n = wr.count, sec = cl.seconds, a1 = Math.max(2, Math.round(sec * 0.3)), mid = Math.max(a1 + 2, Math.round(sec * 0.7));
+  const L = Math.min(wr.locs.length, n), hero = !!wr.sheet;
+  const about = (vc.char(wr.char)?.about || '').trim().replace(/[«»]/g, '"');
+  const media = [...(hero ? [['IMAGE 1 — THE HERO:', wr.sheet]] : []),
+    ...wr.locs.slice(0, n).map((d, i) => [`IMAGE ${i + (hero ? 2 : 1)} — THE HERO IN LOCATION (scenario ${i + 1}):`, d])];
+  const pics = media.length ? `You receive ${media.length} image${media.length > 1 ? 's' : ''}:${hero ? '\nTHE HERO image — the character of every video. The video model gets this image as a reference: never describe the hero\'s look, call it just "the hero".' : ''}${L ? `\nTHE HERO IN LOCATION images — one per scenario, in order; that image is the first frame of its video, the scenario happens exactly there.` : ''}\n\n` : '';
+  const sys = `You are the writer behind the most viral brainrot / absurdist meme videos on TikTok, Reels and Shorts, and an expert prompt engineer for AI video models (Veo, Omni, Seedance).
+${pics}${about ? `THE HERO'S PERSONALITY (the author's words, in Russian): «${about}». Keep it in every video.\n\n` : ''}Write ${n} different brainrot video${n > 1 ? 's' : ''}, ${sec} seconds each, vertical 9:16, for a Russian-speaking audience.
+
+What makes brainrot work — follow every rule:
+• Three beats: 0–${a1} s a weird but instantly readable situation in the very first frame (no setup, no explanation); ${a1}–${mid} s absurd escalation — every 2–3 s it gets more insane; ${mid}–${sec} s an unexpected payoff you SEE and HEAR (an explosion of nonsense, a cursed transformation, a deadpan freeze, a loud meme sound, sudden silence).
+• The humor is visual and sound-driven: hyperbole, broken physics, a deadly serious face in total nonsense, gross-out and toilet jokes, mundane things treated as epic, chain-reaction chaos, cursed body horror played for laughs.
+• Editing energy in the prompt itself: hard cuts, crash zooms, whip pans, camera shake, slow motion on the peak, a freeze frame at the end.
+• Sound: loud meme sound effects, bass boost on the hit, dramatic music sting, or one absurd sound repeated.
+• Words: at most ONE short meme line in Russian in «» (2–6 words, swearing is fine if the author wants it) — or no words at all. NO on-screen text, NO subtitles, NO captions, NO titles.
+• Every video has a different absurd premise; never a normal sketch, never a lesson, never a call to action.
+
+For every video return:
+• title — a short Russian name; angle — the Russian name of the absurd mechanic (эскалация, проклятое превращение, цепная реакция…);
+• video_prompt — ONE dense English paragraph, 80–150 words, present tense, with the beats and their seconds (0–${a1} s …, ${a1}–${mid} s …, ${mid}–${sec} s …), camera moves and sound effects; no "Label:" blocks; never describe the hero's appearance; it ends exactly with: "No on-screen text, no subtitles, no captions.";
+• caption — one short Russian line for the post + 5–8 hashtags;
+• asset_prompt — the photo of the first frame for the Nano Banana image model, English, 60–120 words, exactly these labels, one per line, all filled in:
+  Subject: the same hero exactly as on the reference image
+  Pose & expression: the pose and expression of the first frame
+  Action: what the hero is doing in the first frame
+  Location: the place and props of the first frame
+  Lighting: light source, time of day, mood
+  Camera & framing: vertical 3:4, a realistic handheld phone angle — shot size, angle, lens
+  Style: photorealistic, documentary, high detail
+  Avoid: text, watermark
+
+Answer with ONLY one JSON object inside a single \`\`\`json code block — no text before or after it:
+{"scenarios":[{"title":"…","angle":"…","video_prompt":"…","caption":"…","asset_prompt":"${PHOTO_SHAPE.join('\\n')}"}]}`;
+  const user = `Брейнрот-роликов: ${n}, длина каждого: ${sec} секунд.${hero ? ' Первая картинка — герой.' : ''}${L ? ` Дальше — ${L} ${plur(L, 'кадр', 'кадра', 'кадров')} героя в локациях, по одному на ролик.` : ''}\nПожелания автора: ${wr.idea.trim() || 'нет — придумай самые безумные и смешные'}`;
+  const fence = '```';
+  const chat = `Напиши ${n} ${plur(n, 'брейнрот-ролик', 'брейнрот-ролика', 'брейнрот-роликов')} по ${sec} секунд (вертикально 9:16, для TikTok/Reels): абсурд, эскалация каждые 2–3 секунды, неожиданная развязка, которую видно и слышно; юмор визуальный и звуковой; максимум одна короткая мем-фраза по-русски или без слов; НИКАКИХ надписей и субтитров. Каждый ролик выдай ровно в такой структуре:
+
+1. Название
+Block 1. Photo
+
+${fence}
+Subject: <герой точно как на фото>
+Pose & expression: <поза и выражение первого кадра>
+Action: <что он делает в первом кадре>
+Location: <место первого кадра, предметы>
+Lighting: <свет, время суток, настроение>
+Camera & framing: vertical 3:4, <реалистичный ракурс с рук, крупность, объектив>
+Style: photorealistic, documentary, high detail
+Avoid: text, watermark
+${fence}
+
+Block 2. Video prompt
+
+${fence}
+<один плотный абзац по-английски, 80–150 слов: 0–${a1} s …, ${a1}–${mid} s …, ${mid}–${sec} s …, камера и звуки; внешность героя не описывать; в конце: No on-screen text, no subtitles, no captions.>
+${fence}
+
+Block 3. Post caption
+
+${fence}
+<одна строка к посту и хэштеги>
+${fence}${about ? `\n\nХарактер героя: ${about}.` : ''}${wr.idea.trim() ? `\n\nПожелания: ${wr.idea.trim()}` : ''}`;
+  return {sys, user, chat, media};
 }
 
 // ответ ИИ → список сценариев (JSON в блоке кода, просто JSON или JSON посреди текста); не вышло — null
@@ -506,7 +590,7 @@ async function writeGo() {
   if (['auto', 'sub'].includes(wr.ai) && !hubLink.ok) await hubReady().catch(() => false);
   if (wrNeedKey()) { openKeys(); return geminiOpen(); }   // ключ вставляется в «Настройках» — они уже открыты, когда вернётесь из AI Studio
   // кадры «персонаж в локации» обязательны при любом ИИ: сколько сценариев, столько кадров (пользователь 2026-09-27)
-  const pics = writerNow() === 'chat' ? [] : ['info', 'sheet'].filter(k => !wr[k]), gap = wrLocGap();
+  const pics = writerNow() === 'chat' || wrBrainrot() ? [] : ['info', 'sheet'].filter(k => !wr[k]), gap = wrBrainrot() ? 0 : wrLocGap();
   const miss = gap ? [...pics, 'loc'] : pics;
   if (miss.length) {
     miss.forEach(k => { const el = $(`#writeCreate [data-wslot="${k}"]`); el?.classList.remove('need'); void el?.offsetWidth; el?.classList.add('need'); });
@@ -522,6 +606,7 @@ async function writeGo() {
   const who = writerNow(), {sys, user, chat} = writeBrief();
   if (who === 'chat') {
     // ИИ в чате: ответом будут только заполненные эталонные промпты, каждый в своём блоке
+    if (wrBrainrot()) return toast(await clCopyText(chat) ? `Скопировано: задание на ${wr.count} ${plur(wr.count, 'брейнрот-ролик', 'брейнрот-ролика', 'брейнрот-роликов')} — вставьте в чат с ИИ${wr.sheet ? ' и приложите фото героя' : ''}` : 'Не удалось скопировать', {type: 'ok', ms: 8000});
     return toast(await clCopyText(chat) ? `Скопировано: эталонный промпт и просьба написать ${wr.count} ${plur(wr.count, 'сценарий', 'сценария', 'сценариев')} — вставьте в чат с ИИ и приложите инфографику, развёртку и ${wr.count} ${plur(wr.count, 'кадр', 'кадра', 'кадров')} в локациях по порядку` : 'Не удалось скопировать', {type: 'ok', ms: 10000});
   }
   if (!writerReady(who)) {
@@ -547,12 +632,12 @@ async function writeGo() {
 // сам ИИ-сценарист: задание из нынешних ячеек «Сценариев» → Claude или Gemini → сценарии с голосом героя
 async function writeRun() {
   if (['auto', 'sub'].includes(wr.ai) && !hubLink.ok) await hubReady().catch(() => false);
-  const who = writerNow(), {sys, user} = writeBrief();
+  const who = writerNow(), {sys, user, media} = writeBrief();
   if (who === 'chat') throw new Error('в «Сценариях» выбран «ИИ в чате» — он сам не пишет; выберите «⚡ Авто»');
   if (who === 'sub' && !writerReady(who)) await hubReady();
   if (!writerReady(who)) throw new Error(who === 'sub' ? 'компьютер с программой Freefield и Claude Code не отвечает' : `нет ключа ${WRITERS[who].name} — вставьте его в «Сценариях»`);
-  const r = await aiWrite(who, sys, user);
-  const list = parseScenarios(r.text, r.code), voice = wrVoice();
+  const r = await aiWrite(who, sys, user, media);
+  const list = parseScenarios(r.text, r.code), voice = wrBrainrot() ? null : wrVoice();
   if (list && voice) list.forEach(x => { x.video_prompt = withVoice(x.video_prompt, voice); });
   return {r, list};
 }
@@ -653,7 +738,26 @@ function renderWrite() {
   // инструкция пользователя (2026-09-27): развёртка и инфографика → герой в локациях → эталонный сценарий по кадру «персонаж в локации» →
   // видео с двумя фото (локация + развёртка) и эталонным промптом без лишних слов (внешность героя не описываем)
   const go = (m, t) => `<button class="wr-link" data-wgo="${m}">${t}</button>`;
-  box.innerHTML = `
+  const br = wrBrainrot();
+  const modeSw = `<div class="wr-mode seg" title="Что пишем"><button data-wmode="etalon" class="${br ? '' : 'on'}" title="Рилс по эталонному промпту: хук, речь героя, призыв, надписи и субтитры речи">📐 Эталон · рилс</button><button data-wmode="brainrot" class="${br ? 'on' : ''}" title="Абсурдный мем-ролик: эскалация и неожиданная развязка, юмор картинкой и звуком, без надписей и субтитров; фото героя — по желанию">🧠 Брейнрот</button></div>
+    <div class="hint" style="margin:4px 0 10px">${br ? 'Абсурдный мем-ролик: эскалация и неожиданная развязка, юмор картинкой и звуком, без надписей и субтитров. Фото героя и кадры в локациях — по желанию.' : 'Рилс по эталонному промпту: хук, речь героя, призыв; надписи и субтитры речи.'}</div>`;
+  if (br) {
+    box.innerHTML = `${modeSw}
+    <div class="wr-slots">${slot('sheet', '🧍 Герой', 'необязательно · фото героя')}${locSlot().replace('обязательно ·', 'необязательно ·')}</div>
+    ${wrCharsHTML()}
+    <div class="block-head" style="margin-top:12px"><span class="lbl">Идея</span><span class="hint">необязательно</span></div>
+    <textarea class="wr-idea" data-widea rows="2" placeholder="О чём бред — например: дырявая рохля в СССР, туалетный юмор, мат можно">${esc(wr.idea)}</textarea>
+    <div class="cl-row" style="margin-top:8px">
+      <div class="seg" title="Сколько роликов написать">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button data-wcount="${n}" class="${wr.count === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="seg" title="Длина ролика">${[[10, '10 с'], [8, '8 с']].map(([v, t]) => `<button data-wsec="${v}" class="${cl.seconds === v ? 'on' : ''}">${t}</button>`).join('')}</div>
+    </div>
+    <div id="writeAi"></div>
+    <div id="writeNote"></div>
+    <div id="writeOut">${writeOutHTML()}</div>`;
+    renderWriteAi(); renderWriteNote();
+    return;
+  }
+  box.innerHTML = `${modeSw}
     <details class="wr-howto" ${ls.get('freefield.write.howto', false) ? 'open' : ''}><summary>📋 Как сделать ролик — 4 шага</summary><ol>
       <li><b>Развёртка и инфографика.</b> Развёртка героя — вид спереди, сбоку, сзади, лицо, одежда; инфографика — о чём ролик. Загрузите обе ниже.</li>
       <li><b>Герой в разных локациях.</b> В ${go('one', '🖼 Фото')} приложите развёртку как референс и сделайте героя в разных местах — по кадру на каждый сценарий: 5 сценариев — 5 разных локаций.</li>
@@ -870,6 +974,7 @@ function bindWrite() {
     if (b.dataset.wai) { wr.ai = b.dataset.wai; wr.save(); renderWrite(); return updateGenButton(); }
     if (b.dataset.wgo) { setCreateMode(b.dataset.wgo); return $('.panel-scroll')?.scrollTo({top: 0, behavior: 'smooth'}); }
     if (b.dataset.wcount) { wr.count = +b.dataset.wcount; wr.save(); renderWrite(); return updateGenButton(); }
+    if (b.dataset.wmode) { wr.mode = b.dataset.wmode; ls.set('freefield.write.mode', wr.mode); ls.set('freefield.write.modeAt', Date.now()); wrEtalonPush(true); renderWrite(); updateGenButton(); return; }
     if (b.dataset.wsec) { cl.seconds = +b.dataset.wsec; cl.save(); return renderWrite(); }
     const list = wr.result?.scenarios || [];
     const pick = v => v === 'all' ? list : [list[+v]].filter(Boolean);

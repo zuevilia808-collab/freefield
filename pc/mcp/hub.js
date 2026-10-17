@@ -227,7 +227,7 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           if (req.method !== 'POST') return send(405, {error: 'нужен POST'});
           let body = '';
           for await (const chunk of req) { body += chunk; if (body.length > 1e5) return send(413, {error: 'эталон слишком длинный'}); }
-          try { return send(200, await api.etalonSet(JSON.parse(body || '{}').text)); } catch (e) { return send(400, {error: e.message}); }
+          try { const j = JSON.parse(body || '{}'); return send(200, await api.etalonSet(j.text, j.mode)); } catch (e) { return send(400, {error: e.message}); }
         }
         const wj = url.pathname.match(/^\/api\/write\/([0-9a-f]{16})$/);
         if (wj && req.method === 'GET' && api.writeGet) { const j = await api.writeGet(wj[1]); return j ? send(200, j) : send(404, {error: 'нет такого задания — программу перезапускали?'}); }

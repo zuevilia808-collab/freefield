@@ -661,7 +661,8 @@ server.registerTool('flow_image', {
 async function etalonGate(prompts, freeForm) {
   if (freeForm || !prompts.length) return null;
   const E = await import('./etalon.js');
-  const {text} = E.etalon();
+  const {text, mode} = E.etalon();
+  if (mode === 'brainrot') return null;   // брейнрот — без эталона (правила — в video_etalon)
   const bad = prompts.map((p, i) => [i + 1, E.checkPrompt(p, text)]).filter(x => x[1]);
   if (!bad.length) return null;
   return {isError: true, content: [{type: 'text', text: [
@@ -672,15 +673,18 @@ async function etalonGate(prompts, freeForm) {
 }
 
 server.registerTool('video_etalon', {
-  title: 'Эталон видео-промпта пользователя',
-  description: 'Возвращает эталонный промпт видео пользователя (раздел «Сценарии» приложения Freefield) и правила заполнения. Вызывай ПЕРЕД тем, как писать любой видео-промпт ' +
-    '(сценарий рилса, batch_generate, flow_video, vids_video, arena_video): видео-промпт — это заполненный эталон, те же блоки и таймкоды. Промпт не по эталону эти инструменты не запустят.',
-  inputSchema: {},
-  annotations: {readOnlyHint: true, openWorldHint: false},
-}, async () => {
+  title: 'Режим видео и эталон видео-промпта',
+  description: 'Режим видео пользователя и как писать видео-промпты. Вызывай ПЕРЕД тем, как писать любой видео-промпт (сценарий рилса, batch_generate, flow_video, vids_video, arena_video). ' +
+    'Режим «etalon» (рилс): видео-промпт — заполненный эталон пользователя (раздел «Сценарии» приложения), те же блоки и таймкоды; не по эталону эти инструменты не запустят. ' +
+    'Режим «brainrot»: абсурдный мем-ролик без эталона, без надписей и субтитров. Переключатель — в «Сценариях» приложения; mode — переключить отсюда, когда пользователь сам просит брейнрот или ролик по эталону.',
+  inputSchema: {mode: z.enum(['etalon', 'brainrot']).optional().describe('Переключить режим (только по просьбе пользователя): etalon — рилс по эталону, brainrot — мем-ролик')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({mode}) => {
   const E = await import('./etalon.js');
-  const {text, from, at} = E.etalon();
-  return {content: [{type: 'text', text: [`Эталон видео-промпта (${from === 'app' ? 'из приложения, ' + new Date(at).toLocaleString('ru') : 'стандартный v4 — пользователь в приложении свой не менял'}):`,
+  const {text, from, at, mode: now} = mode ? E.setEtalon(null, mode) : E.etalon();
+  const head = (mode ? 'Режим переключён: ' : 'Режим: ') + (now === 'brainrot' ? '🧠 БРЕЙНРОТ.' : '📐 ЭТАЛОН.');
+  if (now === 'brainrot') return {content: [{type: 'text', text: [head, '', E.BRAINROT_RULES].join('\n')}]};
+  return {content: [{type: 'text', text: [head, `Эталон видео-промпта (${from === 'app' ? 'из приложения, ' + new Date(at).toLocaleString('ru') : 'стандартный v4 — пользователь в приложении свой не менял'}):`,
     '', text, '', E.ETALON_RULES].join('\n')}]};
 });
 
@@ -929,7 +933,7 @@ const MONTAGE_ARGS = {
   items: z.array(z.string().max(60)).max(5).optional().describe('Тезисы для cards / фишки для launch'),
   cta: z.string().max(40).optional().describe('Призыв в конце («Подпишись», «Ссылка в профиле»)'),
   hook: z.string().max(90).optional().describe('Хук-текст на первые 2 с (шаблон reel; по умолчанию — title)'),
-  captions: z.boolean().default(true).describe('Субтитры по словам из речи клипов'),
+  captions: z.boolean().optional().describe('Субтитры по словам из речи клипов (по умолчанию — да; в режиме «брейнрот» — нет)'),
   language: z.string().max(5).default('auto').describe('Язык речи: auto, ru, en…'),
   pace: z.enum(['auto', 'speech', 'fast', 'medium', 'slow']).default('auto').describe('auto: речь — по фразам; без речи — смена кадра каждые 1–2 такта; fast = каждые 2 бита'),
   aspect: z.enum(['auto', '9:16', '1:1', '4:5', '16:9']).default('auto'),
@@ -940,13 +944,15 @@ const MONTAGE_ARGS = {
 };
 const badInput = msg => toolResult({status: 'error', error_kind: 'input', error: msg}, {text: 'Ошибка: ' + msg, isError: true});
 // параметры MCP → параметры montage(); ошибка — строкой
+// режим «брейнрот» (переключатель в «Сценариях» / video_etalon): мем-ролик без субтитров и без эталона
+const brainrotMode = () => { try { return JSON.parse(fs.readFileSync(path.join(HERE, '.etalon.json'), 'utf8')).mode === 'brainrot'; } catch { return false; } };
 function montageOpts(args, M) {
   const clips = (args.clips?.length ? args.clips : M.latestVideos(OUT, 4)).map(f => path.resolve(f));
   const bad = clips.find(f => !fs.existsSync(f));
   if (bad || !clips.length) return {error: bad ? 'нет файла ' + bad : 'в outputs нет видео — передай clips'};
   if (args.music && !fs.existsSync(args.music)) return {error: 'нет трека ' + args.music};
   const {quality, ...rest} = args;
-  return {opts: {...rest, clips, music: args.music && path.resolve(args.music), style: args.style ?? (args.template ? undefined : 'titles'),
+  return {opts: {...rest, captions: args.captions ?? !brainrotMode(), clips, music: args.music && path.resolve(args.music), style: args.style ?? (args.template ? undefined : 'titles'),
     look: args.look === 'none' ? {preset: 'none'} : args.look ? {preset: args.look, vignette: true} : undefined,
     brand: args.brand && {...args.brand, logo: args.brand.logo ? {path: path.resolve(args.brand.logo)} : null}, outDir: todayDir()}, quality};
 }

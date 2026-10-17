@@ -49,18 +49,40 @@ export const ETALON_RULES = 'Как заполнять: те же подписи
   'призыв (CTA) и его надпись — только в последней части, сцена 3 остальных частей — клиффхэнгер («что будет дальше»), следующая часть начинается с другого ракурса. ' +
   'Надписи на экране Flow (Omni) рисует по-русски сам — в монтаже их не дублируй, добавляй только субтитры речи.';
 
+// Режим видео (пользователь 2026-10-17: «раздели воркфлоу — отдельно брейнрот и отдельно видео с эталонным промптом, пусть будет переключатель»):
+// etalon — рилс по эталону (блоки, таймкоды, надписи, субтитры речи); brainrot — абсурдный мем-ролик: без эталона, без надписей и субтитров.
+// Переключатель — в «Сценариях» приложения (POST /api/etalon {mode}) или video_etalon({mode}) у агента; кто переключил последним, тот и прав.
+export const MODES = ['etalon', 'brainrot'];
+
+export const BRAINROT_RULES = 'РЕЖИМ БРЕЙНРОТ — абсурдный мем-ролик, эталон НЕ используется. Как писать видео-промпт: один плотный абзац по-английски, без блоков «Label:» и таймкодов; ' +
+  '8–10 с, 3 удара: (1) странная, но узнаваемая ситуация в первом же кадре, (2) абсурдная эскалация — каждые 2–3 с ещё безумнее, (3) неожиданная развязка-панчлайн, ' +
+  'которую видно картинкой и слышно звуком (бах, вопль, мем-звук, тишина). Юмор — визуальный и звуковой: гипербола, нелепая физика, серьёзное лицо в бреду, резкие смены плана, ' +
+  'зум-удары, тряска камеры. Речь — максимум одна короткая мем-фраза (по-русски в «») или вообще без слов. Обязательно допиши в промпт: «no on-screen text, no subtitles, no captions». ' +
+  'Монтаж брейнрота — без субтитров (montage: captions=false; montage_render: без captions), громкий звук, склейка встык. Персонаж держится: дай во Flow два фото — герой в локации + исходный герой.';
+
 const FILE = path.join(HERE, '.etalon.json');
+const readFile = () => { try { return JSON.parse(fs.readFileSync(FILE, 'utf8')) || {}; } catch { return {}; } };
 
 export function etalon() {
-  try { const j = JSON.parse(fs.readFileSync(FILE, 'utf8')); if (j.text?.trim()) return {text: j.text.trim(), from: 'app', at: j.at || null}; } catch { /* нет своего */ }
-  return {text: DEFAULT_ETALON, from: 'default', at: null};
+  const j = readFile(), mode = MODES.includes(j.mode) ? j.mode : 'etalon';
+  return j.text?.trim() ? {text: j.text.trim(), from: 'app', at: j.at || null, mode, modeAt: j.modeAt || null}
+    : {text: DEFAULT_ETALON, from: 'default', at: null, mode, modeAt: j.modeAt || null};
 }
 
-export function setEtalon(text) {
-  const t = String(text || '').trim();
-  if (t.length < 20 || t.length > 20000) throw new Error('эталон пустой или слишком длинный');
-  if (labels(t).length < 3) throw new Error('в эталоне нет блоков «Подпись: …»');
-  fs.writeFileSync(FILE, JSON.stringify({text: t, at: Date.now()}));
+// text — новый эталон (или пусто — не трогать), mode — 'etalon' | 'brainrot' (или пусто)
+export function setEtalon(text, mode) {
+  const j = readFile();
+  if (text != null && String(text).trim()) {
+    const t = String(text).trim();
+    if (t.length < 20 || t.length > 20000) throw new Error('эталон пустой или слишком длинный');
+    if (labels(t).length < 3) throw new Error('в эталоне нет блоков «Подпись: …»');
+    Object.assign(j, {text: t, at: Date.now()});
+  }
+  if (mode != null) {
+    if (!MODES.includes(mode)) throw new Error('режим — etalon или brainrot');
+    Object.assign(j, {mode, modeAt: Date.now()});
+  }
+  fs.writeFileSync(FILE, JSON.stringify(j));
   return etalon();
 }
 

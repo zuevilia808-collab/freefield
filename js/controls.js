@@ -41,7 +41,8 @@ function updateGenButton() {
     return;
   }
   if (cl.mode === 'write') {
-    const who = writerNow(), btn = $('#genBtn'), have = who === 'chat' || wr.info && wr.sheet, gap = wrLocGap();
+    const br = wrBrainrot(), who = writerNow(), btn = $('#genBtn'), have = br || who === 'chat' || wr.info && wr.sheet, gap = br ? 0 : wrLocGap();
+    const what = br ? ['брейнрот-ролик', 'брейнрот-ролика', 'брейнрот-роликов'] : ['сценарий', 'сценария', 'сценариев'];
     btn.classList.toggle('paid', who === 'claude');
     btn.disabled = wr.busy;
     if (wrNeedKey()) {
@@ -52,8 +53,8 @@ function updateGenButton() {
     }
     $('#genLabel').textContent = wr.busy ? '⏳ ИИ пишет сценарии…' : !have ? '✍️ Загрузите инфографику и развёртку'
       : gap > 0 ? `📍 Нужно ещё ${gap} ${plur(gap, 'кадр', 'кадра', 'кадров')} в локациях` : gap < 0 ? `📍 Лишних кадров в локациях: ${-gap}`
-      : who === 'chat' ? `📋 Скопировать задание: ${wr.count} ${plur(wr.count, 'сценарий', 'сценария', 'сценариев')}`
-      : `✍️ Написать ${wr.count} ${plur(wr.count, 'сценарий', 'сценария', 'сценариев')}`;
+      : who === 'chat' ? `📋 Скопировать задание: ${wr.count} ${plur(wr.count, ...what)}`
+      : `${br ? '🧠' : '✍️'} Написать ${wr.count} ${plur(wr.count, ...what)}`;
     $('#genSub').textContent = who === 'chat' ? 'скопировать' : WRITERS[who].name;
     $('#etaLine').textContent = who === 'sub' ? `Claude Code на вашем компьютере · по подписке, без доплат${writerReady('sub') ? '' : ' · нужен Freefield на компьютере'}`
       : who === 'free' ? 'Бесплатный ИИ без ключа · картинки не видит, пишет слабее'
