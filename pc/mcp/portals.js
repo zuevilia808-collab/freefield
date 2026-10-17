@@ -1382,7 +1382,8 @@ async function vidsRun({prompt, aspect = '9:16', quality = '720p', imagePaths = 
     const pct = text.match(/генерируется[^%]*?(\d{1,3})\s?%/i)?.[1];
     src = st.srcs.find(s => !before.has(s));
     if (src && !pct) break;
-    if (/(исчерпал|достигли|закончил)\S*[^.]{0,60}(лимит|квот)|limit reached|quota/i.test(text)) { markOut('vids'); throw new PortalError(`Google Vids: лимит ИИ-видео на сегодня — «${text.match(/[^.]*(лимит|limit|квот)[^.]*\./i)?.[0] || ''}»`, 'quota'); }
+    // «Достигнуто ограничение на число сгенерированных видео в Vids» (пользователь 2026-10-17: «это значит кончились токены — переходи на другой способ»)
+    if (/(исчерпал|достигли|достигнут|закончил)\S*[^.]{0,60}(лимит|квот|ограничени)|ограничение на число|limit reached|quota/i.test(text)) { markOut('vids'); throw new PortalError(`Google Vids: лимит ИИ-видео на этом аккаунте на сегодня — «${text.match(/[^.]*(лимит|limit|квот|ограничени)[^.]*\./i)?.[0] || ''}»`, 'quota'); }
     if (/Не удалось (создать|сгенерировать)|не можем создать|нарушает|Couldn.t generate|violat|Попробуйте другой запрос/i.test(text) && !pct)
       throw new PortalError(`Google Vids не сделал видео — «${text.match(/[^.]*(Не удалось|не можем|нарушает|Couldn.t|violat|другой запрос)[^.]*\.?/i)?.[0] || ''}»`, 'rejected');
     onStatus(`Google Vids генерирует: ${pct ? pct + '% · ' : ''}${Math.round((Date.now() - t0) / 1000)} с`);
