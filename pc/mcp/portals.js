@@ -263,7 +263,10 @@ async function captchaCheck(page, site) {
 // ответ — страница (вход Google, ошибка), а не файл: такое не сохраняем, пробуем следующий способ
 // (2026-10-15: Vids отдал страницу входа accounts.google.com со статусом 200 — в галерею попал .bin вместо видео)
 const notMedia = (buf, mime) => /^text\/|html|json/i.test(mime || '') || /^\s*<(!doctype|html)/i.test(buf.subarray(0, 64).toString('latin1'));
-async function download(page, src) {
+// Скачивание: у каждого способа 60 с, у всего — 4 мин. Раньше 4 способа × 2 попытки по 2 мин (последний — без предела) держали
+// задание на «скачиваю 1 из 1» по 5–15 минут (2026-10-17)
+const download = (page, src) => capped(downloadIn(page, src), 4 * 60e3, 'Скачивание файла');
+async function downloadIn(page, src) {
   const errs = [], mimeOf = h => (h || '').split(';')[0];
   // возврат только настоящего файла; страница вместо файла — ошибка этого способа (дальше — следующий)
   const okFile = (buf, mime) => { if (!buf?.length || notMedia(buf, mime)) { errs.push('вместо файла — страница (' + (mime || 'html') + ')'); return null; } return {buf, mime}; };
@@ -271,27 +274,27 @@ async function download(page, src) {
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt) await sleep(3000);
     try {
-      const r = await page.request.get(src, {timeout: 120000});
+      const r = await page.request.get(src, {timeout: 60000});
       if (r.ok()) { const f = okFile(await r.body(), mimeOf(r.headers()['content-type'])); if (f) return f; }
       errs.push('HTTP ' + r.status());
     } catch (e) { errs.push(e.message.split('\n')[0]); }
     // некоторые адреса (Flow: …/asb/…) отдают файл только так, как его просит сам плеер страницы
     try {
-      const r = await page.request.get(src, {timeout: 120000, headers: {Referer: origin + '/', 'Sec-Fetch-Dest': 'video', 'Sec-Fetch-Mode': 'no-cors', 'Sec-Fetch-Site': 'same-origin', Range: 'bytes=0-'}});
+      const r = await page.request.get(src, {timeout: 60000, headers: {Referer: origin + '/', 'Sec-Fetch-Dest': 'video', 'Sec-Fetch-Mode': 'no-cors', 'Sec-Fetch-Site': 'same-origin', Range: 'bytes=0-'}});
       const total = +(r.headers()['content-range'] || '').split('/')[1] || 0;
       const buf = r.ok() ? await r.body() : null;
       if (buf && (!total || buf.length >= total)) { const f = okFile(buf, mimeOf(r.headers()['content-type'])); if (f) return f; }
     } catch {}
     // напрямую (картинки Dola и Arena лежат по открытым подписанным ссылкам)
     if (/^https:/.test(src)) try {
-      const r = await fetch(src, {headers: {Referer: origin + '/'}, signal: AbortSignal.timeout(120000)});
+      const r = await fetch(src, {headers: {Referer: origin + '/'}, signal: AbortSignal.timeout(60000)});
       if (r.ok) { const f = okFile(Buffer.from(await r.arrayBuffer()), mimeOf(r.headers.get('content-type'))); if (f) return f; }
       errs.push('HTTP ' + r.status);
     } catch (e) { errs.push(e.message); }
   }
   try {
     const d = await page.evaluate(async s => {
-      const r = await fetch(s);
+      const r = await fetch(s, {signal: AbortSignal.timeout(60000)});
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const b = await r.blob();
       return {type: b.type, b64: await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = () => rej(fr.error); fr.readAsDataURL(b); })};
