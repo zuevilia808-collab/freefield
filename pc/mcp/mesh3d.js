@@ -97,6 +97,9 @@ export async function hfFrame(space, onStatus = () => {}) {
   for (let i = 0; i < 150; i++) {
     const f = page.frames().find(f => /\.hf\.space/.test(f.url()));
     if (f && await f.evaluate(() => !!document.querySelector('gradio-app, .gradio-container, #root')).catch(() => false)) return {page, frame: f, who};
+    // квота кончилась — Hugging Face закрывает Space окном «You've hit your daily ZeroGPU limit»: говорим сразу, а не ждём 5 минут
+    if (i % 5 === 0 && await page.evaluate(() => /daily ZeroGPU limit/i.test(document.body.innerText)).catch(() => false))
+      throw new HfError('закончилась дневная квота ZeroGPU этого аккаунта Hugging Face — обновится через сутки после первого запуска (или войдите другим аккаунтом в окне Chrome Freefield)', 'quota');
     if (i % 5 === 0) onStatus(`жду, пока Space ${space} откроется`);
     if (i === 60) await page.reload({waitUntil: 'domcontentloaded'}).catch(() => {});
     await sleep(2000);
