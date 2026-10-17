@@ -68,5 +68,17 @@ export const RECIPES = {
     pace: 'speech', clean_speech: true, transitions: ['cut'], punch_amount: 0.12, drift: 0.03, keyword_punch: true,
     sfx: {hits: true, volume: 0.3}, captions: 'box',
   },
+  // пользователь 2026-10-17: «доделай автомонтаж, чтобы был на крутом уровне» — на сценке из двух частей прежний монтаж клал титр поверх
+  // надписи модели, чёрный кадр с титром в конце и субтитры на персонаже. Скетч — по умолчанию для клипов с речью
+  sketch: {
+    label: 'Скетч', desc: 'Сценка из клипов с речью: части встык, паузы и «эээ» вырезаны, удар зумом на каждом восклицании, субтитры внизу, без титров и чёрных кадров',
+    pace: 'speech', clean_speech: true, transitions: ['cut'], punch_amount: 0.08, drift: 0.03, exclaim_punch: true,
+    sfx: {hits: true, volume: 0.3}, captions: 'pop',
+  },
+  brainrot: {
+    label: 'Брейнрот', desc: 'Мем-ролик: склейки встык и вспышки, удары зумом с тряской и звуковые удары на выкриках, сочный цвет, без субтитров и титров',
+    pace: 'auto', clean_speech: true, transitions: ['cut', 'flash', 'cut', 'hblur'], punch_amount: 0.13, drift: 0.02, exclaim_punch: true,
+    fx: {shake: {amount: 0.5}}, look: {preset: 'neon', vignette: true}, sfx: {hits: true, transitions: true, volume: 0.65}, captions: false,
+  },
 };
 export const recipeList = () => Object.entries(RECIPES).map(([id, r]) => ({id, label: r.label, desc: r.desc}));

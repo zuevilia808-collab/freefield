@@ -226,7 +226,7 @@ window.SETUP = cfg => {
     const box = $('cap cap-' + cs);
     // безопасная зона Reels / TikTok / Shorts: справа колонка кнопок (~14 %), снизу подпись и музыка (~20 %)
     const fs = cs === 'word' ? 12 : cs === 'minimal' ? 4.6 : cs === 'karaoke' ? 6 : 7.2;
-    Object.assign(box.style, {top: (H * (H > W ? (cs === 'word' ? 0.58 : cs === 'minimal' ? 0.72 : 0.66) : 0.72)) + 'px', fontSize: (U * (H > W ? fs : fs * 0.78)) + 'px',
+    Object.assign(box.style, {top: (H * (H > W ? (cs === 'word' ? 0.64 : cs === 'minimal' ? 0.76 : 0.72) : 0.72)) + 'px', fontSize: (U * (H > W ? fs : fs * 0.78)) + 'px',
       ...(H > W ? {left: '7%', right: '15%'} : {})});
     parts.push(t => {
       // страница: от первого слова до начала следующей (не дольше 0,6 с после последнего слова)

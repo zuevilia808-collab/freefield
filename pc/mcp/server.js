@@ -924,8 +924,8 @@ const MONTAGE_ARGS = {
   clips: z.array(z.string()).max(8).optional().describe('Видео по порядку (абсолютные пути). Не задано — последние 4 видео из outputs'),
   music: z.string().optional().describe('Трек (mp3/wav/m4a). Подобрать по темпу и настроению — montage_music. Без трека — ровный ритм 120 BPM и звук клипов'),
   duration: z.number().min(6).max(60).default(20).describe('Длина, с (подгоняется к целым тактам; ролик с речью может выйти до 1,5× длиннее — фразы не рвутся)'),
-  template: z.string().max(40).optional().describe('Шаблон: aura, velocity, trailer (кино-трейлер), launch, demo, reel, talking или свой (из montage_from_reference) — список: montage_templates'),
-  style: z.enum(['titles', 'cards', 'launch', 'none']).optional().describe('Графика (по умолчанию — из шаблона, без шаблона — titles)'),
+  template: z.string().max(40).optional().describe('Шаблон: sketch (сценка с речью — по умолчанию для клипов с речью), brainrot (мем-ролик — по умолчанию в режиме «Брейнрот»), aura, velocity, trailer (кино-трейлер), launch, demo, reel, talking или свой (из montage_from_reference) — список: montage_templates'),
+  style: z.enum(['titles', 'cards', 'launch', 'none']).optional().describe('Графика (по умолчанию — из шаблона; без шаблона — только у клипов без речи с заголовком)'),
   caption_style: z.enum(['pop', 'karaoke', 'word', 'box', 'outline', 'neon', 'minimal', 'typewriter', 'bounce', 'gradient']).optional().describe('Стиль субтитров'),
   look: z.enum(['teal_orange', 'film', 'bw', 'neon', 'warm', 'cold', 'aura', 'none']).optional().describe('Цвет всего ролика (по умолчанию — из шаблона)'),
   title: z.string().max(80).optional().describe('Заголовок / имя продукта'),
@@ -952,7 +952,7 @@ function montageOpts(args, M) {
   if (bad || !clips.length) return {error: bad ? 'нет файла ' + bad : 'в outputs нет видео — передай clips'};
   if (args.music && !fs.existsSync(args.music)) return {error: 'нет трека ' + args.music};
   const {quality, ...rest} = args;
-  return {opts: {...rest, captions: args.captions ?? !brainrotMode(), clips, music: args.music && path.resolve(args.music), style: args.style ?? (args.template ? undefined : 'titles'),
+  return {opts: {...rest, captions: args.captions ?? (brainrotMode() ? false : undefined), template: args.template ?? (brainrotMode() ? 'brainrot' : undefined), clips, music: args.music && path.resolve(args.music), style: args.style,
     look: args.look === 'none' ? {preset: 'none'} : args.look ? {preset: args.look, vignette: true} : undefined,
     brand: args.brand && {...args.brand, logo: args.brand.logo ? {path: path.resolve(args.brand.logo)} : null}, outDir: todayDir()}, quality};
 }

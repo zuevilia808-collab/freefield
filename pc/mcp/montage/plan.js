@@ -8,6 +8,7 @@ import path from 'node:path';
 import {FORMAT, VERSION, ASPECTS, wordsOnTimeline} from './project.js';
 import {BEAT_SET, TRANSITIONS} from './fx.js';
 import {findDrop} from './analyze.js';
+import {RECIPES} from './templates/recipes.js';
 
 // слова-паразиты: вырезаются из речи и не попадают в субтитры
 export const FILLER = /^(э+|э+м+|м+|хм+|ммм+|um+|uh+|erm+|uhm+|hm+|mm+)[.,!?…]*$/i;
@@ -176,7 +177,8 @@ export function cutPlan(clips, beat, opts) {
 
 // clips: [{file, duration, width, height, audio, speech, words, shots}], beat — trackBeats/gridBeats, opts — как у montage() (+ recipe шаблона)
 export function toProject(clips, beat, opts) {
-  const R = opts.recipe || {};
+  // без шаблона клипы с речью — сценка: монтаж «Скетч» (части встык, удары на восклицаниях, без титров поверх надписей модели)
+  const R = opts.recipe || (clips.some(c => c.speech) ? RECIPES.sketch : {});
   const P = cutPlan(clips, beat, {...opts, pace: opts.pace && opts.pace !== 'auto' ? opts.pace : R.pace || 'auto', clean_speech: opts.clean_speech ?? R.clean_speech, pattern: R.pattern,
     build_bars: R.build_bars, build_step: R.build_step, drop_steps: R.drop_steps, end_beats: R.end_beats});
   const [W, H] = ASPECTS[opts.aspect] || ASPECTS['9:16'];
@@ -190,9 +192,11 @@ export function toProject(clips, beat, opts) {
     const tr = k ? pset[(k - 1 + (opts.variant || 0) * 3) % pset.length] : 'cut';
     // кадр другой формы, чем ролик (16:9 в 9:16) — окно едет за интересным
     const reframe = opts.reframe !== false && c.width && Math.abs(Math.log((c.width / c.height) / (W / H))) > 0.15;
-    let at = s.t0;
+    // встык за предыдущим (его последний кусок мог кончиться раньше доли — вместе с клипом)
+    let at = video.length ? Math.min(s.t0, Math.max(...video.map(v => v.at + (v.out - v.in) / (v.speed || 1)))) : s.t0;
     for (const [j, p] of s.parts.entries()) {
-      const len = j === s.parts.length - 1 ? s.t1 - at : p.len;
+      // последний кусок — до доли, но не дальше конца клипа (иначе в конце ролика — чёрные кадры)
+      const len = j === s.parts.length - 1 ? Math.max(0.1, Math.min(s.t1 - at, (c.duration || Infinity) - p.from - 0.04)) : p.len;
       // «удары» на сильных долях внутри куска (и в начале сегмента) — секунды от начала куска
       let punch = P.beats.filter((b, i) => i % (ph.punch_every || 4) === 0 && b >= at - 1e-3 && b < at + len).map(b => +(b - at).toFixed(3));
       if (!j && !punch.includes(0)) punch.unshift(0);
@@ -203,6 +207,19 @@ export function toProject(clips, beat, opts) {
           const tt = w.start - p.from;
           if (tt < 0.1 || tt >= len - 0.2 || w.text.replace(/[^\p{L}]/gu, '').length < 7 || FILLER.test(w.text)) continue;
           if (!punch.length || tt - punch[punch.length - 1] > 1.2) punch.push(+tt.toFixed(3));
+        }
+      }
+      // сценка и брейнрот: удар зумом (и тряска, если она в шаблоне) — в начале куска и на каждом восклицании / вопросе
+      if (R.exclaim_punch && c.words?.length) {
+        punch = j ? [] : [0];
+        for (const w of c.words) {
+          const tt = w.start - p.from;
+          if (tt < 0.15 || tt >= len - 0.15 || !/[!?]["»)]*$/.test(w.text)) continue;
+          // удар — на начале фразы с восклицанием: ищем её первое слово (после паузы или знака конца фразы)
+          let k = c.words.indexOf(w);
+          while (k > 0 && !/[.!?…]["»)]*$/.test(c.words[k - 1].text) && c.words[k].start - c.words[k - 1].end < 0.35) k--;
+          const at0 = Math.max(0.05, c.words[k].start - p.from);
+          if (at0 < len - 0.15 && (!punch.length || at0 - punch[punch.length - 1] > 0.8)) punch.push(+at0.toFixed(3));
         }
       }
       // speed ramp по долям длины куска; ускорение в начале (at = 0) — скорость самого клипа
@@ -221,13 +238,16 @@ export function toProject(clips, beat, opts) {
     }
   }
   const speech = clips.some(c => c.speech);
-  const words = opts.captions === false ? [] : wordsOnTimeline(pieceMap);
-  const style = ['titles', 'cards', 'launch'].includes(opts.style) ? opts.style : opts.style === 'none' ? null : R.gfx || null;
+  // ролик кончается вместе с последним кадром последнего клипа (без хвоста до доли)
+  const endAt = video.length ? Math.max(...video.map(v => v.at + (v.out - v.in) / (v.speed || 1))) : P.duration;
+  const words = opts.captions === false || (R.captions === false && opts.captions !== true) ? [] : wordsOnTimeline(pieceMap);
+  // титры — если их задали, или шаблон их хочет, или ролик без речи с заголовком; поверх сценки (надписи уже нарисовала модель) — нет
+  const style = ['titles', 'cards', 'launch'].includes(opts.style) ? opts.style : opts.style === 'none' ? null : R.gfx || (!speech && opts.title && !opts.recipe ? 'titles' : null);
   return {
     plan: P,
     project: {
       format: FORMAT, version: VERSION, name: opts.title || clips.map(c => path.basename(c.file)).join(' + ').slice(0, 120),
-      aspect: opts.aspect, fps: 30, fit: 'cover', duration: +P.duration.toFixed(3),
+      aspect: opts.aspect, fps: 30, fit: 'cover', duration: +Math.min(P.duration, endAt).toFixed(3),
       music: {bpm: beat.bpm, beats: P.beats.map(b => +b.toFixed(3)), drop: P.drop},
       tracks: {
         video,
@@ -242,7 +262,7 @@ export function toProject(clips, beat, opts) {
             .map(s => ({text: opts.title, at: +(s.t0 + 0.4).toFixed(3), duration: +Math.max(1, P.duration - s.t0 - 0.6).toFixed(3), pos: 'center', style: 'cta'})) : []),
           ...(R.cta && opts.cta ? [{text: opts.cta, at: Math.max(0, P.duration - 2.6), duration: 2.5, pos: 'center', style: 'cta'}] : [])],
         gfx: style ? [{template: style, props: {title: opts.title || '', subtitle: opts.subtitle || '', items: opts.items || [], cta: opts.cta || ''}}] : [],
-        captions: {style: opts.caption_style || R.captions || 'pop', words},
+        captions: {style: opts.caption_style || (typeof R.captions === 'string' ? R.captions : 'pop'), words},
       },
       ...(opts.look || R.look ? {look: opts.look || R.look} : {}), ...(R.sfx && opts.sfx !== false ? {sfx: R.sfx} : {}), ...(opts.brand ? {brand: opts.brand} : {}),
       // без речи звук клипов тише — главная музыка
