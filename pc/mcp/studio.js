@@ -126,7 +126,7 @@ export const hubApi = {
     const {lanAddresses} = await import('./hub.js');
     // что умеет эта версия программы: приложение видит, что программу на компьютере пора обновить
     return {ok: true, name: 'Freefield', ...profiles[0], profiles, active, open, multi, unknown, app, mcp: !!hubApi.mcp, lan: lanAddresses(), port: HUB_PORT,
-      features: ['echo', 'echo-start', 'update', 'split', 'site', 'trends', ...((await import('./write.js')).claudeExe() ? ['claude'] : [])], echoPort: (await import('./echo.js')).ECHO.port};
+      features: ['echo', 'echo-start', 'update', 'split', 'site', 'trends', 'heroes', ...((await import('./write.js')).claudeExe() ? ['claude'] : [])], echoPort: (await import('./echo.js')).ECHO.port};
   },
   // выход и вход — в своём профиле Chrome (если открыт другой, Chrome Freefield переключится, когда там не идут генерации)
   switchAccount: async (site, p = 1) => {
@@ -244,6 +244,8 @@ export const hubApi = {
   siteSrcFile: async (id, n) => (await import('./site.js')).siteSrcFile(id, n),
   siteDelete: async id => (await import('./site.js')).siteDelete(id),
   // «🔥 Тренды»: лента (outputs/trends/trends.json), поиск с идеями (Claude Code по подписке), «Сделать с моим героем» — в галерее с ходом работы
+  heroesGet: async () => (await import('./heroes.js')).heroesList().map(h => ({id: h.id, name: h.name, about: h.about || '', updated: h.updated, url: `/api/heroes/${h.id}`})),
+  heroFile: async id => (await import('./heroes.js')).heroFile(id),
   trendsGet: async () => (await import('./trends.js')).trendsList(),
   trendDelete: async id => (await import('./trends.js')).trendDelete(id),
   trendsFind: async o => {

@@ -256,6 +256,15 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
           return fs.createReadStream(file).pipe(res);
         }
+        // персонажи, которых сохранил агент (MCP hero_save) — приложение само добавляет их в «Персонажи»
+        if (url.pathname === '/api/heroes' && req.method === 'GET' && api.heroesGet) return send(200, await api.heroesGet());
+        const hf = url.pathname.match(/^\/api\/heroes\/(h[0-9a-f]{10})$/);
+        if (hf && req.method === 'GET' && api.heroFile) {
+          const file = await api.heroFile(hf[1]);
+          if (!file || !fs.existsSync(file)) return send(404, {error: 'нет фото'});
+          res.writeHead(200, {'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'image/jpeg', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'no-store', ...cors});
+          return fs.createReadStream(file).pipe(res);
+        }
         // «🔥 Тренды»: лента; поиск с идеями (ход — GET /api/trends/find/<id>); «Сделать с моим героем» — задание в галерее; убрать тренд
         if (url.pathname === '/api/trends' && req.method === 'GET' && api.trendsGet) return send(200, await api.trendsGet());
         if (url.pathname === '/api/trends/find' && req.method === 'POST' && api.trendsFind) {

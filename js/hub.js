@@ -157,6 +157,7 @@ const hubLink = {
           toast('Вышла новая версия Freefield', {type: 'ok', ms: 120000, action: '↻ Обновить', onAction: () => location.reload()});
         }
         if (typeof wrEtalonSync === 'function') wrEtalonSync();   // эталон видео — агенту на компьютере
+        if (typeof heroesSync === 'function') heroesSync();   // персонажи, которых сохранил Claude, — в «Персонажи»
         const b = await fetch(this.url('/api/batches'));
         if (b.ok) { this.batches = await b.json(); await this.importDone(); }
       }

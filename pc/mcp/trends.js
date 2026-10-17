@@ -153,7 +153,9 @@ export async function writeIdeas(items, heroes = [], onStatus = () => {}) {
   const W = await import('./write.js');
   if (!W.claudeExe()) return {error: 'на компьютере нет Claude Code — идеи напишет Claude в чате (MCP trends)'};
   onStatus('Claude пишет идеи брейнрота под ваших героев…');
-  // героев нет — идеи для «вашего героя» без имени (пользователь 2026-10-17: «везде рохля, хотя персонажа нет»)
+  // герои — из приложения, иначе сохранённые агентом (heroes.js); нет никого — идеи для «вашего героя» без имени
+  // (пользователь 2026-10-17: «везде рохля, хотя персонажа нет»)
+  if (!heroes.length) heroes = (await import('./heroes.js')).heroesList().map(h => ({name: h.name, about: h.about || ''}));
   const text = (heroes.length ? 'Heroes:\n' + heroes.map(h => `- ${h.name}${h.about ? ': ' + h.about : ''}`).join('\n')
     : 'Heroes: none yet. Write ideas for «ваш герой» — any cartoon or absurd character the user will pick later; never invent a hero name, leave "hero" empty.') + '\n\nTrends:\n' +
     items.map((x, i) => `${i + 1}. ${x.url}\n   title: ${x.title}\n   views: ${x.views}${x.views_per_day ? `, ${x.views_per_day}/day` : ''}${x.duration ? `, ${x.duration}s` : ''}\n   sound: ${x.sound || '?'}\n   description: ${x.about || ''}`).join('\n');

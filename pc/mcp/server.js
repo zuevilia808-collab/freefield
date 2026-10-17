@@ -1292,6 +1292,26 @@ server.registerTool('echo_clone_voice', {
   return waitJob(job, WAIT_MS, extra);
 });
 
+// Персонажи — сами в «Персонажи» приложения (пользователь 2026-10-17: «ты можешь автоматически сохранять персонажей»)
+server.registerTool('hero_save', {
+  title: 'Сохранить персонажа в приложение',
+  description: 'Сохраняет героя пользователя, и приложение Freefield само добавляет его в раздел «Персонажи» (имя, кто он, фото). ' +
+    'Вызывай сам, без вопросов, всякий раз, когда в чате появился новый герой или у него новое главное фото (придумали героя, сделали его фото или развёртку). ' +
+    'Тот же name — обновит фото и описание. Идеи в «🔥 Трендах» пишутся под этих героев.',
+  inputSchema: {
+    name: z.string().min(1).max(60).describe('Имя героя по-русски, как его называет пользователь'),
+    about: z.string().max(400).optional().describe('Кто он и как выглядит — коротко по-русски'),
+    image_path: z.string().describe('Фото героя (абсолютный путь), лучше в полный рост, один герой в кадре'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({name, about, image_path}) => {
+  try {
+    readLocalImage(image_path);
+    const h = (await import('./heroes.js')).heroSave({name, about, image: path.resolve(image_path)});
+    return {content: [{type: 'text', text: `Персонаж «${h.name}» сохранён — приложение добавит его в «Персонажи» само (в течение минуты, когда оно открыто).`}]};
+  } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+});
+
 /* ---- «🔥 Тренды» (пользователь 2026-10-17): вирусные ролики → идеи брейнрота → движение и звук ролика, а в кадре — герой пользователя ---- */
 const TREND_FLOW = 'Порядок: 1) action=find — Freefield сам берёт свежие самые просматриваемые YouTube Shorts (просмотры в день). ' +
   'Если в этом чате есть vidIQ — добавь TikTok и Reels: vidiq_instagram_tiktok_outlier_search (embeddingType "format", запрос про вирусный танец / мем-движение / тренд со звуком, ' +

@@ -45,8 +45,33 @@ async function vcLoad() {
   const lib = vc.chars.filter(c => /^lib-/.test(c.voice || ''));
   lib.forEach(c => Object.assign(c, {voice: null, sample: null, sampleSec: 0}));
   if (lib.length) vc.saveChars();
+  vc.ready = true;
   vcRefresh();
   if (!items.length) renderEmpty();
+  heroesSync();
+}
+// Персонажи, которых сохранил Claude (MCP hero_save, пользователь 2026-10-17: «ты можешь автоматически сохранять персонажей»):
+// новые — сами в «Персонажи»; тот же по имени — только фото, если его не было. Удалённого здесь обратно не добавляем
+let heroesAt = 0;
+async function heroesSync(force = false) {
+  if (!vc.ready || !hubLink.ok || !hubHas('heroes') || (!force && Date.now() - heroesAt < 60e3)) return;
+  heroesAt = Date.now();
+  try {
+    const list = await fetch(hubLink.url('/api/heroes')).then(r => r.ok ? r.json() : []);
+    const seen = ls.get('freefield.heroes.seen', {}), added = [];
+    for (const h of list) {
+      if (seen[h.id] === h.updated) continue;
+      const img = await fetch(hubLink.url(h.url)).then(r => r.ok ? r.blob() : null).then(b => b && refDataUrl(b)).catch(() => null);
+      if (!img) continue;
+      const c = vc.chars.find(x => x.pc === h.id) || vc.chars.find(x => x.name.trim().toLowerCase() === h.name.toLowerCase());
+      if (c) { c.pc = h.id; if (!c.sheet || seen[h.id]) c.sheet = img; if (!c.about && h.about) c.about = h.about; }
+      else if (!seen[h.id]) { vc.chars.push({id: 'ch-' + uid(), pc: h.id, name: h.name, sheet: img, about: h.about || '', lang: 'en', info: null, locs: [], voice: null, g: 'm', sample: null, sampleSec: 0, flow: {kind: 'voice', name: h.name}}); added.push(h.name); }
+      seen[h.id] = h.updated;
+    }
+    ls.set('freefield.heroes.seen', seen);
+    if (list.length) { await vc.saveChars(); vcRefresh(); if (cl.mode === 'trends') renderTrends(); }
+    if (added.length) toast(`👤 В «Персонажи» добавлен${added.length > 1 ? 'ы' : ''}: ${added.join(', ')}`, {type: 'ok', ms: 7000});
+  } catch { /* в следующий раз */ }
 }
 function vcRefresh() {
   if (cl.mode === 'write') renderWrite(); else if (cl.mode === 'scn') renderScn(); else if (cl.mode === 'chars') renderChars();
