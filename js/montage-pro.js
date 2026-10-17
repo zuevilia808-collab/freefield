@@ -45,34 +45,18 @@ function mtProClipHTML(o) {
 }
 
 // ---- весь ролик: стиль, автомонтаж, биты, экспорт ----
+// Панель «Монтаж» — только главное (пользователь 2026-10-17: «удали всё лишнее из кнопки монтаж»): шаблон, трек, черновик / смонтировать.
+// Цвет, субтитры, звуковые удары, бренд, биты, хук, призыв, длина, варианты и экспорт задаёт шаблон (их умеет и ИИ-монтажёр, и агент через MCP)
+const MTX_TPL = [['', '✨ Авто — скетч, в режиме «Брейнрот» — брейнрот'], ['sketch', 'Скетч — сценка с речью'], ['brainrot', 'Брейнрот — мем-ролик'],
+  ['aura', 'Aura edit'], ['velocity', 'Velocity edit'], ['trailer', 'Кино-трейлер'], ['talking', 'Говорящая голова']];
 function mtProHTML(p) {
-  const tpl = mtx.tpl, cur = p.autoTpl || '', music = (p.audios || []).find(a => !a.voice);
-  if (tpl) setTimeout(mtxPreviews, 0);   // панель перерисовали — превью шаблонов снова играют
-  const sel = (key, list, val) => `<select data-mtx-${key}>${list.map(([v, t]) => `<option value="${v}" ${val === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
-  return `<div class="block-head"><span class="lbl">🎨 Стиль ролика <small>рендер на компьютере</small></span></div>
-    <div class="mt-fl"><label>Цвет ${sel('look', MTX_LOOK, p.look || 'none')}</label></div>
-    <div class="mt-fl"><label class="mt-chk"><input type="checkbox" data-mtx-cap ${p.capAuto ? 'checked' : ''}> Субтитры по речи</label>${p.capAuto ? sel('capstyle', MTX_CAPS, p.capStyle || 'box') : ''}</div>
-    <div class="mt-fl"><label class="mt-chk"><input type="checkbox" data-mtx-sfx ${p.sfx ? 'checked' : ''}> Звуковые удары (свист на переходах)</label></div>
-    <div class="mt-fl"><label>Бренд-цвет <input type="color" data-mtx-accent value="${p.brandAccent || '#d4ff3a'}"></label>
-      <label>Шрифт <input type="text" data-mtx-font placeholder="напр. Russo One" value="${esc(p.brandFont || '')}" maxlength="40" style="width:9em"></label></div>
-    <div class="mt-fl"><button class="btn small" data-mtx-beats ${music ? '' : 'disabled'} title="${music ? 'Программа найдёт биты трека: метки на таймлайне, клипы прилипают к ним' : 'Сначала добавьте музыку (＋ Звук)'}">🥁 ${p.beatsTL?.length ? `Биты: ${p.bpm} BPM ✓` : 'Найти биты трека'}</button></div>
-    <div class="block-head"><span class="lbl">✦ Автомонтаж по шаблону</span></div>
-    <div class="mt-note">Компьютер сам нарежет клипы проекта под бит музыки: лучшие куски, речь без пауз, переходы, эффекты, субтитры, графика.</div>
-    <div class="mt-fl mtx-track"><button class="btn small ${music ? '' : 'primary'}" data-mtx-track title="Песня или бит с телефона / компьютера: Freefield найдёт темп и дроп и смонтирует эдит под него">🎵 ${music ? 'Другой трек' : 'Загрузить трек'}</button>
-      <span class="mt-note">${music ? `«${esc(music.name)}»${p.bpm ? ` · ${p.bpm} BPM` : ''}` : 'без трека — ровный ритм 120 BPM'}</span></div>
-    ${tpl ? `<div class="mtx-tpl">${tpl.templates.map(t => `<button class="mtx-card ${cur === t.id ? 'on' : ''}" data-mtx-tpl="${esc(t.id)}" title="${esc(t.desc)}">
-        ${t.preview ? `<video muted loop playsinline preload="none" data-src="${esc(hubLink.url(t.preview))}"></video>` : '<i></i>'}<b>${esc(t.label)}</b>${t.own ? '<small>свой</small>' : ''}</button>`).join('')}</div>`
-      : `<div class="mt-fl"><button class="btn small" data-mtx-load ${mtx.tplLoading ? 'disabled' : ''}>${mtx.tplLoading ? '⏳ Загружаю шаблоны…' : '🎞 Показать шаблоны'}</button></div>`}
-    <div class="mt-fl"><label>Заголовок / хук <input type="text" data-mtx-title value="${esc(p.autoTitle || '')}" maxlength="90" placeholder="Первые 2 секунды"></label></div>
-    <div class="mt-fl"><label>Призыв <input type="text" data-mtx-cta value="${esc(p.autoCta || '')}" maxlength="40" placeholder="Подпишись"></label>
-      <label>Длина ${sel('dur', [['15', '15 с'], ['20', '20 с'], ['30', '30 с'], ['45', '45 с']], String(p.autoDur || 20))}</label></div>
-    <div class="mt-fl"><button class="btn small" data-mtx-auto="draft" ${mtx.busy ? 'disabled' : ''}>⚡ Черновик</button><button class="btn small" data-mtx-auto="final" ${mtx.busy ? 'disabled' : ''}>🎬 Смонтировать</button>
-      <button class="btn small" data-mtx-auto="variants" ${mtx.busy ? 'disabled' : ''} title="3 варианта черновиками — выбрать лучший">🎲 3 варианта</button></div>
-    <div class="block-head"><span class="lbl">📤 Экспорт в другие редакторы</span></div>
-    <div class="mt-fl"><button class="btn small" data-mtx-export="fcpxml" ${mtx.busy ? 'disabled' : ''} title="DaVinci Resolve, Final Cut, Premiere (импорт XML) — на этом компьютере">FCPXML</button>
-      <button class="btn small" data-mtx-export="otio" ${mtx.busy ? 'disabled' : ''} title="OpenTimelineIO">OTIO</button>
-      <button class="btn small" data-mtx-export="srt" ${mtx.busy ? 'disabled' : ''} title="Субтитры для CapCut / YouTube">SRT</button></div>
-    <div class="mt-note">Пресет Reels / TikTok / Shorts: формат 9:16, 1080×1920, 30 к/с, громкость −14 LUFS — так рендерит компьютер.</div>
+  const cur = p.autoTpl || '', music = (p.audios || []).find(a => !a.voice);
+  const list = MTX_TPL.some(([v]) => v === cur) ? MTX_TPL : [...MTX_TPL, [cur, cur]];   // свой шаблон (по образцу) — тоже в списке
+  return `<div class="block-head"><span class="lbl">✦ Автомонтаж</span></div>
+    <div class="mt-fl"><label>Шаблон <select data-mtx-tplsel>${list.map(([v, t]) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label></div>
+    <div class="mt-fl mtx-track"><button class="btn small" data-mtx-track title="Песня или бит: Freefield найдёт темп и дроп и смонтирует под него">🎵 ${music ? 'Другой трек' : 'Трек (необязательно)'}</button>
+      ${music ? `<span class="mt-note">«${esc(music.name)}»${p.bpm ? ` · ${p.bpm} BPM` : ''}</span>` : ''}</div>
+    <div class="mt-fl"><button class="btn small" data-mtx-auto="draft" ${mtx.busy ? 'disabled' : ''}>⚡ Черновик</button><button class="btn small primary" data-mtx-auto="final" ${mtx.busy ? 'disabled' : ''}>🎬 Смонтировать</button></div>
     <div class="mt-fl"><span class="mt-note" id="mtxNote">${mtx.busy ? '⏳ ' + esc(mtx.note) : ''}</span></div>`;
 }
 
@@ -186,9 +170,10 @@ function mtxAuto(mode, pure = false) {
     const music = await mtxMusicSrc(p);
     mtxNote('отправляю на компьютер…');
     const [W, H] = mtOutDims(p, segs);
-    const j = await mtxPost('/api/montage/auto', {clips: [...seen.values()], music: music?.src, template: p.autoTpl || undefined, duration: p.autoDur || 20,
-      title: p.autoTitle || undefined, hook: p.autoTitle || undefined, cta: p.autoCta || undefined, caption_style: p.capAuto && !pure ? p.capStyle : undefined,
-      look: p.look && p.look !== 'none' && !pure ? p.look : undefined, brand: p.brandAccent || p.brandFont ? {accent: p.brandAccent, font: p.brandFont} : undefined,
+    const own = !pure;   // свои настройки стиля (старые проекты, ИИ-монтажёр) — только не из главной кнопки панели
+    const j = await mtxPost('/api/montage/auto', {clips: [...seen.values()], music: music?.src, template: p.autoTpl || undefined, duration: own ? p.autoDur || 20 : undefined,
+      title: own && p.autoTitle || undefined, hook: own && p.autoTitle || undefined, cta: own && p.autoCta || undefined, caption_style: p.capAuto && own ? p.capStyle : undefined,
+      look: p.look && p.look !== 'none' && own ? p.look : undefined, brand: own && (p.brandAccent || p.brandFont) ? {accent: p.brandAccent, font: p.brandFont} : undefined,
       aspect: p.aspect && p.aspect !== 'auto' ? p.aspect : W > H * 1.2 ? '16:9' : W > H * 0.9 ? '1:1' : '9:16',
       quality: mode === 'final' ? 'final' : 'draft', variants: mode === 'variants' ? 3 : 1});
     if (!j.id) throw new Error('компьютер не принял задание');
@@ -245,14 +230,15 @@ $('#mtCreate').addEventListener('click', e => {
   if ('mtxLoad' in d) return mtxLoadTpl();
   if ('mtxTrack' in d) return pickFile('audio/*,video/*', false).then(f => f && mtxSetTrack(f, f.name));
   if (d.mtxTpl !== undefined) { p.autoTpl = p.autoTpl === d.mtxTpl ? '' : d.mtxTpl; mt.save(); renderMtEdit(); return setTimeout(mtxPreviews, 50); }
-  if (d.mtxAuto) return mtxAuto(d.mtxAuto);
+  if (d.mtxAuto) return mtxAuto(d.mtxAuto, true);   // панель — только шаблон и трек: остальное задаёт шаблон
   if ('mtxBeats' in d) return mtxBeats();
   if (d.mtxExport) return mtxExport(d.mtxExport);
 });
 $('#mtCreate').addEventListener('change', e => {
   const el = e.target, d = el.dataset, p = mt.p;
   if (!p) return;
-  if ('mtxLook' in d) p.look = el.value;
+  if ('mtxTplsel' in d) p.autoTpl = el.value;
+  else if ('mtxLook' in d) p.look = el.value;
   else if ('mtxCap' in d) { p.capAuto = el.checked; mt.save(); return renderMtEdit(); }
   else if ('mtxCapstyle' in d) p.capStyle = el.value;
   else if ('mtxSfx' in d) p.sfx = el.checked;

@@ -934,11 +934,10 @@ function renderMtEdit() {
     <div class="block-head"><span class="lbl">Кадр</span></div>
     ${seg('aspect', MT_ASPECT, p.aspect || 'auto')}
     <div class="mt-row2">${seg('fit', [['cover', 'Заполнить'], ['contain', 'Целиком']], p.fit || 'cover')}<label class="mt-chk"><input type="checkbox" data-mt-audio ${p.audio ? 'checked' : ''}> Звук клипов</label></div>
-    <div class="block-head"><span class="lbl">Рендер на компьютере</span></div>
-    <div class="mt-fl"><button class="btn small" data-mt-pc="final" ${mt.pcBusy ? 'disabled' : ''} title="Программа Freefield на компьютере соберёт ролик 1080p (видеокарта, громкость −14 LUFS) — работает и с телефона">🖥 Отрендерить на компьютере</button>
-      <button class="btn small" data-mt-pc="draft" ${mt.pcBusy ? 'disabled' : ''} title="Быстрый черновик 540p — проверить монтаж">Черновик 540p</button></div>
-    <div class="mt-fl"><span class="mt-note" id="mtPcNote">${mt.pcBusy ? '⏳ готовлю…' : ''}</span></div>
-    ${typeof mtProHTML === 'function' ? mtProHTML(p) : ''}`;
+    ${typeof mtProHTML === 'function' ? mtProHTML(p) : ''}
+    <div class="block-head"><span class="lbl">Как на таймлайне</span></div>
+    <div class="mt-fl"><button class="btn small" data-mt-pc="final" ${mt.pcBusy ? 'disabled' : ''} title="Ролик ровно как собран на таймлайне — компьютер соберёт 1080p (видеокарта, громкость −14 LUFS); работает и с телефона">🖥 Отрендерить на компьютере</button></div>
+    <div class="mt-fl"><span class="mt-note" id="mtPcNote">${mt.pcBusy ? '⏳ готовлю…' : ''}</span></div>`;
 }
 // после правки: длины, таймлайн, просмотр, свойства
 function mtRefresh() {

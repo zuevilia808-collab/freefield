@@ -423,7 +423,9 @@ export const hubApi = {
   },
   montagePreview: async id => { const p = path.join(OUT, 'montage-templates', id + '.mp4'); return fs.existsSync(p) ? p : null; },
   // автомонтаж выбранных в приложении клипов (источники — файлы компьютера или загруженные): как пакет — карточка в галерее, ролик туда же
+  // режим «Брейнрот» (переключатель в «Сценариях»): автомонтаж — шаблон brainrot, без субтитров
   montageAuto: async o => {
+    const brainrotNow = () => { try { return JSON.parse(fs.readFileSync(path.join(HERE, '.etalon.json'), 'utf8')).mode === 'brainrot'; } catch { return false; } };
     const M = await import('./montage.js'), {sourcePath} = await import('./montage/project.js');
     const ctx = {outDir: OUT, uploadDir: path.join(OUT, 'montage-src'), restrict: true};
     const clips = (o.clips || []).slice(0, 8).map(s => sourcePath(s, ctx));
@@ -431,13 +433,13 @@ export const hubApi = {
     const music = o.music ? sourcePath(o.music, ctx) : undefined;
     const q = o.quality === 'draft' ? 'draft' : 'final', n = Math.max(1, Math.min(4, +o.variants || 1));
     const pick = (v, list) => list.includes(v) ? v : undefined;
-    const opts = {clips, music, duration: Math.min(60, Math.max(6, +o.duration || 20)), template: typeof o.template === 'string' ? o.template.slice(0, 40) : undefined,
+    const opts = {clips, music, duration: Math.min(60, Math.max(6, +o.duration || 20)), template: typeof o.template === 'string' && o.template ? o.template.slice(0, 40) : brainrotNow() ? 'brainrot' : undefined,
       title: String(o.title || '').slice(0, 80) || undefined, hook: String(o.hook || '').slice(0, 90) || undefined, cta: String(o.cta || '').slice(0, 40) || undefined,
       items: Array.isArray(o.items) ? o.items.map(s => String(s).slice(0, 60)).filter(Boolean).slice(0, 5) : undefined,
-      caption_style: pick(o.caption_style, M.CAPTION_STYLES), captions: o.captions !== false,
+      caption_style: pick(o.caption_style, M.CAPTION_STYLES), captions: o.captions === false || brainrotNow() ? false : o.captions === true ? true : undefined,
       look: o.look && M.LOOKS[o.look] ? {preset: o.look, vignette: true} : o.look === 'none' ? {preset: 'none'} : undefined,
       brand: o.brand ? {accent: o.brand.accent, font: o.brand.font} : undefined, aspect: pick(o.aspect, ['9:16', '1:1', '4:5', '16:9']),
-      style: o.template ? undefined : 'titles', outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), quality: q};
+      style: pick(o.style, ['titles', 'cards', 'launch', 'none']), outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), quality: q};
     const items = Array.from({length: n}, (_, i) => ({n: i + 1, prompt: `автомонтаж${o.template ? ' · ' + o.template : ''}${n > 1 ? ` · вариант ${i + 1}` : ''}`, kind: 'video', site: 'montage',
       siteLabel: q === 'draft' ? 'монтаж · черновик 540p' : 'монтаж на компьютере', status: 'running', message: 'в очереди', note: '', aspect: opts.aspect || '9:16', files: []}));
     const b = {id: `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'phone', created: Date.now(), done: false, pid: process.pid, items};
