@@ -648,7 +648,8 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
       writeState({flowCredits: {date: today(), left: 0, at: Date.now()}});
       // вкладку этого аккаунта закрываем, чтобы не копились окна (пользователь 2026-10-17: «аккаунт, где кончились токены, можешь закрывать»);
       // фото во Flow бесплатные — для них вкладка откроется заново сама. Пока на вкладке ждут другие генерации — не трогаем
-      if (kind === 'video' && (slots[`flow@${currentProfile()}`]?.n || 0) <= 1) setTimeout(() => page.close().catch(() => {}), 1500);
+      // закрываем сразу (не через таймер: следующая попытка успевала взять эту вкладку, и она закрывалась у неё в руках)
+      if (kind === 'video' && (slots[`flow@${currentProfile()}`]?.n || 0) <= 1) await page.close().catch(() => {});
       throw new PortalError(`Flow: на этом аккаунте кончились кредиты${info ? ' (вместо «Создать» — значок ⓘ)' : ' (кнопки «Создать» нет)'} — беру другой аккаунт`, 'credits');
     }
     await gen.click();
