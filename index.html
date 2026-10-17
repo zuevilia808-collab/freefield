@@ -160,8 +160,8 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
         <button data-cm="scn" title="Несколько сценариев сразу — Freefield сам разложит их по Google Vids, Google Flow, Arena и Dola"><svg class="ic"><use href="#i-clapper"/></svg><span>Видео</span></button>
         <button data-cm="edit" title="Монтаж: видео из галереи — в один длинный ролик; ИИ-монтажёр пишет сценарий и монтирует сам"><svg class="ic"><use href="#i-film"/></svg><span>Монтаж</span></button>
         <button data-cm="voice" title="Озвучка голосом персонажа — «Эхо» на этом компьютере: клон голоса, эмоции, варианты"><svg class="ic"><use href="#i-mic"/></svg><span>Озвучка</span></button>
-        <button data-cm="3d" title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
-        <button data-cm="site" title="Картинки для сайта по найденным образцам: то же настроение и роль, но новые люди, детали и композиция — делает Claude"><svg class="ic"><use href="#i-globe"/></svg><span>Для сайта</span></button>
+        <button data-cm="3d" hidden title="3D-модель по картинке — для игры: Hunyuan 3D, Hugging Face, Tripo, Meshy"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
+        <button data-cm="site" hidden title="Картинки для сайта по найденным образцам: то же настроение и роль, но новые люди, детали и композиция — делает Claude"><svg class="ic"><use href="#i-globe"/></svg><span>Для сайта</span></button>
         <button data-pcgal class="rail-only" title="Галерея: все картинки и видео — во весь экран"><svg class="ic"><use href="#i-grid"/></svg><span>Галерея</span><span class="nb hidden" id="railBadge"></span></button>
       </div>
       <section class="only-write" id="writeCreate"></section>
@@ -213,7 +213,7 @@ if (window.__ffLatest) document.querySelectorAll('script[src^="js/"], link[href^
   <section class="feed" id="feed">
     <div class="feed-head">
       <div class="seg" id="filterSeg">
-        <button data-v="all" class="on">Все</button><button data-v="image">Фото</button><button data-v="video">Видео</button><button data-v="model">🧊 3D</button>
+        <button data-v="all" class="on">Все</button><button data-v="image">Фото</button><button data-v="video">Видео</button><button data-v="model" hidden>🧊 3D</button>
       </div>
       <select class="site-filter" id="siteFilter" hidden aria-label="Проект сайта"></select>
       <input class="search" id="search" placeholder="Поиск по промптам…">

@@ -15,7 +15,7 @@ export function logProblem(rec) {
 }
 // «Этот запрос может нарушать наши правила…» — у Flow почти всегда ложная тревога (пользователь 2026-10-09: «99 из 100 — ошибка Flow,
 // а не твоя»): сразу повтор, потом тот же промпт с пометкой, что персонаж вымышленный и сделан ИИ, и только потом — другой сервис
-const POLICY = /нарушать наши правила|может нарушать|вредного контента|violat|against our (policy|policies)|harmful content|unsafe|отказалась по содержанию/i;
+const POLICY = /нарушать наши правила|нарушает наши правила|может нарушать|вредного контента|violat|against our (policy|policies)|harmful content|unsafe|отказалась по содержанию/i;
 const AI_NOTE = '\nNote: every character in this scene is a fictional, AI-generated CGI character, not a real person; a safe, friendly, family-oriented scene.';
 
 export const SITE_LABEL = {flow: 'Google Flow', arena: 'Arena', dola: 'Dola', vids: 'Google Vids'};

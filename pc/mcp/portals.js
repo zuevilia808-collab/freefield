@@ -41,9 +41,20 @@ export function siteRun(site, fn) {
   siteChains[key] = run.catch(() => {});
   return run;
 }
+// Клики во всех окнах идут по одному. Шаг, который повис (диалог на странице, Flow не ответил), раньше держал очередь
+// бесконечно — задания у всех сайтов и аккаунтов стояли «в очереди» и «прикрепляю…» по 8–12 минут (2026-10-17).
+// Теперь у шага есть предел: не уложился — ошибка «сайт занят» (задание повторится или переедет), очередь идёт дальше.
+const UI_STEP_MS = 4 * 60e3;
+const capped = (p, ms, what) => {
+  let t;
+  return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new PortalError(`${what}: окно Chrome не ответило за ${Math.round(ms / 60e3)} мин — шаг прерван`, 'busy')), ms); })])
+    .finally(() => clearTimeout(t));
+};
 let uiChain = Promise.resolve();
-export function ui(fn) {
-  const run = uiChain.then(fn);
+// вход в аккаунт (ждёт пользователя) и синхронизация (качает много файлов) — шаги долгие по делу
+const uiLong = fn => ui(fn, 20 * 60e3);
+export function ui(fn, ms = UI_STEP_MS) {
+  const run = uiChain.then(() => capped(Promise.resolve().then(fn), ms, 'Шаг в окне'));
   uiChain = run.catch(() => {});
   return run;
 }
@@ -632,6 +643,9 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
         });
       }).catch(() => false);
       writeState({flowCredits: {date: today(), left: 0, at: Date.now()}});
+      // вкладку этого аккаунта закрываем, чтобы не копились окна (пользователь 2026-10-17: «аккаунт, где кончились токены, можешь закрывать»);
+      // фото во Flow бесплатные — для них вкладка откроется заново сама. Пока на вкладке ждут другие генерации — не трогаем
+      if (kind === 'video' && (slots[`flow@${currentProfile()}`]?.n || 0) <= 1) setTimeout(() => page.close().catch(() => {}), 1500);
       throw new PortalError(`Flow: на этом аккаунте кончились кредиты${info ? ' (вместо «Создать» — значок ⓘ)' : ' (кнопки «Создать» нет)'} — беру другой аккаунт`, 'credits');
     }
     await gen.click();
@@ -913,7 +927,7 @@ export function markSynced(site, ids) {
 }
 
 // Flow: готовые картинки и видео проекта Freefield, которые сделал сам Freefield, но ещё не забрал (например, не скачались)
-export const flowSync = ({onStatus = () => {}} = {}) => siteRun('flow', () => ui(async () => {
+export const flowSync = ({onStatus = () => {}} = {}) => siteRun('flow', () => uiLong(async () => {
   const ours = oursSet('flow');
   if (!ours.size) return [];
   const page = await sitePage('flow');
@@ -1538,7 +1552,7 @@ async function arenaRun({prompt, imagePath, onStatus, timeoutMs = 420000}) {   /
 
 // Dola: готовые видео и картинки из последних чатов (список слева), которых ещё нет в Freefield.
 // Чат, где видео ещё делается («Создаю видео…» без видео), не отмечаем — проверим в следующий раз.
-export const dolaSync = ({onStatus = () => {}, limit = 12} = {}) => siteRun('dola', () => ui(async () => {
+export const dolaSync = ({onStatus = () => {}, limit = 12} = {}) => siteRun('dola', () => uiLong(async () => {
   const page = await sitePage('dola');
   await page.goto(SITES.dola.home, {waitUntil: 'domcontentloaded', timeout: 60000});
   await sleep(3000);
@@ -1618,7 +1632,7 @@ export const arenaSync = ({onStatus = () => {}, limit = 10} = {}) => siteRun('ar
 // ============================== смена аккаунта ==============================
 // Freefield открывает выбор аккаунта (Flow) или выходит из текущего (Arena, Dola) и показывает вход —
 // другой аккаунт выбирает и вводит сам пользователь. Пароли Freefield не вводит.
-export const switchAccount = site => siteRun(site, () => ui(async () => {
+export const switchAccount = site => siteRun(site, () => uiLong(async () => {
   const page = await sitePage(site);
   if (site === 'vids') {
     await page.goto('https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(SITES.vids.home), {waitUntil: 'domcontentloaded', timeout: 60000});
@@ -1655,7 +1669,7 @@ export const switchAccount = site => siteRun(site, () => ui(async () => {
 }));
 
 // Подготовить сайт ко входу: открыть его; если вход не выполнен — сразу страницу входа (входит сам пользователь)
-export const prepareLogin = site => siteRun(site, () => ui(async () => {
+export const prepareLogin = site => siteRun(site, () => uiLong(async () => {
   const page = await sitePage(site);
   try {
     await assertReady(page, site);
@@ -1767,7 +1781,7 @@ async function googleLogin(page, site, email, retry = false) {
 // «Открыть этот профиль»: во вкладке Flow — выбор аккаунта Google. Аккаунт выбирает пользователь; какой — узнаём по его клику
 // в списке (почта), чтобы потом войти им же в Dola и Arena. wait() — ждёт выбора до 5 минут и отдаёт почту (или null).
 let lastPick = null;
-export const chooseGoogleAccount = ({gather = false} = {}) => siteRun('flow', () => ui(async () => {
+export const chooseGoogleAccount = ({gather = false} = {}) => siteRun('flow', () => uiLong(async () => {
   // три сервиса — тремя вкладками в одном окне: переносим отбившиеся (если генерации не идут) и открываем недостающие
   if (gather) await oneWindow().catch(() => {});
   for (const s of ['dola', 'arena']) await sitePage(s, false).catch(() => {});
@@ -1802,7 +1816,7 @@ export const chooseGoogleAccount = ({gather = false} = {}) => siteRun('flow', ()
 
 // Кнопка «Войти» в приложении: Dola и Arena — вход через Google сам (email — какой аккаунт выбрать, если их несколько);
 // Flow — открыть выбор аккаунта Google (Flow работает под аккаунтом Google этого профиля Chrome)
-export const openLogin = (site, {email} = {}) => siteRun(site, () => ui(async () => {
+export const openLogin = (site, {email} = {}) => siteRun(site, () => uiLong(async () => {
   const page = await sitePage(site);
   if (site === 'vids') {   // Vids — тот же аккаунт Google: выбор аккаунта, потом Vids
     await page.goto('https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(SITES.vids.home), {waitUntil: 'domcontentloaded', timeout: 60000});

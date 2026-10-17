@@ -157,6 +157,7 @@ a{color:var(--free);text-underline-offset:3px}
 .style-add:hover .th{border-color:var(--free);color:var(--free)}
 .style-form{display:grid;gap:8px;margin-top:10px;padding:12px;border:1px solid var(--line2);border-radius:14px;background:var(--card);animation:secIn .3s var(--ease)}
 .style-form[hidden]{display:none}
+[data-cm][hidden], .view-tabs [hidden], button[hidden]{display:none!important}
 .style-form input,.style-form textarea{width:100%;resize:vertical;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:11px;padding:9px 11px;color:var(--text);font:13px/1.45 var(--font);outline:0;transition:border-color .2s,box-shadow .2s}
 .style-form input:focus,.style-form textarea:focus{border-color:rgba(212,255,58,.45);box-shadow:0 0 0 3px rgba(212,255,58,.08)}
 #styleName .wr-link{font-size:inherit}

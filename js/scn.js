@@ -346,7 +346,8 @@ function setCreateMode(m) {
   // открыли раздел (в т. ч. кнопкой на карточке галереи) — на ПК уходим из «Галереи» в этот раздел
   if (document.body.classList.contains('pcgal') && typeof setPcGallery === 'function') setPcGallery(false);
   const prev = cl.mode;
-  cl.mode = ['scn', 'write', 'chars', '3d', 'edit', 'voice', 'site'].includes(m) ? m : 'one';
+  // «3D» и «Для сайта» убраны из меню (пользователь 2026-10-17: «раздел 3D-модели я бы вообще убрал и раздел для сайта тоже») — их код остался, вход закрыт
+  cl.mode = ['scn', 'write', 'chars', 'edit', 'voice'].includes(m) ? m : 'one';
   if (prev === 'edit' && cl.mode !== 'edit') mtPause();
   if (cl.mode === 'scn' && prev !== 'scn') { const t = scnTrim(cl.scn); if (t.length !== cl.scn.length) { cl.scn = t; cl.sel = null; cl.save(); } }
   ls.set('freefield.create.cm', cl.mode);
