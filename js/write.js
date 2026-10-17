@@ -89,6 +89,19 @@ Timing & pacing:
 const REF_TC = /\(\d+:\d{2}\s*[–—-]\s*\d+:\d{2}\)/;
 // подписи блоков эталона, который пользователь вписал в «Сценариях» (строки «Подпись: …»)
 const refLabels = () => { const l = [...String(wr.ref || '').matchAll(/^\s*([A-Za-zА-Яа-яЁё][^:\n]{1,40}):/gm)].map(m => m[1].trim()); return l.length ? l : REF_BLOCKS; };
+// эталон — и программе Freefield на компьютере: по нему агент (Claude Code, инструмент video_etalon) пишет видео-промпты,
+// а промпты не по эталону MCP не запускает (пользователь 2026-10-17: «генеришь видео не по эталонному сценарию»)
+let wrEtalonSent = '', wrEtalonTimer = null;
+function wrEtalonPush(now) {
+  clearTimeout(wrEtalonTimer);
+  const go = () => {
+    const t = (wr.ref || '').trim() || REF_PROMPT;
+    if (!hubLink.ok || t === wrEtalonSent) return;
+    fetch(hubLink.url('/api/etalon'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: t})})
+      .then(r => { if (r.ok || r.status === 404) wrEtalonSent = t; }).catch(() => {});   // 404 — программа на компьютере старая
+  };
+  if (now) go(); else wrEtalonTimer = setTimeout(go, 1500);
+}
 const isBlockPrompt = t => { const known = new Set([...REF_BLOCKS, ...REF_OLD, ...refLabels()]);
   return [...String(t || '').matchAll(/^\s*([^:\n]{2,40}):/gm)].filter(m => known.has(m[1].trim())).length >= 3; };
 // блочный промпт → на английский построчно: подписи блоков остаются, текст на экране и реплика героя — как написаны
@@ -864,13 +877,13 @@ function bindWrite() {
     if (b.dataset.wscn) return writeToScn(b.dataset.wscn === 'all' ? list.map((_, i) => i) : [+b.dataset.wscn]);
     if (b.dataset.wcopyVideo) return toast(await clCopyText(fillBlocks(list[+b.dataset.wcopyVideo]?.video_prompt)) ? 'Сценарий скопирован — по блокам, как эталон' : 'Не удалось скопировать', {type: 'ok'});
     if (b.hasAttribute('data-wref-copy')) return toast(await clCopyText(wr.ref) ? 'Эталонный промпт скопирован' : 'Не удалось скопировать', {type: 'ok'});
-    if (b.hasAttribute('data-wref-reset')) { wr.ref = REF_PROMPT; wr.save(); const ta = box.querySelector('[data-wref]'); if (ta) ta.value = wr.ref; return toast('Эталонный промпт — снова исходные блоки', {type: 'ok'}); }
+    if (b.hasAttribute('data-wref-reset')) { wr.ref = REF_PROMPT; wr.save(); wrEtalonPush(true); const ta = box.querySelector('[data-wref]'); if (ta) ta.value = wr.ref; return toast('Эталонный промпт — снова исходные блоки', {type: 'ok'}); }
     if (b.hasAttribute('data-wcopy-raw')) return toast(await clCopyText(wr.result?.raw || '') ? 'Текст скопирован' : 'Не удалось скопировать', {type: 'ok'});
     if (b.hasAttribute('data-wclear')) { wr.result = null; wr.save(); return renderWrite(); }
   });
   box.addEventListener('input', e => {
     if (e.target.matches('[data-widea]')) { wr.idea = e.target.value; ls.set('freefield.write.idea', wr.idea); }
-    if (e.target.matches('[data-wref]')) { wr.ref = e.target.value; ls.set('freefield.write.ref', wr.ref); }
+    if (e.target.matches('[data-wref]')) { wr.ref = e.target.value; ls.set('freefield.write.ref', wr.ref); wrEtalonPush(); }
   });
   // инструкцию можно свернуть — запоминаем (toggle не всплывает, ловим на погружении)
   box.addEventListener('toggle', e => { if (e.target.matches('.wr-howto')) ls.set('freefield.write.howto', e.target.open); }, true);

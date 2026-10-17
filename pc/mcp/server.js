@@ -657,6 +657,33 @@ server.registerTool('flow_image', {
   return waitJob(job, WAIT_MS, extra);
 });
 
+// Видео-промпт не по эталону пользователя — не запускаем, а отдаём эталон агенту (пользователь 2026-10-17: «генеришь видео не по эталонному сценарию»)
+async function etalonGate(prompts, freeForm) {
+  if (freeForm || !prompts.length) return null;
+  const E = await import('./etalon.js');
+  const {text} = E.etalon();
+  const bad = prompts.map((p, i) => [i + 1, E.checkPrompt(p, text)]).filter(x => x[1]);
+  if (!bad.length) return null;
+  return {isError: true, content: [{type: 'text', text: [
+    'Видео-промпт не по эталону пользователя — генерация НЕ запущена.',
+    ...bad.map(([n, e]) => (prompts.length > 1 ? `Видео ${n}: ` : '') + e),
+    '', E.ETALON_RULES, '', 'Эталон:', text, '',
+    'Перепиши видео-промпт(ы) по эталону и вызови снова. free_form=true — только если пользователь сам попросил промпт не по эталону.'].join('\n')}]};
+}
+
+server.registerTool('video_etalon', {
+  title: 'Эталон видео-промпта пользователя',
+  description: 'Возвращает эталонный промпт видео пользователя (раздел «Сценарии» приложения Freefield) и правила заполнения. Вызывай ПЕРЕД тем, как писать любой видео-промпт ' +
+    '(сценарий рилса, batch_generate, flow_video, vids_video, arena_video): видео-промпт — это заполненный эталон, те же блоки и таймкоды. Промпт не по эталону эти инструменты не запустят.',
+  inputSchema: {},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async () => {
+  const E = await import('./etalon.js');
+  const {text, from, at} = E.etalon();
+  return {content: [{type: 'text', text: [`Эталон видео-промпта (${from === 'app' ? 'из приложения, ' + new Date(at).toLocaleString('ru') : 'стандартный v4 — пользователь в приложении свой не менял'}):`,
+    '', text, '', E.ETALON_RULES].join('\n')}]};
+});
+
 server.registerTool('flow_video', {
   title: 'Видео через Google Flow',
   description: 'Генерирует видео на сайте Google Flow за бесплатные кредиты (50 в день: Omni 1.1 Flash по умолчанию ≈ 20 кредитов, Veo 3.1 Lite ≈ 10, Fast ≈ 20, Quality ≈ 100 — не хватит). ' +
@@ -665,9 +692,12 @@ server.registerTool('flow_video', {
     prompt: z.string().min(3).describe('Сцена и движение камеры (лучше на английском).'),
     model: z.enum(['omni-1.1-flash', 'veo-3.1-lite', 'veo-3.1-fast', 'veo-3.1-quality']).default('omni-1.1-flash'),
     aspect_ratio: z.enum(['16:9', '9:16']).default('16:9'),
+    free_form: z.boolean().default(false).describe('true — промпт НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
   },
   annotations: {readOnlyHint: false, openWorldHint: true},
-}, async ({prompt, model, aspect_ratio}, extra) => {
+}, async ({prompt, model, aspect_ratio, free_form}, extra) => {
+  const gate = await etalonGate([prompt], free_form);
+  if (gate) return gate;
   const P = await portals();
   const m = P.FLOW_VIDEO_MODELS[model];
   const job = startJob('flowvideo', async status => {
@@ -690,9 +720,12 @@ server.registerTool('vids_video', {
     prompt: z.string().min(3).describe('Сцена, действие, камера, звук — на английском.'),
     aspect_ratio: z.enum(['9:16', '16:9']).default('9:16'),
     image_paths: z.array(z.string()).max(3).optional().describe('Фото-ингредиенты (герой, предмет); фото из чата — через chat_photos'),
+    free_form: z.boolean().default(false).describe('true — промпт НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
   },
   annotations: {readOnlyHint: false, openWorldHint: true},
-}, async ({prompt, aspect_ratio, image_paths = []}, extra) => {
+}, async ({prompt, aspect_ratio, image_paths = [], free_form}, extra) => {
+  const gate = await etalonGate([prompt], free_form);
+  if (gate) return gate;
   const P = await portals();
   try { image_paths = image_paths.map(p => { readLocalImage(p); return path.resolve(p); }); }
   catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
@@ -736,9 +769,12 @@ server.registerTool('arena_video', {
   inputSchema: {
     prompt: z.string().min(3).max(2500).describe('Сцена, действие и движение камеры (лучше на английском).'),
     image_path: z.string().optional().describe('Путь к локальной картинке, которую нужно оживить (png, jpg, webp).'),
+    free_form: z.boolean().default(false).describe('true — промпт НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
   },
   annotations: {readOnlyHint: false, openWorldHint: true},
-}, async ({prompt, image_path}, extra) => {
+}, async ({prompt, image_path, free_form}, extra) => {
+  const gate = await etalonGate([prompt], free_form);
+  if (gate) return gate;
   let img = null;
   try { if (image_path) { readLocalImage(image_path); img = path.resolve(image_path); } } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
   const P = await portals();
@@ -763,7 +799,7 @@ async function batchResult(batch) {
   const B = await batchMod();
   const content = [];
   for (const it of batch.items) for (const f of it.files || []) {
-    if (!f.mime.startsWith('image/') || content.length >= 8) continue;
+    if (!f.mime.startsWith('image/') || content.length >= 24) continue;   // все картинки пакета (было 8 — агент не видел остальные)
     try { content.push(...(await previewItem({buf: fs.readFileSync(f.path), mime: f.mime}))); } catch {}
   }
   const ok = batch.items.filter(i => i.status === 'done').length;
@@ -779,7 +815,8 @@ server.registerTool('batch_generate', {
     '(Veo 3.1 Lite или Omni 1.1 Flash из 50 дневных кредитов), Dola (Seedance 2.5 за баллы Dola) и Arena (2 видео от двух анонимных топ-моделей за запрос); картинки — Google Flow (Nano Banana 2.1) и Dola ' +
     '(Seedream 5.0, обычно 4 варианта) — обе без кредитов; Arena рисует картинки (2 от двух моделей), только если указать service="arena". Все сценарии идут одновременно (Flow — до 4, Dola и Arena — до 2 за раз): промпты отправляются подряд, результаты ждутся вместе; если сайт не справился — сценарий переезжает на запасной. ' +
     'Перед вызовом перепиши каждый сценарий пользователя в подробный английский промпт (сцена, действие, камера, свет, стиль). ' +
-    'Обычно 3–10 минут — дождись результата через check_job. ' + PORTAL_HINT,
+    'Обычно 3–10 минут — дождись результата через check_job. Не простаивай, пока ждёшь: следующий пакет, который не зависит от этого (фото других локаций, другие сценарии), запускай сразу вторым вызовом — ' +
+    'Flow сам берёт следующий промпт, как только прошлые картинки сгенерированы, не дожидаясь их скачивания. ' + PORTAL_HINT,
   inputSchema: {
     scenarios: z.array(z.object({
       prompt: z.string().min(3).max(2500),
@@ -794,11 +831,16 @@ server.registerTool('batch_generate', {
         'Flow фото nano-banana-2 | nano-banana-2.1 (новая) | nano-banana-2-lite | nano-banana-pro; Dola видео seedance-2.0-fast | seedance-2.5 | seedance-1.0; Dola фото seedream-5-pro | seedream-4.5.'),
       image_path: z.string().optional().describe('Фото-референс: для видео — оживить его (Arena), для картинки — сделать по нему (Flow Nano Banana 2 / Dola / Arena). Фото из чата — через chat_photos.'),
       image_paths: z.array(z.string()).max(4).optional().describe('Несколько фото-референсов: Flow берёт все как «ингредиенты», Dola и Arena — первое'),
+      title: z.string().max(60).optional().describe('Короткое название сценария (например «toilet-5-kopeek») — в имени файла, чтобы файлы разных сценариев различались'),
+      resolution: z.enum(['1k', '2k', '4k']).optional().describe('Только картинки Flow: размер скачивания через меню Flow (2k — увеличение Flow, дольше). Не задано — оригинал 1k'),
     })).min(1).max(10),
+    free_form: z.boolean().default(false).describe('true — видео-промпты НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
     site_task: z.string().optional().describe('id задания из site_tasks («🌐 Ассеты для сайта»): готовые картинки попадут в галерею с меткой «🌐 Сайт: <проект>»'),
   },
   annotations: {readOnlyHint: false, openWorldHint: true},
-}, async ({scenarios, site_task}, extra) => {
+}, async ({scenarios, site_task, free_form}, extra) => {
+  const gate = await etalonGate(scenarios.filter(s => s.kind !== 'image').map(s => s.prompt), free_form);
+  if (gate) return gate;
   try {
     for (const s of scenarios) {
       if (s.image_path) { readLocalImage(s.image_path); s.image_path = path.resolve(s.image_path); }
@@ -1263,12 +1305,15 @@ server.registerTool('chat_photos', {
   title: 'Фото из чата → референс',
   description: 'Сохраняет фото, которые пользователь прислал в этот чат Claude Code, в Freefield/outputs/refs и возвращает пути — их передают как image_path ' +
     'в batch_generate, arena_video, flow_image или dola_image. Вызывай, когда пользователь прислал фото и просит сделать что-то по нему. ' +
-    'Если пользователь перетащил файл и в сообщении виден путь — можно передать этот путь сразу, без chat_photos.',
-  inputSchema: {count: z.number().int().min(1).max(10).default(1).describe('Сколько последних фото из чата взять')},
+    'Если пользователь перетащил файл и в сообщении виден путь — можно передать этот путь сразу, без chat_photos. ' +
+    'Передавай text — несколько слов из сообщения пользователя, к которому приложено фото: тогда фото точно из твоего чата, даже если на компьютере открыто несколько сессий Claude. ' +
+    'Посмотри на возвращённое фото — то ли это.',
+  inputSchema: {count: z.number().int().min(1).max(10).default(1).describe('Сколько последних фото из чата взять'),
+    text: z.string().max(200).optional().describe('Несколько слов (подряд, как написал пользователь) из сообщения, где было фото')},
   annotations: {readOnlyHint: false, openWorldHint: false},
-}, async ({count}) => {
+}, async ({count, text}) => {
   const {chatPhotos} = await import('./refs.js');
-  const {photos} = chatPhotos(OUT, count);
+  const {photos} = chatPhotos(OUT, count, {text});
   if (!photos.length) return {isError: true, content: [{type: 'text', text: 'В чате Claude Code не нашёл присланных фото. Попроси пользователя вставить фото в чат ' +
     '(Ctrl+V или перетащить файл) или назвать путь к файлу.'}]};
   const content = [];

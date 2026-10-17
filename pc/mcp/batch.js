@@ -133,7 +133,7 @@ export function planBatch(scenarios, {open = []} = {}) {
     const model = modelFor(slot.site, kind, s);
     if (slot.site === 'flow') budget['flow' + slot.p] = flowLeftOf(slot.p) - flowCost(kind, model);
     if (slot.site === 'dola' && kind === 'video' && dolaLeftOf(slot.p) != null) budget['dola' + slot.p] -= DOLA_VIDEO_POINTS[model] || 2;
-    return {n: i + 1, prompt: s.prompt, kind, site: slot.site, profile: slot.p, aspect: s.aspect_ratio || null, image_path: s.image_path || null, image_paths: s.image_paths || [], sheet_path: s.sheet_path || null, count: Math.min(4, Math.max(1, +s.count || 1)),
+    return {n: i + 1, prompt: s.prompt, title: s.title || null, resolution: s.resolution || null, kind, site: slot.site, profile: slot.p, aspect: s.aspect_ratio || null, image_path: s.image_path || null, image_paths: s.image_paths || [], sheet_path: s.sheet_path || null, count: Math.min(4, Math.max(1, +s.count || 1)),
       seconds: s.seconds || null, wantModel: s.model || null, modelKey: model,
       status: 'queued', message: 'в очереди', model: '', files: [],
       note: over ? `${SITE_LABEL[over]}: на сегодня кредиты кончились на всех аккаунтах → ${SITE_LABEL[slot.site]}` : ''};
@@ -154,7 +154,7 @@ async function generateIn(site, it, onStatus, p) {
   if (site === 'flow') {
     const model = P.FLOW_IMAGE_MODELS[key];
     // у модели с запасной (Nano Banana 2.1 → 2) кредиты не тратим: попросит Flow кредиты — сделает запасная, бесплатная
-    const res = await P.flowImage({prompt, aspect: fitAspect('image', 'flow', it.aspect), count: it.count || 1, model, imagePath: it.image_path, imagePaths: refsOf(it).slice(0, 4), onStatus, allowCredits: !model.fallback});
+    const res = await P.flowImage({prompt, aspect: fitAspect('image', 'flow', it.aspect), count: it.count || 1, model, resolution: it.resolution || null, imagePath: it.image_path, imagePaths: refsOf(it).slice(0, 4), onStatus, allowCredits: !model.fallback});
     return {model: res[0]?.model || model.label, results: res};
   }
   if (site === 'dola' && it.kind === 'video') {

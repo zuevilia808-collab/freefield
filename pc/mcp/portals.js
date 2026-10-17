@@ -23,8 +23,15 @@ export const PARALLEL = {flow: 4, dola: 2, arena: 2, vids: 1};   // Vids: пан
 const slots = {};
 function siteSlot(site, fn) {
   const s = slots[`${site}@${currentProfile()}`] ||= {n: 0, q: []};
-  // генерация держит свой профиль Chrome: пока она идёт, Chrome не переключится на другой профиль
-  const go = () => { s.n++; return leaseProfile().then(release => Promise.resolve().then(fn).finally(release)).finally(() => { s.n--; s.q.shift()?.(); }); };
+  // генерация держит свой профиль Chrome: пока она идёт, Chrome не переключится на другой профиль.
+  // free() — освободить место раньше конца: сайт уже сгенерировал, осталось только скачать — следующий промпт уходит сразу
+  // (пользователь 2026-10-17: «не дожидаясь, пока получит прошлые фото, сразу генерить наперёд»)
+  const go = () => {
+    s.n++;
+    let freed = false;
+    const free = () => { if (freed) return; freed = true; s.n--; s.q.shift()?.(); };
+    return leaseProfile().then(release => Promise.resolve().then(() => fn(free)).finally(release)).finally(free);
+  };
   return s.n < PARALLEL[site] ? go() : new Promise(r => s.q.push(r)).then(go);
 }
 const siteChains = {};
@@ -584,7 +591,7 @@ async function flowGenerate(o) {
   flowInflight.add(full);
   try { return await flowGenerateIn(o, full); } finally { flowInflight.delete(full); }
 }
-async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imagePath, imagePaths, onStatus, timeoutMs, allowCredits = true, resolution = null}, full) {
+async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imagePath, imagePaths, onStatus, timeoutMs, allowCredits = true, resolution = null, free = () => {}}, full) {
   const tag = 'ff' + crypto.randomBytes(4).toString('hex');
   const key = () => flowKey(full);   // кусочек промпта, которого нет в других идущих промптах
   let spent = (model.credits || 0) * count;
@@ -639,7 +646,7 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
     return {page, before};
   }));
   onStatus(`Flow генерирует (${model.label})`);
-  const res = (await flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits})).map(r => ({...r, model: model.label}));
+  const res = (await flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits, free})).map(r => ({...r, model: model.label}));
   // стоимость — как написал сам Flow в настройках («Стоимость генерации в бонусах: N»), иначе по таблице моделей
   flowSpend(spent);
   track('flow', {[kind === 'video' ? 'videos' : 'images']: res.length, credits: spent});
@@ -658,7 +665,7 @@ async function problemShot(page, site) {
   } catch { return null; }
 }
 // Ждёт свои плитки, затем скачивает их; для видео — сам видеофайл
-async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits}) {
+async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits, free = () => {}}) {
   const t0 = Date.now();
   const got = [];
   const take = m => { const id = flowId(m.src); if (!got.some(g => flowId(g.src) === id)) { got.push(m); flowClaimed.add(id); markOurs('flow', [id]); } };
@@ -695,6 +702,7 @@ async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onSt
     onStatus(`Flow генерирует: готово ${got.length} из ${count}${pct.length ? ` · ${pct.join('%, ')}%` : ''} (${Math.round((Date.now() - t0) / 1000)} с)`);
   }
   if (!got.length) throw flowFail(failed[0]?.text || 'генерация не удалась');
+  free();   // Flow свою работу сделал — место для следующего промпта, пока эти скачиваются
   await sleep(1500);   // дать догрузиться финальным версиям
   const latest = new Map((await flowMedia(page)).map(m => [flowId(m.src), m]));
   const results = [];
@@ -951,8 +959,8 @@ export const flowSync = ({onStatus = () => {}} = {}) => siteRun('flow', () => ui
   return out;
 }));
 
-export const flowImage = o => siteSlot('flow', () => flowGenerate({kind: 'image', timeoutMs: 180000, ...o}));
-export const flowVideo = o => siteSlot('flow', () => flowGenerate({kind: 'video', timeoutMs: 300000, ...o}));
+export const flowImage = o => siteSlot('flow', free => flowGenerate({kind: 'image', timeoutMs: 180000, ...o, free}));
+export const flowVideo = o => siteSlot('flow', free => flowGenerate({kind: 'video', timeoutMs: 300000, ...o, free}));
 
 // ============================== Dola ==============================
 export const DOLA_IMAGE_MODELS = {

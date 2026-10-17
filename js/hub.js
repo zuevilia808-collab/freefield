@@ -156,6 +156,7 @@ const hubLink = {
           this.appToldVer = v;
           toast('Вышла новая версия Freefield', {type: 'ok', ms: 120000, action: '↻ Обновить', onAction: () => location.reload()});
         }
+        if (typeof wrEtalonPush === 'function') wrEtalonPush(true);   // эталон видео — агенту на компьютере
         const b = await fetch(this.url('/api/batches'));
         if (b.ok) { this.batches = await b.json(); await this.importDone(); }
       }

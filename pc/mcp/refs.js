@@ -26,13 +26,19 @@ export function saveDataUrl(outDir, url) {
 }
 
 // Claude Code хранит переписку на этом компьютере: ~/.claude/projects/<папка проекта>/<чат>.jsonl — фото там в base64.
-// Берём последние фото, которые прислал сам пользователь (не скриншоты инструментов), из самого свежего чата.
-export function chatPhotos(outDir, count = 1) {
+// Берём последние фото, которые прислал сам пользователь (не скриншоты инструментов).
+// Чат — свой (сессия из CLAUDE_CODE_SESSION_ID или session_id), а если задан text — тот, где пользователь написал эти слова рядом с фото.
+// Раньше брался просто самый свежий чат на компьютере — при нескольких открытых сессиях это было фото из чужого чата (2026-10-17).
+export function chatPhotos(outDir, count = 1, {text = '', sessionId = process.env.CLAUDE_CODE_SESSION_ID} = {}) {
   const root = path.join(os.homedir(), '.claude', 'projects');
   if (!fs.existsSync(root)) return {photos: [], chat: null};
-  const chats = fs.readdirSync(root).flatMap(d => {
+  const all = fs.readdirSync(root).flatMap(d => {
     try { return fs.readdirSync(path.join(root, d)).filter(f => f.endsWith('.jsonl')).map(f => path.join(root, d, f)); } catch { return []; }
-  }).map(f => ({f, t: fs.statSync(f).mtimeMs})).sort((a, b) => b.t - a.t).slice(0, 3);
+  }).map(f => ({f, t: fs.statSync(f).mtimeMs})).sort((a, b) => b.t - a.t);
+  const own = sessionId ? all.filter(x => path.basename(x.f, '.jsonl') === sessionId) : [];
+  const want = String(text || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 80);
+  // с text ищем по 20 свежим чатам; без — свой чат, иначе самый свежий
+  const chats = want ? [...own, ...all.slice(0, 20)] : own.length ? own : all.slice(0, 3);
   for (const {f} of chats) {
     const found = [];
     for (const line of fs.readFileSync(f, 'utf8').split('\n')) {
@@ -42,6 +48,8 @@ export function chatPhotos(outDir, count = 1) {
       // обычное сообщение пользователя или сообщение, присланное, пока Claude работал (attachment → prompt)
       const blocks = j.type === 'user' ? j.message?.content : j.type === 'attachment' ? j.attachment?.prompt : null;
       if (!Array.isArray(blocks)) continue;
+      const said = blocks.filter(c => c.type === 'text').map(c => c.text).join(' ').toLowerCase().replace(/\s+/g, ' ');
+      if (want && !said.includes(want)) continue;
       for (const c of blocks)
         if (c.type === 'image' && c.source?.type === 'base64' && EXT[c.source.media_type]) found.push({data: c.source.data, mime: c.source.media_type, at: j.timestamp || null});
     }

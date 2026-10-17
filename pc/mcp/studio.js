@@ -80,7 +80,8 @@ export async function startBatch(scenarios, source, extra = {}) {
   batches.set(batch.id, batch);
   persistBatches();
   batch.promise = B.runBatch(batch.items, {
-    save: (o, it) => saveOutput(o.buf, o.mime || (it.kind === 'video' ? 'video/mp4' : 'image/jpeg'), it.prompt),
+    // имя файла — номер сценария и его название (title), иначе начало промпта: у похожих промптов имена были одинаковые (2026-10-17)
+    save: (o, it) => saveOutput(o.buf, o.mime || (it.kind === 'video' ? 'video/mp4' : 'image/jpeg'), `s${it.n}-${it.title || it.prompt.replace(/^(On-screen text|Subject|Spoken line):[^\n]*\n?/gim, '')}`),
     onChange: persistBatches,
   }).catch(e => log('batch:', e.message)).finally(() => { batch.done = true; persistBatches(); runSync().catch(() => {}); });
   return batch;
@@ -231,6 +232,8 @@ export const hubApi = {
   splitFile: async (id, which) => (await import('./split.js')).splitFile(id, which),
   writeStart: async job => (await import('./write.js')).writeStart(job),
   writeGet: async id => (await import('./write.js')).writeGet(id),
+  etalonGet: async () => (await import('./etalon.js')).etalon(),
+  etalonSet: async text => (await import('./etalon.js')).setEtalon(text),
   siteCreate: async body => (await import('./site.js')).siteCreate(body),
   siteList: async () => (await import('./site.js')).siteList(),
   siteSrcFile: async (id, n) => (await import('./site.js')).siteSrcFile(id, n),
