@@ -135,7 +135,15 @@ export async function ensureBrowser() {
     for (let i = 0; i < 40 && !(await cdpUp()); i++) await sleep(500);
     if (!(await cdpUp())) throw new Error('Chrome не запустился');
   }
-  browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORT}`);
+  try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORT}`); }
+  catch (e) {
+    // окно профиля, с которым запускали Chrome, закрыли (остались окна других профилей) — тогда Chrome отвечает
+    // «Browser context management is not supported» и не пускает playwright (2026-10-17). Открываем это окно снова и повторяем
+    if (!/context management is not supported/i.test(e.message)) throw e;
+    runChrome(readState().chromeProfile || 'Default', ['about:blank']);
+    await sleep(3000);
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORT}`);
+  }
   return browser;
 }
 

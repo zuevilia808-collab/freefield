@@ -224,6 +224,28 @@ export function locationPrompt(location, hasLocPhoto) {
     'Realistic photo, natural light matching the scene, vertical frame. Only one character in the frame. No text, no logos, no watermark.';
 }
 
+// В каком профиле Chrome Freefield пользователь вошёл в Hugging Face (2026-10-17: вошёл не в первом профиле, а Freefield
+// открывал Space в первом — «нужно войти»): ищем открытую вкладку huggingface.co со входом, запоминаем профиль
+async function hfProfile() {
+  const S = await import('./state.js'), B = await import('./bridge.js');
+  try {
+    const c = await B.rawCdp();
+    try {
+      const hf = (await c.pages()).filter(t => /^https:\/\/huggingface\.co\//.test(t.url));
+      for (const t of hf) {
+        const {sessionId} = await c.send('Target.attachToTarget', {targetId: t.targetId, flatten: true});
+        const r = await c.send('Runtime.evaluate', {expression: "fetch('/api/whoami-v2',{credentials:'include'}).then(r=>r.ok)", awaitPromise: true, returnByValue: true}, sessionId, 15000).catch(() => null);
+        await c.send('Target.detachFromTarget', {sessionId}).catch(() => {});
+        if (!r?.result?.value) continue;
+        const dir = Object.entries((await B.openProfilesNow()).map).find(([, ctx]) => ctx === t.browserContextId)?.[0];
+        const id = dir === 'Default' ? 1 : +(dir?.match(/^Profile (\d+)$/)?.[1]) + 1;
+        if (id > 0) { S.writeState({hfProfile: id}); return id; }
+      }
+    } finally { c.close(); }
+  } catch { /* Chrome закрыт — берём запомненный */ }
+  return S.readState().hfProfile || S.currentProfile();
+}
+
 // source — путь к видео или ссылка; hero — фото героя; location — описание новой локации (по-английски) и/или locationImage — её фото
 // mode: auto (move, если задана локация, иначе swap) | swap | move; start, seconds — какой кусок ролика взять
 export async function motionTransfer({source, hero, location = '', locationImage = null, mode = 'auto', start = 0, seconds, quality = 'low', name = '', budget = HF_QUOTA.free, anonymous = false, onStatus = () => {}, outDir}) {
@@ -263,7 +285,8 @@ export async function motionTransfer({source, hero, location = '', locationImage
       refNote = 'кадр героя в новой локации — Google Flow';
     }
     // 3) Wan2.2-Animate на Hugging Face (квота ZeroGPU пользователя)
-    const sp = anonymous ? await (await import('./gradio.js')).openSpace({space: WAN_SPACE, anonymous: true, onStatus}) : await (await import('./mesh3d.js')).hfSession(WAN_SPACE, onStatus);
+    const sp = anonymous ? await (await import('./gradio.js')).openSpace({space: WAN_SPACE, anonymous: true, onStatus})
+      : await (await import('./state.js')).withProfile(await hfProfile(), async () => (await import('./mesh3d.js')).hfSession(WAN_SPACE, onStatus));
     const dep = sp.find('animate_scene');
     if (!dep) throw new Error(`в Space ${WAN_SPACE} нет функции animate_scene — его интерфейс изменился`);
     const html = (dep.inputs || []).filter(id => sp.cfg.components.find(c => c.id === id)?.type === 'html');
