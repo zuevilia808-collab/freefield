@@ -1177,6 +1177,8 @@ body[data-cm=one] .only-asset{display:block}#quickSvc{display:none}
 .bal-text b.ok{color:var(--free)}
 .bal-text b.zero{color:var(--dim);font-weight:500;text-decoration:line-through;text-decoration-thickness:1px}
 .bal-btn{min-width:0;flex-shrink:1;overflow:hidden}
+.acc-who{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.acc-ava{width:24px;height:24px;flex:none;border-radius:50%;object-fit:cover;display:inline-grid;place-items:center;font:700 11px/1 var(--display);font-style:normal;background:var(--panel2);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line2)}
 @media (max-width:760px){.bal-text{gap:6px;font-size:10.5px}.bal-text b.zero{display:none}.bal-text:not(:has(b.ok))::after{content:"0 везде";color:var(--dim)}}
 .acc-btn .ic{color:var(--free)}
 #accSheet .acc-box{margin:0}

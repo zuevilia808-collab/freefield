@@ -4,7 +4,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {HERE, readState, writeState, withProfile, profileIds, profileName, activeProfileId} from './state.js';
+import {HERE, readState, writeState, withProfile, profileIds, profileName, profileNum, activeProfileId} from './state.js';
+import {PROFILE as CHROME_PROFILE, profileDirOf} from './bridge.js';
+// аватарка аккаунта Google, которую Chrome хранит в профиле; нет файла — null
+const avatarFile = p => { const f = path.join(CHROME_PROFILE, profileDirOf(p), 'Google Profile Picture.png'); return fs.existsSync(f) ? f : null; };
 
 export const OUT = process.env.FREEFIELD_OUTPUT_DIR || path.join(HERE, '..', 'outputs');
 export const HUB_PORT = +process.env.FREEFIELD_PHONE_PORT || 5180;
@@ -96,7 +99,7 @@ export const hubApi = {
     const P = await portals();
     const one = p => withProfile(p, () => {
       const {raw, ...usage} = P.usageReport(), a = p === 1 ? readState() : (readState().profiles?.[p] || {});
-      return {id: p, name: profileName(p), flowLeft: P.flowLeft(), flowDaily: P.FLOW_DAILY, flowChecked: a.flowCredits?.at || null,
+      return {id: p, name: profileName(p), num: profileNum(p), avatar: avatarFile(p) ? `/api/avatar/${p}` : null, flowLeft: P.flowLeft(), flowDaily: P.FLOW_DAILY, flowChecked: a.flowCredits?.at || null,
         dolaPoints: P.dolaPoints(), siteOut: {flow: P.flowPaused(), dola: P.siteOut('dola'), arena: P.siteOut('arena'), vids: P.siteOut('vids')},
         // Google Vids ждёт разового шага пользователя: «умные функции» (smart) или правила фото-ингредиентов (terms)
         vidsWait: P.vidsBlocked() ? 'smart' : P.vidsBlocked(true) ? 'terms' : null,
@@ -232,6 +235,7 @@ export const hubApi = {
   splitFile: async (id, which) => (await import('./split.js')).splitFile(id, which),
   writeStart: async job => (await import('./write.js')).writeStart(job),
   writeGet: async id => (await import('./write.js')).writeGet(id),
+  avatarFile: p => avatarFile(p),
   etalonGet: async () => (await import('./etalon.js')).etalon(),
   etalonSet: async (text, mode) => (await import('./etalon.js')).setEtalon(text, mode),
   siteCreate: async body => (await import('./site.js')).siteCreate(body),

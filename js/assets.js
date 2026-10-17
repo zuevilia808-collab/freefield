@@ -346,7 +346,7 @@ function tokCard(site, total, rows, note) {
   return `<div class="tok-card"><h4><span class="mc-ico" style="background:${x.color}">${esc(x.ico)}</span>${SITE_SHORT[site]}</h4>
     <div class="tok-total">${total}</div>${rows.join('')}${note ? `<div class="tok-note">${note}</div>` : ''}</div>`;
 }
-const tokRow = (name, value, cls = '') => `<div class="tok-acc"><b>${esc(name)}</b><span class="${cls}">${value}</span></div>`;
+const tokRow = (p, value, cls = '') => `<div class="tok-acc"><b class="acc-who">${typeof p === 'object' ? accLabel(p) : esc(p)}</b><span class="${cls}">${value}</span></div>`;
 function tokResultHTML() {
   const info = hubLink.info, profs = info?.profiles || [];
   if (!profs.length) return '<p class="tok-note">Компьютер ещё не прислал данные об аккаунтах.</p>';
@@ -357,12 +357,12 @@ function tokResultHTML() {
     const m = scnModel('video', 'flow', TOK.model) || SCN_MODELS.video[0], cost = m[4];
     let videos = 0, credits = 0, accs = 0;
     const rows = profs.map(p => {
-      if (p.login?.flow?.ok === false) return tokRow(p.name, 'не вошли во Flow', 'bad');
-      if (p.siteOut?.flow) return tokRow(p.name, 'пауза до завтра', 'bad');
+      if (p.login?.flow?.ok === false) return tokRow(p, 'не вошли во Flow', 'bad');
+      if (p.siteOut?.flow) return tokRow(p, 'пауза до завтра', 'bad');
       const n = Math.floor((p.flowLeft ?? 0) / cost);
       videos += n; credits += p.flowLeft ?? 0; if (n) accs++;
       const why = err[p.id] ? ` · ⚠ ${esc(err[p.id])}` : ` · ${tokAgo(p.flowChecked)}${win(p)}`;
-      return tokRow(p.name, `${p.flowLeft} кр. → <b>${n}</b> ${plur(n, 'сценарий', 'сценария', 'сценариев')}${why}`, n ? 'ok' : '');
+      return tokRow(p, `${p.flowLeft} кр. → <b>${n}</b> ${plur(n, 'сценарий', 'сценария', 'сценариев')}${why}`, n ? 'ok' : '');
     });
     out.push(tokCard('flow', `<b>${videos}</b> ${plur(videos, 'сценарий', 'сценария', 'сценариев')} ${esc(m[2])} · ${cost} кредитов за видео<br>На ${accs} ${plur(accs, 'аккаунте', 'аккаунтах', 'аккаунтах')} · всего кредитов: ${credits}; одновременно — до 4 на аккаунт`,
       rows, 'Кредиты Flow обновляются каждый день (50 на аккаунт). Закрытые окна не проверяются — для них остаток по последней проверке.'));
@@ -371,10 +371,10 @@ function tokResultHTML() {
     const mm = SCN_MODELS.video.filter(x => x[0] === 'dola');
     let accs = 0;
     const rows = profs.map(p => {
-      if (p.login?.dola?.ok === false) return tokRow(p.name, 'не вошли в Dola', 'bad');
-      if (p.siteOut?.dola) return tokRow(p.name, 'лимит на сегодня', 'bad');
+      if (p.login?.dola?.ok === false) return tokRow(p, 'не вошли в Dola', 'bad');
+      if (p.siteOut?.dola) return tokRow(p, 'лимит на сегодня', 'bad');
       accs++;
-      return tokRow(p.name, p.dolaPoints != null ? `${p.dolaPoints} ${plur(p.dolaPoints, 'балл', 'балла', 'баллов')} → ${mm.map(x => `${x[2].replace('Seedance ', '')}: ${Math.floor(p.dolaPoints / x[4])}`).join(', ')}` : `вход есть${win(p)}`, 'ok');
+      return tokRow(p, p.dolaPoints != null ? `${p.dolaPoints} ${plur(p.dolaPoints, 'балл', 'балла', 'баллов')} → ${mm.map(x => `${x[2].replace('Seedance ', '')}: ${Math.floor(p.dolaPoints / x[4])}`).join(', ')}` : `вход есть${win(p)}`, 'ok');
     });
     out.push(tokCard('dola', `<b>${accs}</b> ${plur(accs, 'аккаунт', 'аккаунта', 'аккаунтов')} с Dola · одновременно — до 2 на аккаунт`, rows,
       'Баллы на видео Dola называет только после видео за день — до этого остаток неизвестен. Картинки в Dola — без баллов.'));
@@ -382,13 +382,13 @@ function tokResultHTML() {
   if (TOK.sites.includes('vids')) {
     let accs = 0;
     const rows = profs.map(p => {
-      if (p.login?.vids?.ok === false) return tokRow(p.name, 'не вошли в Google Vids', 'bad');
-      if (p.siteOut?.vids) return tokRow(p.name, 'лимит ИИ-видео исчерпан', 'bad');
-      if (p.vidsWait === 'smart') return tokRow(p.name, 'ждёт: включите «умные функции»', 'bad');
+      if (p.login?.vids?.ok === false) return tokRow(p, 'не вошли в Google Vids', 'bad');
+      if (p.siteOut?.vids) return tokRow(p, 'лимит ИИ-видео исчерпан', 'bad');
+      if (p.vidsWait === 'smart') return tokRow(p, 'ждёт: включите «умные функции»', 'bad');
       accs++;
       const used = /(\d+)\s*видео/.exec(p.usage?.vids || '')?.[1];
       // «правила для фото» мешают только видео с фото — видео по тексту идут
-      return tokRow(p.name, `доступно${used ? ` · сегодня сделано ${used}` : ''}${p.vidsWait === 'terms' ? ' · для фото — примите правила' : ''}${win(p)}`, 'ok');
+      return tokRow(p, `доступно${used ? ` · сегодня сделано ${used}` : ''}${p.vidsWait === 'terms' ? ' · для фото — примите правила' : ''}${win(p)}`, 'ok');
     });
     out.push(tokCard('vids', `<b>${accs}</b> ${plur(accs, 'аккаунт', 'аккаунта', 'аккаунтов')} · по 1 видео Omni за раз на аккаунт, бесплатно`, rows,
       'Google Vids даёт около 10 ИИ-видео в месяц на аккаунт; сколько осталось, сайт заранее не показывает — только когда лимит кончится.'));
@@ -396,10 +396,10 @@ function tokResultHTML() {
   if (TOK.sites.includes('arena')) {
     let accs = 0;
     const rows = profs.map(p => {
-      if (p.login?.arena?.ok === false) return tokRow(p.name, 'не вошли в Arena', 'bad');
-      if (p.siteOut?.arena) return tokRow(p.name, 'дневной лимит исчерпан', 'bad');
+      if (p.login?.arena?.ok === false) return tokRow(p, 'не вошли в Arena', 'bad');
+      if (p.siteOut?.arena) return tokRow(p, 'дневной лимит исчерпан', 'bad');
       accs++;
-      return tokRow(p.name, `доступно${win(p)}`, 'ok');
+      return tokRow(p, `доступно${win(p)}`, 'ok');
     });
     out.push(tokCard('arena', `<b>${accs}</b> ${plur(accs, 'аккаунт', 'аккаунта', 'аккаунтов')} · до 2 запросов сразу, 2 видео за запрос, бесплатно`, rows,
       'Дневной лимит Arena сайт показывает, только когда он исчерпан.'));

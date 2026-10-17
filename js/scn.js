@@ -106,7 +106,7 @@ function scnAccHTML() {
   const open = info.open || (act ? [act] : []);   // профили, окна которых открыты сейчас
   const isOpen = pr => open.includes(pr.id);
   // открытые сейчас профили — первыми, чтобы их кнопки «Закрыть» были сразу видны
-  const profs = (info.profiles?.length ? info.profiles : [{...info, id: 1, name: 'Профиль 1'}])
+  const profs = (info.profiles?.length ? info.profiles : [{...info, id: 1, num: 1, name: 'Аккаунт 1'}])
     .slice().sort((a, b) => isOpen(b) - isOpen(a));
   const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'только что' : m < 60 ? `${m} мин назад` : `${Math.round(m / 60)} ч назад`; };
   const row = (pr, id) => {
@@ -136,7 +136,7 @@ function scnAccHTML() {
   const btns = pr => `<span class="acc-prof-btns">
       <button class="btn small" data-acc-open="${pr.id}" ${accState.opening ? 'disabled' : ''} title="Окно Chrome этого профиля — рядом с уже открытыми: Flow, Dola и Arena вкладками, и где вход не выполнен — окно входа">${accState.opening === pr.id ? '⏳ Открываю…' : '↪ Открыть этот профиль'}</button>
       <button class="btn small" data-acc-close="${pr.id}" ${isOpen(pr) ? '' : 'disabled'} title="${isOpen(pr) ? 'Закрыть окно Chrome этого профиля' : 'Этот профиль сейчас не открыт'}">✕ Закрыть этот профиль</button></span>`;
-  const head = pr => `<div class="acc-prof"><span>🧑‍💻 Профиль Chrome «${esc(pr.name)}»${isOpen(pr) ? ' · открыт сейчас' : ''}</span>${btns(pr)}</div>`;
+  const head = pr => `<div class="acc-prof"><span class="acc-who">${accLabel(pr)}${isOpen(pr) ? '<small> · открыт сейчас</small>' : ''}</span>${btns(pr)}</div>`;
   const body = profs.map(pr => (profs.length > 1 ? head(pr) : '') + ['flow', 'dola', 'arena', 'vids'].map(id => row(pr, id)).join('')).join('');
   const openOne = profs.length > 1 ? '' : btns(profs[0]);
   // несколько окон профилей сразу: входить можно, а генерации ждут, пока не останется один профиль

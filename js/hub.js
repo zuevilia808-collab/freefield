@@ -276,6 +276,14 @@ const hubLink = {
 // связь с программой Freefield на ПК — одним описанием для всех разделов: ok, denied (ключ сменился), down (компьютер по Wi-Fi
 // не отвечает), pc-off (сайт с GitHub на компьютере, программа не отвечает), none (компьютера нет — телефон без связки)
 // «● Компьютер» в верхней полосе: точка — состояние связи, нажатие — проверить и что делать
+// аккаунт — номер и его аватарка Google из профиля Chrome (пользователь 2026-10-17: «у аккаунтов только номера, аватарки — такие же, как в Google:
+// стоит буква S — значит S»); нет картинки — кружок с номером
+function accAva(p) {
+  const n = p.num || p.id;
+  return p.avatar && hubLink.ok ? `<img class="acc-ava" src="${hubLink.url(p.avatar)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('i'), {className: 'acc-ava', textContent: '${n}'}))">`
+    : `<i class="acc-ava">${n}</i>`;
+}
+const accLabel = p => `${accAva(p)}<span>${esc(p.name || 'Аккаунт ' + (p.num || p.id))}</span>`;
 function renderPcBtn() {
   if (typeof renderBalBtn === 'function') renderBalBtn();   // «Остаток» по сервисам — рядом
   const b = $('#pcBtn'), st = pcStatus();

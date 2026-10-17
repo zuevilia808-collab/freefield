@@ -221,6 +221,14 @@ export function startHub({port, host = '0.0.0.0', key, appDir, api, log = () => 
           for await (const chunk of req) { body += chunk; if (body.length > 60e6) return send(413, {error: 'слишком большие картинки — уменьшите их'}); }
           try { return send(200, await api.writeStart(JSON.parse(body || '{}'))); } catch (e) { return send(400, {error: e.message}); }
         }
+        // аватарка аккаунта Google — та, что Chrome хранит в профиле («Google Profile Picture.png»): буква так буква, фото так фото
+        const av = url.pathname.match(/^\/api\/avatar\/(\d{1,3})$/);
+        if (av && req.method === 'GET' && api.avatarFile) {
+          const file = api.avatarFile(+av[1]);
+          if (!file) return send(404, {error: 'у аккаунта нет аватарки'});
+          res.writeHead(200, {'Content-Type': 'image/png', 'Content-Length': fs.statSync(file).size, 'Cache-Control': 'max-age=3600', ...cors});
+          return fs.createReadStream(file).pipe(res);
+        }
         // эталон видео-промпта из «Сценариев» приложения — по нему агент пишет видео-промпты (MCP video_etalon)
         if (url.pathname === '/api/etalon' && api.etalonGet) {
           if (req.method === 'GET') return send(200, await api.etalonGet());

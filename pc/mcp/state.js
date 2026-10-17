@@ -37,4 +37,7 @@ export const profileIds = () => {
   const ids = [...Object.keys(chromeCache()), ...Object.keys(readState().profileCtx || {})].map(idOf).filter(n => n > 0);
   return [...new Set([1, ...ids])].sort((a, b) => a - b);
 };
-export const profileName = p => chromeCache()[p > 1 ? `Profile ${p - 1}` : 'Default']?.name || `Профиль ${p}`;
+// Аккаунты — только номерами по порядку (пользователь 2026-10-17: «у аккаунтов не будет имён, пусть будут только номера»);
+// картинка аккаунта — его аватарка Google из профиля Chrome (hub: /api/avatar/<id>)
+export const profileNum = p => { const i = profileIds().indexOf(p); return i >= 0 ? i + 1 : p; };
+export const profileName = p => `Аккаунт ${profileNum(p)}`;
