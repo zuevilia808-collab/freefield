@@ -296,6 +296,33 @@ function openScnCount() {
     plan: (site && simPlan(site, kind, model, kind === 'image' ? 'картинки' : 'видео')) ||
       'Freefield запустит все сразу и разложит по аккаунтам: во Flow — до 4 на аккаунт и не больше, чем хватит кредитов (50 кредитов = 2 видео Omni 1.1 Flash), в Dola и Arena — до 2, в Google Vids — 1; нужно больше — тут же подключит другие профили Chrome.'});
 }
+/* ---- «Остаток» в верхней панели (пользователь 2026-10-17: «точный счётчик, сколько кредитов и каких осталось на каждом аккаунте —
+   если всё израсходовалось кроме Dola, должно быть видно, что на Dola ещё что-то есть»): итог по сервисам всегда на виду,
+   подсказка — по каждому аккаунту, нажатие — окно проверки баланса сразу по всем сервисам */
+function balData() {
+  const profs = hubLink.info?.profiles || [];
+  const can = (p, s) => p.login?.[s]?.ok !== false && !p.siteOut?.[s];
+  const flowAcc = profs.filter(p => can(p, 'flow')), dolaAcc = profs.filter(p => can(p, 'dola'));
+  const flow = flowAcc.reduce((a, p) => a + (p.flowLeft ?? 0), 0);
+  const dolaKnown = dolaAcc.filter(p => p.dolaPoints != null), dola = dolaKnown.reduce((a, p) => a + p.dolaPoints, 0);
+  const vids = profs.filter(p => can(p, 'vids') && p.vidsWait !== 'smart').length, arena = profs.filter(p => can(p, 'arena')).length;
+  const rows = profs.map(p => `${p.name}: Flow ${can(p, 'flow') ? `${p.flowLeft ?? '?'} кр.` : '—'} · Dola ${!can(p, 'dola') ? '—' : p.dolaPoints != null ? p.dolaPoints + ' б.' : 'есть'} · Vids ${can(p, 'vids') && p.vidsWait !== 'smart' ? 'есть' : '—'} · Arena ${can(p, 'arena') ? 'есть' : '—'}`);
+  return {profs, flow, flowVideos: flowAcc.reduce((a, p) => a + Math.floor((p.flowLeft ?? 0) / 20), 0), dola, dolaAcc: dolaAcc.length, dolaUnknown: dolaAcc.length - dolaKnown.length, vids, arena, rows};
+}
+function renderBalBtn() {
+  const b = $('#balBtn');
+  if (!b) return;
+  const d = balData();
+  b.hidden = !hubLink.ok || !d.profs.length;
+  if (b.hidden) return;
+  const it = (name, val, ok) => `<b class="${ok ? 'ok' : 'zero'}">${name} ${val}</b>`;
+  $('#balText').innerHTML = [it('Flow', d.flow, d.flow >= 10), it('Dola', d.dolaAcc ? (d.dola || (d.dolaUnknown ? '✓' : 0)) : 0, d.dolaAcc > 0 && (d.dola > 0 || d.dolaUnknown > 0)),
+    it('Vids', d.vids, d.vids > 0), it('Arena', d.arena, d.arena > 0)].join('');
+  const where = [d.flow >= 20 && `Flow — ${d.flow} кредитов (≈ ${d.flowVideos} видео Omni)`, d.dolaAcc && (d.dola || d.dolaUnknown) && `Dola — ${d.dola ? d.dola + ' баллов' : 'есть (баллы Dola покажет после первого видео)'}`,
+    d.vids && `Google Vids — ${d.vids} ${plur(d.vids, 'аккаунт', 'аккаунта', 'аккаунтов')}`, d.arena && `Arena — ${d.arena} ${plur(d.arena, 'аккаунт', 'аккаунта', 'аккаунтов')}`].filter(Boolean);
+  b.title = `${where.length ? 'Ещё можно генерировать: ' + where.join('; ') : 'На сегодня бесплатное везде кончилось'}\n\nПо аккаунтам:\n${d.rows.join('\n')}\n\nНажмите — подробно по каждому аккаунту и проверка прямо с сайтов`;
+}
+function balOpen() { TOK.sites = ['flow', 'dola', 'vids', 'arena']; openTok(); }
 /* ---- «💳 Проверить баланс» в «Видео»: какие сервисы проверить и на сколько сценариев хватит ----
    Flow — остаток кредитов компьютер читает прямо с сайта в каждом открытом окне Chrome; сценарии = кредиты ÷ цена видео
    (Omni 1.1 Flash — 20: 50 кредитов = 2 сценария). Dola называет баллы только после видео, Vids и Arena остаток заранее

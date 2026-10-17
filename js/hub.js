@@ -277,6 +277,7 @@ const hubLink = {
 // не отвечает), pc-off (сайт с GitHub на компьютере, программа не отвечает), none (компьютера нет — телефон без связки)
 // «● Компьютер» в верхней полосе: точка — состояние связи, нажатие — проверить и что делать
 function renderPcBtn() {
+  if (typeof renderBalBtn === 'function') renderBalBtn();   // «Остаток» по сервисам — рядом
   const b = $('#pcBtn'), st = pcStatus();
   if (!b) return;
   b.dataset.pc = st.k;

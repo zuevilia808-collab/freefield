@@ -233,6 +233,7 @@ function bindControls() {
   $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); createGo(); } });
   $('#genBtn').addEventListener('click', createGo);
   $('#accBtn').addEventListener('click', openAcc);
+  $('#balBtn').addEventListener('click', balOpen);
   $('#mcpOpen').addEventListener('click', openMcp);
   // «Режим разработчика»: кнопки ⟨/⟩ видны только с ним
   $('#devMode').checked = document.body.classList.toggle('dev', !!ls.get('freefield.dev', false));
