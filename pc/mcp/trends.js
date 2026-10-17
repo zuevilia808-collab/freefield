@@ -153,8 +153,9 @@ export async function writeIdeas(items, heroes = [], onStatus = () => {}) {
   const W = await import('./write.js');
   if (!W.claudeExe()) return {error: 'на компьютере нет Claude Code — идеи напишет Claude в чате (MCP trends)'};
   onStatus('Claude пишет идеи брейнрота под ваших героев…');
-  const hs = heroes.length ? heroes : [{name: 'дырявая рохля', about: 'headless burlap ball in an ushanka, USSR toilet humor'}];
-  const text = 'Heroes:\n' + hs.map(h => `- ${h.name}${h.about ? ': ' + h.about : ''}`).join('\n') + '\n\nTrends:\n' +
+  // героев нет — идеи для «вашего героя» без имени (пользователь 2026-10-17: «везде рохля, хотя персонажа нет»)
+  const text = (heroes.length ? 'Heroes:\n' + heroes.map(h => `- ${h.name}${h.about ? ': ' + h.about : ''}`).join('\n')
+    : 'Heroes: none yet. Write ideas for «ваш герой» — any cartoon or absurd character the user will pick later; never invent a hero name, leave "hero" empty.') + '\n\nTrends:\n' +
     items.map((x, i) => `${i + 1}. ${x.url}\n   title: ${x.title}\n   views: ${x.views}${x.views_per_day ? `, ${x.views_per_day}/day` : ''}${x.duration ? `, ${x.duration}s` : ''}\n   sound: ${x.sound || '?'}\n   description: ${x.about || ''}`).join('\n');
   const ans = await W.claudeAsk(IDEAS_SYSTEM, text, 'sonnet', 240000);
   if (!ans) return {error: 'Claude не ответил (лимит подписки или нет входа) — тренды сохранены без идей'};
