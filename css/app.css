@@ -580,6 +580,21 @@ body[data-cm=voice] .gen-row,body[data-cm=voice] .model-line{display:none}
 .ehx .ehx-up .ic{width:24px;height:24px}
 .ehx-drop b{font:700 17px var(--display)}
 .ehx-drop small{color:var(--em);font-size:12.5px}
+.ehx-or{display:flex;align-items:center;gap:12px;margin:14px 0 12px;color:var(--em);font-size:12px}
+.ehx-or::before,.ehx-or::after{content:"";flex:1;height:1px;background:var(--el)}
+.ehx-recrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.ehx-recrow small{color:var(--em);font-size:12.5px}
+.ehx-rec{border:1.5px solid rgba(255,90,90,.45);border-radius:16px;padding:16px;background:rgba(255,90,90,.04)}
+.ehx-rec-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-variant-numeric:tabular-nums}
+.ehx-rec-top b{font:700 22px var(--display)}
+.ehx-rec-top b.ok{color:var(--free)}
+.ehx-rec-top small{color:var(--em);font-size:12.5px}
+.ehx-rec-dot{width:12px;height:12px;border-radius:50%;background:#ff5a5a;box-shadow:0 0 12px #ff5a5a;animation:ehxRecDot 1.2s infinite}
+@keyframes ehxRecDot{50%{opacity:.35}}
+.ehx-rec-lvl{height:6px;border-radius:9px;background:var(--ei);margin:12px 0;overflow:hidden}
+.ehx-rec-lvl i{display:block;height:100%;width:0;background:var(--free);transition:width .08s}
+.ehx-rec-text{font-size:16px;line-height:1.55;margin:0}
+.ehx-rec-text small{display:block;color:var(--em);font-size:12.5px;margin-bottom:6px}
 .ehx-file{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:13px;color:var(--text2)}
 .ehx-file>span{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}
 .ehx-file b{overflow:hidden;text-overflow:ellipsis;color:var(--text)}

@@ -147,7 +147,13 @@ const ex = {
 };
 // реплики из «Монтажа» в «Готовых озвучках» (пользователь 2026-10-09: «чтобы голосовая запись, которую изменяем, переносилась
 // в „Озвучку“ и появлялась в „Готовых озвучках“ с пометкой „из монтажа“») — файлы в базе приложения, не в «Эхо»
-ex.mtl = null;   // [{id, kind: 'ex-mtl', blob, text, proj, n, dur, created}]
+ex.mtl = null;
+// свой голос с микрофона (пользователь 2026-10-22: «хочу иметь возможность загрузить в эхо свой голос»): читаешь вслух текст —
+// запись уходит в «Эхо» как обычный файл, кусок с речью выделяется сам и голос сразу вырезается (без «убрать музыку»: её там нет)
+const EHX_REC_MAX = 30;   // секунд — дальше стоп сам («Эхо» берёт до 30 с)
+const EHX_REC_TEXT = 'Привет! Сегодня я расскажу вам одну короткую историю. Знаете, что в ней самое удивительное? Всё оказалось намного проще, чем я думал. Сначала было непонятно, потом интересно, а в конце — просто смешно. Давайте разберёмся вместе!';
+const exRec = {id: 0, on: false, stream: null, mr: null, ctx: null, parts: [], t0: 0, timer: 0, peak: 0, busy: false};
+const exRecSec = () => exRec.t0 ? Math.floor((performance.now() - exRec.t0) / 1000) : 0;   // [{id, kind: 'ex-mtl', blob, text, proj, n, dur, created}]
 async function exMtlLoad() {
   if (ex.mtl) return;
   ex.mtl = ((await DB.all().catch(() => [])) || []).filter(x => x.kind === 'ex-mtl' && x.blob).sort((a, b) => b.created - a.created);
@@ -246,11 +252,16 @@ function exHead(n, t, sub) {
 }
 // 1. Видео с голосом: загрузить ролик (или звук) и выделить кусок, где человек говорит
 function exSrcHTML() {
-  const head = exHead(1, 'Видео с голосом', 'Загрузи ролик и выдели кусок, где человек говорит');
+  const head = exHead(1, 'Видео с голосом', 'Загрузи ролик или запиши свой голос и выдели кусок, где человек говорит');
   const busy = ex.upPct >= 0;
+  if (!ex.up && exRec.on) return head + exRecHTML();
   if (!ex.up) return head + `<label class="ehx-drop" id="ehxDrop"><input type="file" id="ehxFile" accept="video/*,audio/*,.mkv,.mov,.mp3,.wav,.m4a" hidden ${busy ? 'disabled' : ''}>
-      <span class="ehx-up">${busy ? ic('hourglass') : ic('upload')}</span><b>${busy ? `Загружаю… ${ex.upPct}%` : pwa.mobile() ? 'Выбери видео' : 'Перетащи видео сюда'}</b>
-      <small>${busy ? esc(ex.upName) : `${pwa.mobile() ? 'из галереи телефона' : 'или нажми, чтобы выбрать файл'} · MP4, MOV, MKV, WEBM, а также MP3/WAV`}</small></label>`;
+      <span class="ehx-up">${busy ? ic('hourglass') : ic('upload')}</span><b>${busy ? `Загружаю… ${ex.upPct}%` : pwa.mobile() ? 'Выбери видео или запись' : 'Перетащи видео или запись голоса'}</b>
+      <small>${busy ? esc(ex.upName) : `${pwa.mobile() ? 'из галереи телефона' : 'или нажми, чтобы выбрать файл'} · MP4, MOV, MKV, WEBM, а также MP3/WAV/M4A`}</small></label>
+    <div class="ehx-or"><span>или</span></div>
+    <div class="ehx-recrow"><button class="ehx-btn ghost" data-ehx-rec ${busy ? 'disabled' : ''}>${ic('mic')}Записать свой голос</button>
+      <small>прочитаешь вслух короткий текст — 10–20 секунд</small>
+      <input type="file" id="ehxRecFile" accept="audio/*" capture hidden></div>`;
   const u = ex.up, D = u.duration || 0, pk = exResample(u.peaks, 140);
   return head + `<div class="ehx-file"><span>${ic(u.kind === 'audio' ? 'volume' : 'video')}<b>${esc(u.name || 'файл')}</b>· ${exT(D)}</span><button class="ehx-btn ghost sm" data-ehx-new>Другой файл</button></div>
     <div class="ehx-sel" id="ehxSel"><div class="in"><div class="bars">${exBars(pk, 140)}</div><div class="bars on">${exBars(pk, 140)}</div>
@@ -259,6 +270,17 @@ function exSrcHTML() {
     <div class="ehx-row"><button class="ehx-play" data-ehx-play="seg" title="Прослушать отрезок">${ic('play')}</button>
       <button class="ehx-tog ${ex.clean ? 'on' : ''}" data-ehx-clean>${ic(ex.clean ? 'check' : 'x')}Убрать музыку и шум</button>
       <button class="ehx-btn" id="ehxCut" data-ehx-cut></button></div>`;
+}
+// идёт запись с микрофона: время, уровень, текст для чтения
+function exRecHTML() {
+  if (!exRec.mr) return `<div class="ehx-rec"><p class="ehx-empty">⏳ Разреши доступ к микрофону…</p></div>`;
+  if (exRec.busy) return `<div class="ehx-rec"><p class="ehx-empty">⏳ Сохраняю запись…</p></div>`;
+  const t = exRecSec();
+  return `<div class="ehx-rec"><div class="ehx-rec-top"><i class="ehx-rec-dot"></i><b id="ehxRecTime" class="${t >= 10 ? 'ok' : ''}">${exT(t)}</b>
+      <small>нужно 10–20 с · стоп сам на ${exT(EHX_REC_MAX)}</small></div>
+    <div class="ehx-rec-lvl"><i id="ehxRecLvl"></i></div>
+    <p class="ehx-rec-text"><small>Прочитай вслух своим обычным голосом, с интонацией:</small>${EHX_REC_TEXT}</p>
+    <div class="ehx-row"><button class="ehx-btn" data-ehx-rec-stop>${ic('check')}Готово</button><button class="ehx-btn ghost" data-ehx-rec-cancel>${ic('x')}Отмена</button></div></div>`;
 }
 // отрезок без перерисовки: рамка, подписи, кнопка
 function exSelShow() {
@@ -460,7 +482,7 @@ async function exAddToMontage(t, btn) {
 }
 
 // загрузить ролик в «Эхо» (с ходом загрузки — видео с телефона бывают большими)
-async function exUpload(file) {
+async function exUpload(file, own = false) {
   if (!file || ex.upPct >= 0) return;
   if (!(await hubReady())) return toast('Нет связи с программой Freefield на компьютере', {type: 'err'});
   ex.upPct = 0; ex.upName = file.name || ''; exRender('src');
@@ -477,10 +499,95 @@ async function exUpload(file) {
     });
     if (!d.id) throw new Error('«Эхо» не приняло файл');
     ex.up = d; ex.a = 0; ex.b = Math.min(d.duration || 12, 12);
+    ex.own = own; ex.clean = !own;   // своя запись с микрофона — без музыки, чистить нечего
+    if (own) [ex.a, ex.b] = exSpeechSpan(d);
     if ((d.duration || 0) < 1.5) toast('В файле меньше 1,5 с звука — голос из него не вырезать', {type: 'err', ms: 8000});
   } catch (e) { toast('Не загрузилось: ' + e.message, {type: 'err', ms: 9000}); }
   ex.upPct = -1;
   exRender('src');
+  if (own && ex.up && ex.b - ex.a >= 1.5) exCut();
+}
+// где в записи речь: от первого до последнего громкого места (пики «Эхо» — около 50 на секунду), не длиннее 30 с
+function exSpeechSpan(u) {
+  const pk = u.peaks || [], D = u.duration || 0, n = pk.length, on = v => v > 0.08;
+  const i = pk.findIndex(on);
+  if (!n || i < 0) return [0, Math.min(D, EHX_REC_MAX)];
+  let j = n - 1;
+  while (j > i && !on(pk[j])) j--;
+  const a = Math.max(0, i / n * D - 0.25), b = Math.min(D, (j + 1) / n * D + 0.3);
+  return [a, Math.min(b, a + EHX_REC_MAX)];
+}
+async function exRecStart() {
+  if (exRec.on || ex.upPct >= 0) return;
+  // микрофон браузер даёт только по https и на этом компьютере; по Wi-Fi-ссылке (http) — диктофон телефона через выбор файла
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    toast(window.isSecureContext ? 'Этот браузер не записывает звук — запиши диктофоном и выбери запись' : 'Здесь браузер не даёт микрофон — запиши диктофоном телефона и выбери запись', {ms: 8000});
+    return $('#ehxRecFile')?.click();
+  }
+  const id = ++exRec.id;
+  Object.assign(exRec, {on: true, mr: null, parts: [], peak: 0, busy: false});
+  exRender('src');
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}}); }
+  catch (e) {
+    if (exRec.id !== id) return;
+    exRecCancel();
+    return toast(e.name === 'NotAllowedError' ? 'Нет доступа к микрофону — разреши его сайту: значок слева от адреса → «Микрофон»'
+      : e.name === 'NotFoundError' ? 'Микрофон не найден — подключи его или загрузи запись файлом' : 'Микрофон недоступен: ' + e.message, {type: 'err', ms: 9000});
+  }
+  if (exRec.id !== id) return stream.getTracks().forEach(t => t.stop());   // запись отменили, пока спрашивали разрешение
+  const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm'].find(t => MediaRecorder.isTypeSupported?.(t));
+  let mr;
+  try { mr = new MediaRecorder(stream, type ? {mimeType: type} : {}); }
+  catch (e) { stream.getTracks().forEach(t => t.stop()); exRecCancel(); return toast('Запись не запускается: ' + e.message, {type: 'err'}); }
+  // уровень громкости — видно, что микрофон слышит (в тишину через нулевую громкость: Safari иначе не считает)
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(), an = ctx.createAnalyser(), mute = ctx.createGain();
+  ctx.resume?.().catch(() => {});
+  an.fftSize = 1024; mute.gain.value = 0;
+  ctx.createMediaStreamSource(stream).connect(an); an.connect(mute); mute.connect(ctx.destination);
+  mr.ondataavailable = e => { if (e.data.size) exRec.parts.push(e.data); };
+  mr.onstop = () => exRecDone(id, new Blob(exRec.parts, {type: mr.mimeType || type || 'audio/webm'}));
+  Object.assign(exRec, {stream, mr, ctx, t0: performance.now()});
+  mr.start(250);
+  exRender('src');
+  const buf = new Float32Array(an.fftSize);
+  exRec.timer = setInterval(() => {
+    if (exRec.id !== id || exRec.busy) return;
+    an.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (const x of buf) sum += x * x;
+    const rms = Math.sqrt(sum / buf.length), t = exRecSec(), lvl = $('#ehxRecLvl'), tm = $('#ehxRecTime');
+    exRec.peak = Math.max(exRec.peak, rms);
+    if (lvl) lvl.style.width = Math.min(100, rms * 600) + '%';
+    if (tm) { tm.textContent = exT(t); tm.classList.toggle('ok', t >= 10); }
+    if (t >= EHX_REC_MAX) exRecStop();
+  }, 80);
+}
+function exRecStop() {
+  if (!exRec.mr || exRec.busy) return;
+  if (exRecSec() < 3) return toast('Запиши хотя бы 10 секунд — прочитай текст до конца', {type: 'err'});
+  exRec.busy = true;
+  clearInterval(exRec.timer);
+  if (exRec.mr.state !== 'inactive') exRec.mr.stop();
+  exRender('src');
+}
+// сброс записи и микрофона; запоздалые ответы (разрешение, остановка) по старому id не учитываются
+function exRecCancel(rerender = true) {
+  exRec.id++;
+  clearInterval(exRec.timer);
+  try { if (exRec.mr && exRec.mr.state !== 'inactive') exRec.mr.stop(); } catch {}
+  exRec.stream?.getTracks().forEach(t => t.stop());
+  exRec.ctx?.close?.().catch(() => {});
+  Object.assign(exRec, {on: false, stream: null, mr: null, ctx: null, parts: [], t0: 0, busy: false});
+  if (rerender) exRender('src');
+}
+async function exRecDone(id, blob) {
+  if (exRec.id !== id) return;
+  const quiet = exRec.peak < 0.01;
+  exRecCancel(false);   // микрофон отпускаем сразу — значок записи в браузере гаснет
+  if (quiet || !blob.size) { exRender('src'); return toast('Запись очень тихая — говори громче или ближе к микрофону и запиши ещё раз', {type: 'err', ms: 8000}); }
+  const ext = /mp4/.test(blob.type) ? 'm4a' : /ogg/.test(blob.type) ? 'ogg' : 'webm';
+  await exUpload(new File([blob], `мой голос.${ext}`, {type: blob.type || 'audio/webm'}), true);
 }
 // вырезать голос из отрезка → карточка «Голос» (текст «Эхо» распознаёт само)
 async function exCut() {
@@ -489,7 +596,7 @@ async function exCut() {
   ex.cut = 'Ставлю в очередь…'; exSelShow();
   try {
     const v = await echoJob(await echoApi('/voice', {upload_id: u.id, start: +ex.a.toFixed(2), end: +ex.b.toFixed(2), clean: ex.clean}), (m, p) => { ex.cut = exProg(m, p); exSelShow(); });
-    Object.assign(ex, {voice: v, vText: v.text || '', vName: v.saved ? v.name || '' : '', vEmo: v.emotion || 'neutral'});
+    Object.assign(ex, {voice: v, vText: v.text || '', vName: v.saved ? v.name || '' : ex.own ? 'Мой голос' : '', vEmo: v.emotion || 'neutral'});
     ex.cut = '';
     exRender();
     $('#ehxVoice')?.scrollIntoView({block: 'start', behavior: 'smooth'});
@@ -565,7 +672,7 @@ function exSelDown(e) {
     if (!b || b.disabled || !W.contains(b)) return;
     const d = b.dataset, take = id => ex.hist.find(t => t.id === id);
     if (d.ehxPlay) {
-      if (d.ehxPlay === 'seg') return exPlay('seg', ex.up.preview || ex.up.url, ex.a, ex.b);
+      if (d.ehxPlay === 'seg') return exPlay('seg', ex.up.url, ex.a, ex.b);
       return d.src && exPlay(d.ehxPlay, d.src);
     }
     if ('ehxLineX' in d) { ex.line = null; return exRender(); }
@@ -576,6 +683,9 @@ function exSelDown(e) {
       ex.mtl = (ex.mtl || []).filter(x => x.id !== d.ehxMdel); DB.del(d.ehxMdel);
       return exRender('takes');
     }
+    if ('ehxRec' in d) return exRecStart();
+    if ('ehxRecStop' in d) return exRecStop();
+    if ('ehxRecCancel' in d) return exRecCancel();
     if ('ehxNew' in d) { if (exNow === 'seg') exAud.pause(); ex.up = null; return exRender('src'); }
     if ('ehxClean' in d) { ex.clean = !ex.clean; return exRender('src'); }
     if ('ehxCut' in d) return exCut();
@@ -635,7 +745,10 @@ function exSelDown(e) {
     if (k === 'intensity') $('#ehxInt').textContent = Math.round(ex.intensity * 100) + '%';
     if (['vName', 'vText', 'vEmo'].includes(k)) { $('#ehxSaveBox').innerHTML = exSaveBtn(); const s = $('#ehxVoice .ehx-player small'); if (s && ex.voice) s.textContent = `${ex.vName.trim() || ex.voice.name || 'новый голос'} · ${exT(ex.voice.duration)}`; }
   });
-  W.addEventListener('change', e => { if (e.target.id === 'ehxFile') exUpload(e.target.files?.[0]); });
+  W.addEventListener('change', e => {
+    if (e.target.id === 'ehxFile') exUpload(e.target.files?.[0]);
+    if (e.target.id === 'ehxRecFile') exUpload(e.target.files?.[0], true);   // запись диктофоном телефона
+  });
   W.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.matches('[data-ehx-f="text"]')) { e.preventDefault(); exSpeak(); } });
   const drop = e => e.target.closest?.('#ehxDrop');
   W.addEventListener('dragover', e => { const z = drop(e); if (z) { e.preventDefault(); z.classList.add('drag'); } });
