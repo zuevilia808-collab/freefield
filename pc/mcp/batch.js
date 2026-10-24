@@ -13,6 +13,46 @@ export const PROBLEMS_FILE = path.join(HERE, '.problems.jsonl');
 export function logProblem(rec) {
   try { fs.appendFileSync(PROBLEMS_FILE, JSON.stringify({at: new Date().toLocaleString('sv-SE'), ...rec}) + '\n'); } catch { /* журнал — не главное */ }
 }
+// Предохранитель от «ударов головой о стену» (пользователь 2026-10-24: «постоянно открывает и запускает по кругу, со всех аккаунтов»):
+// одна и та же ошибка сайта (тот же элемент, тот же текст) BREAKER раз за 20 минут на любых аккаунтах и в любых чатах — это уже не
+// случайность, а поломка. Задания не повторяют её дальше, а уходят на другой сервис; если деваться некуда — останавливаются с понятным
+// объяснением. Источник — общий журнал неполадок (его пишут все чаты); успех сайта в этом процессе обнуляет счёт.
+const BREAKER = 8, BREAKER_MIN = 20;
+const lastOk = {};
+const failSig = (site, message) => {
+  const m = String(message || '').replace(/\x1b\[[0-9;]*m/g, '');
+  const wait = m.match(/waiting for ([^\n]{0,120})/)?.[1];
+  return site + '|' + (wait || m.split('\n')[0]).replace(/\d+/g, 'N').slice(0, 140);
+};
+let tailCache = {at: 0, rows: []};
+function recentProblems() {
+  if (Date.now() - tailCache.at < 4000) return tailCache.rows;
+  let rows = [];
+  try {
+    const fd = fs.openSync(PROBLEMS_FILE, 'r');
+    const size = fs.fstatSync(fd).size, len = Math.min(size, 400000), buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, size - len); fs.closeSync(fd);
+    const since = Date.now() - BREAKER_MIN * 60e3;
+    rows = buf.toString('utf8').split('\n').slice(size > len ? 1 : 0).map(l => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(r => r && r.errorKind && r.site && new Date(String(r.at).replace(' ', 'T')).getTime() >= since && !/^(captcha|login|credits|quota|flagged|consent|plan)$/.test(r.errorKind));
+  } catch { /* журнала нет — предохранитель молчит */ }
+  tailCache = {at: Date.now(), rows};
+  return rows;
+}
+const repeats = (site, message) => {
+  const sig = failSig(site, message), from = Math.max(Date.now() - BREAKER_MIN * 60e3, lastOk[site] || 0);
+  return recentProblems().filter(r => r.site === site && failSig(site, r.message) === sig && new Date(String(r.at).replace(' ', 'T')).getTime() >= from).length;
+};
+const siteTripped = site => {
+  const from = Math.max(Date.now() - 10 * 60e3, lastOk[site] || 0), n = {};
+  for (const r of recentProblems()) if (r.site === site && new Date(String(r.at).replace(' ', 'T')).getTime() >= from) { const k = failSig(site, r.message); n[k] = (n[k] || 0) + 1; }
+  return Object.values(n).some(c => c >= BREAKER);
+};
+// Чат запущен до последней правки кода Freefield → его копия сервера в памяти старая: исправления в нём не действуют, пока не открыть новый чат
+const BOOT = Date.now();
+const staleCode = () => ['portals.js', 'batch.js', 'server.js', 'studio.js'].some(f => { try { return fs.statSync(path.join(HERE, f)).mtimeMs > BOOT + 2000; } catch { return false; } });
+const STALE_HINT = ' · В этом чате Freefield работает по старой версии кода (файлы обновились после его запуска) — откройте новый чат или перезапустите Claude, исправления заработают.';
+
 // «Этот запрос может нарушать наши правила…» — у Flow почти всегда ложная тревога (пользователь 2026-10-09: «99 из 100 — ошибка Flow,
 // а не твоя»): сразу повтор, потом тот же промпт с пометкой, что персонаж вымышленный и сделан ИИ, и только потом — другой сервис
 const POLICY = /нарушать наши правила|нарушает наши правила|может нарушать|вредного контента|violat|against our (policy|policies)|harmful content|unsafe|отказалась по содержанию/i;
@@ -184,7 +224,7 @@ function altSlot(kind, site, p, aspect, photo = false, sheetOnly = false) {
   const all = slotsFor(kind), i = all.findIndex(x => x.site === site && x.p === p);
   const rest = [...all.slice(i + 1), ...all.slice(0, Math.max(i, 0))];
   // видео по фото человека Dola не делает — запасным для него она не бывает
-  const free = x => !(photo && kind === 'video' && x.site === 'dola') && !loggedOut(x) &&
+  const free = x => !(photo && kind === 'video' && x.site === 'dola') && !loggedOut(x) && !siteTripped(x.site) &&
     withProfile(x.p, () => x.site === 'flow' ? !P.flowPaused() && P.flowLeft() > 0 : x.site === 'vids' ? !P.siteOut('vids') && !P.vidsBlocked(photo) : !P.siteOut(x.site));
   const good = x => free(x) && !(sheetOnly && x.site === 'arena');   // без кадра в локации Arena героя не увидит
   return rest.find(x => ASPECTS[kind][x.site].includes(aspect || '16:9') && good(x)) || rest.find(good) || rest.find(free) || null;
@@ -226,6 +266,7 @@ export async function runBatch(items, {save, onChange = () => {}, fallback = tru
     for (let n = 1; ; n++) {
       try {
         const r = await generateOn(site, prompt === it.prompt ? it : {...it, prompt}, status, p);
+        lastOk[site] = Date.now();
         Object.assign(it, {site, profile: p, model: r.model, chat: r.chat || null, status: 'done', message: '', finished: Date.now(), ...(prompt !== it.prompt && {usedPrompt: prompt})});
         it.files = r.results.map(o => ({path: save(o, it), mime: o.mime || (it.kind === 'video' ? 'video/mp4' : 'image/jpeg'), label: o.label || ''}));
         if (notes.length) { it.note = `${notes.join(' → ')} → ✓ ${where(site, p)}`; logProblem({site, kind: it.kind, outcome: `done on try ${n}`, steps: notes, prompt: it.prompt.slice(0, 300)}); }
@@ -235,8 +276,14 @@ export async function runBatch(items, {save, onChange = () => {}, fallback = tru
         // сайт «занят», не успел, завис — снимок его вкладки в журнал (если сайт свой снимок уже сделал — путь в тексте ошибки)
         const shot = kind === 'busy' && !/снимок:/.test(e.message) && P.siteShot ? await withProfile(p, () => P.siteShot(site)).catch(() => null) : null;
         logProblem({site, profile: p, kind: it.kind, errorKind: kind, message: e.message, try: n, prompt: prompt.slice(0, 300), ...(shot && {shot})});
-        let next = '';
+        let next = '', tripped = 0;
+        if (!isPolicy && (kind === 'other' || kind === 'busy' || kind === 'ui')) tripped = repeats(site, e.message);
         if (kind === 'captcha') next = '';   // проверку «я не робот» проходит только пользователь
+        else if (tripped >= BREAKER) {
+          const from = where(site, p);
+          next = move() ? `на ${from} одна и та же ошибка уже ${tripped} раз за ${BREAKER_MIN} мин — переношу на ${where(site, p)}` : '';
+          if (!next) e.message = `${from}: одна и та же ошибка уже ${tripped} раз за ${BREAKER_MIN} мин на разных аккаунтах — это поломка сайта или Freefield, повторы остановлены, чтобы не жечь аккаунты и не мучить окна. Ошибка: ${e.message.replace(/\x1b\[[0-9;]*m/g, '').split('\n')[0].slice(0, 200)}`;
+        }
         // Flow отказывает «по правилам» ложно и возвращает кредиты — во Flow пробуем, пока в аккаунте есть кредиты (пользователь 2026-10-10:
         // «пробуй до тех пор, пока не выжмешь из аккаунта все кредиты»); остальное — до MAX_TRIES
         else if (n >= (isPolicy && site === 'flow' ? FLOW_POLICY_TRIES : MAX_TRIES)) next = '';
@@ -266,7 +313,7 @@ export async function runBatch(items, {save, onChange = () => {}, fallback = tru
         }
         notes.push(`${e.message.slice(0, 160)}${next ? ` → ${next}` : ''}`);
         if (next) { it.note = `попытка ${n + 1}: ${next}`; onChange(); continue; }
-        Object.assign(it, {site, profile: p, status: 'error', message: e.message, errorKind: kind, note: notes.slice(0, -1).join(' → ') || it.note, finished: Date.now()});
+        Object.assign(it, {site, profile: p, status: 'error', message: e.message + (staleCode() ? STALE_HINT : ''), errorKind: kind, note: notes.slice(0, -1).join(' → ') || it.note, finished: Date.now()});
         break;
       }
     }

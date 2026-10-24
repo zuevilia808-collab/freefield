@@ -136,12 +136,36 @@ async function sitePage(site, front = true) {
     page = (site !== 'vids' && pages.find(p => p.url().includes(cfg.match))) || pages.find(p => /^(about:blank|chrome:\/\/new-?tab)/.test(p.url())) || await newTab();
     if (!page.url().includes(cfg.match)) await page.goto(cfg.home, {waitUntil: 'domcontentloaded', timeout: 60000});
   }
+  guardPage(page, site);
   if (front) {
     await page.bringToFront().catch(() => {});
     await sleep(1200);   // дать странице «проснуться» после переключения вкладки
     await wakeWindow(page);
   }
   return page;
+}
+// Окно-ошибка поверх страницы («Не удалось загрузить изображение», «Что-то пошло не так») перекрывает кнопки: клик ждал 30 с, падал, задание
+// шло на повтор — а пользователь закрывал окно руками (2026-10-24: «вылазит окно "не удалось загрузить изображение", я донажимаю»).
+// Теперь Playwright сам закрывает такое окно, как только оно мешает действию, и пишет в журнал, что это было (текст + снимок) —
+// по записям видно, какие окна ещё бывают. Только окна с текстом ошибки загрузки; окна согласия, входа и правил сайт не трогаем.
+const ERR_DIALOG = /не удалось (загрузить|добавить|прикрепить|отправить|обработать)|не получилось загрузить|failed to (upload|load|add|attach)|couldn.t (upload|load|add)|upload failed|something went wrong|что-то пошло не так/i;
+const GUARDED = new WeakSet();
+function guardPage(page, site) {
+  if (GUARDED.has(page) || typeof page.addLocatorHandler !== 'function') return;
+  GUARDED.add(page);
+  let lastLog = 0;
+  const dlg = page.locator('[role=dialog],[role=alertdialog],mat-dialog-container,.mat-mdc-dialog-container,[role=alert]').filter({hasText: ERR_DIALOG}).first();
+  page.addLocatorHandler(dlg, async d => {
+    const text = (await d.innerText({timeout: 2000}).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (Date.now() - lastLog > 60000) {
+      lastLog = Date.now();
+      const shot = await problemShot(page, site).catch(() => null);
+      try { fs.appendFileSync(path.join(HERE, '.problems.jsonl'), JSON.stringify({at: new Date().toLocaleString('sv-SE'), site, outcome: 'окно-ошибка закрыто само', message: text, ...(shot && {shot})}) + '\n'); } catch {}
+    }
+    const btn = d.getByRole('button', {name: /^(Закрыть|Close|OK|ОК|Ок|Понятно|Got it|Dismiss)$/i}).first();
+    if (await btn.count().catch(() => 0)) await btn.click({timeout: 3000}).catch(() => {});
+    else await page.keyboard.press('Escape').catch(() => {});
+  }, {noWaitAfter: true}).catch(() => {});
 }
 // Окно профиля свёрнуто — страница «спит» (Flow и Arena тогда не рисуют кнопки): разворачиваем окно.
 // Окна, закрытые другими окнами, Chrome Freefield не усыпляет (флаги запуска в bridge.js).
