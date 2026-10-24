@@ -1012,11 +1012,11 @@ async function dolaRun({prompt, aspect, model, imagePath, onStatus}) {
     onStatus(`настраиваю: ${model.label}, ${aspect}`);
     await page.getByRole('button', {name: /Модель|Model/}).first().click();
     await sleep(500);
-    await menuItem(page, model.re).click();
+    await pickMenu(page, model.re);
     await sleep(500);
     await page.getByRole('button', {name: /Соотношение|Ratio|Aspect/i}).first().click();
     await sleep(500);
-    await menuItem(page, new RegExp('^' + aspect)).click();
+    await pickMenu(page, new RegExp('^' + aspect));
     await sleep(500);
     if (imagePath) {
       onStatus('прикрепляю фото-референс');
@@ -1081,6 +1081,24 @@ const dolaVideoSrcs = page => page.evaluate(() => [...document.querySelectorAll(
   .map(v => v.currentSrc || v.src || v.querySelector('source')?.src || '').filter(s => /^https?:/.test(s)));
 const dolaReplyText = page => page.evaluate(() => (document.querySelector('main') || document.body).innerText.replace(/\s+/g, ' ').slice(-1200)).catch(() => '');
 const menuItem = (page, re) => page.locator('[role=menuitem],[role=option],[role=menuitemradio]').filter({hasText: re}).first();
+// Выбрать пункт открытого меню Dola. Меню формата открывается ПОД полем ввода, и обычный клик Playwright 30 с упирается
+// в «subtree intercepts pointer events» — окно висит на экране замёрзшим (пользователь 2026-10-24: «выбираешь
+// соотношение сторон, а потом залагиваешь»). Поэтому: короткий обычный клик → клик самим элементом → клавиатура.
+async function pickMenu(page, re) {
+  const item = menuItem(page, re);
+  await item.waitFor({state: 'visible', timeout: 8000});
+  const open = () => item.isVisible().catch(() => false);
+  try { await item.click({timeout: 2500}); return; } catch {}
+  await item.dispatchEvent('click').catch(() => {});
+  await sleep(300);
+  if (!await open()) return;
+  await item.focus().catch(() => {});
+  await page.keyboard.press('Enter');
+  await sleep(300);
+  if (!await open()) return;
+  await page.keyboard.press('Escape').catch(() => {});
+  throw new PortalError(`Dola: не получилось выбрать пункт меню «${re.source}»`, 'busy');
+}
 // ответы Dola: «Создаю видео…» (пошло), вопрос (надо подтвердить), отказ
 const DOLA_STARTED = /Создаю видео|Видео будет создано|будет готово|генерир|Generating|I'?ll create|creating/i;
 const DOLA_REFUSED = /В целях защиты права на образ|генерирование видео только с собой|Используйте другое изображение|нельзя генерировать|Произошла ошибка|не могу (создать|сгенерировать)|cannot (create|generate)/i;
@@ -1117,18 +1135,18 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     onStatus(`настраиваю: ${model.label}, ${seconds} с, ${aspect}`);
     await page.getByRole('button', {name: /^(Модель|Model)/}).first().click();
     await sleep(600);
-    await menuItem(page, model.re).click();
+    await pickMenu(page, model.re);
     await sleep(500);
     // модель должна реально стоять — иначе видео не запускаем
     const picked = await page.getByRole('button', {name: /^(Модель|Model)/}).first().innerText().catch(() => '');
     if (/Seedance/i.test(picked) && !model.re.test(picked)) throw new PortalError(`Dola: не выбралась ${model.label} (стоит «${picked.trim()}») — видео не запускаю`, 'retry');
     await page.getByRole('button', {name: /^\d+s$/}).first().click();
     await sleep(500);
-    await menuItem(page, new RegExp(`^${seconds}s$`)).click();
+    await pickMenu(page, new RegExp(`^${seconds}s$`));
     await sleep(500);
     await page.getByRole('button', {name: /^(Соотношение|Ratio|\d+:\d+)$/}).first().click();
     await sleep(500);
-    await menuItem(page, new RegExp(`^${aspect}$`)).click();
+    await pickMenu(page, new RegExp(`^${aspect}$`));
     await sleep(500);
     if (imagePath) {
       onStatus('прикрепляю фото-референс');
