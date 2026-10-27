@@ -1010,6 +1010,9 @@ export const DOLA_IMAGE_MODELS = {
   'seedream-5-pro': {label: 'Seedream 5.0 Pro', re: /Seedream 5\.0 Pro/},
 };
 
+// Нажать кнопку Dola: что-то поверх (всплывающее меню, подсказка) перехватывает обычный клик, и Playwright ждал 30 с
+// (2026-10-27: «Создание изображений» не нажималась) — ждём обычный клик 5 с, потом нажимаем саму кнопку напрямую
+const tap = loc => loc.click({timeout: 5000}).catch(() => loc.dispatchEvent('click', undefined, {timeout: 5000}));
 const dolaImages = page => page.evaluate(() => {
   const best = new Map();
   for (const i of document.images) {
@@ -1021,6 +1024,9 @@ const dolaImages = page => page.evaluate(() => {
   return [...best.entries()].map(([key, v]) => ({key, ...v}));
 });
 const dolaBusy = page => page.evaluate(() => !!document.querySelector('[class*="loading" i], [class*="generating" i], [aria-busy="true"]'));
+// сбой генерации на стороне Dola: пустые серые плитки и красный «!» у сообщения (2026-10-27: без этой проверки Freefield
+// ждал впустую все 5 минут)
+const dolaFailed = page => page.evaluate(() => !!document.querySelector('[data-testid="message_box_failed_icon"]')).catch(() => false);
 
 export const dolaImage = o => siteSlot('dola', () => dolaRun(o));
 const DOLA_CHAT = /dola\.com\/chat\/\d+/;
@@ -1031,27 +1037,39 @@ async function dolaRun({prompt, aspect, model, imagePath, onStatus}) {
     await page.goto(SITES.dola.home, {waitUntil: 'domcontentloaded', timeout: 60000});
     await sleep(2500);
     await assertReady(page, 'dola');
-    await page.getByRole('button', {name: /Создание изображений|Image generation|Create image/i}).first().click();
+    await tap(page.getByRole('button', {name: /Создание изображений|Image generation|Create image/i}).first());
     await sleep(800);
     onStatus(`настраиваю: ${model.label}, ${aspect}`);
-    await page.getByRole('button', {name: /Модель|Model/}).first().click();
+    await tap(page.getByRole('button', {name: /Модель|Model/}).first());
     await sleep(500);
     await pickMenu(page, model.re);
     await sleep(500);
-    await page.getByRole('button', {name: /Соотношение|Ratio|Aspect/i}).first().click();
+    onStatus(`выбираю формат ${aspect}`);
+    await tap(page.getByRole('button', {name: /Соотношение|Ratio|Aspect/i}).first());
     await sleep(500);
     await pickMenu(page, new RegExp('^' + aspect));
     await sleep(500);
+    // кнопка показывает выбранный формат («Соотношение сторон 16:9»); осталось «Авто» — Dola сделала бы не тот кадр
+    const shown = await page.getByRole('button', {name: /Соотношение|Ratio|Aspect/i}).first().innerText().catch(() => '');
+    if (shown && !shown.includes(aspect)) throw new PortalError(`Dola: формат ${aspect} не выбрался (на кнопке «${shown.replace(/\s+/g, ' ')}»)`, 'busy');
+    // сетка форматов после выбора не закрывается сама и лежит поверх поля ввода (2026-10-27) — закрываем
+    if (await page.locator('button:visible').filter({hasText: /^9:16$/}).count().catch(() => 0)) {
+      await page.keyboard.press('Escape');
+      await sleep(400);
+    }
     if (imagePath) {
       onStatus('прикрепляю фото-референс');
       await page.locator('input[type=file]').first().setInputFiles(imagePath);
       await sleep(4000);
     }
+    onStatus('ввожу промпт');
     const box = page.locator('[contenteditable="true"]').first();
-    await box.click();
+    // поле может быть чем-то прикрыто — не долбим 30 с, а ставим курсор напрямую
+    await box.click({timeout: 4000}).catch(() => box.focus());
     await box.fill(prompt);
     await sleep(400);
-    await page.keyboard.press('Enter');
+    await box.press('Enter');
+    onStatus('отправил, жду новый чат');
     return chatUrlAfterSend(page, DOLA_CHAT);
   }));
   onStatus(`Dola генерирует (${model.label})`);
@@ -1062,10 +1080,17 @@ async function dolaRun({prompt, aspect, model, imagePath, onStatus}) {
     await sleep(5000);
     const st = await inChat('dola', chat, async page => {
       await captchaCheck(page, 'dola');
-      return {imgs: await dolaImages(page), busy: await dolaBusy(page), reply: await dolaReplyText(page)};
+      return {imgs: await dolaImages(page), busy: await dolaBusy(page), reply: await dolaReplyText(page), failed: await dolaFailed(page)};
     });
     fresh = st.imgs;
     reply = st.reply;
+    // лимит — сразу, а не после 5 минут ожидания (2026-10-27: «Исчерпан ежедневный лимит…» висел в чате 6 минут)
+    if (!fresh.length && /Исчерпан\S* ежедневн\S* лимит|дневной лимит|лимит бесплатного использования|daily (free )?(usage )?limit|reached (your|the) (daily )?limit/i.test(reply)) {
+      markOut('dola');
+      throw new PortalError(`Dola: дневной лимит исчерпан — «${reply.slice(-200)}»`, 'quota');
+    }
+    if (st.failed && !fresh.length)
+      throw new PortalError(`Dola: генерация сорвалась на стороне сайта (красный «!» у сообщения) через ${Math.round((Date.now() - t0) / 1000)} с`, 'busy');
     if (!fresh.length && /Произошла ошибка\.? Повторите попытку|не могу (создать|сгенерировать)|нарушает|cannot (create|generate)/i.test(reply))
       throw new PortalError(`Dola не сделала картинку — «${reply.slice(-220)}»`, 'rejected');
     stable = !st.busy && fresh.length && fresh.length === lastCount ? stable + 1 : 0;
@@ -1108,9 +1133,14 @@ const menuItem = (page, re) => page.locator('[role=menuitem],[role=option],[role
 // Выбрать пункт открытого меню Dola. Меню формата открывается ПОД полем ввода, и обычный клик Playwright 30 с упирается
 // в «subtree intercepts pointer events» — окно висит на экране замёрзшим (пользователь 2026-10-24: «выбираешь
 // соотношение сторон, а потом залагиваешь»). Поэтому: короткий обычный клик → клик самим элементом → клавиатура.
+// 2026-10-27: меню формата картинок Dola стало сеткой обычных кнопок (9:16 … 16:9) без role=menuitem — тогда берём
+// видимую кнопку с этим текстом; последнюю, т. к. всплывающее меню лежит в конце страницы, а кнопка-переключатель раньше.
 async function pickMenu(page, re) {
-  const item = menuItem(page, re);
-  await item.waitFor({state: 'visible', timeout: 8000});
+  let item = menuItem(page, re);
+  if (!await item.waitFor({state: 'visible', timeout: 3000}).then(() => true, () => false)) {
+    item = page.locator('button:visible').filter({hasText: re}).last();
+    await item.waitFor({state: 'visible', timeout: 5000});
+  }
   const open = () => item.isVisible().catch(() => false);
   try { await item.click({timeout: 2500}); return; } catch {}
   await item.dispatchEvent('click').catch(() => {});
@@ -1154,21 +1184,21 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     await page.goto(SITES.dola.home, {waitUntil: 'domcontentloaded', timeout: 60000});
     await sleep(2500);
     await assertReady(page, 'dola');
-    await page.getByRole('button', {name: /^Создание видео$|^Video generation$/i}).first().click();
+    await tap(page.getByRole('button', {name: /^Создание видео$|^Video generation$/i}).first());
     await sleep(1000);
     onStatus(`настраиваю: ${model.label}, ${seconds} с, ${aspect}`);
-    await page.getByRole('button', {name: /^(Модель|Model)/}).first().click();
+    await tap(page.getByRole('button', {name: /^(Модель|Model)/}).first());
     await sleep(600);
     await pickMenu(page, model.re);
     await sleep(500);
     // модель должна реально стоять — иначе видео не запускаем
     const picked = await page.getByRole('button', {name: /^(Модель|Model)/}).first().innerText().catch(() => '');
     if (/Seedance/i.test(picked) && !model.re.test(picked)) throw new PortalError(`Dola: не выбралась ${model.label} (стоит «${picked.trim()}») — видео не запускаю`, 'retry');
-    await page.getByRole('button', {name: /^\d+s$/}).first().click();
+    await tap(page.getByRole('button', {name: /^\d+s$/}).first());
     await sleep(500);
     await pickMenu(page, new RegExp(`^${seconds}s$`));
     await sleep(500);
-    await page.getByRole('button', {name: /^(Соотношение|Ratio|\d+:\d+)$/}).first().click();
+    await tap(page.getByRole('button', {name: /^(Соотношение|Ratio|\d+:\d+)$/}).first());
     await sleep(500);
     await pickMenu(page, new RegExp(`^${aspect}$`));
     await sleep(500);
@@ -1199,10 +1229,11 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     await sleep(6000);
     const st = await inChat('dola', chat, async page => {
       await captchaCheck(page, 'dola');
-      return {vids: await dolaVideoSrcs(page), reply: await dolaReplyText(page)};
+      return {vids: await dolaVideoSrcs(page), reply: await dolaReplyText(page), failed: await dolaFailed(page)};
     });
     vids = st.vids;
     const reply = st.reply;
+    if (st.failed && !vids.length) throw new PortalError('Dola: генерация сорвалась на стороне сайта (красный «!» у сообщения)', 'retry');
     // переспросила уже после отправки — тоже не отвечаем, а заново в новом чате с ручным выбором модели
     if (!vids.length && DOLA_ASKS.test(reply.slice(-500)) && !DOLA_STARTED.test(reply.slice(-500))) throw new PortalError(`Dola переспрашивает вместо генерации — «${reply.slice(-160)}»`, 'asked');
     const pts = reply.match(/остал\S* балл\S* на сегодня:\s*(\d+)|points? left today:\s*(\d+)/i);
