@@ -96,10 +96,10 @@ function modelFor(site, kind, s) {
 }
 const flowCost = (kind, model) => (P[kind === 'video' ? 'FLOW_VIDEO_MODELS' : 'FLOW_IMAGE_MODELS'][model]?.credits) || 0;
 
-// Видео — по кругу Google Vids → Flow → Dola → Arena (Vids — Omni 10 с 720p без кредитов), картинки — Flow ↔ Dola (обе без кредитов; Arena — только если её выбрали), и всё это — по всем профилям Chrome
+// Видео — по кругу Google Vids → Flow → Dola → Arena (Vids — Omni 10 с 720p без кредитов), картинки — Flow → Dola → Arena (все без кредитов; пользователь 2026-10-27: «генерируй и в Арене… сразу с трёх»), и всё это — по всем профилям Chrome
 // (у каждого свои аккаунты и кредиты). Сайты, где сегодня лимит или пауза, пропускаются; во Flow учитываются
 // оставшиеся кредиты, в Dola — баллы (если Dola их уже называла).
-const ORDER = {video: ['vids', 'flow', 'dola', 'arena'], image: ['flow', 'dola']};
+const ORDER = {video: ['vids', 'flow', 'dola', 'arena'], image: ['flow', 'dola', 'arena']};
 // профили Chrome: сначала те, чьи окна открыты (все работают одновременно), потом остальные (их окна Freefield откроет сам)
 const profOrder = (open = []) => {
   const first = open.length ? open.filter(p => profileIds().includes(p)) : [activeProfileId()];
@@ -156,7 +156,9 @@ export function planBatch(scenarios, {open = []} = {}) {
       if (cands.length) over = want;
     }
     const lv = c => load[c.site + c.p] || 0;
-    const least = list => list.reduce((best, c) => (!best || lv(c) < lv(best) ? c : best), null);
+    // «меньше всего занят» — по доле мест: Flow 4, Dola и Arena по 2 → из 8 картинок Flow берёт 4, Dola 2, Arena 2
+    const share = c => lv(c) / (P.PARALLEL[c.site] || 1);
+    const least = list => list.reduce((best, c) => (!best || share(c) < share(best) ? c : best), null);
     // места: во Flow одновременно идут 4 генерации на аккаунт, в Dola и Arena — 2, в Vids — 1.
     // 10 картинок во Flow при одном открытом окне = 4 + 4 + 2 на трёх аккаунтах сразу, а не 10 в очереди у одного
     const roomy = cands.filter(c => lv(c) < (P.PARALLEL[c.site] || 1));

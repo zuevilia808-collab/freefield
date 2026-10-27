@@ -1619,11 +1619,19 @@ function arenaStart({mode, prompt, imagePath, onStatus, has}) {
       await page.getByRole('button', {name: new RegExp('^' + mode)}).click();
       await sleep(800);
     }
+    // Arena помнит черновик: фото, прикреплённое дни назад, оставалось в форме, и «Remove file» находился сразу — новое фото
+    // не прикреплялось, а Arena оживляла старое (2026-10-27: Юпитер вместо города в пустыне). Сначала убираем всё прежнее,
+    // потом ждём, что прикреплено ровно одно — наше
+    const remove = page.getByRole('button', {name: 'Remove file'});
+    for (let i = 0; i < 8 && await remove.count(); i++) { await remove.first().click({timeout: 4000}).catch(() => {}); await sleep(400); }
+    if (await remove.count()) throw new PortalError('Arena: не получилось убрать старое фото из формы', 'ui');
     if (imagePath) {
       onStatus('прикрепляю картинку');
       await page.locator('input[type=file]').first().setInputFiles(imagePath);
-      await page.getByRole('button', {name: 'Remove file'}).first().waitFor({timeout: 30000})
+      await remove.first().waitFor({timeout: 30000})
         .catch(() => { throw new PortalError('Arena не приняла картинку (нужен png, jpg или webp)', 'ui'); });
+      await sleep(800);
+      if (await remove.count() !== 1) throw new PortalError(`Arena: в форме ${await remove.count()} фото вместо одного`, 'ui');
     }
     const box = page.locator(`textarea[placeholder^="Describe"], textarea[placeholder*="${mode}" i]`).first();
     await box.click();
@@ -1706,9 +1714,51 @@ async function arenaRun({prompt, imagePath, onStatus, timeoutMs = 420000}) {   /
     await sleep(1500);
     const all = [...new Set(await arenaVideos(page))];
     const results = await downloadAll(page, all, onStatus, (x, i) => ({label: `Ассистент ${'AB'[i] || i + 1}`}));
-    track('arena', {requests: 1, videos: results.length});
-    return {results, chat};
+    const mine = imagePath ? await checkFirstFrame(imagePath, results, chat) : results;
+    track('arena', {requests: 1, videos: mine.length});
+    return {results: mine, chat};
   });
+}
+
+// Оживили ли наше фото: первый кадр каждого клипа сравниваем с фото (серые 64×36, корреляция). Свои клипы дают 0.98–1.0,
+// чужая картинка 2026-10-27 — 0.34. Непохожий клип не отдаём; ни одного похожего — ошибка (задание повторится / уедет
+// на другой сервис) и строка в журнал неполадок
+const FRAME_MIN = 0.6;
+async function grey64(ffmpeg, file) {
+  const {execFile} = await import('node:child_process');
+  return new Promise(res => execFile(ffmpeg, ['-v', 'error', '-i', file, '-frames:v', '1', '-vf', 'scale=64:36,format=gray', '-f', 'rawvideo', '-'],
+    {encoding: 'buffer', windowsHide: true, timeout: 30000}, (e, out) => res(!e && out?.length === 64 * 36 ? out : null)));
+}
+const corr = (a, b) => {
+  const n = a.length, ma = a.reduce((s, x) => s + x, 0) / n, mb = b.reduce((s, x) => s + x, 0) / n;
+  let ab = 0, aa = 0, bb = 0;
+  for (let i = 0; i < n; i++) { const x = a[i] - ma, y = b[i] - mb; ab += x * y; aa += x * x; bb += y * y; }
+  return aa && bb ? ab / Math.sqrt(aa * bb) : 0;
+};
+async function checkFirstFrame(imagePath, results, chat) {
+  let tmp = [];
+  try {
+    const {ffmpeg} = await (await import('./avtools.js')).ensureFfmpeg();
+    const ref = await grey64(ffmpeg, imagePath);
+    if (!ref) return results;
+    const scores = [];
+    for (const [i, r] of results.entries()) {
+      const f = path.join(os.tmpdir(), `ff-arena-${process.pid}-${Date.now()}-${i}.mp4`);
+      tmp.push(f);
+      fs.writeFileSync(f, r.buf);
+      const g = await grey64(ffmpeg, f);
+      if (g) scores.push(corr(ref, g));
+    }
+    if (scores.length < results.length) return results;   // какой-то кадр не прочитался — не судим
+    const mine = results.filter((r, i) => scores[i] >= FRAME_MIN);
+    if (mine.length) return mine;
+    const {logProblem} = await import('./batch.js');
+    logProblem({site: 'arena', kind: 'video', outcome: 'оживила не то фото', image: imagePath, chat, scores: scores.map(s => +s.toFixed(2))});
+    throw new PortalError(`Arena оживила не наше фото (первый кадр не похож, сходство ${Math.max(...scores).toFixed(2)}) — клипы не беру`, 'busy');
+  } catch (e) {
+    if (e instanceof PortalError) throw e;
+    return results;   // нет ffmpeg и т. п. — проверку пропускаем, клипы отдаём
+  } finally { tmp.forEach(f => fs.rm(f, {force: true}, () => {})); }
 }
 
 // Dola: готовые видео и картинки из последних чатов (список слева), которых ещё нет в Freefield.
