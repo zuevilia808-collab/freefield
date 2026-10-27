@@ -12,7 +12,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import crypto from 'node:crypto';
 import {readState, writeState} from './state.js';
-import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog} from './studio.js';
+import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog, setBatchJob, batchByJob, resumeBatches} from './studio.js';
 import {fileInfo, aspectCheck} from './media.js';
 import {ECHO_URL, startEcho} from './echo.js';
 
@@ -306,8 +306,8 @@ function loadServices() {
 const jobs = new Map();
 let jobSeq = 0;
 
-function startJob(kind, run) {
-  const job = {id: `${kind}-${++jobSeq}-${Date.now().toString(36)}`, kind, status: 'running', message: 'в очереди',
+function startJob(kind, run, id = `${kind}-${++jobSeq}-${Date.now().toString(36)}`) {
+  const job = {id, kind, status: 'running', message: 'в очереди',
     started: Date.now(), listeners: new Set(), result: null, error: null};
   job.promise = Promise.resolve().then(() => run(msg => { job.message = msg; job.listeners.forEach(f => f(msg)); }, job))
     .then(r => { job.status = 'done'; job.result = r; }, e => { job.status = 'error'; job.error = e; log(job.id, e.message); });
@@ -491,8 +491,23 @@ server.registerTool('check_job', {
   annotations: {readOnlyHint: true, openWorldHint: false},
 }, async ({job_id, wait_seconds}, extra) => {
   const job = jobs.get(job_id);
-  if (!job) return {isError: true, content: [{type: 'text', text: `Задача ${job_id} не найдена (сервер мог перезапуститься) — запустите генерацию заново.`}]};
-  return waitJob(job, wait_seconds * 1000, extra);
+  if (job) return waitJob(job, wait_seconds * 1000, extra);
+  // задачи нет в этой копии Freefield (перезапуск, другой чат) — пакет ищем в истории на диске
+  if (/^batch-/.test(job_id)) {
+    await resumeNow();   // брошенный пакет — подхватить сразу, не ждать минуту
+    if (jobs.has(job_id)) return waitJob(jobs.get(job_id), wait_seconds * 1000, extra);
+    for (const t0 = Date.now(); ;) {
+      const b = batchByJob(job_id);
+      if (!b) break;
+      if (b.promise) return waitJob(batchJob(b, job_id), wait_seconds * 1000, extra);
+      if (b.done) return jobResult({id: job_id, status: 'done', started: b.created, result: await batchResult(b)});
+      if (Date.now() - t0 >= wait_seconds * 1000)
+        return toolResult({job_id, status: 'running', message: progressLine(b.items), elapsed_s: Math.round((Date.now() - b.created) / 1000)},
+          {text: `⏳ Пакет идёт в другой копии Freefield: ${progressLine(b.items)}. Вызови check_job с job_id="${job_id}", чтобы дождаться результата.`});
+      await sleep(3000);
+    }
+  }
+  return {isError: true, content: [{type: 'text', text: `Задача ${job_id} не найдена (сервер мог перезапуститься) — запустите генерацию заново.`}]};
 });
 
 server.registerTool('list_models', {
@@ -866,8 +881,20 @@ server.registerTool('batch_generate', {
     try { await batch.promise; } finally { clearInterval(t); }
     return batchResult(batch);
   });
+  setBatchJob(batch, job.id);
   return waitJob(job, WAIT_MS, extra);
 });
+
+// Пакет, который подхватила эта копия после перезапуска другой, — снова задача с прежним номером (check_job по старому id)
+const batchJob = (b, id = b.jobId) => startJob('batch', async status => {
+  status(progressLine(b.items));
+  const t = setInterval(() => status(progressLine(b.items)), 3000);
+  try { await b.promise; } finally { clearInterval(t); }
+  return batchResult(b);
+}, id);
+const resumeNow = () => resumeBatches(b => { if (b.jobId) batchJob(b); }).catch(() => 0);
+resumeNow();
+setInterval(resumeNow, 60e3).unref();
 
 server.registerTool('image_to_3d', {
   title: 'Картинка → 3D-модель',

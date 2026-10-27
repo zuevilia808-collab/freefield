@@ -37,11 +37,17 @@ const trendJobs = new Map();   // «🔥 Тренды»: поиск с идея�
 const batches = new Map();
 const readBatches = () => { try { return JSON.parse(fs.readFileSync(BATCH_FILE, 'utf8')); } catch { return []; } };
 const plainBatch = b => ({id: b.id, source: b.source, created: b.created, done: b.done, pid: b.pid, items: b.items,
+  ...(b.jobId && {jobId: b.jobId}), ...(b.resumed && {resumed: b.resumed}),
   ...(b.siteTask && {siteTask: b.siteTask, siteProject: b.siteProject})});
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
-// пакет из файла, который не доделал уже закрытый Freefield (перезапуск, сбой), больше не «идёт» — помечаем прерванным
+// Пакет, который не доделала закрытая копия Freefield (перезапуск, сбой), доделывает другая (задача 7, 2026-10-27: из пакета
+// в 29 сцен после перезапуска пропали 20 — заметили через 2 дня). Свежие пакеты ждут продолжения, старше 12 ч — прерваны.
+const RESUME_MS = 12 * 3600e3;
+const unfinished = b => b.items.filter(it => ['queued', 'running'].includes(it.status));
+const resumable = b => !b.done && b.pid && !alive(b.pid) && Date.now() - b.created < RESUME_MS && unfinished(b).length > 0;
+// пакет из файла, который не доделал уже закрытый Freefield и который уже не продолжить, больше не «идёт» — помечаем прерванным
 function orphan(b) {
-  if (b.done || batches.has(b.id) || (b.pid ? alive(b.pid) : Date.now() - b.created < 3 * 3600e3)) return b;
+  if (b.done || batches.has(b.id) || resumable(b) || (b.pid ? alive(b.pid) : Date.now() - b.created < 3 * 3600e3)) return b;
   return {...b, done: true, items: b.items.map(it => ['queued', 'running'].includes(it.status)
     ? {...it, status: 'error', message: 'прервано: Freefield на компьютере перезапускался — запустите сценарий снова'} : it)};
 }
@@ -83,12 +89,54 @@ export async function startBatch(scenarios, source, extra = {}) {
     ...(extra.siteTask && {siteTask: extra.siteTask, siteProject: extra.siteProject || null})};
   batches.set(batch.id, batch);
   persistBatches();
-  batch.promise = B.runBatch(batch.items, {
+  runItems(batch, batch.items, B);
+  return batch;
+}
+function runItems(batch, items, B) {
+  batch.promise = B.runBatch(items, {
     // имя файла — номер сценария и его название (title), иначе начало промпта: у похожих промптов имена были одинаковые (2026-10-17)
     save: (o, it) => saveOutput(o.buf, o.mime || (it.kind === 'video' ? 'video/mp4' : 'image/jpeg'), `s${it.n}-${it.title || it.prompt.replace(/^(On-screen text|Subject|Spoken line):[^\n]*\n?/gim, '')}`),
     onChange: persistBatches,
   }).catch(e => log('batch:', e.message)).finally(() => { batch.done = true; persistBatches(); runSync().catch(() => {}); });
-  return batch;
+}
+
+// номер задачи пакета (check_job) — в файле, чтобы после перезапуска его можно было найти
+export function setBatchJob(batch, jobId) { batch.jobId = jobId; persistBatches(); }
+// пакет по номеру задачи: живой в этой копии (с promise) или запись из файла
+export function batchByJob(jobId) {
+  for (const b of batches.values()) if (b.jobId === jobId) return b;
+  return allBatches().find(b => b.jobId === jobId) || null;
+}
+
+// Подхватить пакеты, брошенные закрытыми копиями: забирает одна копия (файл-замок .resume-<id> с её pid),
+// сценарии «в очереди» и «шли» запускаются заново, готовые остаются как были. Вызывать при старте и раз в минуту.
+let resuming = false;
+export async function resumeBatches(onResume = () => {}) {
+  if (resuming) return 0;
+  resuming = true;
+  let n = 0;
+  try {
+    for (const b of readBatches().filter(b => !batches.has(b.id) && resumable(b))) {
+      const lock = path.join(HERE, `.resume-${b.id}`);
+      try { fs.writeFileSync(lock, String(process.pid), {flag: 'wx'}); } catch {
+        const owner = +fs.readFileSync(lock, 'utf8') || 0;
+        if (owner && owner !== process.pid && alive(owner)) continue;   // уже подхватила другая живая копия
+        fs.writeFileSync(lock, String(process.pid));
+      }
+      const B = await batchMod();
+      const todo = unfinished(b);
+      for (const it of todo) Object.assign(it, {status: 'queued', message: 'продолжаю после перезапуска Freefield'});
+      Object.assign(b, {pid: process.pid, resumed: (b.resumed || 0) + 1});
+      batches.set(b.id, b);
+      persistBatches();
+      log(`пакет ${b.id}: продолжаю ${todo.length} из ${b.items.length} сценариев после перезапуска`);
+      runItems(b, todo, B);
+      b.promise.finally(() => fs.rmSync(lock, {force: true}));
+      onResume(b);
+      n++;
+    }
+  } catch (e) { log('resume:', e.message); } finally { resuming = false; }
+  return n;
 }
 
 // ---- связь с приложением по Wi-Fi ----
