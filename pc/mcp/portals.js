@@ -166,7 +166,17 @@ function guardPage(page, site) {
     if (await btn.count().catch(() => 0)) await btn.click({timeout: 3000}).catch(() => {});
     else await page.keyboard.press('Escape').catch(() => {});
   }, {noWaitAfter: true}).catch(() => {});
+  // Arena при входе показывает «Terms of Use & Privacy Policy» — пользователь 2026-10-28: «здесь надо Agree нажимать»
+  if (site === 'arena') page.addLocatorHandler(page.locator('[role=dialog]').filter({hasText: /Terms of Use/i}).first(),
+    d => arenaAgree(page, d), {noWaitAfter: true}).catch(() => {});
 }
+const arenaAgree = async (page, d = page.locator('[role=dialog]').filter({hasText: /Terms of Use/i}).first()) => {
+  if (!await d.isVisible().catch(() => false)) return;
+  const btn = d.getByRole('button', {name: /^Agree$/i}).first();
+  if (await btn.count().catch(() => 0)) await btn.click({timeout: 3000}).catch(() => page.keyboard.press('Enter').catch(() => {}));
+  else await page.keyboard.press('Enter').catch(() => {});   // «Or hit Enter on your keyboard to agree»
+  await sleep(500);
+};
 // Окно профиля свёрнуто — страница «спит» (Flow и Arena тогда не рисуют кнопки): разворачиваем окно.
 // Окна, закрытые другими окнами, Chrome Freefield не усыпляет (флаги запуска в bridge.js).
 async function wakeWindow(page) {
@@ -1611,6 +1621,7 @@ function arenaStart({mode, prompt, imagePath, onStatus, has}) {
     const page = await sitePage('arena');
     await page.goto(`https://arena.ai/${mode.toLowerCase()}`, {waitUntil: 'domcontentloaded', timeout: 60000});
     await sleep(2500);
+    await arenaAgree(page);
     await assertReady(page, 'arena');
     const modality = page.getByRole('button', {name: /^Modality/});
     if (!new RegExp(mode, 'i').test(await modality.getAttribute('aria-label').catch(() => '') || '')) {
