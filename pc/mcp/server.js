@@ -320,7 +320,20 @@ function startJob(kind, run, id = `${kind}-${++jobSeq}-${Date.now().toString(36)
   return job;
 }
 
-async function waitJob(job, waitMs, extra) {
+// в ответе — не больше previews картинок-превью (остальное — путями в JSON): пакет 10×4 давал 40 превью (2026-10-27, «Connection closed»)
+const PREVIEWS = 6;
+function limitPreviews(res, previews = PREVIEWS) {
+  if (!res?.content) return res;
+  let k = 0;
+  const content = res.content.filter(c => c.type !== 'image' || k++ < previews);
+  if (k <= previews) return res;
+  const note = {type: 'text', text: `(показано превью: ${Math.min(previews, k)} из ${k}; все файлы — по путям в JSON)`};
+  return {...res, content: [...content.slice(0, -1), note, content[content.length - 1]]};
+}
+async function waitJob(job, waitMs, extra, previews) {
+  return limitPreviews(await waitJobRaw(job, waitMs, extra), previews);
+}
+async function waitJobRaw(job, waitMs, extra) {
   const token = extra?._meta?.progressToken;
   let n = 0;
   const notify = msg => {
@@ -492,20 +505,21 @@ server.registerTool('check_job', {
   inputSchema: {
     job_id: z.string(),
     wait_seconds: z.number().min(0).max(120).default(45),
+    previews: z.number().int().min(0).max(24).default(PREVIEWS).describe('Сколько картинок-превью приложить к ответу (0 — ни одной, только пути в JSON)'),
   },
   annotations: {readOnlyHint: true, openWorldHint: false},
-}, async ({job_id, wait_seconds}, extra) => {
+}, async ({job_id, wait_seconds, previews}, extra) => {
   const job = jobs.get(job_id);
-  if (job) return waitJob(job, wait_seconds * 1000, extra);
+  if (job) return waitJob(job, wait_seconds * 1000, extra, previews);
   // задачи нет в этой копии Freefield (перезапуск, другой чат) — пакет ищем в истории на диске
   if (/^batch-/.test(job_id)) {
     await resumeNow();   // брошенный пакет — подхватить сразу, не ждать минуту
-    if (jobs.has(job_id)) return waitJob(jobs.get(job_id), wait_seconds * 1000, extra);
+    if (jobs.has(job_id)) return waitJob(jobs.get(job_id), wait_seconds * 1000, extra, previews);
     for (const t0 = Date.now(); ;) {
       const b = batchByJob(job_id);
       if (!b) break;
-      if (b.promise) return waitJob(batchJob(b, job_id), wait_seconds * 1000, extra);
-      if (b.done) return jobResult({id: job_id, status: 'done', started: b.created, result: await batchResult(b)});
+      if (b.promise) return waitJob(batchJob(b, job_id), wait_seconds * 1000, extra, previews);
+      if (b.done) return limitPreviews(jobResult({id: job_id, status: 'done', started: b.created, result: await batchResult(b)}), previews);
       if (Date.now() - t0 >= wait_seconds * 1000)
         return toolResult({job_id, status: 'running', message: progressLine(b.items), elapsed_s: Math.round((Date.now() - b.created) / 1000)},
           {text: `⏳ Пакет идёт в другой копии Freefield: ${progressLine(b.items)}. Вызови check_job с job_id="${job_id}", чтобы дождаться результата.`});
@@ -864,9 +878,10 @@ server.registerTool('batch_generate', {
     })).min(1).max(10),
     free_form: z.boolean().default(false).describe('true — видео-промпты НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
     site_task: z.string().optional().describe('id задания из site_tasks («🌐 Ассеты для сайта»): готовые картинки попадут в галерею с меткой «🌐 Сайт: <проект>»'),
+    previews: z.number().int().min(0).max(24).default(PREVIEWS).describe('Сколько картинок-превью приложить к ответу (0 — только пути в JSON)'),
   },
   annotations: {readOnlyHint: false, openWorldHint: true},
-}, async ({scenarios, site_task, free_form}, extra) => {
+}, async ({scenarios, site_task, free_form, previews}, extra) => {
   const gate = await etalonGate(scenarios.filter(s => s.kind !== 'image').map(s => s.prompt), free_form);
   if (gate) return gate;
   try {
@@ -890,7 +905,7 @@ server.registerTool('batch_generate', {
     return batchResult(batch);
   });
   setBatchJob(batch, job.id);
-  return waitJob(job, WAIT_MS, extra);
+  return waitJob(job, WAIT_MS, extra, previews);
 });
 
 // Пакет, который подхватила эта копия после перезапуска другой, — снова задача с прежним номером (check_job по старому id)
