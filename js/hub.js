@@ -50,11 +50,15 @@ function pcLanOpen(to) {
   if (native.on()) native.open(url); else location.assign(url);
   return true;
 }   // программа Freefield на компьютере (запускается ярлыком или вместе с Claude Desktop)
+// обещание с пределом: не успело за ms — dflt (само обещание дальше никого не держит)
+const within = (p, ms, dflt) => Promise.race([p, new Promise(r => setTimeout(() => r(dflt), ms))]);
 const hubLink = {
   key: null, ok: false, denied: false, info: null, batches: [], timer: null,
   since: ls.get('freefield.hubSince', 0),
   imported: ls.get('freefield.claude.imported', {}),
   failed: {},   // имя файла → почему не забрался (карточка покажет ошибку, а не вечное «забираю»)
+  tries: {},    // имя файла → сколько раз не удалось забрать
+  importing: null,
   // base — адрес программы Freefield на этом компьютере, когда сайт открыт с GitHub (иначе — тот же сайт, путь относительный)
   base: '', direct: false, pcUp: null,
   url(p) { return this.base + p + (p.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(this.key); },
@@ -159,7 +163,9 @@ const hubLink = {
         if (typeof wrEtalonSync === 'function') wrEtalonSync();   // эталон видео — агенту на компьютере
         if (typeof heroesSync === 'function') heroesSync();   // персонажи, которых сохранил Claude, — в «Персонажи»
         const b = await fetch(this.url('/api/batches'));
-        if (b.ok) { this.batches = await b.json(); await this.importDone(); }
+        // забор файлов идёт сбоку и обновление связи не держит (2026-10-27: забор повисал на одном видео — refresh больше не шёл,
+        // карточки застывали на «Готово — забираю» и «генерирую» с таймером по 300 минут)
+        if (b.ok) { this.batches = await b.json(); this.importing ||= this.importDone().catch(() => {}).finally(() => { this.importing = null; renderHubJobs(); }); }
       }
     } catch { this.ok = false; }
     renderHubJobs();   // задания на компьютере — живые карточки в галерее
@@ -179,18 +185,24 @@ const hubLink = {
   // один файл с компьютера → в галерею (каждый файл один раз: помним по имени)
   async importFile(url, name, meta, got) {
     if (this.imported[name] || this.failed[name]) return false;
-    const r = await fetch(this.url(url));
-    if (!r.ok) { if (r.status === 404) this.failed[name] = 'файла нет на компьютере (удалён или не скачался)'; return false; }
-    const blob = await r.blob();
+    // у каждого шага — предел: файл не пришёл за 2 мин или компьютер трижды ответил ошибкой — карточка с причиной, а не вечное «забираю»
+    const miss = why => { this.tries[name] = (this.tries[name] || 0) + 1; if (this.tries[name] >= 3) this.failed[name] = why; return false; };
+    let r, blob;
+    try { r = await fetch(this.url(url), {signal: AbortSignal.timeout(120000)}); }
+    catch { return miss('файл не пришёл с компьютера за 2 минуты (3 попытки) — проверьте связь и нажмите «Забрать всё из сервисов»'); }
+    if (!r.ok) { if (r.status === 404) this.failed[name] = 'файла нет на компьютере (удалён или не скачался)'; return miss(`компьютер не отдал файл (ошибка ${r.status}, 3 попытки)`); }
+    try { blob = await within(r.blob(), 180000, null); } catch { blob = null; }
+    if (!blob) return miss('файл не докачался с компьютера (3 попытки)');
     // вместо видео — веб-страница (2026-10-17: Google Vids отдал страницу входа): не крутим «забираю» вечно, а говорим, что не так
     if (/text\/html/.test(blob.type) || /^\s*<(!doctype|html)/i.test(await blob.slice(0, 64).text())) {
       this.failed[name] = 'вместо видео сайт отдал страницу входа Google — войдите в Google в окне этого сервиса (Chrome Freefield) и запустите сцену ещё раз';
       return false;
     }
     const kind = (meta.mime || blob.type).startsWith('video/') ? 'video' : 'image';
-    const d = kind === 'video' ? await videoDims(blob) : await dims(blob);
-    const duration = kind === 'video' ? await new Promise(res => { const v = document.createElement('video'); v.preload = 'metadata';
-      v.onloadedmetadata = () => res(Math.round(v.duration * 10) / 10 || null); v.onerror = () => res(null); v.src = urlOf(blob); }) : undefined;
+    // размер и длину ролика браузер может не прочитать никогда (телефон, вкладка в фоне) — ждём не дольше 8 с, дальше без них
+    const d = await within(kind === 'video' ? videoDims(blob) : dims(blob), 8000, null);
+    const duration = kind === 'video' ? await within(new Promise(res => { const v = document.createElement('video'); v.preload = 'metadata';
+      v.onloadedmetadata = () => res(Math.round(v.duration * 10) / 10 || null); v.onerror = () => res(null); v.src = urlOf(blob); }), 8000, null) : undefined;
     const prompt = meta.prompt || name.replace(/^freefield-|-\d+(-\d+)?\.\w+$/g, '').replace(/-/g, ' ');
     const site = meta.site || 'freefield';
     const item = {id: uid(), type: kind, status: 'done', statusText: '', createdAt: meta.mtime || Date.now(), importedAt: Date.now(),
@@ -215,7 +227,7 @@ const hubLink = {
     const f = it.files?.[0];
     const name = f && (f.name || f.url);
     if (!f || this.imported[name]) return false;
-    const r = await fetch(this.url(f.url));
+    const r = await fetch(this.url(f.url), {signal: AbortSignal.timeout(180000)});
     if (!r.ok) return false;
     const blob = await r.blob();
     const src = items.find(x => x.id === ls.get('freefield.m3d.src', {})[b.id]);

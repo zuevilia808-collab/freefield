@@ -53,7 +53,12 @@ const fmtUSD = v => v == null ? 'цена по факту' : '$' + (v < 0.1 ? +v
 
 // Ответ инструмента: для человека — текст и превью, для скриптов агента — JSON (structuredContent и последним текстовым
 // блоком, тот же объект): абсолютные пути файлов и их параметры (ширина×высота, модель, формат…)
+// предохранитель: картинки одного ответа — не больше 8 МБ (у Claude предел 16 МБ на сообщение, больше — сервер отключают)
+const IMAGES_MAX = 8 * 1024 * 1024;
 function toolResult(data, {text = '', images = [], isError = false} = {}) {
+  let size = 0, cut = 0;
+  images = images.filter(im => { size += im.data?.length || 0; if (size > IMAGES_MAX) { cut++; return false; } return true; });
+  if (cut) text += `${text ? '\n' : ''}(${cut} превью не показаны — ответ был бы слишком большим; файлы целиком — по путям в JSON)`;
   return {content: [...images, ...(text ? [{type: 'text', text}] : []), {type: 'text', text: JSON.stringify(data)}],
     structuredContent: data, ...(isError ? {isError: true} : {})};
 }
@@ -583,16 +588,19 @@ const batchMod = async () => (batchModP ??= await import('./batch.js'));
 const mesh3d = () => import('./mesh3d.js');
 const upscaleMod = () => import('./upscale.js');
 
-async function preview(out) {
-  // в чат — уменьшенная копия (оригинал сохраняется целиком); нет библиотеки sharp — большую картинку в чат не показываем
-  if (out.buf.length <= 1.5 * 1024 * 1024 && /jpeg|png|webp/.test(out.mime)) return {data: out.buf.toString('base64'), mimeType: out.mime};
+// В чат — уменьшенная копия (оригинал сохраняется целиком). 2026-10-27: превью были до 1,5 МБ каждое (оригинал или 1568 px),
+// пакет прикладывал до 24 штук — ответ больше 16 МБ, Claude отключал сервер («wrote >16MB to stdout»), и все пакеты этой копии
+// становились «прервано». Теперь превью всегда маленькое (side px, JPEG), без sharp — только небольшие файлы.
+async function preview(out, side = 768) {
   try {
     const sharp = (await import('sharp')).default;
-    const small = await sharp(out.buf).resize({width: 1568, height: 1568, fit: 'inside', withoutEnlargement: true}).jpeg({quality: 85}).toBuffer();
+    const small = await sharp(out.buf).resize({width: side, height: side, fit: 'inside', withoutEnlargement: true}).jpeg({quality: 78}).toBuffer();
     return {data: small.toString('base64'), mimeType: 'image/jpeg'};
-  } catch { return null; }
+  } catch {
+    return out.buf.length <= 300 * 1024 && /jpeg|png|webp/.test(out.mime) ? {data: out.buf.toString('base64'), mimeType: out.mime} : null;
+  }
 }
-const previewItem = async out => { const p = await preview(out).catch(() => null); return p ? [{type: 'image', ...p}] : []; };
+const previewItem = async (out, side) => { const p = await preview(out, side).catch(() => null); return p ? [{type: 'image', ...p}] : []; };
 
 async function portalResult(results, info) {
   const content = [], files = [];
@@ -820,7 +828,7 @@ async function batchResult(batch) {
   const content = [];
   for (const it of batch.items) for (const f of it.files || []) {
     if (!f.mime.startsWith('image/') || content.length >= 24) continue;   // все картинки пакета (было 8 — агент не видел остальные)
-    try { content.push(...(await previewItem({buf: fs.readFileSync(f.path), mime: f.mime}))); } catch {}
+    try { content.push(...(await previewItem({buf: fs.readFileSync(f.path), mime: f.mime}, 512))); } catch {}
   }
   const ok = batch.items.filter(i => i.status === 'done').length;
   const items = batch.items.map(i => ({n: i.n, status: i.status, kind: i.kind, site: i.site, model: i.model || null, ...(i.message && i.status === 'error' ? {error: i.message} : {}),

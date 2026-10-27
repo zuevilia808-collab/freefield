@@ -290,6 +290,8 @@ function hubJobs() {
     for (const it of b.items || []) {
       const key = `${b.id}:${it.n}`, files = it.files || [];
       if (jobHidden.has(key)) continue;
+      // «прервано: Freefield перезапускался» старше часа — не висит в галерее (пакеты теперь доделывает другая копия Freefield сама)
+      if (it.status === 'error' && /^прервано/.test(it.message || '') && now - b.created > 3600e3) continue;
       const nm = f => f.name || f.url;
       if (it.status === 'done' && files.every(f => hubLink.imported[nm(f)] || hubLink.failed[nm(f)])) {
         const bad = files.find(f => hubLink.failed[nm(f)] && !hubLink.imported[nm(f)]);
