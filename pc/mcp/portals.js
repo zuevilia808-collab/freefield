@@ -653,7 +653,7 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
     const before = new Set((await flowMedia(page)).map(m => flowId(m.src)));
     const errors0 = (await flowScan(page, {tag: '-', key: '\u0000', count: 0})).errors;
     const box = page.locator('[contenteditable="true"]').first();
-    await box.click();
+    await box.click({timeout: 8000}).catch(() => box.focus());
     await box.fill(prompt);
     await sleep(400);
     // кончились кредиты — Flow вместо кнопки «Создать» показывает оранжевый круг ⓘ (пользователь 2026-10-15: «когда видишь это —
@@ -676,7 +676,7 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
       if (kind === 'video' && (slots[`flow@${currentProfile()}`]?.n || 0) <= 1) await page.close().catch(() => {});
       throw new PortalError(`Flow: на этом аккаунте кончились кредиты${info ? ' (вместо «Создать» — значок ⓘ)' : ' (кнопки «Создать» нет)'} — беру другой аккаунт`, 'credits');
     }
-    await gen.click();
+    await sureClick(gen, 'flow', 'Начать генерацию');
     for (let i = 0; i < 20; i++) {
       await sleep(1000);
       const s = await flowScan(page, {tag, key: key(), count});
@@ -697,6 +697,32 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
 }
 
 // снимок страницы сайта — в outputs/problems (путь — в текст ошибки, журнал неполадок его сохранит)
+// Надёжный клик по кнопке сайта (2026-10-27, Flow «Начать генерацию» и Dola «Создание изображений»: кнопка видна и активна,
+// а клик висит 30 с и повторяется по кругу — сцена стояла больше 10 минут). Порядок:
+// 1) что лежит под центром кнопки (elementFromPoint)? Чужой слой — Escape, убрать подложку меню, записать в журнал, что мешало;
+// 2) обычный клик, не дольше 8 с; 3) нажатие прямо в странице (DOM click) — ему не нужна «мышь», которая и зависает
+//    у фоновой/занятой вкладки; 4) не вышло — короткая ошибка без простыни Playwright.
+async function sureClick(loc, site, what = '') {
+  await loc.waitFor({state: 'visible', timeout: 15000});
+  const page = loc.page();
+  const blocker = await loc.evaluate(el => {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    if (!top || el === top || el.contains(top) || top.contains(el)) return null;
+    const cls = (top.className?.baseVal ?? top.className ?? '').toString().trim().split(/\s+/).slice(0, 3).join('.');
+    return top.tagName.toLowerCase() + (top.id ? '#' + top.id : '') + (cls ? '.' + cls : '') + (top.dataset?.testid ? `[data-testid=${top.dataset.testid}]` : '');
+  }).catch(() => null);
+  if (blocker) {
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.evaluate(() => document.querySelectorAll('.cdk-overlay-backdrop').forEach(b => b.remove())).catch(() => {});
+    await sleep(300);
+    try { fs.appendFileSync(path.join(HERE, '.problems.jsonl'), JSON.stringify({at: new Date().toLocaleString('sv-SE'), site, outcome: 'помеха над кнопкой убрана', message: `${what || 'кнопка'}: сверху лежал ${blocker}`}) + '\n'); } catch {}
+  }
+  try { await loc.click({timeout: 8000, noWaitAfter: true}); return; } catch {}
+  try { await loc.dispatchEvent('click', undefined, {timeout: 5000}); return; } catch {}
+  throw new PortalError(`${SITES[site]?.name || site}: клик «${what || 'кнопка'}» не прошёл${blocker ? ` — перехвачен ${blocker}` : ''}`, 'busy');
+}
+
 async function problemShot(page, site) {
   try {
     const dir = path.join(process.env.FREEFIELD_OUTPUT_DIR || path.join(HERE, '..', 'outputs'), 'problems');
@@ -1011,8 +1037,12 @@ export const DOLA_IMAGE_MODELS = {
 };
 
 // Нажать кнопку Dola: что-то поверх (всплывающее меню, подсказка) перехватывает обычный клик, и Playwright ждал 30 с
-// (2026-10-27: «Создание изображений» не нажималась) — ждём обычный клик 5 с, потом нажимаем саму кнопку напрямую
-const tap = loc => loc.click({timeout: 5000}).catch(() => loc.dispatchEvent('click', undefined, {timeout: 5000}));
+// (2026-10-27: «Создание изображений» не нажималась)
+const tap = (loc, what) => sureClick(loc, 'dola', what);
+// кнопки режимов под полем ввода — по постоянной метке data-testid=skill_bar_button_N и тексту, а не по первому совпадению имени
+// (в боковой панели бывают чаты с похожим названием «Создание изображения», и они раньше на странице)
+const dolaSkill = (page, re) => page.locator('[data-testid^="skill_bar_button_"], button[data-component-type="skill-item"], button[data-input-engine-action-source="actionbar"]')
+  .filter({hasText: re}).first();
 const dolaImages = page => page.evaluate(() => {
   const best = new Map();
   for (const i of document.images) {
@@ -1037,15 +1067,15 @@ async function dolaRun({prompt, aspect, model, imagePath, onStatus}) {
     await page.goto(SITES.dola.home, {waitUntil: 'domcontentloaded', timeout: 60000});
     await sleep(2500);
     await assertReady(page, 'dola');
-    await tap(page.getByRole('button', {name: /Создание изображений|Image generation|Create image/i}).first());
+    await tap(dolaSkill(page, /Создание изображений|Image generation|Create image/i), 'Создание изображений');
     await sleep(800);
     onStatus(`настраиваю: ${model.label}, ${aspect}`);
-    await tap(page.getByRole('button', {name: /Модель|Model/}).first());
+    await tap(page.getByRole('button', {name: /Модель|Model/}).first(), 'Модель');
     await sleep(500);
     await pickMenu(page, model.re);
     await sleep(500);
     onStatus(`выбираю формат ${aspect}`);
-    await tap(page.getByRole('button', {name: /Соотношение|Ratio|Aspect/i}).first());
+    await tap(page.getByRole('button', {name: /Соотношение|Ratio|Aspect/i}).first(), 'Соотношение сторон');
     await sleep(500);
     await pickMenu(page, new RegExp('^' + aspect));
     await sleep(500);
@@ -1184,21 +1214,21 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     await page.goto(SITES.dola.home, {waitUntil: 'domcontentloaded', timeout: 60000});
     await sleep(2500);
     await assertReady(page, 'dola');
-    await tap(page.getByRole('button', {name: /^Создание видео$|^Video generation$/i}).first());
+    await tap(dolaSkill(page, /^\s*(Создание видео|Video generation)\s*$/i), 'Создание видео');
     await sleep(1000);
     onStatus(`настраиваю: ${model.label}, ${seconds} с, ${aspect}`);
-    await tap(page.getByRole('button', {name: /^(Модель|Model)/}).first());
+    await tap(page.getByRole('button', {name: /^(Модель|Model)/}).first(), 'Модель');
     await sleep(600);
     await pickMenu(page, model.re);
     await sleep(500);
     // модель должна реально стоять — иначе видео не запускаем
     const picked = await page.getByRole('button', {name: /^(Модель|Model)/}).first().innerText().catch(() => '');
     if (/Seedance/i.test(picked) && !model.re.test(picked)) throw new PortalError(`Dola: не выбралась ${model.label} (стоит «${picked.trim()}») — видео не запускаю`, 'retry');
-    await tap(page.getByRole('button', {name: /^\d+s$/}).first());
+    await tap(page.getByRole('button', {name: /^\d+s$/}).first(), 'Длина видео');
     await sleep(500);
     await pickMenu(page, new RegExp(`^${seconds}s$`));
     await sleep(500);
-    await tap(page.getByRole('button', {name: /^(Соотношение|Ratio|\d+:\d+)$/}).first());
+    await tap(page.getByRole('button', {name: /^(Соотношение|Ratio|\d+:\d+)$/}).first(), 'Соотношение сторон');
     await sleep(500);
     await pickMenu(page, new RegExp(`^${aspect}$`));
     await sleep(500);

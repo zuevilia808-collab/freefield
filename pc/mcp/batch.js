@@ -10,6 +10,8 @@ import {withProfile, profileIds, profileName, activeProfileId, readAcct, HERE} f
 // Журнал неполадок (пользователь 2026-10-09: «записывай все неполадки, с чем сталкиваешься, где получаешь ошибки — мы должны всё отполировать»):
 // каждая ошибка сайта, повтор и перенос — строкой JSON; читает и дополняет Claude (MCP problems), смотрит пользователь
 export const PROBLEMS_FILE = path.join(HERE, '.problems.jsonl');
+// в статус задания — одна строка без «Call log» Playwright (полный текст — в .problems.jsonl): экономит токены и читается
+const brief = (m, n = 160) => String(m || '').replace(/\x1b\[[0-9;]*m/g, '').split(/\n\s*Call log:/)[0].replace(/\s+/g, ' ').trim().slice(0, n);
 export function logProblem(rec) {
   try { fs.appendFileSync(PROBLEMS_FILE, JSON.stringify({at: new Date().toLocaleString('sv-SE'), ...rec}) + '\n'); } catch { /* журнал — не главное */ }
 }
@@ -308,12 +310,12 @@ export async function runBatch(items, {save, onChange = () => {}, fallback = tru
         } else if (MOVE_NOW.has(kind) || MOVE_RE.test(e.message)) next = move() ? `переношу на ${where(site, p)}` : '';
         else {   // занят, не успел, сбой — пауза и ещё раз, потом другой сервис
           busy++;
-          if (busy === 1) { status(`${where(site, p)}: ${e.message} — пауза 30 с и ещё раз`); await new Promise(r => setTimeout(r, 30000)); next = 'ещё раз после паузы'; }
+          if (busy === 1) { status(`${where(site, p)}: ${brief(e.message)} — пауза 30 с и ещё раз`); await new Promise(r => setTimeout(r, 30000)); next = 'ещё раз после паузы'; }
           else next = move() ? `переношу на ${where(site, p)}` : busy < 4 ? 'ещё раз' : '';
         }
-        notes.push(`${e.message.slice(0, 160)}${next ? ` → ${next}` : ''}`);
+        notes.push(`${brief(e.message)}${next ? ` → ${next}` : ''}`);
         if (next) { it.note = `попытка ${n + 1}: ${next}`; onChange(); continue; }
-        Object.assign(it, {site, profile: p, status: 'error', message: e.message + (staleCode() ? STALE_HINT : ''), errorKind: kind, note: notes.slice(0, -1).join(' → ') || it.note, finished: Date.now()});
+        Object.assign(it, {site, profile: p, status: 'error', message: brief(e.message, 400) + (staleCode() ? STALE_HINT : ''), errorKind: kind, note: notes.slice(0, -1).join(' → ') || it.note, finished: Date.now()});
         break;
       }
     }
