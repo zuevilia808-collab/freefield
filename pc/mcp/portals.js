@@ -563,6 +563,31 @@ const flowErrText = t => t.replace(/^(warning\s*)?(Ошибка|Error)\s*/i, '')
 
 // Flow пожаловался на подозрительную активность — полчаса не отправляем туда новые задания (их берут другие сайты)
 export const flowPaused = () => (readState().flowPause || 0) > Date.now();
+// Пользователь 2026-10-27: «кидай один промпт, потом ждёшь 10 секунд и кидаешь второй… а когда вылазит — нажимай „Повторить“,
+// и будет всё нормально». Промпты подряд на один аккаунт ловили «подозрительную активность» и паузу на 30 мин.
+const FLOW_GAP_MS = 10000, FLOW_RETRIES = 3;
+const SUSPICIOUS = /подозрительн|suspicious|unusual activity/i;
+const flowLastSend = {};   // профиль → когда нажали «Создать»
+async function flowGap() {
+  const wait = (flowLastSend[currentProfile()] || 0) + FLOW_GAP_MS - Date.now();
+  if (wait > 0) await sleep(wait);
+}
+// нажать «Повторить» (значок ↻ refresh) на плитке-ошибке: своей (data-ff=tag) или самой новой ошибке без своего текста
+const flowRetryTile = (page, tag) => page.evaluate(tag => {
+  const tiles = [...document.querySelectorAll('flow-grid-tile-container')];
+  const bad = t => !t.querySelector('img, video') && /подозрительн|suspicious|unusual activity|Ошибка|error|warning/i.test(t.innerText) && !/\d\s?%/.test(t.innerText);
+  const tile = tag ? tiles.find(t => t.dataset.ff === tag && bad(t)) : tiles.find(bad);
+  if (!tile) return false;
+  const btn = [...tile.querySelectorAll('button, [role=button]')].find(b => /^\s*refresh\s*$|Повтор|Retry|Try again/i.test(`${b.innerText} ${b.getAttribute('aria-label') || ''} ${b.title || ''}`));
+  if (!btn) return false;
+  btn.click();
+  delete tile.dataset.ff;   // плитка перерисуется с процентом — метка встанет заново по тексту промпта
+  return true;
+}, tag).catch(() => false);
+function flowRetryLog(retries, ok, text) {
+  try { fs.appendFileSync(path.join(HERE, '.problems.jsonl'), JSON.stringify({at: new Date().toLocaleString('sv-SE'), site: 'flow', profile: currentProfile(),
+    outcome: ok ? `«Повторить» помог с ${retries}-го раза` : `«Повторить» не помог за ${retries} раз`, message: text.slice(0, 200), gapMs: FLOW_GAP_MS}) + '\n'); } catch {}
+}
 function flowFail(text) {
   const msg = flowErrText(text) || text;
   if (/подозрительн|suspicious|unusual activity/i.test(msg)) {
@@ -634,7 +659,10 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
   const key = () => flowKey(full);   // кусочек промпта, которого нет в других идущих промптах
   let spent = (model.credits || 0) * count;
   // отправка — по одной; ждём, пока появятся свои плитки, после этого можно отправлять следующий промпт
-  const {page, before} = await siteRun('flow', () => ui(async () => {
+  const {page, before} = await siteRun('flow', async () => {
+   // пауза между отправками на один аккаунт — до очереди кликов, чтобы окна других аккаунтов не ждали
+   if (!flowPaused()) { onStatus('пауза 10 с между промптами Flow'); await flowGap(); }
+   return ui(async () => {
     if (flowPaused()) throw new PortalError(`Flow недавно пожаловался на подозрительную активность — пауза до ${new Date(readState().flowPause).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'})}`, 'flagged');
     const page = await sitePage('flow');
     await assertReady(page, 'flow');
@@ -677,16 +705,32 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
       throw new PortalError(`Flow: на этом аккаунте кончились кредиты${info ? ' (вместо «Создать» — значок ⓘ)' : ' (кнопки «Создать» нет)'} — беру другой аккаунт`, 'credits');
     }
     await sureClick(gen, 'flow', 'Начать генерацию');
+    flowLastSend[currentProfile()] = Date.now();
+    let retries = 0, lastErr = '';
     for (let i = 0; i < 20; i++) {
       await sleep(1000);
       const s = await flowScan(page, {tag, key: key(), count});
-      if (s.mine.length >= count) break;
-      if (s.errors > errors0 && !s.mine.length) throw flowFail((await page.evaluate(() => [...document.querySelectorAll('flow-grid-tile-container')]
-        .map(t => t.innerText.replace(/\s+/g, ' ').trim()).find(t => /Ошибка|Error|warning/i.test(t) && !/\d\s?%/.test(t)) || '')));
+      if (s.mine.length >= count) { if (retries) flowRetryLog(retries, true, lastErr); break; }
+      if (s.errors > errors0 && !s.mine.length) {
+        lastErr = await page.evaluate(() => [...document.querySelectorAll('flow-grid-tile-container')]
+          .map(t => t.innerText.replace(/\s+/g, ' ').trim()).find(t => /Ошибка|Error|warning/i.test(t) && !/\d\s?%/.test(t)) || '');
+        // «подозрительная активность» — сначала «Повторить» на плитке (до 3 раз), и только потом пауза 30 мин
+        if (SUSPICIOUS.test(lastErr) && retries < FLOW_RETRIES && await flowRetryTile(page, null)) {
+          retries++;
+          flowLastSend[currentProfile()] = Date.now();
+          onStatus(`Flow: «подозрительная активность» — нажал «Повторить» (${retries} из ${FLOW_RETRIES})`);
+          i = 0;
+          await sleep(3000);
+          continue;
+        }
+        if (retries) flowRetryLog(retries, false, lastErr);
+        throw flowFail(lastErr);
+      }
       if (i >= 4 && !s.mine.length && s.toast && /лимит|limit|подозрительн|suspicious|не удалось|failed|error|ошибка/i.test(s.toast)) throw flowFail(s.toast);
     }
     return {page, before};
-  }));
+   });
+  });
   onStatus(`Flow генерирует (${model.label})`);
   const res = (await flowCollect(page, {kind, count, tag, key, before, timeoutMs, onStatus, resolution, allowCredits, free})).map(r => ({...r, model: model.label}));
   // стоимость — как написал сам Flow в настройках («Стоимость генерации в бонусах: N»), иначе по таблице моделей
@@ -737,7 +781,7 @@ async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onSt
   const t0 = Date.now();
   const got = [];
   const take = m => { const id = flowId(m.src); if (!got.some(g => flowId(g.src) === id)) { got.push(m); flowClaimed.add(id); markOurs('flow', [id]); } };
-  let lost = 0, failed = [], started = false, lastMove = Date.now(), lastSig = '';
+  let lost = 0, failed = [], started = false, lastMove = Date.now(), lastSig = '', retries = 0, suspText = '';
   while (got.length < count) {
     // нет движения (процентов, новых плиток, готовых файлов) 2,5 минуты — не ждём до конца: снимок экрана и следующая попытка
     const stalled = started && Date.now() - lastMove > 150000;
@@ -756,6 +800,14 @@ async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onSt
       if (src) take({tag: 'VIDEO', src, w: 0, h: 0});
     }
     failed = s.mine.filter(x => x.failed);
+    // своя плитка упала с «подозрительной активностью» — «Повторить» на ней (до 3 раз), потом как раньше
+    if (failed.some(x => SUSPICIOUS.test(x.text)) && retries < FLOW_RETRIES && await ui(() => flowRetryTile(page, tag)).catch(() => false)) {
+      retries++;
+      suspText = failed.find(x => SUSPICIOUS.test(x.text)).text;
+      onStatus(`Flow: «подозрительная активность» — нажал «Повторить» (${retries} из ${FLOW_RETRIES})`);
+      lastMove = Date.now();
+      continue;
+    }
     if (failed.length && got.length + failed.length >= count) break;
     // метка пропала (Flow перерисовал сетку): свои плитки уже не ждут — берём новые готовые, ничьи
     lost = s.mine.length ? 0 : lost + 1;
@@ -769,6 +821,7 @@ async function flowCollect(page, {kind, count, tag, key, before, timeoutMs, onSt
     if (sig !== lastSig) { lastSig = sig; lastMove = Date.now(); }
     onStatus(`Flow генерирует: готово ${got.length} из ${count}${pct.length ? ` · ${pct.join('%, ')}%` : ''} (${Math.round((Date.now() - t0) / 1000)} с)`);
   }
+  if (retries) flowRetryLog(retries, got.length > 0, suspText);
   if (!got.length) throw flowFail(failed[0]?.text || 'генерация не удалась');
   free();   // Flow свою работу сделал — место для следующего промпта, пока эти скачиваются
   await sleep(1500);   // дать догрузиться финальным версиям
