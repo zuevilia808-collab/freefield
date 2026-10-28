@@ -38,12 +38,13 @@ async function mutex(dir, fn) {
   const m = path.join(dir, '.mtx');
   for (;;) {
     try { fs.writeFileSync(m, String(process.pid), {flag: 'wx'}); break; } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
+      // Windows: файл, который другой только что удалил, ещё «удаляется» — EPERM/EBUSY, это тоже «занято»
+      if (!['EEXIST', 'EPERM', 'EACCES', 'EBUSY'].includes(e.code)) throw e;
       try { if (Date.now() - fs.statSync(m).mtimeMs > 5000) fs.rmSync(m, {force: true}); } catch {}
       await sleep(10 + Math.random() * 25);
     }
   }
-  try { return fn(); } finally { fs.rmSync(m, {force: true}); }
+  try { return fn(); } finally { try { fs.rmSync(m, {force: true}); } catch {} }
 }
 
 // Занять место: limit — сколько мест у ключа на все копии; prio — 1 для видео (идёт раньше картинок);
@@ -53,7 +54,7 @@ export async function acquire(key, limit, {prio = 0, tag = chatTag(), onWait = (
   fs.mkdirSync(dir, {recursive: true});
   const me = {pid: process.pid, tag, prio, at: Date.now(), beat: Date.now(), hold: false};
   const file = path.join(dir, `${process.pid}-${++seq}.json`);
-  const write = () => fs.writeFileSync(file, JSON.stringify(me));
+  const write = () => { for (let i = 0; ; i++) try { return fs.writeFileSync(file, JSON.stringify(me)); } catch (e) { if (i >= 20) throw e; Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25); } };
   write();
   const beat = setInterval(() => { me.beat = Date.now(); try { write(); } catch {} }, BEAT_MS);
   beat.unref?.();
