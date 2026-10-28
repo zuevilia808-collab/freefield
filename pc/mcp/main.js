@@ -1,0 +1,1737 @@
+#!/usr/bin/env node
+// Freefield MCP-сервер: даёт Claude инструменты генерации картинок и видео.
+// Бесплатно: FLUX.1 schnell/dev и Wan 2.2 (бесплатные GPU Hugging Face), AI Horde (без лимита).
+// Платно (по ключу Pollinations, оплата за каждую генерацию): 50+ моделей — Veo, Seedance, Nano Banana, GPT Image, FLUX.2…
+// Результаты сохраняются в Freefield/outputs/<дата>/. Stdout занят протоколом MCP — логи только в stderr.
+import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
+import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
+import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import {z} from 'zod';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import crypto from 'node:crypto';
+import {readState, writeState} from './state.js';
+import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog, setBatchJob, batchByJob, resumeBatches} from './studio.js';
+import {fileInfo, aspectCheck} from './media.js';
+import {ECHO_URL, startEcho} from './echo.js';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const OUT = process.env.FREEFIELD_OUTPUT_DIR || path.join(HERE, '..', 'outputs');
+const HF_TOKEN = process.env.HF_TOKEN || '';
+const POLL_KEY = process.env.POLLINATIONS_KEY || '';
+const HORDE_KEY = process.env.HORDE_KEY || '0000000000';
+const WAIT_MS = 1000 * (+process.env.FREEFIELD_WAIT_SECONDS || 45);   // дольше — возвращаем номер задачи
+const log = (...a) => console.error(new Date().toLocaleString('sv-SE'), '[freefield]', ...a);
+export const MAIN_PIPE = process.platform === 'win32' ? '\\\\.\\pipe\\freefield-main' : path.join((await import('node:os')).tmpdir(), 'freefield-main.sock');
+// замок «одна главная копия»: занимаем канал до всего остального (пакеты, бот, связь), иначе вторая копия успела бы их подхватить
+const net = await import('node:net');
+let onConn = null;
+const early = [];
+const mainSrv = process.env.FREEFIELD_STDIO ? null : net.createServer(sock => onConn ? onConn(sock) : early.push(sock));
+if (mainSrv && await new Promise(res => { mainSrv.once('error', e => res(e.code === 'EADDRINUSE' ? 'busy' : e.message)); mainSrv.listen(MAIN_PIPE, () => res(false)); })) {
+  log('главная копия Freefield уже запущена — эта не нужна');
+  process.exit(3);
+}
+setLog(log);
+
+// ============================== модели ==============================
+const FREE_IMAGE = {
+  'flux-schnell': {title: 'FLUX.1 [schnell]', host: 'https://black-forest-labs-flux-1-schnell.hf.space', endpoint: 'infer',
+    args: (p, w, h, s) => [p, s, false, w, h, 4], note: 'бесплатно, ~5 с, дневной лимит GPU Hugging Face'},
+  'flux-dev': {title: 'FLUX.1 [dev]', host: 'https://black-forest-labs-flux-1-dev.hf.space', endpoint: 'infer',
+    args: (p, w, h, s) => [p, s, false, w, h, 3.5, 28], note: 'бесплатно, выше качество, ~20–40 с, тратит больше лимита GPU'},
+  'horde': {title: 'AI Horde · SDXL', note: 'бесплатно и без дневного лимита, но очередь 1–10 минут'},
+};
+const WAN = {title: 'Wan 2.2 Fast', host: 'https://zerogpu-aoti-wan2-2-fp8da-aoti-faster.hf.space', endpoint: 'generate_video',
+  note: 'бесплатно, картинка → видео до 5 с, дневной лимит GPU Hugging Face'};
+const WAN_NEG = '色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指, 画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 静止不动的画面, 杂乱的背景, 三条腿, 背景人很多, 倒着走';
+const HORDE = {api: 'https://aihorde.net/api/v2', agent: 'freefield-mcp:1.0:local',
+  models: ['AlbedoBase XL 3.1', 'Juggernaut XL', 'ICBINP XL', 'AlbedoBase XL (SDXL)']};
+const GEN = 'https://gen.pollinations.ai';
+const ASPECTS = {'1:1': [1024, 1024], '4:5': [896, 1120], '3:4': [864, 1152], '2:3': [832, 1248],
+  '9:16': [736, 1312], '16:9': [1312, 736], '21:9': [1344, 576]};
+
+// ============================== утилиты ==============================
+class GenError extends Error { constructor(msg, kind = 'other') { super(msg); this.kind = kind; } }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const randSeed = () => Math.floor(Math.random() * 2147483647);
+const slug = s => (s || 'art').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'art';
+const EXT = {'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm'};
+const MIME = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif'};
+const fmtUSD = v => v == null ? 'цена по факту' : '$' + (v < 0.1 ? +v.toPrecision(2) : v.toFixed(2));
+
+// Ответ инструмента: для человека — текст и превью, для скриптов агента — JSON (structuredContent и последним текстовым
+// блоком, тот же объект): абсолютные пути файлов и их параметры (ширина×высота, модель, формат…)
+// предохранитель: картинки одного ответа — не больше 8 МБ (у Claude предел 16 МБ на сообщение, больше — сервер отключают)
+const IMAGES_MAX = 8 * 1024 * 1024;
+function toolResult(data, {text = '', images = [], isError = false} = {}) {
+  let size = 0, cut = 0;
+  images = images.filter(im => { size += im.data?.length || 0; if (size > IMAGES_MAX) { cut++; return false; } return true; });
+  if (cut) text += `${text ? '\n' : ''}(${cut} превью не показаны — ответ был бы слишком большим; файлы целиком — по путям в JSON)`;
+  return {content: [...images, ...(text ? [{type: 'text', text}] : []), {type: 'text', text: JSON.stringify(data)}],
+    structuredContent: data, ...(isError ? {isError: true} : {})};
+}
+// файлы → описание для агента (картинки и видео — с шириной и высотой)
+const filesInfo = (paths, extra = () => ({})) => paths.map((p, i) => fileInfo(typeof p === 'string' ? p : p.path, extra(p, i)));
+
+function saveOutput(buf, mime, prompt, seed) {
+  const dir = path.join(OUT, new Date().toISOString().slice(0, 10));
+  fs.mkdirSync(dir, {recursive: true});
+  let file = path.join(dir, `freefield-${slug(prompt)}-${seed}.${EXT[mime] || 'bin'}`);
+  for (let i = 2; fs.existsSync(file); i++) file = file.replace(/(-\d+)?(\.\w+)$/, `-${i}$2`);
+  fs.writeFileSync(file, buf);
+  return file;
+}
+
+async function fetchBuffer(url, headers = {}) {
+  const r = await fetch(url, {headers});
+  if (!r.ok) throw new GenError(`не удалось скачать результат (${r.status})`);
+  return {buf: Buffer.from(await r.arrayBuffer()), mime: (r.headers.get('content-type') || '').split(';')[0]};
+}
+
+function readLocalImage(p) {
+  const file = path.resolve(p);
+  const mime = MIME[path.extname(file).toLowerCase()];
+  if (!mime) throw new GenError('image_path должен указывать на картинку .png, .jpg, .webp или .gif');
+  const st = fs.statSync(file, {throwIfNoEntry: false});
+  if (!st?.isFile()) throw new GenError(`файл не найден: ${file}`);
+  if (st.size > 20 * 1024 * 1024) throw new GenError('картинка больше 20 МБ');
+  return {buf: fs.readFileSync(file), mime, name: path.basename(file)};
+}
+
+// ============================== бесплатно: Hugging Face (Gradio) ==============================
+const hfHeaders = (extra = {}) => HF_TOKEN ? {...extra, Authorization: `Bearer ${HF_TOKEN}`} : extra;
+
+function gpuError(raw, title = '') {
+  const s = String(raw ?? '');
+  if (/quota/i.test(s + ' ' + title)) {
+    const m = s.match(/Try again in (\d+):(\d+):\d+/);
+    const mins = m ? +m[1] * 60 + +m[2] : 0;
+    const when = mins >= 60 ? ` (обновится через ≈ ${Math.round(mins / 60)} ч)` : mins > 0 ? ` (обновится через ${mins} мин)` : '';
+    return new GenError(`закончился дневной бесплатный лимит GPU Hugging Face${when}`, 'quota');
+  }
+  if (!s || s === 'null') return new GenError('бесплатный GPU не справился — попробуйте ещё раз', 'busy');
+  return new GenError(s.slice(0, 300));
+}
+
+const fnCache = {};
+async function gradioFnIndex(host, endpoint) {
+  const key = host + endpoint;
+  if (fnCache[key] == null) {
+    const r = await fetch(host + '/config').catch(() => null);
+    if (!r?.ok) throw new GenError(`бесплатная модель сейчас недоступна (${r?.status || 'нет связи'})`, 'down');
+    const deps = (await r.json()).dependencies || [];
+    const i = deps.findIndex(d => d.api_name === endpoint);
+    if (i < 0) throw new GenError('бесплатная модель изменила API', 'down');
+    fnCache[key] = deps[i].id ?? i;
+  }
+  return fnCache[key];
+}
+
+async function gradioUpload(host, buf, name, mime) {
+  const fd = new FormData();
+  fd.append('files', new Blob([buf], {type: mime}), name);
+  const r = await fetch(host + '/gradio_api/upload', {method: 'POST', body: fd, headers: hfHeaders()});
+  if (!r.ok) throw new GenError(`бесплатный GPU недоступен (${r.status})`, 'down');
+  const [p] = await r.json();
+  return {path: p, meta: {_type: 'gradio.FileData'}};
+}
+
+async function gradioCall(host, endpoint, data, onStatus, runMsg) {
+  const fn_index = await gradioFnIndex(host, endpoint);
+  const session_hash = Math.random().toString(36).slice(2, 12);
+  let r = await fetch(`${host}/gradio_api/queue/join`, {method: 'POST', headers: hfHeaders({'Content-Type': 'application/json'}),
+    body: JSON.stringify({data, fn_index, session_hash, trigger_id: null, event_data: null})}).catch(() => null);
+  if (!r) throw new GenError('нет связи с бесплатным GPU', 'down');
+  if (r.status === 401) throw new GenError('HF_TOKEN не подошёл — проверьте токен Hugging Face', 'auth');
+  if (!r.ok) throw new GenError(`бесплатный GPU недоступен (${r.status})`, 'down');
+  onStatus('встаю в очередь GPU');
+  r = await fetch(`${host}/gradio_api/queue/data?session_hash=${session_hash}`, {headers: hfHeaders()});
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  try {
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith('data:')) continue;
+        let m;
+        try { m = JSON.parse(line.slice(5)); } catch { continue; }
+        if (m.msg === 'estimation') onStatus(m.rank > 0 ? `очередь GPU: ${m.rank + 1}-й` : 'сейчас начнём');
+        else if (m.msg === 'process_starts') onStatus(runMsg);
+        else if (m.msg === 'progress') { const p = m.progress_data?.[0]; if (p?.length) onStatus(`${runMsg} ${Math.round(100 * p.index / p.length)}%`); }
+        else if (m.msg === 'process_completed') {
+          if (m.success) return m.output.data;
+          throw gpuError(m.output?.error, m.output?.title || m.title);
+        } else if (m.msg === 'unexpected_error') throw gpuError(m.message);
+      }
+    }
+  } finally { reader.cancel().catch(() => {}); }
+  throw new GenError('бесплатный GPU оборвал соединение', 'busy');
+}
+
+async function freeImage(modelId, prompt, w, h, seed, onStatus) {
+  const m = FREE_IMAGE[modelId];
+  const r32 = v => Math.max(256, Math.min(2048, Math.round(v / 32) * 32));
+  const out = await gradioCall(m.host, m.endpoint, m.args(prompt.slice(0, 1800), r32(w), r32(h), seed), onStatus, 'GPU рисует');
+  const url = out?.[0]?.url;
+  if (!url) throw new GenError('бесплатный GPU не вернул файл', 'busy');
+  return fetchBuffer(url);
+}
+
+async function freeVideo(frame, prompt, duration, seed, onStatus) {
+  onStatus('загружаю кадр');
+  const f = await gradioUpload(WAN.host, frame.buf, frame.name || 'frame.jpg', frame.mime);
+  const out = await gradioCall(WAN.host, WAN.endpoint, [f, prompt, 6, WAN_NEG, duration, 1, 1, seed, false], onStatus, 'GPU генерирует видео');
+  const url = out?.[0]?.url || out?.[0]?.video?.url;
+  if (!url) throw new GenError('бесплатный GPU не вернул видео', 'busy');
+  onStatus('скачиваю видео');
+  return fetchBuffer(url);
+}
+
+// ============================== бесплатно: AI Horde ==============================
+async function hordeImage(prompt, w, h, seed, onStatus) {
+  const k = 1024 / Math.max(w, h);
+  const W = Math.round(w * k / 64) * 64, H = Math.round(h * k / 64) * 64;
+  const headers = {'Content-Type': 'application/json', apikey: HORDE_KEY, 'Client-Agent': HORDE.agent};
+  const r = await fetch(HORDE.api + '/generate/async', {method: 'POST', headers, body: JSON.stringify({
+    prompt: prompt.slice(0, 1500),
+    params: {width: W, height: H, steps: 25, cfg_scale: 6, sampler_name: 'k_euler_a', seed: String(seed), n: 1, karras: true},
+    models: HORDE.models, nsfw: false, censor_nsfw: true, r2: false, slow_workers: true,
+  })}).catch(() => null);
+  if (!r) throw new GenError('нет связи с AI Horde', 'down');
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.id) throw new GenError('AI Horde: ' + (j.message || `ошибка ${r.status}`));
+  const t0 = Date.now();
+  while (true) {
+    await sleep(5000);
+    if (Date.now() - t0 > 20 * 60e3) {
+      fetch(`${HORDE.api}/generate/status/${j.id}`, {method: 'DELETE', headers}).catch(() => {});
+      throw new GenError('AI Horde не успел за 20 минут', 'busy');
+    }
+    const c = await fetch(`${HORDE.api}/generate/check/${j.id}`, {headers: {'Client-Agent': HORDE.agent}}).then(x => x.json()).catch(() => null);
+    if (!c) continue;
+    if (c.faulted) throw new GenError('AI Horde: генерация сорвалась', 'busy');
+    if (c.is_possible === false) throw new GenError('AI Horde: сейчас нет подходящих видеокарт', 'busy');
+    if (c.done) break;
+    onStatus(c.processing ? 'рисуется у волонтёра' : `очередь AI Horde: #${c.queue_position}, ≈ ${c.wait_time} с`);
+  }
+  const s = await fetch(`${HORDE.api}/generate/status/${j.id}`, {headers: {'Client-Agent': HORDE.agent}}).then(x => x.json());
+  const g = s.generations?.[0];
+  if (!g?.img) throw new GenError('AI Horde не вернул картинку', 'busy');
+  if (g.censored) throw new GenError('AI Horde скрыл картинку фильтром — измените промпт');
+  if (/^https?:/.test(g.img)) return fetchBuffer(g.img);
+  return {buf: Buffer.from(g.img, 'base64'), mime: 'image/webp'};
+}
+
+// ============================== платно: Pollinations ==============================
+async function genFetch(pathname, params, {method = 'GET', body, timeout = 300000} = {}) {
+  if (!POLL_KEY) throw new GenError('для платных моделей нужен ключ Pollinations: добавьте POLLINATIONS_KEY в настройки MCP-сервера (ключ — на enter.pollinations.ai)', 'auth');
+  const url = GEN + pathname + (params ? '?' + new URLSearchParams(params) : '');
+  const r = await fetch(url, {method, body, headers: {Authorization: 'Bearer ' + POLL_KEY}, signal: AbortSignal.timeout(timeout)})
+    .catch(e => { throw new GenError(e.name === 'TimeoutError' ? 'превышено время ожидания' : 'нет связи с Pollinations', 'down'); });
+  if (r.ok) return r;
+  let msg = '';
+  try { const j = await r.json(); msg = j.error?.message || j.message || ''; } catch {}
+  if (r.status === 401) throw new GenError('POLLINATIONS_KEY не подошёл', 'auth');
+  if (r.status === 402) throw new GenError('на балансе Pollinations не хватает pollen — пополните счёт', 'money');
+  if (r.status === 403) throw new GenError('у ключа нет доступа к этой модели' + (msg ? ': ' + msg : ''), 'auth');
+  if (r.status === 429) throw new GenError('слишком много запросов — подождите минуту', 'busy');
+  throw new GenError(msg || `Pollinations ответил ${r.status}`);
+}
+const bufOf = async r => ({buf: Buffer.from(await r.arrayBuffer()), mime: (r.headers.get('content-type') || '').split(';')[0]});
+const encPrompt = p => encodeURIComponent(p.replace(/[/\\]/g, ' ').slice(0, 1800));
+
+async function paidImage(model, prompt, w, h, seed) {
+  const out = await bufOf(await genFetch('/image/' + encPrompt(prompt), {model, width: w, height: h, seed}));
+  if (!out.mime.startsWith('image/')) throw new GenError('сервис вернул не картинку');
+  return out;
+}
+
+async function paidVideo(model, prompt, o, onStatus) {
+  const q = {model, duration: o.duration, aspectRatio: o.aspect, seed: o.seed};
+  if (o.resolution) q.resolution = o.resolution;
+  if (o.audio) q.audio = 'true';
+  if (o.frame) {
+    onStatus('загружаю кадр');
+    const fd = new FormData();
+    fd.append('file', new Blob([o.frame.buf], {type: o.frame.mime}), o.frame.name || 'frame.jpg');
+    const j = await (await genFetch('/upload', null, {method: 'POST', body: fd, timeout: 60000})).json();
+    if (!j.url) throw new GenError('не удалось загрузить кадр');
+    q.image = j.url;
+  }
+  onStatus('генерирую видео (платно)');
+  const out = await bufOf(await genFetch('/video/' + encPrompt(prompt), q, {timeout: 900000}));
+  if (!out.mime.startsWith('video/')) throw new GenError('сервис вернул не видео');
+  return out;
+}
+
+// ---- живой каталог платных моделей и оценка цены (как в приложении) ----
+let catalogCache = null;
+async function catalog() {
+  if (catalogCache && Date.now() - catalogCache.at < 10 * 60e3) return catalogCache.list;
+  const lists = await Promise.all(['image', 'video'].map(k => fetch(`${GEN}/${k}/models`).then(r => r.ok ? r.json() : []).catch(() => [])));
+  const seen = new Set(), list = [];
+  for (const m of [...lists[1], ...lists[0]]) {
+    if (m.community || String(m.name).startsWith('community/') || !['image', 'video'].includes(m.category) || seen.has(m.name)) continue;
+    seen.add(m.name);
+    list.push(m);
+  }
+  catalogCache = {at: Date.now(), list};
+  return list;
+}
+function estimate(m, o = {}) {
+  const v = m.pricing_variants?.find(x => x.name === o.resolution)?.pricing || m.pricing || {};
+  if (m.category === 'image') {
+    const c = +v.completionImageTokens;
+    return c ? ((m.flat_rate || c >= 0.001) ? c : c * 1300) : null;
+  }
+  const s = +v.completionVideoSeconds;
+  if (!s) return null;
+  const d = o.duration || m.default_duration || m.min_duration || 5;
+  return s * d + (o.audio && +v.completionAudioSeconds ? +v.completionAudioSeconds * d : 0);
+}
+async function findPaid(model, kind) {
+  const m = (await catalog()).find(x => x.name === model || (x.aliases || []).includes(model));
+  if (!m) throw new GenError(`модель «${model}» не найдена — посмотрите list_models`);
+  if (m.category !== kind) throw new GenError(`«${model}» — модель для ${m.category === 'video' ? 'видео' : 'картинок'}`);
+  if (m.health?.status === 'down') throw new GenError(`модель «${model}» сейчас не работает — выберите другую`);
+  return m;
+}
+
+// ---- бесплатные кредиты на сайтах: берём список прямо из приложения (один источник правды) ----
+function loadServices() {
+  try {
+    const app = path.join(HERE, '..', 'app'), core = path.join(app, 'js', 'core.js');   // список — в js/core.js (раньше — в самом index.html)
+    const html = fs.readFileSync(fs.existsSync(core) ? core : path.join(app, 'index.html'), 'utf8');
+    const start = html.indexOf('const SERVICES = [');
+    const end = html.indexOf('\n];', start);
+    if (start < 0 || end < 0) return [];
+    return Function(`"use strict"; return (${html.slice(start + 'const SERVICES = '.length, end + 2)});`)();
+  } catch (e) { log('services:', e.message); return []; }
+}
+
+// ============================== задачи (для долгих генераций) ==============================
+const jobs = new Map();
+let jobSeq = 0;
+
+function startJob(kind, run, id = `${kind}-${++jobSeq}-${Date.now().toString(36)}`) {
+  const job = {id, kind, status: 'running', message: 'в очереди',
+    started: Date.now(), listeners: new Set(), result: null, error: null};
+  job.promise = Promise.resolve().then(() => run(msg => { job.message = msg; job.listeners.forEach(f => f(msg)); }, job))
+    .then(r => { job.status = 'done'; job.result = r; }, e => { job.status = 'error'; job.error = e; log(job.id, e.message); });
+  jobs.set(job.id, job);
+  return job;
+}
+
+// в ответе — не больше previews картинок-превью (остальное — путями в JSON): пакет 10×4 давал 40 превью (2026-10-27, «Connection closed»)
+const PREVIEWS = 6;
+function limitPreviews(res, previews = PREVIEWS) {
+  if (!res?.content) return res;
+  let k = 0;
+  const content = res.content.filter(c => c.type !== 'image' || k++ < previews);
+  if (k <= previews) return res;
+  const note = {type: 'text', text: `(показано превью: ${Math.min(previews, k)} из ${k}; все файлы — по путям в JSON)`};
+  return {...res, content: [...content.slice(0, -1), note, content[content.length - 1]]};
+}
+async function waitJob(job, waitMs, extra, previews) {
+  return limitPreviews(await waitJobRaw(job, waitMs, extra), previews);
+}
+async function waitJobRaw(job, waitMs, extra) {
+  const token = extra?._meta?.progressToken;
+  let n = 0;
+  const notify = msg => {
+    if (token === undefined) return;
+    extra.sendNotification({method: 'notifications/progress', params: {progressToken: token, progress: ++n, message: msg}}).catch(() => {});
+  };
+  job.listeners.add(notify);
+  await Promise.race([job.promise, sleep(waitMs)]);
+  job.listeners.delete(notify);
+  return jobResult(job);
+}
+
+const HINTS = {
+  quota: '\nЧто можно сделать: model="horde" (бесплатно без лимита, но медленно); добавить HF_TOKEN (бесплатный аккаунт Hugging Face — 5 мин GPU в день вместо 2); или платная модель из list_models.',
+  auth: '\nКлючи задаются в настройках MCP-сервера freefield (переменные окружения HF_TOKEN / POLLINATIONS_KEY).',
+  money: '\nПополнить баланс: enter.pollinations.ai.',
+};
+
+function jobResult(job) {
+  const sec = Math.round((Date.now() - job.started) / 1000);
+  if (job.status === 'running') return toolResult({job_id: job.id, status: 'running', message: job.message, elapsed_s: sec}, {text:
+    `⏳ Ещё генерируется: ${job.message} (прошло ${sec} с). Вызови check_job с job_id="${job.id}", чтобы дождаться результата.`});
+  if (job.status === 'error') return toolResult({job_id: job.id, status: 'error', error: job.error.message, error_kind: job.error.kind || 'other',
+    ...(job.error.skipped?.length ? {skipped: job.error.skipped} : {})}, {text: `Ошибка: ${job.error.message}${HINTS[job.error.kind] || ''}`, isError: true});
+  const r = job.result;
+  if (!r?.structuredContent) return r;
+  // номер задачи — в JSON результата (последний текстовый блок — тот же JSON)
+  const data = {job_id: job.id, ...r.structuredContent};
+  return {...r, structuredContent: data, content: [...r.content.slice(0, -1), {type: 'text', text: JSON.stringify(data)}]};
+}
+
+function imageResult(out, info) {
+  const file = saveOutput(out.buf, out.mime, info.prompt, info.seed);
+  recordGen({kind: 'image', site: 'freefield', model: info.model, appModel: info.appModel, prompt: info.prompt, aspect: info.aspect, files: [{path: file, mime: out.mime}]});
+  const images = out.buf.length <= 3.5 * 1024 * 1024 ? [{type: 'image', data: out.buf.toString('base64'), mimeType: out.mime}] : [];
+  const fi = fileInfo(file, {model: info.model, aspect_ratio: info.aspect, seed: info.seed});
+  Object.assign(fi, aspectCheck(fi.width, fi.height, info.aspect));
+  return toolResult({status: 'done', service: 'freefield', files: [fi], cost_usd: info.cost || 0, ...(info.note ? {note: info.note} : {})}, {images, text: [`Готово: ${info.model}${info.cost ? ` · ≈ ${fmtUSD(info.cost)}` : ' · бесплатно'}`,
+    `Файл: ${file}`, `Формат: ${info.aspect} · seed ${info.seed}`, info.note].filter(Boolean).join('\n')});
+}
+
+// ============================== сервер и инструменты ==============================
+const SERVER_INFO = {name: 'freefield', version: '1.2.0'};
+const SERVER_OPTS = {
+  instructions: 'Freefield генерирует картинки и видео. Пиши промпты на английском, подробно (объект, действие, окружение, свет, стиль, камера). ' +
+    'По умолчанию используй бесплатные модели. Платные модели списывают деньги с баланса Pollinations: перед их вызовом назови пользователю цену из list_models и дождись согласия. ' +
+    'Долгие задачи возвращают job_id — дождись результата через check_job. ' +
+    'Бесплатно и в лучшем качестве — через сайты под аккаунтом пользователя: flow_video / flow_image (Google Flow), arena_video (Arena, 2 видео за раз), dola_image (Dola). ' +
+    'Несколько сценариев сразу — batch_generate: он сам разложит их по сервисам. Задания с телефона — phone_tasks, подключить телефон — phone_link. ' +
+    'Картинки для сайта по чужим образцам — site_tasks (порядок работы — в его описании), итог — site_task_update. ' +
+    'Вирусные ролики сейчас, идеи брейнрота и перенос движения из ролика на героя пользователя (motion control) — trends. ' +
+    'Рабочий порядок: пользователь пишет сценарии в чат — сразу перепиши каждый в подробный английский промпт и запусти batch_generate (для картинок по умолчанию ' +
+    'Nano Banana 2.1 во Flow и Seedream 5.0 в Dola — без кредитов), не переспрашивай по мелочам. Прислал фото в чат — вызови chat_photos, получи путь и передай его ' +
+    'как image_path: для видео — оживить фото (Arena), для картинки — сделать по референсу (Flow / Dola). Готовые файлы сами появляются в галерее приложения ' +
+    'Freefield (открытого по ссылке из phone_link на компьютере или телефоне) — в чат коротко: что готово и что не получилось. ' +
+    'Пайплайн «персонаж → игровая 3D-модель»: flow_image (референсы в image_paths, resolution 2k) → при необходимости upscale_image → image_to_3d → check_job. ' +
+    'Каждый результат содержит JSON с абсолютными путями файлов и их параметрами — бери пути оттуда. Платные кредиты — только с allow_credits / allow_paid и согласия пользователя. ' +
+    'Токены и пароли пользователя не проси в чате: токен Hugging Face пользователь сам вписывает в config.json Freefield. ' +
+    'Озвучка голосом персонажа — программа пользователя «Эхо» на этом компьютере: echo_voices (какие голоса есть; имя голоса = имя персонажа), ' +
+    'echo_speak («озвучь голосом Паша радостно: …» → voice="Паша", emotion="happy"), echo_clone_voice (новый голос из отрезка видео или аудио). ' +
+    '«Эхо» — часть Freefield: не запущено — Freefield запустит его сам (первая загрузка модели — до минуты).',
+};
+const server = new McpServer(SERVER_INFO, SERVER_OPTS);
+// все инструменты запоминаем: по ссылке http://…:5180/mcp?k=… (Claude Code, Cursor и другие программы) — тот же набор
+const TOOLS = [];
+{ const reg = server.registerTool.bind(server); server.registerTool = (...a) => { TOOLS.push(a); return reg(...a); }; }
+
+server.registerTool('generate_image', {
+  title: 'Сгенерировать картинку',
+  description: 'Генерирует картинку и сохраняет её в папку Freefield/outputs. Бесплатно: model="flux-schnell" (по умолчанию, ~5 с), "flux-dev" (качественнее), "horde" (без лимита, медленно). ' +
+    'Платно: id модели из list_models (например "google/gemini-3.1-flash-image" — Nano Banana 2); нужен POLLINATIONS_KEY и согласие пользователя на цену.',
+  inputSchema: {
+    prompt: z.string().min(3).describe('Подробный промпт на английском: объект и действие, окружение, композиция и камера, свет, настроение, стиль (40–80 слов).'),
+    model: z.string().default('flux-schnell').describe('flux-schnell | flux-dev | horde | id платной модели из list_models'),
+    aspect_ratio: z.enum(['1:1', '4:5', '3:4', '2:3', '9:16', '16:9', '21:9']).default('1:1'),
+    seed: z.number().int().min(0).max(2147483647).optional().describe('Для повторяемого результата'),
+    max_cost_usd: z.number().min(0).default(0.5).describe('Предел цены для платной модели: дороже — откажет. Повышай только с согласия пользователя.'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({prompt, model, aspect_ratio, seed, max_cost_usd}, extra) => {
+  const [w, h] = ASPECTS[aspect_ratio];
+  const s = seed ?? randSeed();
+  let cost = 0, title = FREE_IMAGE[model]?.title;
+  if (!FREE_IMAGE[model]) {
+    try {
+      const m = await findPaid(model, 'image');
+      cost = estimate(m);
+      if (cost != null && cost > max_cost_usd) return {isError: true, content: [{type: 'text', text:
+        `Эта генерация стоит ≈ ${fmtUSD(cost)} — больше предела max_cost_usd=${max_cost_usd}. Спроси пользователя и, если он согласен, повтори с большим max_cost_usd.`}]};
+      title = m.title || m.name;
+    } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+  }
+  const job = startJob('image', async status => {
+    let out, used = title, note = '', appModel = FREE_IMAGE[model] ? 'free:' + model : 'pol:' + model;
+    if (model === 'horde') out = await hordeImage(prompt, w, h, s, status);
+    else if (FREE_IMAGE[model]) {
+      try { out = await freeImage(model, prompt, w, h, s, status); }
+      catch (e) {
+        if (e.kind !== 'quota') throw e;
+        status('лимит FLUX исчерпан → AI Horde');
+        out = await hordeImage(prompt, w, h, s, status);
+        used = FREE_IMAGE.horde.title;
+        appModel = 'free:horde';
+        note = 'Дневной лимит FLUX закончился — картинка сделана через AI Horde. Больше лимита: HF_TOKEN.';
+      }
+    } else out = await paidImage(model, prompt, w, h, s);
+    return imageResult(out, {prompt, seed: s, aspect: aspect_ratio, model: used, cost, note, appModel});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('generate_video', {
+  title: 'Сгенерировать видео',
+  description: 'Генерирует видео и сохраняет его в Freefield/outputs. Бесплатно: model="wan-2.2" (по умолчанию) — оживляет картинку из image_path, ' +
+    'а без картинки сначала рисует кадр через FLUX; длительность 1–5 с. Платно: id видеомодели из list_models (например "google/veo-3.1-fast"); нужен POLLINATIONS_KEY и согласие на цену. ' +
+    'Обычно занимает 1–3 минуты: если вернулся job_id — вызови check_job.',
+  inputSchema: {
+    prompt: z.string().min(3).describe('На английском: что происходит в кадре и как движется камера (для image_path — главное движение).'),
+    image_path: z.string().optional().describe('Путь к локальной картинке, которую нужно оживить (например, файл из outputs).'),
+    model: z.string().default('wan-2.2').describe('wan-2.2 | id платной видеомодели из list_models'),
+    duration: z.number().min(1).max(15).default(3.5).describe('Секунды. Бесплатно: 1–5.'),
+    aspect_ratio: z.enum(['16:9', '9:16', '1:1']).default('16:9'),
+    seed: z.number().int().min(0).max(2147483647).optional(),
+    max_cost_usd: z.number().min(0).default(0.5).describe('Предел цены для платной модели.'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({prompt, image_path, model, duration, aspect_ratio, seed, max_cost_usd}, extra) => {
+  const s = seed ?? randSeed();
+  let frame = null;
+  try { if (image_path) frame = readLocalImage(image_path); } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+  const free = model === 'wan-2.2' || model === 'wan';
+  let paid = null, cost = 0;
+  if (!free) {
+    try {
+      paid = await findPaid(model, 'video');
+      cost = estimate(paid, {duration});
+      if (cost != null && cost > max_cost_usd) return {isError: true, content: [{type: 'text', text:
+        `Это видео стоит ≈ ${fmtUSD(cost)} — больше предела max_cost_usd=${max_cost_usd}. Спроси пользователя и, если он согласен, повтори с большим max_cost_usd.`}]};
+    } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+  }
+  const job = startJob('video', async status => {
+    let out, poster = null;
+    if (free) {
+      if (!frame) {
+        status('рисую первый кадр (FLUX)');
+        const [w, h] = ASPECTS[aspect_ratio];
+        const img = await freeImage('flux-schnell', prompt, w, h, s, status);
+        frame = {...img, name: 'frame.' + (EXT[img.mime] || 'png')};
+        poster = saveOutput(img.buf, img.mime, prompt + ' frame', s);
+      }
+      out = await freeVideo(frame, prompt + ', smooth natural motion, cinematic', Math.min(5, Math.max(1, duration)), s, status);
+    } else {
+      out = await paidVideo(paid.name, prompt, {duration: Math.round(duration), aspect: aspect_ratio, seed: s, frame}, status);
+    }
+    const file = saveOutput(out.buf, out.mime || 'video/mp4', prompt, s);
+    recordGen({kind: 'video', site: 'freefield', model: free ? WAN.title : paid.title || paid.name, appModel: free ? 'free:wan22' : 'pol:' + paid.name,
+      prompt, aspect: aspect_ratio, files: [{path: file, mime: out.mime || 'video/mp4'}]});
+    return toolResult({status: 'done', service: 'freefield', files: [fileInfo(file, {model: free ? WAN.title : paid.title || paid.name, aspect_ratio, seed: s}),
+      ...(poster ? [fileInfo(poster, {role: 'first_frame'})] : [])], cost_usd: cost || 0}, {text: [`Готово: видео ${free ? WAN.title + ' · бесплатно' : (paid.title || paid.name) + ` · ≈ ${fmtUSD(cost)}`}`,
+      `Файл: ${file}`, poster ? `Первый кадр: ${poster}` : '', `Длительность: ${duration} с · ${aspect_ratio} · seed ${s}`].filter(Boolean).join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('check_job', {
+  title: 'Дождаться генерации',
+  description: 'Ждёт (до wait_seconds) и возвращает результат долгой задачи по job_id (generate_*, flow_*, arena_video, dola_image, batch_generate, image_to_3d, upscale_image, echo_speak, echo_clone_voice). ' +
+    'Последний текстовый блок ответа (и structuredContent) — JSON: status (running | done | error), а у готовой — абсолютные пути файлов и их параметры.',
+  inputSchema: {
+    job_id: z.string(),
+    wait_seconds: z.number().min(0).max(120).default(45),
+    previews: z.number().int().min(0).max(24).default(PREVIEWS).describe('Сколько картинок-превью приложить к ответу (0 — ни одной, только пути в JSON)'),
+  },
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async ({job_id, wait_seconds, previews}, extra) => {
+  const job = jobs.get(job_id);
+  if (job) return waitJob(job, wait_seconds * 1000, extra, previews);
+  // задачи нет в этой копии Freefield (перезапуск, другой чат) — пакет ищем в истории на диске
+  if (/^batch-/.test(job_id)) {
+    await resumeNow();   // брошенный пакет — подхватить сразу, не ждать минуту
+    if (jobs.has(job_id)) return waitJob(jobs.get(job_id), wait_seconds * 1000, extra, previews);
+    for (const t0 = Date.now(); ;) {
+      const b = batchByJob(job_id);
+      if (!b) break;
+      if (b.promise) return waitJob(batchJob(b, job_id), wait_seconds * 1000, extra, previews);
+      if (b.done) return limitPreviews(jobResult({id: job_id, status: 'done', started: b.created, result: await batchResult(b)}), previews);
+      if (Date.now() - t0 >= wait_seconds * 1000)
+        return toolResult({job_id, status: 'running', message: progressLine(b.items), elapsed_s: Math.round((Date.now() - b.created) / 1000)},
+          {text: `⏳ Пакет идёт в другой копии Freefield: ${progressLine(b.items)}. Вызови check_job с job_id="${job_id}", чтобы дождаться результата.`});
+      await sleep(3000);
+    }
+  }
+  return {isError: true, content: [{type: 'text', text: `Задача ${job_id} не найдена (сервер мог перезапуститься) — запустите генерацию заново.`}]};
+});
+
+server.registerTool('list_models', {
+  title: 'Модели и цены',
+  description: 'Список моделей Freefield: бесплатные (без ключа) и платные с оценкой цены за одну генерацию. Живой каталог.',
+  inputSchema: {
+    kind: z.enum(['image', 'video', 'all']).default('all'),
+    tier: z.enum(['free', 'paid', 'all']).default('all'),
+  },
+  annotations: {readOnlyHint: true, openWorldHint: true},
+}, async ({kind, tier}) => {
+  const lines = [];
+  if (tier !== 'paid') {
+    lines.push('БЕСПЛАТНО (без ключа):');
+    if (kind !== 'video') for (const [id, m] of Object.entries(FREE_IMAGE)) lines.push(`  [картинка] ${id} — ${m.title}: ${m.note}`);
+    if (kind !== 'image') lines.push(`  [видео] wan-2.2 — ${WAN.title}: ${WAN.note}`);
+  }
+  if (tier !== 'free') {
+    const list = (await catalog()).filter(m => kind === 'all' || m.category === kind);
+    lines.push(`ПЛАТНО (Pollinations, оплата за генерацию${POLL_KEY ? '' : ' — нужен POLLINATIONS_KEY'}):`);
+    for (const m of list.sort((a, b) => (estimate(a) ?? 9) - (estimate(b) ?? 9))) {
+      const e = estimate(m);
+      const price = m.category === 'video' ? `${fmtUSD(+(m.pricing?.completionVideoSeconds || 0) || null)}/с` : `≈ ${fmtUSD(e)} за картинку`;
+      const dur = m.allowed_durations ? ` · ${m.allowed_durations.join('/')} с` : m.min_duration ? ` · ${m.min_duration}–${m.max_duration} с` : '';
+      lines.push(`  [${m.category === 'video' ? 'видео' : 'картинка'}] ${m.name} — ${m.title || ''} · ${price}${dur}${m.health?.status === 'down' ? ' · СЕЙЧАС НЕ РАБОТАЕТ' : ''}`);
+    }
+    if (!list.length) lines.push('  (каталог сейчас недоступен)');
+  }
+  return {content: [{type: 'text', text: lines.join('\n')}]};
+});
+
+server.registerTool('free_credit_services', {
+  title: 'Где бесплатные кредиты',
+  description: 'Сайты с бесплатными кредитами на генерацию (Dola, Kling, Google Flow/Vids, Dreamina, Qwen, PixVerse…): сколько дают и на сколько картинок/видео хватит. ' +
+    'Генерация там — на сайте под аккаунтом пользователя; здесь только справка и ссылки.',
+  inputSchema: {kind: z.enum(['image', 'video', 'all']).default('all')},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async ({kind}) => {
+  const periods = {day: 'каждый день', week: 'каждую неделю', month: 'каждый месяц', once: 'разово'};
+  const list = loadServices().filter(x => kind === 'all' || x[kind]);
+  if (!list.length) return {isError: true, content: [{type: 'text', text: 'Не удалось прочитать список сервисов из app/js/core.js.'}]};
+  const text = list.map(x => [`${x.name} (${x.by}) — ${periods[x.period]} — ${x.url}`, `  кредиты: ${x.credits}`,
+    x.image ? `  картинки: ${x.image.models} → ${x.image.equiv}` : '', x.video ? `  видео: ${x.video.models} → ${x.video.equiv}` : '',
+    x.note ? `  ⚠ ${x.note}` : ''].filter(Boolean).join('\n')).join('\n');
+  return {content: [{type: 'text', text: 'Данные на сентябрь 2026 — сервисы иногда меняют лимиты.\n\n' + text}]};
+});
+
+server.registerTool('account_status', {
+  title: 'Лимиты и баланс',
+  description: 'Показывает, какие ключи подключены к Freefield MCP, баланс Pollinations и куда сохраняются файлы.',
+  inputSchema: {},
+  annotations: {readOnlyHint: true, openWorldHint: true},
+}, async () => {
+  let bal = 'ключ не подключён';
+  if (POLL_KEY) {
+    const r = await fetch(GEN + '/account/balance', {headers: {Authorization: 'Bearer ' + POLL_KEY}}).catch(() => null);
+    bal = r?.ok ? `${(await r.json()).balance ?? '?'} pollen (≈ $)` : r?.status === 401 ? 'ключ не подошёл' : 'ключ подключён';
+  }
+  let hf = 'без входа: 2 мин GPU в день (несколько генераций)';
+  if (HF_TOKEN) {
+    const r = await fetch('https://huggingface.co/api/whoami-v2', {headers: {Authorization: 'Bearer ' + HF_TOKEN}}).catch(() => null);
+    hf = r?.ok ? `вход как ${(await r.json()).name} — 5 мин GPU в день` : 'HF_TOKEN не подошёл';
+  }
+  return {content: [{type: 'text', text: [`Hugging Face (FLUX, Wan): ${hf}`, `AI Horde: ${HORDE_KEY === '0000000000' ? 'анонимно (медленная очередь)' : 'свой ключ'}`,
+    `Pollinations (платные модели): ${bal}`, `Файлы сохраняются в: ${OUT}`].join('\n')}]};
+});
+
+// ============================== сайты: Google Flow, Dola, Arena (через браузер Freefield) ==============================
+// Модуль браузера загружается только при первом вызове — сервер работает и без него.
+let portalsMod = null, batchModP = null;
+const portals = async () => (portalsMod ??= await import('./portals.js'));
+const batchMod = async () => (batchModP ??= await import('./batch.js'));
+const mesh3d = () => import('./mesh3d.js');
+const upscaleMod = () => import('./upscale.js');
+
+// В чат — уменьшенная копия (оригинал сохраняется целиком). 2026-10-27: превью были до 1,5 МБ каждое (оригинал или 1568 px),
+// пакет прикладывал до 24 штук — ответ больше 16 МБ, Claude отключал сервер («wrote >16MB to stdout»), и все пакеты этой копии
+// становились «прервано». Теперь превью всегда маленькое (side px, JPEG), без sharp — только небольшие файлы.
+async function preview(out, side = 768) {
+  try {
+    const sharp = (await import('sharp')).default;
+    const small = await sharp(out.buf).resize({width: side, height: side, fit: 'inside', withoutEnlargement: true}).jpeg({quality: 78}).toBuffer();
+    return {data: small.toString('base64'), mimeType: 'image/jpeg'};
+  } catch {
+    return out.buf.length <= 300 * 1024 && /jpeg|png|webp/.test(out.mime) ? {data: out.buf.toString('base64'), mimeType: out.mime} : null;
+  }
+}
+const previewItem = async (out, side) => { const p = await preview(out, side).catch(() => null); return p ? [{type: 'image', ...p}] : []; };
+
+async function portalResult(results, info) {
+  const content = [], files = [];
+  for (const out of results) {
+    files.push(saveOutput(out.buf, out.mime || 'image/jpeg', info.prompt, randSeed()));
+    if (out.mime?.startsWith('image/')) content.push(...(await previewItem(out)));
+  }
+  recordGen({kind: 'image', site: info.siteId, model: info.model, prompt: info.prompt, aspect: info.aspect,
+    files: files.map((p, i) => ({path: p, mime: results[i].mime || 'image/jpeg'}))});
+  const fis = filesInfo(files, () => ({model: info.model, aspect_ratio: info.aspect}));
+  for (const f of fis) Object.assign(f, aspectCheck(f.width, f.height, info.aspect));
+  return toolResult({status: 'done', service: info.siteId, files: fis}, {images: content, text: [`Готово: ${info.site} · ${info.model} · бесплатные кредиты вашего аккаунта`,
+    ...files.map((f, i) => `Файл ${i + 1}: ${f}`), `Формат: ${info.aspect}`].join('\n')});
+}
+
+const PORTAL_HINT = 'Генерация идёт на сайте под аккаунтом пользователя в отдельном окне Chrome Freefield (вход выполнен им самим один раз). ' +
+  'Если сайт попросит войти или пройти проверку «я не робот» — инструмент остановится: попроси пользователя сделать это в окне Chrome и повтори.';
+
+// Картинки Flow: сохранить как есть, описать каждый файл для агента (путь, размер, модель, формат кадра)
+async function flowImageResult(results, info) {
+  const P = await portals();
+  const files = [], images = [], warnings = [], errors = [];
+  for (const out of results) {
+    const file = saveOutput(out.buf, out.mime || 'image/png', info.prompt, randSeed());
+    const fi = fileInfo(file, {model: out.model || info.model, aspect_ratio: info.aspect, resolution: out.resolution ?? null, upscaled: !!out.upscaled, flow_id: out.id || null});
+    if (out.width && !fi.width) Object.assign(fi, {width: out.width, height: out.height});
+    Object.assign(fi, aspectCheck(fi.width, fi.height, info.aspect));
+    if (fi.aspect_ok === false) warnings.push(`${fi.name}: кадр ${fi.width}×${fi.height} (${fi.aspect_ratio_actual}) не совпадает с ${info.aspect} — Freefield его не обрезал и не сдвигал`);
+    if (out.warning) { fi.warning = out.warning; warnings.push(`${fi.name}: ${out.warning}`); }
+    if (out.error) errors.push(out.error);
+    files.push(fi);
+    P.rememberFlowFile(file, out.id);
+    if (images.length < 4 && /^image\//.test(fi.mime)) images.push(...(await previewItem({buf: out.buf, mime: fi.mime})));
+  }
+  recordGen({kind: 'image', site: 'flow', model: files[0]?.model || info.model, prompt: info.prompt, aspect: info.aspect, files: files.map(f => ({path: f.path, mime: f.mime}))});
+  const err = errors[0];
+  const data = {status: 'done', service: 'flow', model_requested: info.model, aspect_ratio: info.aspect, resolution_requested: info.resolution, files, warnings,
+    ...(err ? {error: err, error_kind: 'credits'} : {})};
+  const text = [err ? `⚠ ${err}. Сохранён оригинал 1K (без увеличения).` : `Готово: Google Flow · ${[...new Set(files.map(f => f.model))].join(', ')} · бесплатные кредиты вашего аккаунта`,
+    ...files.map((f, i) => `Файл ${i + 1}: ${f.path} · ${f.width}×${f.height}${f.resolution ? ' · ' + f.resolution : ''}`), ...warnings.map(w => '⚠ ' + w)].join('\n');
+  return toolResult(data, {text, images, isError: !!err});
+}
+
+server.registerTool('flow_image', {
+  title: 'Картинка через Google Flow',
+  description: 'Генерирует картинки моделями Nano Banana на сайте Google Flow за бесплатные кредиты Flow. ' +
+    'model: nano-banana-2.1 (по умолчанию — её Freefield выбирает во Flow сам; если её нет в аккаунте или Flow просит за неё кредиты без allow_credits — Flow сделает на nano-banana-2, ' +
+    'какая модель сработала — в поле model каждого файла), nano-banana-2 и nano-banana-2-lite — без кредитов, nano-banana-pro — тратит кредиты (только с allow_credits=true). ' +
+    'image_paths — до 4 фото-референсов («ингредиенты» Flow: персонаж, развёртка, стиль). ' +
+    'resolution — размер файла через меню Flow «Скачать»: 1k — оригинал, 2k — увеличение Flow (по умолчанию, максимум без подписки), 4k — обычно только с подпиской Google AI. ' +
+    'Если размер стоит кредитов, без allow_credits=true Freefield их не тратит и возвращает ошибку с ценой (оригинал 1K сохраняется). ' +
+    'Файлы сохраняются как их отдаёт Flow (PNG/JPEG), без пережатия; кадр не обрезается и не сдвигается — формат проверяется (aspect_ok). ' +
+    'Ответ и check_job содержат JSON: files[] с path (абсолютный), width, height, model, aspect_ratio, resolution. ' + PORTAL_HINT,
+  inputSchema: {
+    prompt: z.string().min(3).describe('Подробный промпт (лучше на английском).'),
+    model: z.enum(['nano-banana-2.1', 'nano-banana-2', 'nano-banana-2-lite', 'nano-banana-pro']).default('nano-banana-2.1'),
+    aspect_ratio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16']).default('16:9'),
+    count: z.number().int().min(1).max(4).default(1).describe('Сколько вариантов за раз (x1–x4).'),
+    image_paths: z.array(z.string()).max(4).optional().describe('До 4 фото-референсов (png, jpg, webp) — «ингредиенты» Flow. Фото из чата — через chat_photos.'),
+    image_path: z.string().optional().describe('Один референс (старый параметр; то же, что image_paths из одного файла).'),
+    resolution: z.enum(['1k', '2k', '4k']).default('2k').describe('Размер скачивания через меню Flow: 1k оригинал, 2k (по умолчанию), 4k.'),
+    allow_credits: z.boolean().default(false).describe('true — разрешить тратить кредиты Flow (платная модель или платный размер). Только с согласия пользователя.'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({prompt, model, aspect_ratio, count, image_paths = [], image_path, resolution, allow_credits}, extra) => {
+  let refs;
+  try {
+    refs = [...new Set([...image_paths, ...(image_path ? [image_path] : [])].map(p => { readLocalImage(p); return path.resolve(p); }))];
+    if (refs.length > 4) throw new GenError('Flow принимает до 4 фото-референсов');
+  } catch (e) { return toolResult({status: 'error', error: e.message, error_kind: 'input'}, {text: 'Ошибка: ' + e.message, isError: true}); }
+  const P = await portals();
+  const blocked = P.flowResBlocked(resolution, allow_credits);
+  if (blocked) return toolResult({status: 'error', error: blocked, error_kind: /недоступно/.test(blocked) ? 'plan' : 'credits', resolution_requested: resolution},
+    {text: `Ошибка: ${blocked}. Возьми resolution="2k" или "1k"${/недоступно/.test(blocked) ? '' : ', или allow_credits=true с согласия пользователя'}.`, isError: true});
+  const m = P.FLOW_IMAGE_MODELS[model];
+  const job = startJob('flow', async status => flowImageResult(await P.flowImage({prompt, aspect: aspect_ratio, count, model: m, imagePaths: refs, onStatus: status,
+    allowCredits: allow_credits, resolution}), {model: m.label, prompt, aspect: aspect_ratio, resolution}));
+  return waitJob(job, WAIT_MS, extra);
+});
+
+// Видео-промпт не по эталону пользователя — не запускаем, а отдаём эталон агенту (пользователь 2026-10-17: «генеришь видео не по эталонному сценарию»)
+async function etalonGate(prompts, freeForm) {
+  if (freeForm || !prompts.length) return null;
+  const E = await import('./etalon.js');
+  const {text, mode} = E.etalon();
+  if (mode === 'brainrot') return null;   // брейнрот — без эталона (правила — в video_etalon)
+  const bad = prompts.map((p, i) => [i + 1, E.checkPrompt(p, text)]).filter(x => x[1]);
+  if (!bad.length) return null;
+  return {isError: true, content: [{type: 'text', text: [
+    'Видео-промпт не по эталону пользователя — генерация НЕ запущена.',
+    ...bad.map(([n, e]) => (prompts.length > 1 ? `Видео ${n}: ` : '') + e),
+    '', E.ETALON_RULES, '', 'Эталон:', text, '',
+    'Перепиши видео-промпт(ы) по эталону и вызови снова. free_form=true — только если пользователь сам попросил промпт не по эталону.'].join('\n')}]};
+}
+
+server.registerTool('video_etalon', {
+  title: 'Режим видео и эталон видео-промпта',
+  description: 'Режим видео пользователя и как писать видео-промпты. Вызывай ПЕРЕД тем, как писать любой видео-промпт (сценарий рилса, batch_generate, flow_video, vids_video, arena_video). ' +
+    'Режим «etalon» (рилс): видео-промпт — заполненный эталон пользователя (раздел «Сценарии» приложения), те же блоки и таймкоды; не по эталону эти инструменты не запустят. ' +
+    'Режим «brainrot»: абсурдный мем-ролик без эталона, без надписей и субтитров. Переключатель — в «Сценариях» приложения; mode — переключить отсюда, когда пользователь сам просит брейнрот или ролик по эталону.',
+  inputSchema: {mode: z.enum(['etalon', 'brainrot']).optional().describe('Переключить режим (только по просьбе пользователя): etalon — рилс по эталону, brainrot — мем-ролик')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({mode}) => {
+  const E = await import('./etalon.js');
+  const {text, from, at, mode: now} = mode ? E.setEtalon(null, mode) : E.etalon();
+  const head = (mode ? 'Режим переключён: ' : 'Режим: ') + (now === 'brainrot' ? '🧠 БРЕЙНРОТ.' : '📐 ЭТАЛОН.');
+  if (now === 'brainrot') return {content: [{type: 'text', text: [head, '', E.BRAINROT_RULES].join('\n')}]};
+  return {content: [{type: 'text', text: [head, `Эталон видео-промпта (${from === 'app' ? 'из приложения, ' + new Date(at).toLocaleString('ru') : 'стандартный v4 — пользователь в приложении свой не менял'}):`,
+    '', text, '', E.ETALON_RULES].join('\n')}]};
+});
+
+server.registerTool('flow_video', {
+  title: 'Видео через Google Flow',
+  description: 'Генерирует видео на сайте Google Flow за бесплатные кредиты (50 в день: Omni 1.1 Flash по умолчанию ≈ 20 кредитов, Veo 3.1 Lite ≈ 10, Fast ≈ 20, Quality ≈ 100 — не хватит). ' +
+    'Обычно 1–3 минуты — дождись результата через check_job. ' + PORTAL_HINT,
+  inputSchema: {
+    prompt: z.string().min(3).describe('Сцена и движение камеры (лучше на английском).'),
+    model: z.enum(['omni-1.1-flash', 'veo-3.1-lite', 'veo-3.1-fast', 'veo-3.1-quality']).default('omni-1.1-flash'),
+    aspect_ratio: z.enum(['16:9', '9:16']).default('16:9'),
+    free_form: z.boolean().default(false).describe('true — промпт НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({prompt, model, aspect_ratio, free_form}, extra) => {
+  const gate = await etalonGate([prompt], free_form);
+  if (gate) return gate;
+  const P = await portals();
+  const m = P.FLOW_VIDEO_MODELS[model];
+  const job = startJob('flowvideo', async status => {
+    const res = await P.flowVideo({prompt, aspect: aspect_ratio, count: 1, model: m, onStatus: status});
+    const files = res.map(o => saveOutput(o.buf, o.mime || 'video/mp4', prompt, randSeed()));
+    recordGen({kind: 'video', site: 'flow', model: m.label, prompt, aspect: aspect_ratio, files: files.map(p => ({path: p, mime: 'video/mp4'}))});
+    return toolResult({status: 'done', service: 'flow', files: filesInfo(files, () => ({model: m.label, aspect_ratio}))},
+      {text: [`Готово: видео Google Flow · ${m.label} · бесплатные кредиты`, ...files.map(f => `Файл: ${f}`), `Формат: ${aspect_ratio}`].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('vids_video', {
+  title: 'Видео через Google Vids',
+  description: 'Генерирует видео в Google Vids (docs.google.com/videos) аккаунтом Google пользователя — бесплатно: модель Omni, 720p, 10 секунд, со звуком, ' +
+    'вертикально (9:16) или горизонтально (16:9); обычно ~1 минута. Промпт — на английском (реплики героя можно по-русски в «»). ' +
+    'image_paths — фото героя как «ингредиенты» (до 3). ' +
+    'Дождись результата через check_job. ' + PORTAL_HINT,
+  inputSchema: {
+    prompt: z.string().min(3).describe('Сцена, действие, камера, звук — на английском.'),
+    aspect_ratio: z.enum(['9:16', '16:9']).default('9:16'),
+    image_paths: z.array(z.string()).max(3).optional().describe('Фото-ингредиенты (герой, предмет); фото из чата — через chat_photos'),
+    free_form: z.boolean().default(false).describe('true — промпт НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({prompt, aspect_ratio, image_paths = [], free_form}, extra) => {
+  const gate = await etalonGate([prompt], free_form);
+  if (gate) return gate;
+  const P = await portals();
+  try { image_paths = image_paths.map(p => { readLocalImage(p); return path.resolve(p); }); }
+  catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+  const job = startJob('vidsvideo', async status => {
+    const res = await P.vidsVideo({prompt, aspect: aspect_ratio, imagePaths: image_paths, onStatus: status});
+    const files = res.map(o => saveOutput(o.buf, o.mime || 'video/mp4', prompt, randSeed()));
+    recordGen({kind: 'video', site: 'vids', model: 'Omni · Google Vids', prompt, aspect: aspect_ratio, files: files.map(p => ({path: p, mime: 'video/mp4'}))});
+    return toolResult({status: 'done', service: 'vids', files: filesInfo(files, () => ({model: 'Omni · Google Vids', aspect_ratio}))},
+      {text: ['Готово: видео Google Vids · Omni · 720p · 10 с · бесплатно', ...files.map(f => `Файл: ${f}`), `Формат: ${aspect_ratio}`].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('dola_image', {
+  title: 'Картинка через Dola (Seedream)',
+  description: 'Генерирует картинку моделью Seedream на сайте Dola (ByteDance) за бесплатные ежедневные кредиты Dola. ' +
+    'seedream-5-pro (Seedream 5.0, по умолчанию) — лучше качество и не тратит кредиты; seedream-4.5 — прошлая версия. Dola сама решает, сколько вариантов сделать (обычно 1–4). ' + PORTAL_HINT,
+  inputSchema: {
+    prompt: z.string().min(3).describe('Подробный промпт (английский или русский).'),
+    model: z.enum(['seedream-5-pro', 'seedream-4.5']).default('seedream-5-pro'),
+    aspect_ratio: z.enum(['1:1', '2:3', '3:4', '4:3', '9:16', '16:9']).default('16:9'),
+    image_path: z.string().optional().describe('Фото-референс (png, jpg, webp): картинка будет сделана по нему. Фото из чата — через chat_photos.'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({prompt, model, aspect_ratio, image_path}, extra) => {
+  let ref = null;
+  try { if (image_path) { readLocalImage(image_path); ref = path.resolve(image_path); } } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+  const P = await portals();
+  const m = P.DOLA_IMAGE_MODELS[model];
+  const job = startJob('dola', async status => portalResult(await P.dolaImage({prompt, aspect: aspect_ratio, model: m, imagePath: ref, onStatus: status}),
+    {site: 'Dola', siteId: 'dola', model: m.label, prompt, aspect: aspect_ratio}));
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('arena_video', {
+  title: 'Видео через Arena (сразу 2 модели)',
+  description: 'Генерирует видео на arena.ai бесплатно (аккаунт пользователя в окне Chrome Freefield). Режим «битва»: один промпт → два видео ' +
+    'от двух случайных анонимных топ-моделей (Veo, Kling, Seedance, Hailuo…). Можно оживить картинку (image_path). Формат кадра Arena не выбирает — ' +
+    'укажи его словами в промпте (например "vertical 9:16"). Имена моделей Arena показывает после голосования на сайте — Freefield не голосует. ' +
+    'Arena может публиковать промпты для исследований — не отправляй личные данные. Обычно 2–4 минуты — дождись через check_job. ' + PORTAL_HINT,
+  inputSchema: {
+    prompt: z.string().min(3).max(2500).describe('Сцена, действие и движение камеры (лучше на английском).'),
+    image_path: z.string().optional().describe('Путь к локальной картинке, которую нужно оживить (png, jpg, webp).'),
+    free_form: z.boolean().default(false).describe('true — промпт НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({prompt, image_path, free_form}, extra) => {
+  const gate = await etalonGate([prompt], free_form);
+  if (gate) return gate;
+  let img = null;
+  try { if (image_path) { readLocalImage(image_path); img = path.resolve(image_path); } } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+  const P = await portals();
+  const job = startJob('arena', async status => {
+    const {results, chat} = await P.arenaVideo({prompt, imagePath: img, onStatus: status});
+    const saved = results.map(o => ({path: saveOutput(o.buf, o.mime || 'video/mp4', prompt, randSeed()), mime: o.mime || 'video/mp4', label: o.label}));
+    recordGen({kind: 'video', site: 'arena', model: 'битва двух анонимных моделей', prompt, files: saved});
+    const files = saved.map(f => `${f.label}: ${f.path}`);
+    return toolResult({status: 'done', service: 'arena', chat, files: filesInfo(saved, f => ({model: f.label}))}, {text: [`Готово: Arena · ${results.length} видео от двух анонимных моделей · бесплатно`, ...files,
+      `Чат на Arena (там можно проголосовать — после этого Arena покажет названия моделей): ${chat}`].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+function progressLine(items) {
+  const done = items.filter(i => i.status === 'done' || i.status === 'error').length;
+  const run = items.filter(i => i.status === 'running').map(i => `${i.n}: ${i.message}`);
+  return `готово ${done} из ${items.length}${run.length ? ' · ' + run.join(' · ') : ''}`;
+}
+
+async function batchResult(batch) {
+  const B = await batchMod();
+  const content = [];
+  for (const it of batch.items) for (const f of it.files || []) {
+    if (!f.mime.startsWith('image/') || content.length >= 24) continue;   // все картинки пакета (было 8 — агент не видел остальные)
+    try { content.push(...(await previewItem({buf: fs.readFileSync(f.path), mime: f.mime}, 512))); } catch {}
+  }
+  const ok = batch.items.filter(i => i.status === 'done').length;
+  const items = batch.items.map(i => ({n: i.n, status: i.status, kind: i.kind, site: i.site, model: i.model || null, ...(i.message && i.status === 'error' ? {error: i.message} : {}),
+    files: filesInfo(i.files || [], () => ({model: i.model || null, aspect_ratio: i.aspect || null}))}));
+  return toolResult({status: 'done', batch_id: batch.id, done: ok, total: batch.items.length, items},
+    {images: content, text: `Пакет ${batch.id}: готово ${ok} из ${batch.items.length} · бесплатные кредиты сайтов\n\n` + B.summary(batch.items)});
+}
+
+server.registerTool('batch_generate', {
+  title: 'Пакет сценариев: Vids + Flow + Arena + Dola',
+  description: 'Запускает сразу несколько сценариев (1–10) на бесплатных кредитах сайтов и сам раскладывает их по сервисам: видео — по кругу Google Vids (Omni, 720p, 10 с, бесплатно), Google Flow ' +
+    '(Veo 3.1 Lite или Omni 1.1 Flash из 50 дневных кредитов), Dola (Seedance 2.5 за баллы Dola) и Arena (2 видео от двух анонимных топ-моделей за запрос); картинки — Google Flow (Nano Banana 2.1) и Dola ' +
+    '(Seedream 5.0, обычно 4 варианта) — обе без кредитов; Arena рисует картинки (2 от двух моделей), только если указать service="arena". Все сценарии идут одновременно (Flow — до 4, Dola и Arena — до 2 за раз): промпты отправляются подряд, результаты ждутся вместе; если сайт не справился — сценарий переезжает на запасной. ' +
+    'Перед вызовом перепиши каждый сценарий пользователя в подробный английский промпт (сцена, действие, камера, свет, стиль). ' +
+    'Обычно 3–10 минут — дождись результата через check_job. Не простаивай, пока ждёшь: следующий пакет, который не зависит от этого (фото других локаций, другие сценарии), запускай сразу вторым вызовом — ' +
+    'Flow сам берёт следующий промпт, как только прошлые картинки сгенерированы, не дожидаясь их скачивания. ' + PORTAL_HINT,
+  inputSchema: {
+    scenarios: z.array(z.object({
+      prompt: z.string().min(3).max(2500),
+      kind: z.enum(['video', 'image']).default('video'),
+      service: z.enum(['auto', 'flow', 'arena', 'dola', 'vids']).default('auto').describe('auto — Freefield выберет сам по оставшимся кредитам; vids — Google Vids (только видео: Omni, 9:16 или 16:9, 10 с)'),
+      aspect_ratio: z.enum(['16:9', '9:16', '1:1', '3:4', '4:3', '2:3', '21:9']).optional().describe('Формат. Видео: Flow — только 16:9 и 9:16, Dola — 1:1, 3:4, 4:3, 9:16, 16:9, 21:9. ' +
+        'Фото: Flow — 16:9, 4:3, 1:1, 3:4, 9:16; Dola — 1:1, 2:3, 3:4, 4:3, 9:16, 16:9. «auto» выберет сервис, где формат есть; Arena формат не выбирает — Freefield допишет его в промпт'),
+      count: z.number().int().min(1).max(4).optional().describe('Сколько картинок за раз во Flow (x1–x4); Dola обычно даёт 4, Arena — 2'),
+      seconds: z.union([z.literal(5), z.literal(8), z.literal(10)]).optional().describe('Длина видео: во Flow 8 — Veo 3.1 Lite (10 кредитов), 10 — Omni 1.1 Flash (20 кредитов); ' +
+        'в Dola 5 или 10. Бери по сценарию пользователя: расписан на 10 секунд — ставь 10.'),
+      model: z.string().optional().describe('Модель на выбранном сервисе (иначе — по умолчанию): Flow видео omni-1.1-flash (по умолчанию) | veo-3.1-lite | veo-3.1-fast | veo-3.1-quality; ' +
+        'Flow фото nano-banana-2 | nano-banana-2.1 (новая) | nano-banana-2-lite | nano-banana-pro; Dola видео seedance-2.0-fast | seedance-2.5 | seedance-1.0; Dola фото seedream-5-pro | seedream-4.5.'),
+      image_path: z.string().optional().describe('Фото-референс: для видео — оживить его (Arena), для картинки — сделать по нему (Flow Nano Banana 2 / Dola / Arena). Фото из чата — через chat_photos.'),
+      image_paths: z.array(z.string()).max(4).optional().describe('Несколько фото-референсов: Flow берёт все как «ингредиенты», Dola и Arena — первое'),
+      title: z.string().max(60).optional().describe('Короткое название сценария (например «toilet-5-kopeek») — в имени файла, чтобы файлы разных сценариев различались'),
+      resolution: z.enum(['1k', '2k', '4k']).optional().describe('Только картинки Flow: размер скачивания через меню Flow (2k — увеличение Flow, дольше). Не задано — оригинал 1k'),
+      video_prompt: z.string().min(3).max(2500).optional().describe('Конвейер (с animate_best): английский видео-промпт, по которому оживить лучший кадр этой картинки. Не задан — «Animate this image: <prompt>»'),
+      video_seconds: z.union([z.literal(5), z.literal(8), z.literal(10)]).optional().describe('Конвейер: длина видео'),
+      video_service: z.enum(['auto', 'flow', 'arena', 'dola', 'vids']).optional().describe('Конвейер: сервис для видео (по умолчанию auto — любой свободный)'),
+    })).min(1).max(10),
+    animate_best: z.boolean().default(false).describe('Конвейер: как только картинка сценария готова, Freefield сам берёт лучший кадр (самый крупный из вариантов) и сразу ставит видео по нему на свободный сервис — ' +
+      'не дожидаясь остальных картинок пакета. Видео приходят в тот же пакет (check_job), номера после картинок. Только для kind=image.'),
+    free_form: z.boolean().default(false).describe('true — видео-промпты НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
+    site_task: z.string().optional().describe('id задания из site_tasks («🌐 Ассеты для сайта»): готовые картинки попадут в галерею с меткой «🌐 Сайт: <проект>»'),
+    previews: z.number().int().min(0).max(24).default(PREVIEWS).describe('Сколько картинок-превью приложить к ответу (0 — только пути в JSON)'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({scenarios, site_task, free_form, previews, animate_best}, extra) => {
+  const gate = await etalonGate([...scenarios.filter(s => s.kind !== 'image').map(s => s.prompt),
+    ...(animate_best ? scenarios.filter(s => s.kind === 'image' && s.video_prompt).map(s => s.video_prompt) : [])], free_form);
+  if (gate) return gate;
+  try {
+    for (const s of scenarios) {
+      if (s.image_path) { readLocalImage(s.image_path); s.image_path = path.resolve(s.image_path); }
+      if (s.image_paths) s.image_paths = s.image_paths.map(p => { readLocalImage(p); return path.resolve(p); });
+    }
+  } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+  let siteExtra = {};
+  if (site_task) {
+    const {siteProject} = await import('./site.js');
+    const name = siteProject(site_task);
+    if (!name) return {isError: true, content: [{type: 'text', text: `Нет задания ${site_task} — возьми id из site_tasks`}]};
+    siteExtra = {siteTask: site_task, siteProject: name};
+  }
+  if (animate_best) for (const s of scenarios) if (s.kind === 'image') s.animate = {prompt: s.video_prompt, seconds: s.video_seconds, service: s.video_service, aspect_ratio: s.aspect_ratio};
+  const batch = await startBatch(scenarios, 'claude', siteExtra);
+  const job = startJob('batch', async status => {
+    status(progressLine(batch.items));
+    const t = setInterval(() => status(progressLine(batch.items)), 3000);
+    try { await batch.promise; } finally { clearInterval(t); }
+    return batchResult(batch);
+  });
+  setBatchJob(batch, job.id);
+  return waitJob(job, WAIT_MS, extra, previews);
+});
+
+// Пакет, который подхватила эта копия после перезапуска другой, — снова задача с прежним номером (check_job по старому id)
+const batchJob = (b, id = b.jobId) => startJob('batch', async status => {
+  status(progressLine(b.items));
+  const t = setInterval(() => status(progressLine(b.items)), 3000);
+  try { await b.promise; } finally { clearInterval(t); }
+  return batchResult(b);
+}, id);
+const resumeNow = () => resumeBatches(b => { if (b.jobId) batchJob(b); }).catch(() => 0);
+resumeNow();
+setInterval(resumeNow, 60e3).unref();
+
+server.registerTool('image_to_3d', {
+  title: 'Картинка → 3D-модель',
+  description: 'Делает 3D-модель по картинке персонажа или предмета на бесплатных лимитах, под аккаунтами пользователя. Асинхронно: возвращает job_id — результат через check_job. ' +
+    'service: auto (по умолчанию: сайт Hunyuan 3D — 20 бесплатных в день → Spaces на Hugging Face → Tripo → Meshy; если сервис не смог — следующий), ' +
+    'hunyuan (официальный сайт Hunyuan 3D, международная версия), tripo (Tripo Studio, бесплатные кредиты в месяц), meshy (Meshy, 100 кредитов и 10 скачиваний в месяц), ' +
+    'hf (Spaces microsoft/TRELLIS.2 и tencent/Hunyuan3D-2.1, мультивью — tencent/Hunyuan3D-2mv, на квоте ZeroGPU аккаунта пользователя: ≈ 3,5 мин GPU в день — 1–3 модели). ' +
+    'Вход: image_path (одна картинка) ИЛИ views {front, back, left, right} (мультивью, где сервис умеет). quality: standard | high | max (max — максимум полигонов и текстур, что даёт сервис). ' +
+    'texture (по умолчанию true), pbr, format: glb (по умолчанию) | fbx | obj — если сервис не отдаёт нужный формат, Freefield переводит сам (OBJ — сам, FBX — через установленный Blender). ' +
+    'Результат (JSON): model_path и files[] — абсолютные пути модели и текстур в Freefield/outputs/3d/<job>/, polygons (треугольники, вершины), service, free_left (сколько бесплатного осталось). ' +
+    'Платные кредиты не тратит без allow_paid=true. Если сайт просит войти или пройти проверку «я не робот» — остановится: попроси пользователя сделать это в окне Chrome Freefield и повтори. ' +
+    'Совет: картинка — персонаж целиком на однотонном фоне, без обрезанных рук и ног (A- или T-поза лучше для игры).',
+  inputSchema: {
+    image_path: z.string().optional().describe('Картинка (png, jpg, webp) — персонаж или предмет целиком.'),
+    views: z.object({front: z.string(), back: z.string().optional(), left: z.string().optional(), right: z.string().optional()}).optional()
+      .describe('Мультивью: пути к видам спереди (обязательно), сзади, слева, справа.'),
+    service: z.enum(['auto', 'hunyuan', 'tripo', 'meshy', 'hf']).default('auto'),
+    quality: z.enum(['standard', 'high', 'max']).default('high'),
+    texture: z.boolean().default(true),
+    pbr: z.boolean().default(false).describe('PBR-материалы (metallic/roughness/normal). TRELLIS.2 и Hunyuan3D-2.1 дают их всегда.'),
+    format: z.enum(['glb', 'fbx', 'obj']).default('glb'),
+    allow_paid: z.boolean().default(false).describe('true — разрешить тратить платные кредиты сервиса. Только с согласия пользователя.'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({image_path, views, service, quality, texture, pbr, format, allow_paid}, extra) => {
+  const bad = msg => toolResult({status: 'error', error: msg, error_kind: 'input'}, {text: 'Ошибка: ' + msg, isError: true});
+  if (!image_path && !views) return bad('нужна картинка: image_path или views.front');
+  if (image_path && views) return bad('укажи что-то одно: image_path или views');
+  let img = null, vw = null;
+  try {
+    if (image_path) { readLocalImage(image_path); img = path.resolve(image_path); }
+    if (views) vw = Object.fromEntries(Object.entries(views).filter(([, v]) => v).map(([k, v]) => { readLocalImage(v); return [k, path.resolve(v)]; }));
+  } catch (e) { return bad(e.message); }
+  const M = await mesh3d();
+  const job = startJob('3d', async (status, j) => {
+    const outDir = path.join(OUT, '3d', j.id);
+    const r = await M.imageTo3d({image: img, views: vw, service, quality, texture, pbr, format, allowPaid: allow_paid, outDir, onStatus: status});
+    const left = r.free_left, leftText = r.service === 'hf'
+      ? `${left.quota}${left.seconds_left != null ? `, осталось ≈ ${left.seconds_left} с` : ''} (≈ ${left.generations_left_estimate} моделей)`
+      : `бесплатно осталось ≈ ${left.left} ${left.unit} за ${left.per} (${left.source})`;
+    const text = [r.error ? `⚠ ${r.error}` : `Готово: 3D-модель · ${r.service_label} · ${r.engine}`,
+      `Модель: ${r.model_path}`, r.polygons ? `Полигоны: ${r.polygons.triangles.toLocaleString('ru')} треугольников, ${r.polygons.vertices.toLocaleString('ru')} вершин` : 'Полигоны: сервис не дал посчитать',
+      `Текстуры: ${r.textures}${r.pbr ? ' · PBR' : ''}`, `Остаток: ${leftText}`,
+      ...r.skipped.map(x => `Пропущен ${x.service}: ${x.reason}`), ...r.warnings.map(w => '⚠ ' + w)].join('\n');
+    return toolResult(r, {text, isError: !!r.error});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+/* ---- Монтаж (пользователь 2026-10-10/11, план «лучше Katana»): автомонтаж под бит, шаблоны, по образцу, Claude-режиссёр, экспорт ---- */
+const montageMod = () => import('./montage.js');
+const todayDir = () => path.join(OUT, new Date().toISOString().slice(0, 10));
+// общие параметры автомонтажа (montage, montage_plan, montage_variants, montage_from_reference)
+const MONTAGE_ARGS = {
+  clips: z.array(z.string()).max(8).optional().describe('Видео по порядку (абсолютные пути). Не задано — последние 4 видео из outputs'),
+  music: z.string().optional().describe('Трек (mp3/wav/m4a). Подобрать по темпу и настроению — montage_music. Без трека — ровный ритм 120 BPM и звук клипов'),
+  duration: z.number().min(6).max(60).default(20).describe('Длина, с (подгоняется к целым тактам; ролик с речью может выйти до 1,5× длиннее — фразы не рвутся)'),
+  template: z.string().max(40).optional().describe('Шаблон: sketch (сценка с речью — по умолчанию для клипов с речью), brainrot (мем-ролик — по умолчанию в режиме «Брейнрот»), aura, velocity, trailer (кино-трейлер), launch, demo, reel, talking или свой (из montage_from_reference) — список: montage_templates'),
+  style: z.enum(['titles', 'cards', 'launch', 'none']).optional().describe('Графика (по умолчанию — из шаблона; без шаблона — только у клипов без речи с заголовком)'),
+  caption_style: z.enum(['pop', 'karaoke', 'word', 'box', 'outline', 'neon', 'minimal', 'typewriter', 'bounce', 'gradient']).optional().describe('Стиль субтитров'),
+  look: z.enum(['teal_orange', 'film', 'bw', 'neon', 'warm', 'cold', 'aura', 'none']).optional().describe('Цвет всего ролика (по умолчанию — из шаблона)'),
+  title: z.string().max(80).optional().describe('Заголовок / имя продукта'),
+  subtitle: z.string().max(120).optional().describe('Подзаголовок (в launch — подпись под кнопкой)'),
+  items: z.array(z.string().max(60)).max(5).optional().describe('Тезисы для cards / фишки для launch'),
+  cta: z.string().max(40).optional().describe('Призыв в конце («Подпишись», «Ссылка в профиле»)'),
+  hook: z.string().max(90).optional().describe('Хук-текст на первые 2 с (шаблон reel; по умолчанию — title)'),
+  captions: z.boolean().optional().describe('Субтитры по словам из речи клипов (по умолчанию — да; в режиме «брейнрот» — нет)'),
+  language: z.string().max(5).default('auto').describe('Язык речи: auto, ru, en…'),
+  pace: z.enum(['auto', 'speech', 'fast', 'medium', 'slow']).default('auto').describe('auto: речь — по фразам; без речи — смена кадра каждые 1–2 такта; fast = каждые 2 бита'),
+  aspect: z.enum(['auto', '9:16', '1:1', '4:5', '16:9']).default('auto'),
+  music_start: z.number().min(0).optional().describe('С какой секунды трека (по умолчанию — дроп сразу после хука или самый громкий кусок)'),
+  brand: z.object({accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), font: z.string().max(40).optional(), logo: z.string().optional()}).optional()
+    .describe('Бренд-набор: акцентный цвет #rrggbb, шрифт заголовков из Google Fonts (с кириллицей), логотип (путь к png) в углу'),
+  quality: z.enum(['final', 'draft']).default('final').describe('draft — черновик 540p за секунды (сначала показать, потом финал)'),
+};
+const badInput = msg => toolResult({status: 'error', error_kind: 'input', error: msg}, {text: 'Ошибка: ' + msg, isError: true});
+// параметры MCP → параметры montage(); ошибка — строкой
+// режим «брейнрот» (переключатель в «Сценариях» / video_etalon): мем-ролик без субтитров и без эталона
+const brainrotMode = () => { try { return JSON.parse(fs.readFileSync(path.join(HERE, '.etalon.json'), 'utf8')).mode === 'brainrot'; } catch { return false; } };
+function montageOpts(args, M) {
+  const clips = (args.clips?.length ? args.clips : M.latestVideos(OUT, 4)).map(f => path.resolve(f));
+  const bad = clips.find(f => !fs.existsSync(f));
+  if (bad || !clips.length) return {error: bad ? 'нет файла ' + bad : 'в outputs нет видео — передай clips'};
+  if (args.music && !fs.existsSync(args.music)) return {error: 'нет трека ' + args.music};
+  const {quality, ...rest} = args;
+  return {opts: {...rest, captions: args.captions ?? (brainrotMode() ? false : undefined), template: args.template ?? (brainrotMode() ? 'brainrot' : undefined), clips, music: args.music && path.resolve(args.music), style: args.style,
+    look: args.look === 'none' ? {preset: 'none'} : args.look ? {preset: args.look, vignette: true} : undefined,
+    brand: args.brand && {...args.brand, logo: args.brand.logo ? {path: path.resolve(args.brand.logo)} : null}, outDir: todayDir()}, quality};
+}
+const montageText = r => [`Готово: ${r.duration} с, ${r.width}×${r.height}${r.quality === 'draft' ? ' (черновик)' : ''}, ${r.cuts} кусков${r.bpm ? ` под бит (${r.bpm} BPM)` : ''}` +
+  `${r.captions != null ? `, субтитры: ${r.captions ? r.captions + ' слов' : 'нет'}` : ''}${r.template ? `, шаблон ${r.template}` : ''}`,
+  `Файл: ${r.path}`, `Проект: ${r.project} (править — montage_edit / montage_render)`, `Время: ${r.seconds} с`, ...(r.warnings || []).map(w => '⚠ ' + w)].join('\n');
+const recordMontage = (r, title) => recordGen({kind: 'video', site: 'freefield', model: `монтаж · ${r.template || r.style || 'проект'}${r.quality === 'draft' ? ' · черновик' : ''}`,
+  prompt: `монтаж: ${title}`, aspect: r.aspect, files: [{path: r.path, mime: r.mime}]});
+// картинка с диска → содержимое MCP (раскадровка для глаз Claude)
+const imageContent = async (file, width = 1200) => ({type: 'image', mimeType: 'image/jpeg',
+  data: (await (await import('sharp')).default(fs.readFileSync(file)).resize({width, withoutEnlargement: true}).jpeg({quality: 80}).toBuffer()).toString('base64')});
+
+server.registerTool('montage', {
+  title: 'Смонтировать ролик под бит',
+  description: 'Автомонтаж бесплатно на этом компьютере (уровень Higgsfield Katana): 2–8 клипов + музыка → ролик. Биты и дроп трека, швы на битах, ' +
+    'лучшие куски клипов по оценке кадров, речь без пауз и «эээ», кадр 16:9 в 9:16 едет за действием, переходы, «удары» зумом, эффекты, цвет, ' +
+    'звуковые удары, субтитры по словам (whisper.cpp), моушн-графика, громкость −14 LUFS, видеокарта (NVENC). Шаблон (template) задаёт всё сразу — montage_templates. ' +
+    'Порядок работы режиссёра: montage_analyze (посмотреть клипы) → montage (quality=draft, за секунды) → показать → montage_edit словами → финал. ' +
+    'Не хватает кадров — сгенерируй их (batch_generate во Flow / Arena), нужен голос — echo_speak, музыка — montage_music. ' +
+    'Первый запуск сам ставит ffmpeg и Whisper (~300 МБ). Долго — вернётся job_id, жди через check_job. Готовый mp4 — в outputs/<дата> и в галерее приложения. ' +
+    'Тексты (title, subtitle, items, cta, hook) — на языке ролика (по умолчанию по-русски).',
+  inputSchema: MONTAGE_ARGS,
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async (args, extra) => {
+  const M = await montageMod();
+  const {opts, quality, error} = montageOpts(args, M);
+  if (error) return badInput(error);
+  const job = startJob('montage', async status => {
+    const r = await M.montage({...opts, quality, onStatus: status});
+    recordMontage(r, args.title || opts.clips.map(f => path.basename(f)).join(', '));
+    return toolResult(r, {text: montageText(r)});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_templates', {
+  title: 'Шаблоны монтажа',
+  description: 'Шаблоны монтажа (встроенные и свои, сделанные по образцу), стили субтитров и цвета — чтобы выбрать под бриф. Превью встроенных — outputs/montage-templates/<id>.mp4.',
+  inputSchema: {},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async () => {
+  const M = await montageMod();
+  const r = {templates: M.recipeList(OUT), caption_styles: M.CAPTION_STYLES, looks: Object.entries(M.LOOKS).map(([id, l]) => ({id, label: l.label})), graphics: M.STYLES};
+  return toolResult(r, {text: ['Шаблоны:', ...r.templates.map(t => `• ${t.id}${t.own ? ' (свой)' : ''} — ${t.label}: ${t.desc}`), '', `Субтитры: ${r.caption_styles.join(', ')}`,
+    `Цвет: ${r.looks.map(l => `${l.id} (${l.label})`).join(', ')}`].join('\n')});
+});
+
+server.registerTool('montage_analyze', {
+  title: 'Посмотреть клипы перед монтажом',
+  description: 'Режиссёру: по каждому клипу — раскадровка (картинки ниже, смотри сам: что в кадре, где лучшие моменты, есть ли текст), речь целиком, ' +
+    'лучшие моменты по оценке кадров, смены сцен, движение. Дальше — выбрать порядок клипов, шаблон, хук и тексты для montage.',
+  inputSchema: {clips: z.array(z.string()).min(1).max(8).describe('Видео (абсолютные пути)')},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async ({clips}, extra) => {
+  const M = await montageMod();
+  const files = clips.map(f => path.resolve(f)), bad = files.find(f => !fs.existsSync(f));
+  if (bad) return badInput('нет файла ' + bad);
+  const job = startJob('montage_analyze', async status => {
+    const r = await M.analyzeClips(files, {outDir: todayDir(), onStatus: status});
+    const images = [];
+    for (const c of r) if (c.sheet) images.push(await imageContent(c.sheet, 900));
+    return toolResult({clips: r}, {images, text: r.map((c, i) => c.error ? `${i + 1}. ${path.basename(c.file)} — ${c.error}` :
+      `${i + 1}. ${path.basename(c.file)} — ${c.duration} с, ${c.size}${c.speech ? `, речь (${c.language}): «${c.speech.slice(0, 300)}»` : ', без речи'}; ` +
+      `лучшие моменты: ${c.best_moments.map(b => `${b.from}–${b.to} с`).join(', ') || '—'}; смен сцен: ${c.scene_cuts.length}; движение ${c.motion}`).join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_plan', {
+  title: 'План монтажа без рендера',
+  description: 'Собрать проект montage.json (куски клипов, переходы, эффекты, субтитры, графика) без рендера — посмотреть и поправить JSON, потом montage_render. ' +
+    'Формат проекта описан в начале файла mcp/montage/project.js.',
+  inputSchema: MONTAGE_ARGS,
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async (args, extra) => {
+  const M = await montageMod();
+  const {opts, error} = montageOpts(args, M);
+  if (error) return badInput(error);
+  const job = startJob('montage_plan', async status => {
+    const r = await M.planMontage({...opts, onStatus: status});
+    return toolResult(r, {text: [`План: ${r.duration} с, ${r.clips.length} кусков (${r.pace}), BPM ${r.bpm}`, `Проект: ${r.project}`, ...r.warnings.map(w => '⚠ ' + w)].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_render', {
+  title: 'Отрендерить проект монтажа',
+  description: 'Проект montage.json (файл project или сам объект project_json) → mp4 в галерею. Для своих правок проекта: поменял JSON — отрендерил.',
+  inputSchema: {
+    project: z.string().optional().describe('Путь к .montage.json'),
+    project_json: z.record(z.string(), z.any()).optional().describe('Проект целиком (вместо файла)'),
+    quality: z.enum(['final', 'draft']).default('final'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({project, project_json, quality}, extra) => {
+  const M = await montageMod();
+  if (!project_json && !(project && fs.existsSync(project))) return badInput('нужен project (путь к .montage.json) или project_json');
+  const P = project_json || JSON.parse(fs.readFileSync(project, 'utf8'));
+  const job = startJob('montage_render', async status => {
+    const r = await M.renderProject(P, {outDir: todayDir(), quality, onStatus: status});
+    recordMontage({...r, template: P.meta?.opts?.template}, P.name || 'проект');
+    return toolResult(r, {text: montageText(r)});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_edit', {
+  title: 'Поправить монтаж словами',
+  description: 'Правка ролика, собранного montage: «быстрее» (faster), «медленнее» (slower), «короче на 3 с» (shorter: 3), «длиннее» (longer), «ещё вариант» (variant), ' +
+    'другой шаблон / цвет / стиль субтитров / тексты / клипы / трек. Пересобирает по тем же клипам (черновик по умолчанию) — новый проект и mp4 в галерею.',
+  inputSchema: {
+    project: z.string().describe('Путь к .montage.json прошлого монтажа (из ответа montage)'),
+    faster: z.boolean().optional(), slower: z.boolean().optional(), shorter: z.number().min(1).max(30).optional(), longer: z.number().min(1).max(30).optional(),
+    variant: z.boolean().optional().describe('Другой вариант: клипы в другом порядке, другие переходы'),
+    template: z.string().max(40).optional(), look: MONTAGE_ARGS.look, caption_style: MONTAGE_ARGS.caption_style, style: MONTAGE_ARGS.style,
+    title: z.string().max(80).optional(), subtitle: z.string().max(120).optional(), items: MONTAGE_ARGS.items, cta: z.string().max(40).optional(), hook: z.string().max(90).optional(),
+    clips: MONTAGE_ARGS.clips, music: z.string().optional(), duration: z.number().min(6).max(60).optional(),
+    quality: z.enum(['final', 'draft']).default('draft'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({project, quality, ...ops}, extra) => {
+  const M = await montageMod();
+  if (!fs.existsSync(project)) return badInput('нет файла проекта ' + project);
+  if (ops.clips) ops.clips = ops.clips.map(f => path.resolve(f));
+  if (ops.music) ops.music = path.resolve(ops.music);
+  const job = startJob('montage_edit', async status => {
+    const r = await M.editMontage(project, ops, {outDir: todayDir(), quality, onStatus: status});
+    recordMontage(r, 'правка: ' + Object.keys(ops).join(', '));
+    return toolResult(r, {text: montageText(r)});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_variants', {
+  title: 'Несколько вариантов монтажа',
+  description: 'Те же клипы и трек → 2–4 варианта черновиками (другой порядок клипов и переходы, третий — с другим цветом), все в галерею — пусть пользователь выберет.',
+  inputSchema: {...MONTAGE_ARGS, count: z.number().int().min(2).max(4).default(3), quality: z.enum(['final', 'draft']).default('draft')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({count, ...args}, extra) => {
+  const M = await montageMod();
+  const {opts, quality, error} = montageOpts(args, M);
+  if (error) return badInput(error);
+  const job = startJob('montage_variants', async status => {
+    const rs = await M.variants({...opts, quality, onStatus: status}, count);
+    rs.forEach((r, i) => !r.error && recordMontage(r, `вариант ${i + 1}: ${args.title || 'монтаж'}`));
+    return toolResult({variants: rs}, {text: rs.map((r, i) => `Вариант ${i + 1}: ` + (r.error ? 'ошибка — ' + r.error : `${r.duration} с, ${r.cuts} кусков · ${r.path}\n   проект: ${r.project}`)).join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_from_reference', {
+  title: 'Смонтировать по образцу',
+  description: 'Как Katana, но прозрачно: рилс-образец (файл) → рецепт: длины кадров в долях бита, переходы (склейка / вспышка / смаз / через чёрное), цвет, ' +
+    'движение, речь — понятным описанием + раскадровка образца (картинка ниже: прочитай текст на экране, шрифты, композицию и перенеси их в title/hook/items). ' +
+    'Рецепт сразу применяется к клипам (clips) — 3 варианта черновиками в галерею; save_as сохраняет его своим шаблоном (дальше — montage template=имя).',
+  inputSchema: {...MONTAGE_ARGS, reference: z.string().describe('Рилс-образец (видео, абсолютный путь)'), save_as: z.string().max(40).optional().describe('Сохранить рецепт шаблоном под этим именем'),
+    variants: z.number().int().min(0).max(4).default(3).describe('Сколько вариантов собрать (0 — только разобрать образец)'), quality: z.enum(['final', 'draft']).default('draft')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({reference, save_as, variants: n, ...args}, extra) => {
+  const M = await montageMod();
+  if (!fs.existsSync(reference)) return badInput('нет образца ' + reference);
+  const prep = n ? montageOpts(args, M) : {opts: {outDir: todayDir()}, quality: args.quality};
+  if (prep.error) return badInput(prep.error);
+  const job = startJob('montage_from_reference', async status => {
+    const r = await M.fromReference({...prep.opts, quality: prep.quality, reference: path.resolve(reference), save_as, variants: n, onStatus: status});
+    r.results.forEach((x, i) => !x.error && recordMontage(x, `по образцу, вариант ${i + 1}`));
+    const images = [await imageContent(r.sheet, 1000)];
+    return toolResult({reference: r.reference, template: r.template, variants: r.results}, {images, text: [
+      'Образец:', ...r.reference.description.map(d => '• ' + d), r.reference.transcript ? `Речь образца: «${r.reference.transcript.slice(0, 400)}»` : '',
+      r.template ? `Рецепт сохранён шаблоном «${r.template}» — montage template=${r.template}` : '',
+      ...r.results.map((x, i) => `Вариант ${i + 1}: ` + (x.error ? 'ошибка — ' + x.error : `${x.duration} с, ${x.cuts} кусков · ${x.path}`))].filter(Boolean).join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_music', {
+  title: 'Музыка пользователя для монтажа',
+  description: 'Треки с этого компьютера (по умолчанию папки «Музыка», «Загрузки», outputs/music) с темпом (BPM), энергией, настроением, длиной и дропом — ' +
+    'выбрать трек под настроение ролика и передать в montage music. Первый раз считает несколько минут, потом из кэша. ' +
+    'Своей музыки нет — make: aura (медленный «аура-фонк» 84 BPM с нарастанием и дропом), drift (быстрый фонк 128 BPM для velocity), trailer (кино-трейлер 90 BPM): ' +
+    'трек синтезируется здесь же, без лицензий, с точным темпом и дропом.',
+  inputSchema: {folders: z.array(z.string()).max(5).optional().describe('Свои папки с музыкой'), limit: z.number().int().min(1).max(60).default(30),
+    make: z.enum(['aura', 'drift', 'trailer']).optional().describe('Сделать свой трек в этом стиле'), variant: z.number().int().min(0).max(20).default(0).describe('Другой вариант мелодии')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({folders, limit, make, variant}, extra) => {
+  const M = await montageMod();
+  if (make) {
+    const r = await M.makeTrack(make, {outRoot: OUT, variant});
+    return toolResult(r, {text: `Трек готов: ${r.path} — ${r.bpm} BPM, дроп на ${r.drop} с, ${r.duration} с`});
+  }
+  const job = startJob('montage_music', async status => {
+    const r = await M.musicLibrary({folders: folders?.map(f => path.resolve(f)), outDir: todayDir(), limit, onStatus: status});
+    return toolResult({tracks: r}, {text: r.length ? r.map(t => `• ${t.name} — ${t.bpm} BPM, ${t.mood}, ${Math.round(t.duration)} с${t.drop != null ? `, дроп на ${t.drop} с` : ''}\n  ${t.file}`).join('\n')
+      : 'Музыки не нашлось — положите треки в папку «Музыка» или outputs/music, или назовите свою папку'});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('montage_export', {
+  title: 'Выгрузить монтаж в DaVinci / Premiere / CapCut',
+  description: 'Проект montage.json → FCPXML (DaVinci Resolve, Final Cut, Premiere — импорт XML), OTIO (OpenTimelineIO) и SRT-субтитры (CapCut, YouTube). ' +
+    'Файлы — рядом с проектом; клипы ссылаются на файлы этого компьютера. Эффекты и графика Freefield не переносятся — резка, порядок, переходы, звук, субтитры.',
+  inputSchema: {project: z.string().describe('Путь к .montage.json'), formats: z.array(z.enum(['fcpxml', 'otio', 'srt'])).default(['fcpxml', 'otio', 'srt'])},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({project, formats}) => {
+  const M = await montageMod();
+  if (!fs.existsSync(project)) return badInput('нет файла проекта ' + project);
+  try {
+    const r = await M.exportProject(project, {outDir: todayDir(), formats});
+    return toolResult(r, {text: Object.entries(r).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join('\n') || 'нечего выгружать'});
+  } catch (e) { return toolResult({status: 'error', error: e.message}, {text: 'Ошибка: ' + e.message, isError: true}); }
+});
+
+server.registerTool('upscale_image', {
+  title: 'Увеличить картинку ×2 / ×4',
+  description: 'Увеличивает картинку в 2 или 4 раза бесплатно. Картинку сделал Flow через Freefield — увеличивает сам Flow (меню «Скачать» → 2K/4K, 4K обычно только с подпиской Google AI; ' +
+    'если размер стоит кредитов — без allow_credits=true не тратит). Иначе — Real-ESRGAN в Space на Hugging Face под аккаунтом пользователя (токен в config.json Freefield или вход в окне Chrome Freefield). ' +
+    'Результат (JSON): path (абсолютный), width, height, factor_actual. Картинку не обрезает. Асинхронно: если вернулся job_id — дождись через check_job.',
+  inputSchema: {
+    path: z.string().describe('Картинка (png, jpg, webp).'),
+    factor: z.union([z.literal(2), z.literal(4)]).default(2),
+    service: z.enum(['auto', 'flow', 'hf']).default('auto'),
+    allow_credits: z.boolean().default(false),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({path: file, factor, service, allow_credits}, extra) => {
+  try { readLocalImage(file); } catch (e) { return toolResult({status: 'error', error: e.message, error_kind: 'input'}, {text: 'Ошибка: ' + e.message, isError: true}); }
+  const U = await upscaleMod();
+  const job = startJob('upscale', async status => {
+    const r = await U.upscaleImage({file: path.resolve(file), factor, service, allowCredits: allow_credits, outDir: path.join(OUT, new Date().toISOString().slice(0, 10)), onStatus: status});
+    recordGen({kind: 'image', site: r.service === 'flow' ? 'flow' : 'freefield', model: `увеличение ×${factor} · ${r.engine}`, prompt: `увеличение ×${factor}: ${path.basename(file)}`, files: [{path: r.path, mime: r.mime}]});
+    return toolResult(r, {text: [`Готово: ×${r.factor_actual ?? factor} · ${r.engine}`, `Файл: ${r.path}`, `Размер: ${r.width}×${r.height} (было ${r.source.width}×${r.source.height})`,
+      ...r.warnings.map(w => '⚠ ' + w)].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+/* ---- «Эхо»: клон голоса и озвучка (часть Freefield, http://127.0.0.1:7865; её код не меняем). Не запущено — запускаем сами ---- */
+const ECHO_EMOTIONS = ['neutral', 'calm', 'happy', 'excited', 'sad', 'serious'];
+const ECHO_LANGS = ['russian', 'english', 'german', 'french', 'spanish', 'italian', 'portuguese', 'japanese', 'korean', 'chinese', 'auto'];
+class EchoError extends Error { constructor(msg, kind = 'echo') { super(msg); this.kind = kind; } }
+async function echo(p, body, status) {
+  const go = () => fetch(ECHO_URL + p, {method: body ? 'POST' : 'GET', headers: body ? {'Content-Type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
+  let r;
+  try { r = await go(); } catch {
+    status?.('запускаю «Эхо» — первая загрузка модели до минуты');
+    const s = await startEcho();
+    if (!s.ok) throw new EchoError(s.error, 'not_running');
+    try { r = await go(); } catch { throw new EchoError('«Эхо» не отвечает', 'not_running'); }
+  }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new EchoError(typeof data.detail === 'string' ? data.detail : data.error || `«Эхо» ответило ${r.status}`);
+  return data;
+}
+// долгие операции «Эхо» — задача {id, status, progress, message, result, error}; видеокарта одна, задачи идут по очереди
+async function echoWait(job, status) {
+  while (job.status === 'queued' || job.status === 'running') {
+    status(job.message || '«Эхо» работает…');
+    await sleep(1000);
+    job = await echo('/api/jobs/' + encodeURIComponent(job.id));
+  }
+  if (job.status === 'error') throw new EchoError(job.error || '«Эхо»: ошибка');
+  return job.result;
+}
+const echoFail = e => toolResult({status: 'error', error: e.message, error_kind: e.kind || 'echo'}, {text: 'Ошибка: ' + e.message, isError: true});
+
+server.registerTool('echo_voices', {
+  title: 'Голоса в «Эхо»',
+  description: 'Голоса, сохранённые в «Эхо» (озвучка Freefield: клон голоса из отрезка видео или аудио, на этом компьютере): имя (обычно = имя персонажа Freefield), ' +
+    'живые образцы эмоций, ★ избранные. JSON: voices [{name, favorite, emotions, samples: [{id, emotion, duration_s, text}]}].',
+  inputSchema: {},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async () => {
+  try {
+    const groups = new Map();
+    for (const v of await echo('/api/voices')) {
+      const k = String(v.name).toLowerCase(), g = groups.get(k) || {name: v.name, favorite: false, emotions: [], samples: []};
+      g.favorite ||= !!v.favorite;
+      if (!g.emotions.includes(v.emotion || 'neutral')) g.emotions.push(v.emotion || 'neutral');
+      g.samples.push({id: v.id, emotion: v.emotion || 'neutral', duration_s: v.duration ?? null, text: v.text || ''});
+      groups.set(k, g);
+    }
+    const voices = [...groups.values()];
+    return toolResult({status: 'done', voices}, {text: voices.length ? voices.map(g => `${g.favorite ? '★ ' : ''}${g.name} — образцы: ${g.emotions.join(', ')}`).join('\n') : 'В «Эхо» пока нет сохранённых голосов.'});
+  } catch (e) { return echoFail(e); }
+});
+
+server.registerTool('echo_speak', {
+  title: 'Озвучить текст голосом из «Эхо»',
+  description: 'Озвучивает текст сохранённым в «Эхо» голосом (клон, на видеокарте этого компьютера, бесплатно). ' +
+    'Эмоция: neutral = как в образце, calm, happy, excited, sad, serious. Есть у голоса живой образец этой эмоции — берётся он (emotion_natural=true), ' +
+    'иначе эмоция добавляется обработкой интонации с силой intensity. Результат (JSON): files [{path (MP3, абсолютный), wav, duration_s, emotion, emotion_natural, take}]. ' +
+    'Асинхронно: если вернулся job_id — дождись через check_job.',
+  inputSchema: {
+    voice: z.string().min(1).max(60).describe('Имя голоса из echo_voices (обычно имя персонажа)'),
+    text: z.string().min(1).max(5000),
+    emotion: z.enum(ECHO_EMOTIONS).default('neutral'),
+    intensity: z.number().min(0.2).max(1).default(0.7),
+    takes: z.number().int().min(1).max(3).default(1).describe('Сколько вариантов'),
+    speed: z.number().min(0.8).max(1.3).default(1),
+    language: z.enum(ECHO_LANGS).default('russian'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async (args, extra) => {
+  const job = startJob('echo', async status => {
+    const takes = await echoWait(await echo('/api/speak', args, status), status);
+    const files = (takes || []).map(t => ({path: t.file_mp3, wav: t.file_wav || null, mime: 'audio/mpeg', duration_s: t.duration ?? null, voice: t.voice_name,
+      emotion: t.emotion, emotion_natural: !!t.emotion_natural, intensity: t.intensity ?? null, take: t.take, takes: t.takes, speed: t.speed, language: t.language, echo_id: t.id}));
+    return toolResult({status: 'done', service: 'echo', voice: args.voice, text: args.text, files}, {text: ['Готово:',
+      ...files.map(f => `🎙 ${f.voice} · ${f.emotion}${f.emotion_natural ? ' (живой образец)' : ''} · ${f.duration_s} с — ${f.path}`)].join('\n')});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('echo_clone_voice', {
+  title: 'Новый голос в «Эхо» из видео или аудио',
+  description: 'Берёт голос из отрезка видео или аудио на этом компьютере (лучше 6–15 с чистой речи одного человека) и сохраняет в «Эхо» под именем. ' +
+    'Тот же name с другой emotion — живой образец эмоции для уже существующего голоса. Асинхронно: если вернулся job_id — дождись через check_job.',
+  inputSchema: {
+    path: z.string().describe('Путь к видео или аудио на этом компьютере'),
+    start: z.number().min(0).default(0),
+    end: z.number().optional().describe('Конец отрезка, с; по умолчанию start+12'),
+    name: z.string().min(1).max(60).describe('Имя голоса — обычно имя персонажа'),
+    emotion: z.enum(ECHO_EMOTIONS).default('neutral').describe('Как человек говорит в этом отрезке'),
+    clean: z.boolean().default(true).describe('Убрать музыку и шум'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async (args, extra) => {
+  const file = path.resolve(args.path);
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return toolResult({status: 'error', error: `нет файла ${file}`, error_kind: 'input'}, {text: `Ошибка: нет файла ${file}`, isError: true});
+  const job = startJob('echo', async status => {
+    const v = await echoWait(await echo('/api/voice-from-file', {...args, path: file, end: args.end ?? args.start + 12}, status), status);
+    return toolResult({status: 'done', service: 'echo', voice: {id: v.id, name: v.name, emotion: v.emotion || 'neutral', duration_s: v.duration ?? null, text: v.text || ''}, source: file},
+      {text: `Голос «${v.name}» (${v.emotion || 'neutral'}) сохранён в «Эхо». Распознанный текст образца: ${v.text || '—'}`});
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+// Персонажи — сами в «Персонажи» приложения (пользователь 2026-10-17: «ты можешь автоматически сохранять персонажей»)
+server.registerTool('hero_save', {
+  title: 'Сохранить персонажа в приложение',
+  description: 'Сохраняет героя пользователя, и приложение Freefield само добавляет его в раздел «Персонажи» (имя, кто он, фото). ' +
+    'Вызывай сам, без вопросов, всякий раз, когда в чате появился новый герой или у него новое главное фото (придумали героя, сделали его фото или развёртку). ' +
+    'Тот же name — обновит фото и описание. Идеи в «🔥 Трендах» пишутся под этих героев.',
+  inputSchema: {
+    name: z.string().min(1).max(60).describe('Имя героя по-русски, как его называет пользователь'),
+    about: z.string().max(400).optional().describe('Кто он и как выглядит — коротко по-русски'),
+    image_path: z.string().describe('Фото героя (абсолютный путь), лучше в полный рост, один герой в кадре'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({name, about, image_path}) => {
+  try {
+    readLocalImage(image_path);
+    const h = (await import('./heroes.js')).heroSave({name, about, image: path.resolve(image_path)});
+    return {content: [{type: 'text', text: `Персонаж «${h.name}» сохранён — приложение добавит его в «Персонажи» само (в течение минуты, когда оно открыто).`}]};
+  } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+});
+
+/* ---- «🔥 Тренды» (пользователь 2026-10-17): вирусные ролики → идеи брейнрота → движение и звук ролика, а в кадре — герой пользователя ---- */
+const TREND_FLOW = 'Порядок: 1) action=find — Freefield сам берёт свежие самые просматриваемые YouTube Shorts (просмотры в день). ' +
+  'Если в этом чате есть vidIQ — добавь TikTok и Reels: vidiq_instagram_tiktok_outlier_search (embeddingType "format", запрос про вирусный танец / мем-движение / тренд со звуком, ' +
+  'datePostedAfter — 2 недели назад, viewsMin 300000, durationMax 30) и vidiq_trending_videos (videoFormat "short", sortBy "vph"); движение конкретного ролика — vidiq_watch_shortform_content. ' +
+  'Иначе — веб-поиск («viral TikTok dance trend this week»). 2) action=save — тренды с полями url, title, author, views, growth (например «37× медианы автора» или «2,5 млн в день»), ' +
+  'about / motion / sound (по-русски, коротко), fit 0–10 (подходит ли для переноса движения: 10 — один человек в полный рост, статичная камера, понятный танец или жест), ' +
+  'ideas — 3 идеи брейнрота с героями пользователя (title, hero, how), плюс общие ideas «что снять сейчас». Они появятся в приложении в разделе «🔥 Тренды». ' +
+  '3) action=make — только по ролику, который выбрал пользователь: скачать → Wan 2.2 Animate переносит движение на героя → исходный звук. ' +
+  'Без location — герой встаёт на место человека в той же локации (swap); с location (по-английски) или location_image — кадр «герой в новой локации» делает Google Flow, и движение переносится на него (move). ' +
+  'Квота — ZeroGPU аккаунта Hugging Face пользователя (вход в huggingface.co в окне Chrome Freefield): бесплатный аккаунт — 5 мин GPU в день ≈ один ролик до 10 с (360p, Freefield поднимает до 720p); PRO — до 20 с. ' +
+  'Предупреди пользователя: чужая музыка в ролике может отключить звук или монетизацию на площадке.';
+server.registerTool('trends', {
+  title: 'Тренды: вирусные ролики и перенос движения',
+  description: 'Раздел «🔥 Тренды» Freefield: самые вирусные короткие ролики сейчас, идеи брейнрота под героев пользователя (из «Персонажей» приложения или тех, кого он назвал в чате) ' +
+    'и motion control: движение людей и звук из ролика остаются, вместо людей — герой, локацию можно сменить. action: find | save | list | download | make. ' + TREND_FLOW,
+  inputSchema: {
+    action: z.enum(['find', 'save', 'list', 'download', 'make']),
+    query: z.string().max(200).optional().describe('find: хэштеги или тема через пробел (по умолчанию — brainrot, dancetrend, trend, meme, funny, viral, trending)'),
+    limit: z.number().int().min(3).max(25).default(12).describe('find: сколько трендов вернуть'),
+    write_ideas: z.boolean().default(false).describe('find: true — идеи напишет Claude Code этого компьютера (по подписке). Обычно идеи пишешь ты и сохраняешь через save'),
+    heroes: z.array(z.object({name: z.string().max(80), about: z.string().max(300).optional()})).max(8).optional().describe('герои пользователя для идей'),
+    items: z.array(z.object({url: z.string().max(500), title: z.string().max(300).optional(), author: z.string().max(80).optional(), views: z.number().optional(),
+      growth: z.string().max(80).optional(), views_per_day: z.number().optional(), duration: z.number().optional(), thumb: z.string().max(500).optional(),
+      about: z.string().max(600).optional(), motion: z.string().max(400).optional(), sound: z.string().max(200).optional(), fit: z.number().min(0).max(10).optional(),
+      ideas: z.array(z.object({title: z.string().max(300), hero: z.string().max(80).optional(), how: z.string().max(600).optional()})).max(6).optional(),
+      source: z.string().max(40).optional()})).max(30).optional().describe('save: тренды (новые или дополненные — по url)'),
+    ideas: z.array(z.object({title: z.string().max(300), hero: z.string().max(80).optional(), how: z.string().max(600).optional(), trend: z.string().max(500).optional()})).max(12).optional()
+      .describe('save: общие идеи «что снять сейчас»'),
+    replace: z.boolean().default(false).describe('save: true — заменить всю ленту'),
+    url: z.string().max(500).optional().describe('download / make: ссылка на ролик (TikTok, YouTube Shorts, Reels), который выбрал пользователь'),
+    video_path: z.string().optional().describe('make: уже скачанный ролик (вместо url)'),
+    hero_image: z.string().optional().describe('make: фото героя (абсолютный путь), лучше в полный рост'),
+    hero_name: z.string().max(60).optional(),
+    location: z.string().max(400).optional().describe('make: новая локация по-английски (тогда mode move)'),
+    location_image: z.string().optional().describe('make: фото новой локации'),
+    mode: z.enum(['auto', 'swap', 'move']).default('auto'),
+    start: z.number().min(0).default(0).describe('make: с какой секунды ролика'),
+    seconds: z.number().min(2).max(20).optional().describe('make: сколько секунд (по умолчанию — сколько влезает в квоту: 10 с на бесплатном аккаунте)'),
+    quality: z.enum(['low', 'medium']).default('low').describe('make: low — 360p (до 10 с на бесплатной квоте), medium — 480p (до 5 с на бесплатной, PRO — больше)'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async (a, extra) => {
+  const T = await import('./trends.js');
+  const bad = msg => toolResult({status: 'error', error_kind: 'input', error: msg}, {text: 'Ошибка: ' + msg, isError: true});
+  const fmt = it => [`• ${it.title || it.url}`, `  ${it.url}`, '  ' + [it.views != null && `${it.views.toLocaleString('ru')} просмотров`, it.growth, it.age_days != null && `${it.age_days} дн. назад`, it.duration && `${it.duration} с`].filter(Boolean).join(' · '),
+    it.sound && `  звук: ${it.sound}`, it.motion && `  движение: ${it.motion}`, it.fit != null && `  для переноса движения: ${it.fit}/10`,
+    ...(it.ideas || []).map(i => `  💡 ${i.title}${i.hero ? ` (${i.hero})` : ''}${i.how ? ' — ' + i.how : ''}`)].filter(Boolean).join('\n');
+  try {
+    if (a.action === 'list') {
+      const s = T.trendsList();
+      return toolResult(s, {text: s.items.length ? [`Лента «🔥 Тренды»: ${s.items.length} (обновлена ${new Date(s.updated).toLocaleString('ru')})`, ...s.items.map(fmt),
+        ...(s.ideas?.length ? ['', 'Что снять сейчас:', ...s.ideas.map(i => `💡 ${i.title}${i.hero ? ` (${i.hero})` : ''}${i.how ? ' — ' + i.how : ''}`)] : [])].join('\n') : 'Лента пуста — вызови action=find.'});
+    }
+    if (a.action === 'save') {
+      const r = T.saveTrends({items: a.items || [], ideas: a.ideas, replace: a.replace});
+      return {content: [{type: 'text', text: `Сохранено: новых ${r.added}, всего ${r.total}. Пользователь видит их в приложении: «Создать» → «🔥 Тренды».`}]};
+    }
+    if (a.action === 'find') {
+      const job = startJob('trends', async status => {
+        const r = await T.findTrends({query: a.query, limit: a.limit, onStatus: status});
+        let items = r.items, ideas, note = '';
+        if (a.write_ideas) {
+          const w = await T.writeIdeas(items, a.heroes || [], status);
+          if (w.error) note = w.error;
+          else { const by = new Map(w.items.map(x => [x.url, x])); items = items.map(x => ({...x, ...(by.get(x.url) || {})})); ideas = w.ideas; }
+        }
+        T.saveTrends({items, ideas});
+        return toolResult({items, ideas: ideas || [], scanned: r.scanned, tags: r.tags}, {text: [`Свежие вирусные Shorts (просмотрено ${r.scanned} по #${r.tags.join(' #')}), по просмотрам в день:`,
+          ...items.map(fmt), note && '⚠ ' + note, '', a.write_ideas ? '' : 'Дальше: добавь TikTok/Reels через vidIQ (если есть), напиши about/motion/sound/fit и по 3 идеи брейнрота на тренд — и сохрани: trends action=save.',
+          TREND_FLOW].filter(Boolean).join('\n')});
+      });
+      return waitJob(job, WAIT_MS, extra);
+    }
+    if (a.action === 'download') {
+      if (!a.url) return bad('нужен url ролика');
+      const job = startJob('trend_dl', async status => {
+        const r = await T.downloadTrend(a.url, {onStatus: status});
+        return toolResult(r, {text: `Скачано: ${r.video} (${r.duration} с, ${r.width}×${r.height})${r.audio ? `\nЗвук: ${r.audio}` : '\nВ ролике нет звука'}`});
+      });
+      return waitJob(job, WAIT_MS, extra);
+    }
+    // make
+    const src = a.video_path ? path.resolve(a.video_path) : a.url;
+    if (!src) return bad('нужен url или video_path ролика');
+    if (!a.hero_image) return bad('нужно фото героя: hero_image');
+    try { readLocalImage(a.hero_image); if (a.location_image) readLocalImage(a.location_image); } catch (e) { return bad(e.message); }
+    if (a.location && /[а-яё]/i.test(a.location)) return bad('location — по-английски (переведи как есть)');
+    const job = startJob('motion', async status => {
+      const r = await T.motionTransfer({source: src, hero: path.resolve(a.hero_image), location: a.location || '', locationImage: a.location_image ? path.resolve(a.location_image) : null,
+        mode: a.mode, start: a.start, seconds: a.seconds, quality: a.quality, name: a.hero_name || '', onStatus: status});
+      recordGen({kind: 'video', site: 'freefield', model: `тренд · ${r.engine}`, prompt: `🔥 Тренд → ${a.hero_name || 'герой'}${a.location ? ' · ' + a.location : ''} · ${a.url || path.basename(src)}`,
+        aspect: r.height >= r.width ? '9:16' : '16:9', files: [{path: r.path, mime: 'video/mp4'}]});
+      return toolResult({status: 'done', ...r, files: [fileInfo(r.path)]}, {text: [`Готово: ${r.path}`, `${r.seconds} с · ${r.width}×${r.height} · ${r.mode === 'move' ? 'новая локация' : 'та же локация'} · ${r.audio}`,
+        `Движок: ${r.engine} · ≈ ${r.gpu_seconds} с GPU из квоты`, r.ref_frame && `Кадр героя в локации: ${r.ref_frame}`, '⚠ Чужая музыка в ролике может отключить звук или монетизацию на площадке.'].filter(Boolean).join('\n')});
+    });
+    return waitJob(job, WAIT_MS, extra);
+  } catch (e) { return toolResult({status: 'error', error: e.message}, {text: 'Ошибка: ' + e.message, isError: true}); }
+});
+
+server.registerTool('sync_sites', {
+  title: 'Забрать всё с сайтов в Freefield',
+  description: 'Проходит по сайтам (сейчас — проект Google Flow) и забирает в Freefield все готовые картинки и видео, которых там ещё нет ' +
+    '(например, если генерацию запускали вручную или она «потерялась»). Файлы — в outputs, приложение само добавит их в галерею. ' +
+    'После batch_generate синхронизация запускается сама.',
+  inputSchema: {},
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async (_, extra) => {
+  const job = startJob('sync', async status => {
+    const r = await runSync(status);
+    return {content: [{type: 'text', text: (r.added.length ? `Забрано с сайтов: ${r.added.length}\n` + r.added.map(i => `${i.kind === 'video' ? '🎬' : '🖼'} ${i.files[0].path}`).join('\n')
+      : 'Новых файлов на сайтах нет — в Freefield уже всё.') + (r.errors.length ? '\nНе получилось: ' + r.errors.join('; ') : '')}]};
+  });
+  return waitJob(job, WAIT_MS, extra);
+});
+
+server.registerTool('chat_photos', {
+  title: 'Фото из чата → референс',
+  description: 'Сохраняет фото, которые пользователь прислал в этот чат Claude Code, в Freefield/outputs/refs и возвращает пути — их передают как image_path ' +
+    'в batch_generate, arena_video, flow_image или dola_image. Вызывай, когда пользователь прислал фото и просит сделать что-то по нему. ' +
+    'Если пользователь перетащил файл и в сообщении виден путь — можно передать этот путь сразу, без chat_photos. ' +
+    'Передавай text — несколько слов из сообщения пользователя, к которому приложено фото: тогда фото точно из твоего чата, даже если на компьютере открыто несколько сессий Claude. ' +
+    'Посмотри на возвращённое фото — то ли это.',
+  inputSchema: {count: z.number().int().min(1).max(10).default(1).describe('Сколько последних фото из чата взять'),
+    text: z.string().max(200).optional().describe('Несколько слов (подряд, как написал пользователь) из сообщения, где было фото')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({count, text}) => {
+  const {chatPhotos} = await import('./refs.js');
+  const {photos} = chatPhotos(OUT, count, {text});
+  if (!photos.length) return {isError: true, content: [{type: 'text', text: 'В чате Claude Code не нашёл присланных фото. Попроси пользователя вставить фото в чат ' +
+    '(Ctrl+V или перетащить файл) или назвать путь к файлу.'}]};
+  const content = [];
+  for (const p of photos) try { content.push(...(await previewItem({buf: fs.readFileSync(p.path), mime: p.mime}))); } catch {}
+  content.push({type: 'text', text: [`Фото из чата сохранены (${photos.length}):`, ...photos.map((p, i) => `${i + 1}. ${p.path}`),
+    'Передай путь как image_path.'].join('\n')});
+  return {content};
+});
+
+// журнал неполадок: ошибки сайтов, повторы, переносы (пишет программа) и заметки Claude — чтобы всё отполировать
+server.registerTool('problems', {
+  title: 'Журнал неполадок',
+  description: 'Журнал неполадок Freefield: каждая ошибка генерации (сайт, вид ошибки, текст, промпт), повторы и переносы на другой сервис — пишет сама программа. ' +
+    'note — добавить свою запись о неполадке, с которой ты столкнулся (что делал, что сломалось, что помогло). Смотри журнал, когда генерации падают, и рассказывай пользователю, что пробовал.',
+  inputSchema: {limit: z.number().int().min(1).max(200).default(30), note: z.string().max(2000).optional().describe('своя запись в журнал'), site: z.string().max(20).optional()},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({limit, note, site}) => {
+  const {PROBLEMS_FILE, logProblem} = await import('./batch.js');
+  if (note) logProblem({by: 'claude', site: site || null, message: note});
+  let lines = [];
+  try { lines = fs.readFileSync(PROBLEMS_FILE, 'utf8').trim().split('\n').filter(Boolean).slice(-limit); } catch { /* пусто */ }
+  if (!lines.length) return {content: [{type: 'text', text: (note ? 'Записано. ' : '') + 'Журнал пуст.'}]};
+  const rows = lines.map(l => { try { const j = JSON.parse(l); return `${j.at.slice(0, 16).replace('T', ' ')} · ${j.by === 'claude' ? '📝 Claude' : j.site || '?'}${j.kind ? ' · ' + j.kind : ''}${j.errorKind ? ' · ' + j.errorKind : ''}${j.try ? ' · попытка ' + j.try : ''} — ${j.outcome || j.message || ''}${j.steps ? '\n   ' + j.steps.join(' → ') : ''}`; } catch { return l; } });
+  return {content: [{type: 'text', text: `${note ? 'Записано.\n' : ''}Журнал неполадок (${PROBLEMS_FILE}), последние ${rows.length}:\n${rows.join('\n')}`}]};
+});
+
+server.registerTool('phone_tasks', {
+  title: 'Задания с телефона',
+  description: 'Показывает пакеты сценариев, отправленные с телефона (раздел «Для Клода» в приложении Freefield) и запущенные Claude: что сгенерировано, где лежат файлы, какие ошибки. ' +
+    'Сценарии с телефона компьютер запускает сам сразу после отправки.',
+  inputSchema: {limit: z.number().int().min(1).max(30).default(5)},
+  annotations: {readOnlyHint: true, openWorldHint: false},
+}, async ({limit}) => {
+  const B = await batchMod();
+  const list = allBatches().slice(0, limit);
+  if (!list.length) return {content: [{type: 'text', text: 'Пакетов пока не было. Телефон подключается инструментом phone_link.'}]};
+  return {content: [{type: 'text', text: list.map(b => `${b.source === 'phone' ? '📱 С телефона' : '🤖 От Claude'} · ${new Date(b.created).toLocaleString('ru')} · ${b.done ? 'завершён' : 'идёт'} · ${b.id}\n` +
+    B.summary(b.items)).join('\n\n')}]};
+});
+
+// «🌐 Ассеты для сайта»: задания из приложения ждут Claude здесь
+const SITE_FLOW = `ПОРЯДОК РАБОТЫ с каждым исходником (соблюдай всегда, в любом чате):
+1. Посмотри картинку (она в ответе; путь — в поле file) и коротко разбери: что изображено, зачем это на сайте, композиция, цвета, свет, настроение, стиль.
+2. Обязательно измени:
+   • людей — новые лица и внешность, никаких узнаваемых реальных людей;
+   • предметы и детали — другие, той же категории;
+   • композицию и ракурс — заметно другие (если composition=true — расположение можно повторить, но всё остальное всё равно меняется);
+   • цвета — под палитру проекта (colors, «Стиль и цвета»);
+   • убери любые надписи, логотипы, бренды, водяные знаки, известных персонажей и узнаваемые товары.
+3. Промпт пиши с нуля на английском по своему разбору (учти «Что сохранить» — keep, «О чём сайт» и стиль проекта). Исходник в генерацию НЕ передавай. Исключение: composition=true — тогда он идёт как референс image_path, но промпт всё равно требует изменений из пункта 2.
+4. Генерируй через batch_generate бесплатно, с site_task=<id задания>: Flow (service="flow", model nano-banana-2.1) и Dola (service="dola", Seedream 5.0) параллельно, count — сколько вариантов просили. Формат по роли:
+   • hero (главный баннер) — 16:9 (+ мобильная версия 3:4, если об этом просили в keep);
+   • bg (фон) — 16:9, спокойный, с местом под текст;
+   • card (карточка) и product (фото товара) — 4:3 или 1:1;
+   • icon (иконка / иллюстрация) — 1:1 на однотонном фоне;
+   • other — по смыслу.
+5. Сравни результат с исходником. Слишком похоже — перегенерируй с более сильными отличиями. Не переписывай промпты ради обхода отказов сервисов (защита образа и т. п.) — такое задание просто отметь ошибкой.
+6. Вызови site_task_update: status, message (коротко по-русски для пользователя) и по каждому исходнику analysis (разбор) и prompts (английские промпты, по которым генерировал).
+Сначала вызови site_tasks с take=true — задания перейдут в «в работе», и пользователь это увидит.`;
+server.registerTool('site_tasks', {
+  title: 'Ассеты для сайта: задания',
+  description: 'Задания раздела «🌐 Ассеты для сайта» приложения Freefield со статусом «ждёт Claude». Пользователь находит в интернете чужие картинки (баннеры, фоны, фото, ' +
+    'иллюстрации, скриншоты сайтов) — это только образцы: они защищены авторским правом, копировать их нельзя. По каждому нужно сделать НОВУЮ оригинальную картинку ' +
+    'для его сайта: то же настроение и та же роль на странице, но заметно другие люди, детали и композиция. В ответе: общие поля проекта и по каждому исходнику — ' +
+    'абсолютный путь к файлу, роль, «что сохранить», число вариантов, флаг композиции и сама картинка.\n' + SITE_FLOW,
+  inputSchema: {
+    take: z.boolean().default(false).describe('true — забрать задания в работу (статус «в работе»)'),
+    id: z.string().optional().describe('Одно задание по id (в любом статусе) — например, чтобы доделать'),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({take, id}) => {
+  const {siteTasks, SITE_ROLES, SITE_STATUS} = await import('./site.js');
+  const list = siteTasks({take, id});
+  if (!list.length) return {content: [{type: 'text', text: id ? `Задания ${id} нет.` : 'Заданий «ждёт Claude» нет. Пользователь создаёт их в приложении Freefield: «Создать» → «🌐 Ассеты для сайта» → «Отправить Claude».'}]};
+  const content = [];
+  for (const t of list) {
+    const P = t.project;
+    content.push({type: 'text', text: [`ЗАДАНИЕ ${t.id} · ${SITE_STATUS[t.status]} · ${new Date(t.created).toLocaleString('ru')}`,
+      `Проект: ${P.name}`, `О чём сайт: ${P.about}`, `Стиль и цвета: ${P.style || '—'}${P.colors.length ? ` · палитра ${P.colors.join(', ')}` : ''}`].join('\n')});
+    for (const s of t.sources) {
+      content.push({type: 'text', text: [`Исходник ${s.n}: ${s.file}`, `  роль: ${s.role} (${SITE_ROLES[s.role]})`, `  что сохранить: ${s.keep || '—'}`,
+        `  вариантов: ${s.count}`, `  composition: ${s.composition ? 'true — можно повторить расположение, исходник можно дать как image_path' : 'false — исходник в генерацию не передавать'}`].join('\n')});
+      try { content.push(...(await previewItem({buf: fs.readFileSync(s.file), mime: /\.png$/i.test(s.file) ? 'image/png' : /\.webp$/i.test(s.file) ? 'image/webp' : 'image/jpeg'}))); } catch {}
+    }
+  }
+  content.push({type: 'text', text: SITE_FLOW});
+  return {content};
+});
+
+server.registerTool('site_task_update', {
+  title: 'Ассеты для сайта: итог',
+  description: 'Записывает итог задания «🌐 Ассеты для сайта» — пользователь видит его в карточке задания в приложении Freefield. ' +
+    'status: working (в работе) | done (готово) | error (ошибка, например сервис отказал из-за защиты образа). message — коротко по-русски для пользователя: что сделано, что не вышло. ' +
+    'sources — по каждому исходнику: n, analysis (разбор исходника по-русски) и prompts (английские промпты, по которым генерировал). Картинки сами придут в галерею, если batch_generate вызван с site_task.',
+  inputSchema: {
+    id: z.string(),
+    status: z.enum(['working', 'done', 'error']),
+    message: z.string().max(4000).optional(),
+    sources: z.array(z.object({n: z.number().int().min(1).max(10), analysis: z.string().max(3000).optional(), prompts: z.array(z.string().max(2500)).max(8).optional(),
+      note: z.string().max(600).optional().describe('короткая пометка по этому исходнику, например почему не вышло')})).max(10).optional(),
+  },
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async args => {
+  try {
+    const {siteUpdate, SITE_STATUS} = await import('./site.js');
+    const t = siteUpdate(args);
+    return {content: [{type: 'text', text: `Задание ${t.id}: ${SITE_STATUS[t.status]}. Пользователь увидит это в приложении.`}]};
+  } catch (e) { return {isError: true, content: [{type: 'text', text: 'Ошибка: ' + e.message}]}; }
+});
+
+server.registerTool('phone_link', {
+  title: 'Подключить телефон',
+  description: 'Включает связь Freefield с телефоном по домашнему Wi-Fi (напрямую с компьютером, без посредников в интернете) и показывает QR-код. ' +
+    'Пользователь сканирует его телефоном — открывается Freefield с разделом «Для Клода»: там пишут до 10 сценариев, компьютер сам запускает их через ' +
+    'Google Flow / Arena / Dola и возвращает готовые видео и картинки в галерею телефона. Покажи пользователю QR-код и инструкцию из ответа.',
+  inputSchema: {new_key: z.boolean().default(false).describe('true — выдать новый секретный ключ (старая ссылка на телефоне перестанет работать)')},
+  annotations: {readOnlyHint: false, openWorldHint: false},
+}, async ({new_key}) => {
+  try {
+    if (new_key) writeState({hubKey: crypto.randomBytes(18).toString('base64url')});
+    const urls = await ensureHub();
+    if (!urls.length) return {isError: true, content: [{type: 'text', text: 'Компьютер не подключён к домашней сети (Wi-Fi или кабель) — телефону не к чему подключиться.'}]};
+    const qrcode = (await import('qrcode-generator')).default;
+    const qr = qrcode(0, 'M');
+    qr.addData(urls[0]);
+    qr.make();
+    const sharp = (await import('sharp')).default;
+    const png = await sharp(Buffer.from(qr.createSvgTag({cellSize: 10, margin: 4}))).flatten({background: '#ffffff'}).png().toBuffer();
+    return {content: [{type: 'image', data: png.toString('base64'), mimeType: 'image/png'}, {type: 'text', text: [
+      'Связь с телефоном включена.',
+      '1. Телефон должен быть в той же сети Wi-Fi, что и компьютер.',
+      `2. Наведите камеру телефона на QR-код или откройте ссылку: ${urls[0]}`,
+      urls.length > 1 ? `   Если не открывается — другой адрес этого компьютера: ${urls.slice(1).join(' , ')}` : '',
+      '3. Откроется Freefield → раздел «🤖 Для Клода»: пишите сценарии и жмите «Запустить на компьютере». Готовые файлы сами появятся в галерее телефона.',
+      'Если Windows спросит, разрешить ли Node.js доступ к сети, — разрешите для частных сетей, иначе телефон не подключится.',
+      'Компьютер должен быть включён, Claude Desktop — открыт, окно Chrome Freefield — с выполненным входом.',
+      'Ссылка секретная: любой, у кого она есть, может запускать генерации на ваших аккаунтах. Сменить ключ: phone_link с new_key=true.',
+    ].filter(Boolean).join('\n')}]};
+  } catch (e) { return {isError: true, content: [{type: 'text', text: 'Не удалось включить связь с телефоном: ' + e.message}]}; }
+});
+
+server.registerTool('switch_account', {
+  title: 'Сменить аккаунт на сайте',
+  description: 'Открывает в окне Chrome Freefield смену аккаунта на сайте Google Flow, Arena или Dola — например, когда на этом аккаунте закончились кредиты. ' +
+    'Другой аккаунт выбирает и входит в него сам пользователь; пароли Freefield не вводит. После смены проверь вход через portal_status.',
+  inputSchema: {site: z.enum(['flow', 'arena', 'dola', 'vids'])},
+  annotations: {readOnlyHint: false, openWorldHint: true},
+}, async ({site}) => {
+  const r = await hubApi.switchAccount(site);
+  return {isError: !r.ok, content: [{type: 'text', text: r.message}]};
+});
+
+server.registerTool('portal_status', {
+  title: 'Вход в сервисы и остаток бесплатного',
+  description: 'Проверяет вход в окне Chrome Freefield и остаток бесплатного: Google Flow (кредиты на сегодня), Dola, Arena, Vids, а для 3D — Hunyuan 3D (генераций на сегодня), ' +
+    'Tripo и Meshy (кредиты на месяц), Hugging Face (вход и квота ZeroGPU). open=true — открыть сайты, чтобы пользователь мог войти.',
+  inputSchema: {open: z.boolean().default(false)},
+  annotations: {readOnlyHint: true, openWorldHint: true},
+}, async ({open}) => {
+  try {
+    const P = await portals();
+    const st = await P.status(open);
+    const u = P.usageReport();
+    const M = await mesh3d();
+    const st3 = await M.status3d(open).catch(e => ({error: e.message}));
+    const free3 = Object.fromEntries(Object.keys(M.SERVICES_3D).map(k => [k, M.freeLeft(k)]));
+    return toolResult({sites: st, sites_3d: st3, free_left_3d: free3, usage_today: {flow: u.flow, dola: u.dola, arena: u.arena, vids: u.vids}},
+      {text: Object.entries(st).map(([k, v]) => `${P.SITES[k].name}: ${v}`).join('\n') +
+      `\n\n3D:\n` + Object.entries(st3).map(([k, v]) => `${M.SERVICES_3D[k]?.name || k}: ${v}`).join('\n') +
+      `\n\nРасход сегодня:\nGoogle Flow: ${u.flow}\nDola: ${u.dola}\nArena: ${u.arena}\nGoogle Vids: ${u.vids}`});
+  } catch (e) { return {isError: true, content: [{type: 'text', text: 'Не удалось открыть браузер Freefield: ' + e.message}]}; }
+});
+
+// MCP по ссылке (Streamable HTTP, без сессий): на каждый запрос — свой экземпляр с теми же инструментами и общими задачами (check_job)
+hubApi.mcp = async (req, res) => {
+  const s = new McpServer(SERVER_INFO, SERVER_OPTS);
+  for (const a of TOOLS) s.registerTool(...a);
+  const t = new StreamableHTTPServerTransport({sessionIdGenerator: undefined});
+  res.on('close', () => { t.close().catch(() => {}); s.close().catch(() => {}); });
+  await s.connect(t);
+  await t.handleRequest(req, res);
+};
+
+// Одна главная копия на компьютер (пользователь 2026-10-28: «каждый чат запускает свою копию Freefield — одна из большущих проблем»):
+// 11 чатов = 11 копий, каждая со своей очередью, своими вкладками и старым кодом. Теперь server.js в чате — посредник, а всё
+// (Chrome, аккаунты, очередь, задачи, связь с телефоном) — здесь. Каждый чат подключается по именованному каналу и получает
+// свой экземпляр MCP с общими задачами; место на сайтах раздаётся по кругу между чатами (chat.js → xq.js).
+// FREEFIELD_STDIO=1 — по-старому, одна копия на чат (запасной путь и проверки).
+import('./chat.js').then(async ({chatCtx}) => {
+  if (process.env.FREEFIELD_STDIO) { await server.connect(new StdioServerTransport()); log(`запущен (одна копия на чат) · файлы: ${OUT}`); return; }
+  let conns = 0, live = 0;
+  const srv = mainSrv;
+  onConn = sock => {
+    const tag = 'chat' + ++conns;
+    live++;
+    const s = new McpServer(SERVER_INFO, SERVER_OPTS);
+    for (const [name, def, handler] of TOOLS) s.registerTool(name, def, (a, x) => chatCtx.run({tag}, () => handler(a, x)));
+    sock.on('error', () => {});
+    sock.on('close', () => { live--; s.close().catch(() => {}); log(`${tag} отключился (подключено: ${live})`); });
+    s.connect(new StdioServerTransport(sock, sock)).catch(e => log(tag, e.message));
+    log(`${tag} подключился (подключено: ${live})`);
+  };
+  early.splice(0).forEach(onConn);
+  log(`главная копия запущена (pid ${process.pid}) · файлы: ${OUT}`);
+  // новый код (обновление с GitHub, правка) — главная копия перезапускается сама, когда ничего не делает: чаты переподключатся
+  // (server.js), пакеты после перезапуска продолжатся (resumeBatches). Раньше старый код жил в копиях чатов днями.
+  const codeAt = () => {
+    let m = 0;
+    for (const d of [HERE, path.join(HERE, 'montage')]) try { for (const f of fs.readdirSync(d)) if (/\.(m?js)$/.test(f)) m = Math.max(m, fs.statSync(path.join(d, f)).mtimeMs); } catch {}
+    return m;
+  };
+  const boot = codeAt();
+  setInterval(() => {
+    if (codeAt() <= boot) return;
+    const running = [...jobs.values()].some(j => j.status === 'running') || allBatches().some(b => !b.done && b.pid === process.pid);
+    if (running) return;
+    log('код Freefield обновился — перезапускаю главную копию');
+    srv.close();
+    setTimeout(() => process.exit(0), 300);
+  }, 30e3).unref();
+});
+
+// связь с телефоном включается один раз (phone_link) и дальше поднимается сама; если её держит другой Freefield — ждём своей очереди
+if (readState().hubEnabled) {
+  const tryHub = () => { if (!hubRunning() && readState().hubEnabled) ensureHub().catch(e => log('телефон:', e.message)); };
+  tryHub();
+  setInterval(tryHub, 60e3).unref();
+}

@@ -94,6 +94,7 @@ export async function startBatch(scenarios, source, extra = {}) {
 }
 function runItems(batch, items, B) {
   batch.promise = B.runBatch(items, {
+    all: batch.items,
     // имя файла — номер сценария и его название (title), иначе начало промпта: у похожих промптов имена были одинаковые (2026-10-17)
     save: (o, it) => saveOutput(o.buf, o.mime || (it.kind === 'video' ? 'video/mp4' : 'image/jpeg'), `s${it.n}-${it.title || it.prompt.replace(/^(On-screen text|Subject|Spoken line):[^\n]*\n?/gim, '')}`),
     onChange: persistBatches,

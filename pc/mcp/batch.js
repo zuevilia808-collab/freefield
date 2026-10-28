@@ -4,6 +4,7 @@
 // один раз переезжает на запасной.
 import * as P from './portals.js';
 import fs from 'node:fs';
+import {imageSize} from './media.js';
 import path from 'node:path';
 import {withProfile, profileIds, profileName, activeProfileId, readAcct, HERE} from './state.js';
 
@@ -52,7 +53,7 @@ const siteTripped = site => {
 };
 // Чат запущен до последней правки кода Freefield → его копия сервера в памяти старая: исправления в нём не действуют, пока не открыть новый чат
 const BOOT = Date.now();
-const staleCode = () => ['portals.js', 'batch.js', 'server.js', 'studio.js'].some(f => { try { return fs.statSync(path.join(HERE, f)).mtimeMs > BOOT + 2000; } catch { return false; } });
+const staleCode = () => ['portals.js', 'batch.js', 'main.js', 'studio.js', 'xq.js'].some(f => { try { return fs.statSync(path.join(HERE, f)).mtimeMs > BOOT + 2000; } catch { return false; } });
 const STALE_HINT = ' · В этом чате Freefield работает по старой версии кода (файлы обновились после его запуска) — откройте новый чат или перезапустите Claude, исправления заработают.';
 
 // «Этот запрос может нарушать наши правила…» — у Flow почти всегда ложная тревога (пользователь 2026-10-09: «99 из 100 — ошибка Flow,
@@ -109,7 +110,7 @@ const profOrder = (open = []) => {
 const slotsFor = (kind, open) => profOrder(open).flatMap(p => ORDER[kind].map(site => ({site, p})));
 // в сервис этого профиля точно не вошли (последняя проверка) — задания туда не отправляем
 const loggedOut = ({site, p}) => withProfile(p, () => readAcct().login?.[site]?.ok === false);
-export function planBatch(scenarios, {open = []} = {}) {
+export function planBatch(scenarios, {open = [], seed = {}, from = 0} = {}) {
   const budget = {};   // остаток кредитов Flow и баллов Dola по профилям — уменьшаем по мере раздачи
   const flowLeftOf = p => budget['flow' + p] ??= withProfile(p, () => P.flowLeft());
   const dolaLeftOf = p => budget['dola' + p] === undefined ? (budget['dola' + p] = withProfile(p, () => P.dolaPoints())) : budget['dola' + p];
@@ -120,7 +121,7 @@ export function planBatch(scenarios, {open = []} = {}) {
     if (site === 'vids') return kind === 'video' && !P.siteOut('vids') && !P.vidsBlocked(hasPhoto(s));
     return !P.siteOut('arena');
   });
-  const turn = {video: 0, image: 0}, load = {};
+  const turn = {video: 0, image: 0}, load = {...seed}, glob = {};
   return scenarios.map((s, i) => {
     const kind = s.kind === 'image' ? 'image' : 'video';
     let want = ['flow', 'arena', 'dola', 'vids'].includes(s.service) ? s.service : null;
@@ -155,7 +156,8 @@ export function planBatch(scenarios, {open = []} = {}) {
       if (!cands.length) cands = mk2(() => true);
       if (cands.length) over = want;
     }
-    const lv = c => load[c.site + c.p] || 0;
+    // занятость — своя (этот пакет) и всех чатов сразу (общая очередь xq.js): занятый другими чатами аккаунт — в последнюю очередь
+    const lv = c => (load[c.site + c.p] || 0) + (glob[c.site + c.p] ??= P.siteLoad ? P.siteLoad(c.site, c.p) : 0);
     // «меньше всего занят» — по доле мест: Flow 4, Dola и Arena по 2 → из 8 картинок Flow берёт 4, Dola 2, Arena 2
     const share = c => lv(c) / (P.PARALLEL[c.site] || 1);
     const least = list => list.reduce((best, c) => (!best || share(c) < share(best) ? c : best), null);
@@ -177,8 +179,8 @@ export function planBatch(scenarios, {open = []} = {}) {
     const model = modelFor(slot.site, kind, s);
     if (slot.site === 'flow') budget['flow' + slot.p] = flowLeftOf(slot.p) - flowCost(kind, model);
     if (slot.site === 'dola' && kind === 'video' && dolaLeftOf(slot.p) != null) budget['dola' + slot.p] -= DOLA_VIDEO_POINTS[model] || 2;
-    return {n: i + 1, prompt: s.prompt, title: s.title || null, resolution: s.resolution || null, kind, site: slot.site, profile: slot.p, aspect: s.aspect_ratio || null, image_path: s.image_path || null, image_paths: s.image_paths || [], sheet_path: s.sheet_path || null, count: Math.min(4, Math.max(1, +s.count || 1)),
-      seconds: s.seconds || null, wantModel: s.model || null, modelKey: model,
+    return {n: from + i + 1, prompt: s.prompt, title: s.title || null, resolution: s.resolution || null, kind, site: slot.site, profile: slot.p, aspect: s.aspect_ratio || null, image_path: s.image_path || null, image_paths: s.image_paths || [], sheet_path: s.sheet_path || null, count: Math.min(4, Math.max(1, +s.count || 1)),
+      seconds: s.seconds || null, wantModel: s.model || null, modelKey: model, ...(s.animate && {animate: s.animate}), ...(s.from && {from: s.from}),
       status: 'queued', message: 'в очереди', model: '', files: [],
       note: over ? `${SITE_LABEL[over]}: на сегодня кредиты кончились на всех аккаунтах → ${SITE_LABEL[slot.site]}` : ''};
   });
@@ -254,8 +256,26 @@ async function rewriteForPolicy(prompt, message) {
     return out.length > 30 ? out : null;
   } catch { return null; }
 }
-export async function runBatch(items, {save, onChange = () => {}, fallback = true}) {
-  await Promise.all(items.map(async it => {
+// Конвейер (пользователь 2026-10-28: «не ждать все картинки ролика — видео сразу из лучшего кадра каждого промпта»):
+// у картинки с animate готов результат → тут же новое задание «видео по этой картинке» на свободный сервис, не дожидаясь
+// остальных картинок пакета. Лучший кадр — самый большой по пикселям из вариантов (у Arena и Dola они от разных моделей),
+// при равенстве — первый. all — весь список заданий пакета (туда добавляются видео конвейера)
+const pickBest = files => files.filter(f => /^image\//.test(f.mime || 'image/')).map((f, i) => ({f, i, px: (() => { try { const d = imageSize(fs.readFileSync(f.path)); return d ? d.width * d.height : 0; } catch { return 0; } })()}))
+  .sort((a, b) => b.px - a.px || a.i - b.i)[0]?.f || null;
+function animateItem(it, all) {
+  const best = pickBest(it.files || []);
+  if (!best) return null;
+  const a = it.animate, busy = {};
+  for (const x of all) if (x.status === 'queued' || x.status === 'running') busy[x.site + (x.profile || 1)] = (busy[x.site + (x.profile || 1)] || 0) + 1;
+  const n = Math.max(...all.map(x => x.n));
+  const [v] = planBatch([{prompt: a.prompt || `Animate this image: ${it.prompt}`, kind: 'video', service: a.service || 'auto', aspect_ratio: a.aspect_ratio || it.aspect || undefined,
+    seconds: a.seconds, model: a.model, image_path: best.path, title: it.title ? `${it.title}-v` : undefined, from: it.n}], {seed: busy, from: n});
+  v.note = `конвейер: оживляю лучший кадр сценария ${it.n}`;
+  return v;
+}
+export async function runBatch(items, {save, onChange = () => {}, fallback = true, all = items}) {
+  const runs = [];
+  const runOne = async it => {
     const status = msg => { it.status = 'running'; it.message = msg; onChange(); };
     let site = it.site, p = it.profile || 1, policy = 0, busy = 0, prompt = it.prompt;
     const tried = new Set(), notes = [];
@@ -321,8 +341,14 @@ export async function runBatch(items, {save, onChange = () => {}, fallback = tru
         break;
       }
     }
+    if (it.status === 'done' && it.kind === 'image' && it.animate && !it.animated) {
+      const v = animateItem(it, all);
+      if (v) { it.animated = v.n; all.push(v); if (all !== items) items.push(v); runs.push(runOne(v)); }
+    }
     onChange();
-  }));
+  };
+  for (const it of [...items]) runs.push(runOne(it));
+  for (let i = 0; i < runs.length; i++) await runs[i];
   return items;
 }
 

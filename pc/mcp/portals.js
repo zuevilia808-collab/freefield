@@ -7,6 +7,7 @@ import {imageSize} from './media.js';
 // данные аккаунтов — у каждого профиля Chrome свои (state.js: withProfile)
 import {HERE, readAcct as readState, writeAcct as writeState, currentProfile} from './state.js';
 import fs from 'node:fs';
+import * as XQ from './xq.js';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
@@ -20,20 +21,22 @@ export class PortalError extends Error { constructor(msg, kind = 'other') { supe
 // в Dola и Arena — каждая генерация в своей вкладке. PARALLEL — сколько генераций одного сайта идут одновременно.
 export const PARALLEL = {flow: 4, dola: 2, arena: 2, vids: 1};   // Vids: панель ИИ-видео делает одно видео за раз
 // очереди — у каждого профиля Chrome свои (разные окна и аккаунты работают параллельно)
-const slots = {};
-function siteSlot(site, fn) {
-  const s = slots[`${site}@${currentProfile()}`] ||= {n: 0, q: []};
+// Места — общие на все копии Freefield (xq.js): честно между чатами, видео раньше картинок (prio 1).
+// onWait — статус «в общей очереди: впереди N»
+const slots = {};   // сколько мест сайта держит эта копия (свои вкладки не закрываем, пока на них ждут)
+function siteSlot(site, fn, {prio = 0, onWait} = {}) {
+  const key = `slot-${site}@${currentProfile()}`, s = slots[`${site}@${currentProfile()}`] ||= {n: 0};
   // генерация держит свой профиль Chrome: пока она идёт, Chrome не переключится на другой профиль.
   // free() — освободить место раньше конца: сайт уже сгенерировал, осталось только скачать — следующий промпт уходит сразу
   // (пользователь 2026-10-17: «не дожидаясь, пока получит прошлые фото, сразу генерить наперёд»)
-  const go = () => {
+  return XQ.acquire(key, PARALLEL[site] || 1, {prio, onWait: n => onWait?.(`${SITES[site].name}: в общей очереди всех чатов, впереди ${n}`)}).then(rel => {
     s.n++;
     let freed = false;
-    const free = () => { if (freed) return; freed = true; s.n--; s.q.shift()?.(); };
+    const free = () => { if (freed) return; freed = true; s.n--; rel(); };
     return leaseProfile().then(release => Promise.resolve().then(() => fn(free)).finally(release)).finally(free);
-  };
-  return s.n < PARALLEL[site] ? go() : new Promise(r => s.q.push(r)).then(go);
+  });
 }
+export const siteLoad = (site, p = currentProfile()) => XQ.load(`slot-${site}@${p}`);
 const siteChains = {};
 export function siteRun(site, fn) {
   const key = `${site}@${currentProfile()}`;
@@ -62,6 +65,13 @@ export function ui(fn, ms = UI_STEP_MS) {
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 async function withFileLock(site, fn) {
   const file = path.join(HERE, `.lock-${site}${currentProfile() > 1 ? '-' + currentProfile() : ''}`);
+  // сначала — честная очередь всех копий (раньше замок доставался тому, кто первым проверил, и большой пакет одного чата
+  // забирал сайт раз за разом); потом — сам файл-замок (его ещё берут копии со старым кодом)
+  const rel = await XQ.acquire(`lock-${site}@${currentProfile()}`, 1, {maxWaitMs: 30 * 60e3});
+  if (!rel) throw new PortalError(`${SITES[site].name} занят другими чатами Freefield больше 30 мин`, 'busy');
+  try { return await lockFile(site, file, fn); } finally { rel(); }
+}
+async function lockFile(site, file, fn) {
   for (const t0 = Date.now(); ;) {
     try { fs.writeFileSync(file, JSON.stringify({pid: process.pid, at: Date.now()}), {flag: 'wx'}); break; } catch (e) {
       if (e.code !== 'EEXIST') throw e;
@@ -133,11 +143,16 @@ async function sitePage(site, front = true) {
     page ||= tabs.find(p => !VIDS_FILE.test(p.url()));
   } else for (const extra of tabs.slice(1)) await extra.close().catch(() => {});
   if (!page) {
-    page = (site !== 'vids' && pages.find(p => p.url().includes(cfg.match))) || pages.find(p => /^(about:blank|chrome:\/\/new-?tab)/.test(p.url())) || await newTab();
+    page = (site !== 'vids' && pages.find(p => p.url().includes(cfg.match))) || pages.find(p => BLANK.test(p.url()) && !claimed.has(p)) || await newTab();
+    claimed.add(page);
     if (!page.url().includes(cfg.match)) await page.goto(cfg.home, {waitUntil: 'domcontentloaded', timeout: 60000});
   }
+  // пустые вкладки копились по 10 на окно (2026-10-28: «в каждой по 10 вкладок, причём пустых») — закрываем все, кроме только что взятых
+  for (const b of pages) if (b !== page && BLANK.test(b.url()) && !claimed.has(b)) await b.close().catch(() => {});
   guardPage(page, site);
-  if (front) {
+  // окно не выдёргиваем поверх всего, если вкладка и так на виду (пользователь 2026-10-28: «открываются прямо у меня на экране
+  // поверх всего, пока я пишу промпт»): переключаем, только когда нужна другая вкладка окна или окно свёрнуто
+  if (front && await page.evaluate(() => document.visibilityState).catch(() => 'hidden') !== 'visible') {
     await page.bringToFront().catch(() => {});
     await sleep(1200);   // дать странице «проснуться» после переключения вкладки
     await wakeWindow(page);
@@ -198,7 +213,10 @@ async function wakeWindow(page) {
 // Все сервисы профиля — вкладками в ОДНОМ окне Chrome (просьба пользователя): новую вкладку открывает страница этого
 // же окна (bridge.newProfilePage).
 const isSiteTab = p => Object.values(SITES).some(s => p.url().includes(s.match)) && !/accounts\.google\./.test(p.url());
-const newTab = () => newProfilePage();
+// вкладки, взятые под сайт (пока на них не открылся сайт, они пустые — их не закрываем); WeakSet — закрытые забываются сами
+const claimed = new WeakSet();
+const BLANK = /^(about:blank|chrome:\/\/(new-?tab|new-tab-page)|$)/;
+const newTab = async () => { const p = await newProfilePage(); claimed.add(p); return p; };
 // Вкладки сервисов, которые оказались в других окнах, переезжают в окно, где их больше (открываются там заново).
 // Вызывать, когда генерации не идут.
 export async function oneWindow() {
@@ -1090,8 +1108,8 @@ export const flowSync = ({onStatus = () => {}} = {}) => siteRun('flow', () => ui
   return out;
 }));
 
-export const flowImage = o => siteSlot('flow', free => flowGenerate({kind: 'image', timeoutMs: 180000, ...o, free}));
-export const flowVideo = o => siteSlot('flow', free => flowGenerate({kind: 'video', timeoutMs: 300000, ...o, free}));
+export const flowImage = o => siteSlot('flow', free => flowGenerate({kind: 'image', timeoutMs: 180000, ...o, free}), {onWait: o.onStatus});
+export const flowVideo = o => siteSlot('flow', free => flowGenerate({kind: 'video', timeoutMs: 300000, ...o, free}), {prio: 1, onWait: o.onStatus});
 
 // ============================== Dola ==============================
 export const DOLA_IMAGE_MODELS = {
@@ -1121,7 +1139,7 @@ const dolaBusy = page => page.evaluate(() => !!document.querySelector('[class*="
 // ждал впустую все 5 минут)
 const dolaFailed = page => page.evaluate(() => !!document.querySelector('[data-testid="message_box_failed_icon"]')).catch(() => false);
 
-export const dolaImage = o => siteSlot('dola', () => dolaRun(o));
+export const dolaImage = o => siteSlot('dola', () => dolaRun(o), {onWait: o.onStatus});
 const DOLA_CHAT = /dola\.com\/chat\/\d+/;
 async function dolaRun({prompt, aspect, model, imagePath, onStatus}) {
   const chat = await siteRun('dola', () => ui(async () => {
@@ -1269,7 +1287,7 @@ export const dolaVideo = o => siteSlot('dola', async () => {
       if (e.kind === 'asked') o = {...o, prompt: dolaNoAsk(o.prompt, o.seconds || 10, o.aspect || '9:16')};
     }
   }
-});
+}, {prio: 1, onWait: o.onStatus});
 async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA_VIDEO_MODELS['seedance-2.5'], imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
   const chat = await siteRun('dola', () => ui(async () => {
     onStatus('открываю новый чат Dola (видео)');
@@ -1496,7 +1514,7 @@ async function vidsIngredients(page, files, onStatus) {
   if (readState().vidsNoTerms) writeState({vidsNoTerms: null});
 }
 
-export const vidsVideo = o => siteSlot('vids', () => vidsRun(o));
+export const vidsVideo = o => siteSlot('vids', () => vidsRun(o), {prio: 1, onWait: o.onStatus});
 async function vidsRun({prompt, aspect = '9:16', quality = '720p', imagePaths = [], onStatus = () => {}, timeoutMs = 480000}) {
   let before;
   await siteRun('vids', () => ui(async () => {
@@ -1666,7 +1684,7 @@ function arenaStart({mode, prompt, imagePath, onStatus, has}) {
   }));
 }
 
-export const arenaImage = o => siteSlot('arena', () => arenaImageRun(o));
+export const arenaImage = o => siteSlot('arena', () => arenaImageRun(o), {onWait: o.onStatus});
 async function arenaImageRun({prompt, imagePath, onStatus, timeoutMs = 300000}) {
   const chat = await arenaStart({mode: 'Image', prompt, imagePath, onStatus, has: async page => (await arenaImages(page)).length > 0});
   const t0 = Date.now();
@@ -1697,7 +1715,7 @@ async function arenaImageRun({prompt, imagePath, onStatus, timeoutMs = 300000}) 
   });
 }
 
-export const arenaVideo = o => siteSlot('arena', () => arenaRun(o));
+export const arenaVideo = o => siteSlot('arena', () => arenaRun(o), {prio: 1, onWait: o.onStatus});
 async function arenaRun({prompt, imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
   const chat = await arenaStart({mode: 'Video', prompt, imagePath, onStatus, has: async page => (await arenaVideos(page)).length > 0});
   const t0 = Date.now();
