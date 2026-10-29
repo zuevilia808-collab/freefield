@@ -133,6 +133,13 @@ const hubLink = {
     this.tryLan();
     this.key = ls.get('freefield.hubKey', null);
     if (this.key && this.local()) this.refresh();
+    // приложение с GitHub на компьютере — сразу к программе Freefield, не дожидаясь, пока откроют «Сценарии» или «Озвучку»
+    // (2026-10-29: после перезагрузки на «Галерее» связи не было вовсе — новые файлы не приходили, кнопки «Забрать всё» не было);
+    // программа ещё не запущена — пробуем раз в минуту
+    if (this.pcSite() && !this.local()) {
+      this.tryDirect();
+      setInterval(() => { if (!this.ok && !this.direct) { this.pcUp = null; this.tryDirect(); } }, 60e3);
+    }
     else if (this.onPc()) this.localKey().then(ok => ok && this.refresh());
     // старые ссылки на раздел «Для Клода» ведут в «Сценарии» (адрес чистим, чтобы перезагрузка не перекидывала туда снова)
     if (location.hash === '#claude') { setView('create'); setCreateMode('scn'); history.replaceState(null, '', location.pathname + location.search); }
