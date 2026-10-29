@@ -151,6 +151,8 @@ const hubLink = {
       // ключ устарел, а страница открыта на самом компьютере — берём новый сам
       if (this.denied && this.onPc() && !this.keyRetried) { this.keyRetried = true; if (await this.localKey()) return this.load(); }
       this.ok = h.ok;
+      const top = document.getElementById('importAllTop');
+      if (top) top.hidden = !h.ok;
       if (h.ok) {
         this.info = await h.json();
         // приложение на компьютере обновилось, а эта страница открыта со старой версией — предложить перезагрузить
@@ -184,7 +186,13 @@ const hubLink = {
   },
   // один файл с компьютера → в галерею (каждый файл один раз: помним по имени)
   async importFile(url, name, meta, got) {
-    if (this.imported[name] || this.failed[name]) return false;
+    // один файл забирается один раз, даже если «Забрать всё» и обычный забор идут одновременно
+    if (this.imported[name] || this.failed[name] || this.pending.has(name)) return false;
+    this.pending.add(name);
+    try { return await this.importFileIn(url, name, meta, got); } finally { this.pending.delete(name); }
+  },
+  pending: new Set(),
+  async importFileIn(url, name, meta, got) {
     // у каждого шага — предел: файл не пришёл за 2 мин или компьютер трижды ответил ошибкой — карточка с причиной, а не вечное «забираю»
     const miss = why => { this.tries[name] = (this.tries[name] || 0) + 1; if (this.tries[name] >= 3) this.failed[name] = why; return false; };
     let r, blob;
@@ -269,7 +277,9 @@ const hubLink = {
   },
   // кнопка «Забрать всё»: все файлы из Freefield/outputs за 2 дня, которых ещё нет в галерее
   async importAll(btn) {
+    if (btn.disabled) return;
     btn.disabled = true;
+    const label = btn.textContent;
     const got = {video: 0, image: 0};
     try {
       // сначала компьютер проходит по сайтам (Flow…) и забирает то, чего ещё нет в Freefield
@@ -282,14 +292,17 @@ const hubLink = {
       const todo = list.filter(f => !this.imported[f.name]);
       if (!todo.length) toast('В галерее уже всё, что есть на компьютере за 2 дня', {type: 'ok'});
       for (const [i, f] of todo.entries()) {
-        btn.textContent = `📥 Забираю ${i + 1} из ${todo.length}…`;
+        btn.textContent = `📥 Забираю… ${i + 1} / ${todo.length}`;
         try { await this.importFile(f.url, f.name, {...(f.meta || {}), mtime: f.mtime}, got); } catch {}
       }
       render();
       this.gotToast(got, 'Добавлено в галерею');
+      // итог — на самой кнопке несколько секунд, потом прежняя надпись
+      btn.textContent = `✅ Готово, +${got.video + got.image}`;
+      await new Promise(r => setTimeout(r, 5000));
     } catch (e) { toast('Компьютер не отвечает: ' + e.message, {type: 'err'}); }
     btn.disabled = false;
-    btn.textContent = '🔄 Забрать всё из сервисов';
+    btn.textContent = label;
   },
 };
 // связь с программой Freefield на ПК — одним описанием для всех разделов: ok, denied (ключ сменился), down (компьютер по Wi-Fi
@@ -363,3 +376,4 @@ const SITE_AR = {
 const AR_ORDER = ['9:16', '2:3', '3:4', '1:1', '4:3', '16:9', '21:9'];
 const AR_NAME = {'9:16': 'вертикально', '2:3': 'вертикально 2:3', '3:4': 'портрет', '1:1': 'квадрат', '4:3': 'альбом', '16:9': 'горизонтально', '21:9': 'широкий кадр'};
 // у сценария с выбранным сервисом — его форматы; у «авто» — всё, что есть во Flow или в Dola (план отправит туда, где формат есть)
+document.getElementById('importAllTop')?.addEventListener('click', e => hubLink.importAll(e.currentTarget));

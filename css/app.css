@@ -1044,6 +1044,10 @@ body[data-cm=one] .only-asset{display:block}#quickSvc{display:none}
 .search:focus{border-color:rgba(212,255,58,.45);box-shadow:0 0 0 3px rgba(212,255,58,.08);background-color:var(--panel2)}
 .search::placeholder{color:var(--dim)}
 .count{margin-left:auto;color:var(--dim);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* «📥 Забрать всё» — крупная лаймовая кнопка рядом со счётчиком галереи; во время забора на ней ход «Забираю… 120 / 1300» */
+.import-top{flex:none;display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:12px;background:var(--lime-grad);color:var(--ink);font-weight:800;font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums;box-shadow:var(--glow);transition:transform .2s var(--spring),filter .2s}
+.import-top:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.05)}
+.import-top:disabled{cursor:progress;filter:saturate(.75)}
 .grid{display:grid;gap:12px;align-items:start}
 .col{display:flex;flex-direction:column;gap:12px;min-width:0}
 .card{border-radius:16px;overflow:hidden;position:relative;background:var(--panel2);cursor:zoom-in;width:100%;animation:pop .5s var(--ease) both;box-shadow:0 0 0 1px var(--line),0 12px 30px -20px rgba(0,0,0,.9);transition:transform .35s var(--ease),box-shadow .3s}
@@ -1363,6 +1367,7 @@ body[data-cm=one] .only-asset{display:block}#quickSvc{display:none}
   .feed{padding:0 12px 24px}
   .feed-head{padding:10px 0 12px;flex-wrap:wrap}
   .count{display:none}
+  .import-top{margin-left:auto;height:36px;padding:0 14px}
   .features{grid-template-columns:1fr}
   .empty{padding:28px 8px 24px}
   .gen-bar{padding:10px 12px 12px}
