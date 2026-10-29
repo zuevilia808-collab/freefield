@@ -5,6 +5,7 @@
 import * as P from './portals.js';
 import fs from 'node:fs';
 import {imageSize} from './media.js';
+import {chatCtx} from './chat.js';
 import path from 'node:path';
 import {withProfile, profileIds, profileName, activeProfileId, readAcct, HERE} from './state.js';
 
@@ -157,7 +158,7 @@ export function planBatch(scenarios, {open = [], seed = {}, from = 0} = {}) {
       if (cands.length) over = want;
     }
     // занятость — своя (этот пакет) и всех чатов сразу (общая очередь xq.js): занятый другими чатами аккаунт — в последнюю очередь
-    const lv = c => (load[c.site + c.p] || 0) + (glob[c.site + c.p] ??= P.siteLoad ? P.siteLoad(c.site, c.p) : 0);
+    const lv = c => (load[c.site + c.p] || 0) + (glob[c.site + c.p + kind] ??= P.siteLoad ? P.siteLoad(c.site, c.p, kind) : 0);
     // «меньше всего занят» — по доле мест: Flow 4, Dola и Arena по 2 → из 8 картинок Flow берёт 4, Dola 2, Arena 2
     const share = c => lv(c) / (P.PARALLEL[c.site] || 1);
     const least = list => list.reduce((best, c) => (!best || share(c) < share(best) ? c : best), null);
@@ -273,9 +274,14 @@ function animateItem(it, all) {
   v.note = `конвейер: оживляю лучший кадр сценария ${it.n}`;
   return v;
 }
-export async function runBatch(items, {save, onChange = () => {}, fallback = true, all = items}) {
+export async function runBatch(items, {save, onChange = () => {}, fallback = true, all = items, tag = null}) {
   const runs = [];
-  const runOne = async it => {
+  // маленький пакет (до 10 сцен) идёт в общей очереди впереди длинных (xq.js); item — чтобы cancel_job снял его из очереди
+  const small = all.length <= 10;
+  // tag — очередь «по кругу» между чатами; пакет, подхваченный после перезапуска, своего чата уже не знает — идёт под своим id
+  const ctx0 = chatCtx.getStore() || {};
+  const runOne = it => chatCtx.run({...ctx0, tag: ctx0.tag || tag || undefined, small, item: it}, () => runOneIn(it));
+  const runOneIn = async it => {
     const status = msg => { it.status = 'running'; it.message = msg; onChange(); };
     let site = it.site, p = it.profile || 1, policy = 0, busy = 0, prompt = it.prompt;
     const tried = new Set(), notes = [];
@@ -288,6 +294,7 @@ export async function runBatch(items, {save, onChange = () => {}, fallback = tru
       return true;
     };
     for (let n = 1; ; n++) {
+      if (it.cancelled) { Object.assign(it, {status: 'error', message: 'снято из очереди', errorKind: 'cancelled', finished: Date.now()}); break; }
       try {
         const r = await generateOn(site, prompt === it.prompt ? it : {...it, prompt}, status, p);
         lastOk[site] = Date.now();
@@ -296,6 +303,7 @@ export async function runBatch(items, {save, onChange = () => {}, fallback = tru
         if (notes.length) { it.note = `${notes.join(' → ')} → ✓ ${where(site, p)}`; logProblem({site, kind: it.kind, outcome: `done on try ${n}`, steps: notes, prompt: it.prompt.slice(0, 300)}); }
         break;
       } catch (e) {
+        if (it.cancelled || e.kind === 'cancelled') { Object.assign(it, {status: 'error', message: 'снято из очереди', errorKind: 'cancelled', finished: Date.now()}); break; }
         const kind = e.kind || 'other', isPolicy = POLICY.test(e.message);
         // сайт «занят», не успел, завис — снимок его вкладки в журнал (если сайт свой снимок уже сделал — путь в тексте ошибки)
         const shot = kind === 'busy' && !/снимок:/.test(e.message) && P.siteShot ? await withProfile(p, () => P.siteShot(site)).catch(() => null) : null;

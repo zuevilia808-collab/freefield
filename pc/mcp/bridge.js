@@ -280,7 +280,22 @@ export async function leaseProfile(p = currentProfile()) {
   await (opening[dir] ||= ensureProfileWindow(dir).finally(() => { delete opening[dir]; }));
   users[dir] = (users[dir] || 0) + 1;
   let done = false;
-  return () => { if (done) return; done = true; users[dir]--; };
+  lastUsed[dir] = Date.now();
+  return () => { if (done) return; done = true; users[dir]--; lastUsed[dir] = Date.now(); };
+}
+// Окна профилей, где давно ничего не делали, закрываем (2026-10-29: 7 окон, 44 процесса Chrome, 5,6 ГБ — кончалась память).
+// Последнее открытое окно не трогаем; понадобится профиль — Freefield откроет его окно снова сам
+const lastUsed = {};
+export async function reapIdleProfiles(idleMs = 10 * 60e3) {
+  if (!(await cdpOnce(2500))) return [];
+  const {map, count} = await openProfilesNow();
+  // Default не закрываем: там живёт окно галереи (приложение Freefield), его пользователь держит открытым
+  const idle = Object.keys(map).filter(dir => dir !== 'Default' && !busy(dir) && Date.now() - (lastUsed[dir] ??= Date.now()) > idleMs);
+  const closed = [];
+  for (const dir of idle.slice(0, Math.max(0, count - 1))) {
+    try { await closeProfile(dir); closed.push(dir); delete lastUsed[dir]; } catch { /* занят — в другой раз */ }
+  }
+  return closed;
 }
 const busy = dir => dir ? users[dir] > 0 || !!opening[dir] : Object.values(users).some(n => n > 0) || Object.keys(opening).length > 0;
 

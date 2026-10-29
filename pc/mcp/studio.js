@@ -119,10 +119,36 @@ export async function startBatch(scenarios, source, extra = {}) {
 function runItems(batch, items, B) {
   batch.promise = B.runBatch(items, {
     all: batch.items,
+    tag: 'batch-' + batch.id,
     // имя файла — номер сценария и его название (title), иначе начало промпта: у похожих промптов имена были одинаковые (2026-10-17)
     save: (o, it) => saveOutput(o.buf, o.mime || (it.kind === 'video' ? 'video/mp4' : 'image/jpeg'), `s${it.n}-${it.title || it.prompt.replace(/^(On-screen text|Subject|Spoken line):[^\n]*\n?/gim, '')}`),
     onChange: persistBatches,
   }).catch(e => log('batch:', e.message)).finally(() => { batch.done = true; persistBatches(); runSync().catch(() => {}); });
+}
+
+// cancel_job: снять сцены пакета, которые ещё ждут (по номеру задачи batch-… или id пакета b…; nums — номера сцен, иначе все).
+// Ждущие в общей очереди снимаются сразу; те, что уже генерируются на сайте, доделываются (их результат придёт в галерею)
+export async function cancelBatch(id, nums = null) {
+  const b = batchByJob(id) || batches.get(id) || allBatches().find(x => x.id === id);
+  if (!b) return null;
+  const pick = it => ['queued', 'running'].includes(it.status) && (!nums?.length || nums.includes(it.n));
+  const live = batches.get(b.id);
+  let cancelled = 0, generating = 0;
+  if (live?.promise && !live.done) {
+    const todo = live.items.filter(pick);
+    for (const it of todo) it.cancelled = true;
+    (await import('./xq.js')).cancelWaiting(it => it.cancelled);
+    await new Promise(r => setTimeout(r, 300));
+    cancelled = todo.filter(it => it.status === 'error').length;
+    generating = todo.length - cancelled;
+  } else {
+    // пакет не идёт в этой копии (брошен или в файле) — просто помечаем снятым, чтобы его не подхватили после перезапуска
+    const nb = {...b, items: b.items.map(it => pick(it) ? (cancelled++, {...it, status: 'error', message: 'снято из очереди', errorKind: 'cancelled'}) : it)};
+    if (!nb.items.some(it => ['queued', 'running'].includes(it.status))) nb.done = true;
+    batches.set(nb.id, nb);
+  }
+  persistBatches();
+  return {batch: b.id, cancelled, generating};
 }
 
 // номер задачи пакета (check_job) — в файле, чтобы после перезапуска его можно было найти

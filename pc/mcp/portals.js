@@ -21,7 +21,8 @@ export class PortalError extends Error { constructor(msg, kind = 'other') { supe
 // в Dola и Arena — каждая генерация в своей вкладке. PARALLEL — сколько генераций одного сайта идут одновременно.
 export const PARALLEL = {flow: 4, dola: 2, arena: 2, vids: 1};   // Vids: панель ИИ-видео делает одно видео за раз
 // очереди — у каждого профиля Chrome свои (разные окна и аккаунты работают параллельно)
-// Места — общие на все копии Freefield (xq.js): честно между чатами, видео раньше картинок (prio 1).
+// Места — общие на все чаты (xq.js): маленькие пакеты вперёд, по кругу между чатами, картинки раньше видео (prio 1 —
+// пользователь 2026-10-29: картинки — почти мгновенно; видео дольше и всё равно ждут картинку для конвейера).
 // onWait — статус «в общей очереди: впереди N»
 const slots = {};   // сколько мест сайта держит эта копия (свои вкладки не закрываем, пока на них ждут)
 function siteSlot(site, fn, {prio = 0, onWait} = {}) {
@@ -30,13 +31,14 @@ function siteSlot(site, fn, {prio = 0, onWait} = {}) {
   // free() — освободить место раньше конца: сайт уже сгенерировал, осталось только скачать — следующий промпт уходит сразу
   // (пользователь 2026-10-17: «не дожидаясь, пока получит прошлые фото, сразу генерить наперёд»)
   return XQ.acquire(key, PARALLEL[site] || 1, {prio, onWait: n => onWait?.(`${SITES[site].name}: в общей очереди всех чатов, впереди ${n}`)}).then(rel => {
+    if (!rel) throw new PortalError('снято из очереди', 'cancelled');
     s.n++;
     let freed = false;
     const free = () => { if (freed) return; freed = true; s.n--; rel(); };
     return leaseProfile().then(release => Promise.resolve().then(() => fn(free)).finally(release)).finally(free);
   });
 }
-export const siteLoad = (site, p = currentProfile()) => XQ.load(`slot-${site}@${p}`);
+export const siteLoad = (site, p = currentProfile(), kind = 'video') => XQ.load(`slot-${site}@${p}`, kind === 'image' ? 1 : 0);
 const siteChains = {};
 export function siteRun(site, fn) {
   const key = `${site}@${currentProfile()}`;
@@ -72,7 +74,7 @@ async function withFileLock(site, fn) {
   // сначала — честная очередь всех копий (раньше замок доставался тому, кто первым проверил, и большой пакет одного чата
   // забирал сайт раз за разом); потом — сам файл-замок (его ещё берут копии со старым кодом)
   const rel = await XQ.acquire(`lock-${site}@${currentProfile()}`, 1, {maxWaitMs: 30 * 60e3});
-  if (!rel) throw new PortalError(`${SITES[site].name} занят другими чатами Freefield больше 30 мин`, 'busy');
+  if (!rel) throw new PortalError(XQ.cancelledHere() ? 'снято из очереди' : `${SITES[site].name} занят другими чатами Freefield больше 30 мин`, XQ.cancelledHere() ? 'cancelled' : 'busy');
   try { return await lockFile(site, file, fn); } finally { rel(); }
 }
 async function lockFile(site, file, fn) {
@@ -1112,8 +1114,8 @@ export const flowSync = ({onStatus = () => {}} = {}) => siteRun('flow', () => ui
   return out;
 }));
 
-export const flowImage = o => siteSlot('flow', free => flowGenerate({kind: 'image', timeoutMs: 180000, ...o, free}), {onWait: o.onStatus});
-export const flowVideo = o => siteSlot('flow', free => flowGenerate({kind: 'video', timeoutMs: 300000, ...o, free}), {prio: 1, onWait: o.onStatus});
+export const flowImage = o => siteSlot('flow', free => flowGenerate({kind: 'image', timeoutMs: 180000, ...o, free}), {prio: 1, onWait: o.onStatus});
+export const flowVideo = o => siteSlot('flow', free => flowGenerate({kind: 'video', timeoutMs: 300000, ...o, free}), {onWait: o.onStatus});
 
 // ============================== Dola ==============================
 export const DOLA_IMAGE_MODELS = {
@@ -1143,7 +1145,7 @@ const dolaBusy = page => page.evaluate(() => !!document.querySelector('[class*="
 // ждал впустую все 5 минут)
 const dolaFailed = page => page.evaluate(() => !!document.querySelector('[data-testid="message_box_failed_icon"]')).catch(() => false);
 
-export const dolaImage = o => siteSlot('dola', () => dolaRun(o), {onWait: o.onStatus});
+export const dolaImage = o => siteSlot('dola', () => dolaRun(o), {prio: 1, onWait: o.onStatus});
 const DOLA_CHAT = /dola\.com\/chat\/\d+/;
 async function dolaRun({prompt, aspect, model, imagePath, onStatus}) {
   const chat = await siteRun('dola', () => ui(async () => {
@@ -1291,7 +1293,7 @@ export const dolaVideo = o => siteSlot('dola', async () => {
       if (e.kind === 'asked') o = {...o, prompt: dolaNoAsk(o.prompt, o.seconds || 10, o.aspect || '9:16')};
     }
   }
-}, {prio: 1, onWait: o.onStatus});
+}, {onWait: o.onStatus});
 async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA_VIDEO_MODELS['seedance-2.5'], imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
   const chat = await siteRun('dola', () => ui(async () => {
     onStatus('открываю новый чат Dola (видео)');
@@ -1518,7 +1520,7 @@ async function vidsIngredients(page, files, onStatus) {
   if (readState().vidsNoTerms) writeState({vidsNoTerms: null});
 }
 
-export const vidsVideo = o => siteSlot('vids', () => vidsRun(o), {prio: 1, onWait: o.onStatus});
+export const vidsVideo = o => siteSlot('vids', () => vidsRun(o), {onWait: o.onStatus});
 async function vidsRun({prompt, aspect = '9:16', quality = '720p', imagePaths = [], onStatus = () => {}, timeoutMs = 480000}) {
   let before;
   await siteRun('vids', () => ui(async () => {
@@ -1688,7 +1690,7 @@ function arenaStart({mode, prompt, imagePath, onStatus, has}) {
   }));
 }
 
-export const arenaImage = o => siteSlot('arena', () => arenaImageRun(o), {onWait: o.onStatus});
+export const arenaImage = o => siteSlot('arena', () => arenaImageRun(o), {prio: 1, onWait: o.onStatus});
 async function arenaImageRun({prompt, imagePath, onStatus, timeoutMs = 300000}) {
   const chat = await arenaStart({mode: 'Image', prompt, imagePath, onStatus, has: async page => (await arenaImages(page)).length > 0});
   const t0 = Date.now();
@@ -1719,7 +1721,7 @@ async function arenaImageRun({prompt, imagePath, onStatus, timeoutMs = 300000}) 
   });
 }
 
-export const arenaVideo = o => siteSlot('arena', () => arenaRun(o), {prio: 1, onWait: o.onStatus});
+export const arenaVideo = o => siteSlot('arena', () => arenaRun(o), {onWait: o.onStatus});
 async function arenaRun({prompt, imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
   const chat = await arenaStart({mode: 'Video', prompt, imagePath, onStatus, has: async page => (await arenaVideos(page)).length > 0});
   const t0 = Date.now();

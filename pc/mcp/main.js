@@ -12,7 +12,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import crypto from 'node:crypto';
 import {readState, writeState} from './state.js';
-import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog, setBatchJob, batchByJob, resumeBatches} from './studio.js';
+import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog, setBatchJob, batchByJob, resumeBatches, cancelBatch} from './studio.js';
 import {fileInfo, aspectCheck} from './media.js';
 import {ECHO_URL, startEcho} from './echo.js';
 
@@ -936,6 +936,22 @@ const resumeNow = () => resumeBatches(b => { if (b.jobId) batchJob(b); }).catch(
 resumeNow();
 setInterval(resumeNow, 60e3).unref();
 
+server.registerTool('cancel_job', {
+  title: 'Снять пакет из очереди',
+  description: 'Снимает сцены пакета batch_generate, которые ещё ждут в общей очереди: job_id — номер задачи («batch-…») или id пакета («b…»), ' +
+    'scenarios — номера сцен (не указано — все незаконченные). Сцены, которые уже генерируются на сайте, доделываются, их файлы придут в галерею. ' +
+    'Используй, когда пакет больше не нужен или мешает новому срочному запросу.',
+  inputSchema: {
+    job_id: z.string().describe('batch-… из batch_generate / check_job или id пакета b…'),
+    scenarios: z.array(z.number().int().min(1)).optional().describe('Номера сцен; не указано — все незаконченные'),
+  },
+  annotations: {readOnlyHint: false, destructiveHint: false, openWorldHint: false},
+}, async ({job_id, scenarios}) => {
+  const r = await cancelBatch(job_id, scenarios);
+  if (!r) return toolResult({status: 'error', error: 'нет такого пакета'}, {text: `Нет пакета ${job_id} — возьми номер из batch_generate или check_job`, isError: true});
+  return toolResult(r, {text: `Пакет ${r.batch}: снято ${r.cancelled}` + (r.generating ? `, ещё генерируются на сайтах ${r.generating} (доделаются сами)` : '')});
+});
+
 server.registerTool('image_to_3d', {
   title: 'Картинка → 3D-модель',
   description: 'Делает 3D-модель по картинке персонажа или предмета на бесплатных лимитах, под аккаунтами пользователя. Асинхронно: возвращает job_id — результат через check_job. ' +
@@ -1719,6 +1735,8 @@ import('./chat.js').then(async ({chatCtx}) => {
     return m;
   };
   const boot = codeAt();
+  // окна Chrome профилей без работы 10 мин — закрываются (память)
+  setInterval(() => import('./bridge.js').then(B => B.reapIdleProfiles()).then(c => c.length && log('закрыл простаивающие окна Chrome:', c.join(', '))).catch(() => {}), 2 * 60e3).unref();
   setInterval(() => {
     if (codeAt() <= boot) return;
     const running = [...jobs.values()].some(j => j.status === 'running') || allBatches().some(b => !b.done && b.pid === process.pid);
