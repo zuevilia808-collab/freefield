@@ -30,8 +30,13 @@ const localState = () => { try { return JSON.parse(fs.readFileSync(path.join(PRO
 let browser = null;
 let activeDir = null;   // профиль Chrome, который сейчас открыт (если знаем)
 
+// Chrome отвечает? Ответ «нет» запускает Chrome заново — а запуск при уже открытом Chrome открывает лишнее окно с пустой
+// вкладкой (2026-10-29: по 10 пустых вкладок в каждом окне, окна поверх всего). Поэтому «нет» — только после трёх проверок
+// с запасом по времени: занятый Chrome или занятая главная копия отвечают медленно, но это не «закрыт»
+const cdpOnce = ms => fetch(`http://127.0.0.1:${PORT}/json/version`, {signal: AbortSignal.timeout(ms)}).then(r => r.ok, () => false);
 async function cdpUp() {
-  try { return (await fetch(`http://127.0.0.1:${PORT}/json/version`, {signal: AbortSignal.timeout(1500)})).ok; } catch { return false; }
+  for (let i = 0; i < 3; i++) { if (await cdpOnce(i ? 5000 : 2500)) return true; await sleep(300); }
+  return false;
 }
 
 // Запуск Chrome с профилем dir. Если Chrome Freefield уже открыт, Chrome сам передаёт команду открытому окну —

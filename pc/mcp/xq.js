@@ -1,89 +1,53 @@
-// Общая очередь всех копий Freefield (у каждого чата Claude своя копия сервера, а аккаунты Flow/Dola/Arena/Vids — одни на всех).
-// 2026-10-28: 10 чатов YouTube-каналов генерировали сразу — копия с большим пакетом забирала сайт снова и снова (замок-файл
-// доставался тому, кто первым проверил), у других из 40 картинок приходили 2, а у каждой копии было своё «до 4 во Flow» —
-// на один аккаунт уходило по 20–40 генераций. Теперь места сайта (Flow 4, Dola 2, Arena 2, Vids 1 на аккаунт) и право
-// печатать в окне — общие на все копии, и раздаются честно: первым идёт тот чат, у кого сейчас меньше занято мест,
-// видео — раньше картинок, при равенстве — кто дольше ждёт.
-// Устройство: папка .queue/<ключ>/ — по файлу на каждого ждущего или занявшего место; решение «кто следующий» принимается
-// под коротким замком; мёртвые копии (процесс закрыт или 90 с без отметки) из очереди убираются сами.
-import fs from 'node:fs';
-import path from 'node:path';
-import {HERE} from './state.js';
+// Общая очередь всех чатов. Все чаты работают через одну главную копию Freefield (main.js), поэтому очередь — в её памяти.
+// 2026-10-28: 10 чатов YouTube-каналов генерировали сразу — копия с большим пакетом забирала сайт снова и снова, у других
+// из 40 картинок приходили 2, а у каждой копии было своё «до 4 во Flow» — на один аккаунт уходило по 20–40 генераций.
+// Теперь места сайта (Flow 4, Dola 2, Arena 2, Vids 1 на аккаунт) и право печатать в окне раздаются честно: первым идёт тот
+// чат, у кого сейчас меньше занято мест, видео — раньше картинок, дальше — чат, которому давали место давнее всех, и кто дольше ждёт.
+// (2026-10-29: первая версия делила очередь через файлы и опрашивала их по каждому ожидающему — при 240 заданиях главная копия
+// захлёбывалась чтением файлов, не успевала ответить Chrome и открывала лишние окна. В памяти — мгновенно и без нагрузки.)
 import {chatTag} from './chat.js';
 
-const ROOT = path.join(HERE, '.queue');
-const STALE_MS = 90e3, BEAT_MS = 20e3, POLL_MS = 700;
-const alive = pid => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const dirOf = key => path.join(ROOT, key.replace(/[^\w.@-]/g, '_'));
-let seq = 0;
-const readServed = dir => { try { return JSON.parse(fs.readFileSync(path.join(dir, '.served'), 'utf8')); } catch { return {}; } };
-const writeServed = (dir, s) => { try { fs.writeFileSync(path.join(dir, '.served'), JSON.stringify(s)); } catch {} };
+const queues = new Map();   // ключ → {holders, waiting, served: {чат: когда последний раз дали место}, limit}
+const Q = key => { let q = queues.get(key); if (!q) queues.set(key, q = {holders: [], waiting: [], served: {}, limit: 1}); return q; };
 
-function entries(dir) {
-  let names = [];
-  try { names = fs.readdirSync(dir).filter(n => n.endsWith('.json')); } catch { return []; }
-  const out = [];
-  for (const n of names) {
-    const f = path.join(dir, n);
-    let e = null;
-    try { e = JSON.parse(fs.readFileSync(f, 'utf8')); } catch { continue; }   // пишется прямо сейчас — в следующий раз
-    if (!alive(e.pid) || Date.now() - (e.beat || 0) > STALE_MS) { fs.rmSync(f, {force: true}); continue; }
-    out.push({...e, file: f});
+function pump(q) {
+  const byTag = {};
+  for (const h of q.holders) byTag[h.tag] = (byTag[h.tag] || 0) + 1;
+  while (q.holders.length < q.limit && q.waiting.length) {
+    q.waiting.sort((a, b) => (byTag[a.tag] || 0) - (byTag[b.tag] || 0) || b.prio - a.prio || (q.served[a.tag] || 0) - (q.served[b.tag] || 0) || a.at - b.at);
+    const w = q.waiting.shift();
+    q.holders.push(w);
+    byTag[w.tag] = (byTag[w.tag] || 0) + 1;
+    q.served[w.tag] = Date.now();
+    w.grant();
   }
-  return out;
-}
-// короткий замок на решение «кто следующий» (держится миллисекунды; брошенный старше 5 с — снимается)
-async function mutex(dir, fn) {
-  const m = path.join(dir, '.mtx');
-  for (;;) {
-    try { fs.writeFileSync(m, String(process.pid), {flag: 'wx'}); break; } catch (e) {
-      // Windows: файл, который другой только что удалил, ещё «удаляется» — EPERM/EBUSY, это тоже «занято»
-      if (!['EEXIST', 'EPERM', 'EACCES', 'EBUSY'].includes(e.code)) throw e;
-      try { if (Date.now() - fs.statSync(m).mtimeMs > 5000) fs.rmSync(m, {force: true}); } catch {}
-      await sleep(10 + Math.random() * 25);
-    }
-  }
-  try { return fn(); } finally { try { fs.rmSync(m, {force: true}); } catch {} }
+  q.waiting.forEach((w, i) => { if (w.ahead !== i + 1) { w.ahead = i + 1; try { w.onWait(i + 1); } catch {} } });
 }
 
-// Занять место: limit — сколько мест у ключа на все копии; prio — 1 для видео (идёт раньше картинок);
-// onWait(n) — сколько заданий впереди (для статуса). Возвращает release().
-export async function acquire(key, limit, {prio = 0, tag = chatTag(), onWait = () => {}, maxWaitMs = 0} = {}) {
-  const dir = dirOf(key);
-  fs.mkdirSync(dir, {recursive: true});
-  const me = {pid: process.pid, tag, prio, at: Date.now(), beat: Date.now(), hold: false};
-  const file = path.join(dir, `${process.pid}-${++seq}.json`);
-  const write = () => { for (let i = 0; ; i++) try { return fs.writeFileSync(file, JSON.stringify(me)); } catch (e) { if (i >= 20) throw e; Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25); } };
-  write();
-  const beat = setInterval(() => { me.beat = Date.now(); try { write(); } catch {} }, BEAT_MS);
-  beat.unref?.();
-  let done = false;
-  const release = () => { if (done) return; done = true; clearInterval(beat); fs.rmSync(file, {force: true}); };
-  try {
-    let lastAhead = -1;
-    for (;;) {
-      const ahead = await mutex(dir, () => {
-        const all = entries(dir), holders = all.filter(e => e.hold);
-        const free = limit - holders.length;
-        const byTag = {};
-        for (const h of holders) byTag[h.tag] = (byTag[h.tag] || 0) + 1;
-        // по кругу между чатами: меньше занято сейчас → видео раньше картинок → чат, которому давали место давнее всех → кто дольше ждёт
-        const served = readServed(dir);
-        const waiting = all.filter(e => !e.hold)
-          .sort((a, b) => (byTag[a.tag] || 0) - (byTag[b.tag] || 0) || b.prio - a.prio || (served[a.tag] || 0) - (served[b.tag] || 0) || a.at - b.at);
-        const pos = waiting.findIndex(e => e.file === file);
-        if (pos < 0) { me.beat = Date.now(); write(); return Infinity; }   // файл убрали (долго «спали») — вернулись в очередь
-        if (pos < free) { me.hold = true; me.beat = Date.now(); write(); served[tag] = Date.now(); writeServed(dir, served); return 0; }
-        return pos - Math.max(free, 0) + 1;
-      });
-      if (ahead === 0) return release;
-      if (ahead !== lastAhead && ahead !== Infinity) { lastAhead = ahead; try { onWait(ahead); } catch {} }
-      if (maxWaitMs && Date.now() - me.at > maxWaitMs) { release(); return null; }
-      await sleep(POLL_MS);
-    }
-  } catch (e) { release(); throw e; }
+// Занять место: limit — сколько мест у ключа; prio — 1 для видео (идёт раньше картинок); onWait(n) — сколько заданий впереди.
+// Возвращает release() (или null, если maxWaitMs истёк)
+export function acquire(key, limit, {prio = 0, tag = chatTag(), onWait = () => {}, maxWaitMs = 0} = {}) {
+  const q = Q(key);
+  q.limit = limit;
+  return new Promise(resolve => {
+    const w = {tag, prio, at: Date.now(), onWait, ahead: 0};
+    let done = false, timer = null;
+    const release = () => {
+      if (done) return;
+      done = true;
+      const i = q.holders.indexOf(w);
+      if (i >= 0) q.holders.splice(i, 1);
+      pump(q);
+    };
+    w.grant = () => { clearTimeout(timer); resolve(release); };
+    if (maxWaitMs) timer = setTimeout(() => {
+      const i = q.waiting.indexOf(w);
+      if (i >= 0) { q.waiting.splice(i, 1); done = true; resolve(null); pump(q); }
+    }, maxWaitMs);
+    q.waiting.push(w);
+    pump(q);
+  });
 }
 
-// Сколько заданий у ключа сейчас во всех копиях (идут + ждут) — планировщик пакета раскладывает по свободным аккаунтам
-export function load(key) { return entries(dirOf(key)).length; }
+// Сколько заданий у ключа сейчас (идут + ждут) — планировщик пакета раскладывает по свободным аккаунтам
+export function load(key) { const q = queues.get(key); return q ? q.holders.length + q.waiting.length : 0; }
