@@ -247,6 +247,10 @@ const hubLink = {
   // готовые файлы новых генераций — в галерею сами
   async importDone() {
     const got = {video: 0, image: 0, model: 0};
+    // галерею перерисовываем по ходу, раз в 3 с, а не только в конце (2026-10-29: после восстановления истории забор ~1000 старых
+    // файлов шёл долго, и сегодняшние картинки, уже забранные, не показывались до самого конца — «в галерее только старое»)
+    let shown = Date.now(), seen = 0;
+    const tick = () => { const n = got.video + got.image + got.model; if (n !== seen && Date.now() - shown > 3000) { seen = n; shown = Date.now(); render(); } };
     for (const b of this.batches) {
       // только сделанное через Freefield: старые синхронизации тащили с сайтов всё подряд — их не берём
       // свежее (за 2 дня) — всегда: иначе ролики, сделанные до того, как Freefield открыли по новой ссылке, не попадали в галерею (2026-10-15)
@@ -256,6 +260,7 @@ const hubLink = {
         if (it.kind === '3d') { if (it.status === 'done') try { await this.importModel(b, it, got); } catch { /* в следующий раз */ } continue; }
         for (const f of it.files || []) {
         try { await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: it.finished || b.created, siteProject: b.siteProject}, got); } catch { /* попробуем в следующий раз */ }
+        tick();
         }
       }
     }
