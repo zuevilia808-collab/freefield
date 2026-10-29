@@ -35,7 +35,18 @@ export function saveOutput(buf, mime, prompt, seed = randSeed()) {
 const BATCH_FILE = path.join(HERE, '.batches.json');
 const trendJobs = new Map();   // «🔥 Тренды»: поиск с идеями из приложения (id → ход)
 const batches = new Map();
-const readBatches = () => { try { return JSON.parse(fs.readFileSync(BATCH_FILE, 'utf8')); } catch { return []; } };
+// История терялась (2026-10-29: остался один день вместо недель): файл читался в тот момент, когда другая копия его
+// переписывала, — недописанный JSON считался «пустой историей», и следующая запись затирала всё. Теперь: запись — во
+// временный файл и подмена целиком; чтение не удалось — повтор, потом последняя удачная копия из памяти; не прочитали
+// ни разу — не пишем вовсе. Раз в день — запасная копия .batches.json.YYYY-MM-DD (хранятся 7)
+let lastGood = null;
+const readBatches = () => {
+  for (let i = 0; i < 4; i++) {
+    try { const v = JSON.parse(fs.readFileSync(BATCH_FILE, 'utf8')); if (Array.isArray(v)) return lastGood = v; } catch (e) { if (e.code === 'ENOENT') return lastGood ||= []; }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60);
+  }
+  return lastGood;   // null — прочитать не удалось ни разу
+};
 const plainBatch = b => ({id: b.id, source: b.source, created: b.created, done: b.done, pid: b.pid, items: b.items,
   ...(b.jobId && {jobId: b.jobId}), ...(b.resumed && {resumed: b.resumed}),
   ...(b.siteTask && {siteTask: b.siteTask, siteProject: b.siteProject})});
@@ -52,14 +63,27 @@ function orphan(b) {
     ? {...it, status: 'error', message: 'прервано: Freefield на компьютере перезапускался — запустите сценарий снова'} : it)};
 }
 export function allBatches() {
-  const map = new Map(readBatches().map(b => [b.id, orphan(b)]));
+  const map = new Map((readBatches() || []).map(b => [b.id, orphan(b)]));
   for (const b of batches.values()) map.set(b.id, plainBatch(b));
-  return [...map.values()].sort((a, b) => b.created - a.created).slice(0, 200);
+  return [...map.values()].sort((a, b) => b.created - a.created).slice(0, 500);
 }
 let persistTimer = null;
 export function persistBatches() {
   clearTimeout(persistTimer);
-  persistTimer = setTimeout(() => { try { fs.writeFileSync(BATCH_FILE, JSON.stringify(allBatches(), null, 1)); } catch (e) { log('batches:', e.message); } }, 400);
+  persistTimer = setTimeout(() => {
+    try {
+      if (readBatches() === null) { log('batches: файл истории не читается — не перезаписываю его'); return; }
+      const day = path.join(path.dirname(BATCH_FILE), `.batches.json.${new Date().toLocaleDateString('sv')}`);
+      if (!fs.existsSync(day) && fs.existsSync(BATCH_FILE)) {
+        fs.copyFileSync(BATCH_FILE, day);
+        const old = fs.readdirSync(path.dirname(BATCH_FILE)).filter(f => /^\.batches\.json\.\d{4}-\d\d-\d\d$/.test(f)).sort().slice(0, -7);
+        for (const f of old) fs.rmSync(path.join(path.dirname(BATCH_FILE), f), {force: true});
+      }
+      const tmp = BATCH_FILE + '.' + process.pid + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify(allBatches(), null, 1));
+      fs.renameSync(tmp, BATCH_FILE);
+    } catch (e) { log('batches:', e.message); }
+  }, 400);
 }
 
 // одиночная генерация — в историю как пакет из одного сценария (галерея приложения забирает оттуда)
@@ -117,7 +141,7 @@ export async function resumeBatches(onResume = () => {}) {
   resuming = true;
   let n = 0;
   try {
-    for (const b of readBatches().filter(b => !batches.has(b.id) && resumable(b))) {
+    for (const b of (readBatches() || []).filter(b => !batches.has(b.id) && resumable(b))) {
       const lock = path.join(HERE, `.resume-${b.id}`);
       try { fs.writeFileSync(lock, String(process.pid), {flag: 'wx'}); } catch {
         const owner = +fs.readFileSync(lock, 'utf8') || 0;
@@ -276,7 +300,7 @@ export const hubApi = {
   list: async () => {
     const {SITE_LABEL} = await batchMod();
     return allBatches().map(b => ({...b, siteProject: b.siteProject || null, items: b.items.map(it => ({n: it.n, prompt: it.prompt, kind: it.kind, site: it.site,
-      model: it.model, appModel: it.appModel || null, status: it.status, message: it.message, note: it.note, aspect: it.aspect,
+      model: it.model, appModel: it.appModel || null, status: it.status, message: it.message, note: it.note, aspect: it.aspect, finished: it.finished || null,
       siteLabel: SITE_LABEL[it.site] || it.siteLabel || null, meta3d: it.meta3d || null,
       files: (it.files || []).map((f, j) => ({url: `/api/file/${b.id}/${it.n}/${j}`, name: f.name || path.basename(f.path), mime: f.mime, label: f.label}))}))}));
   },

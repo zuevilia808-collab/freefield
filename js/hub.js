@@ -250,11 +250,12 @@ const hubLink = {
     for (const b of this.batches) {
       // только сделанное через Freefield: старые синхронизации тащили с сайтов всё подряд — их не берём
       // свежее (за 2 дня) — всегда: иначе ролики, сделанные до того, как Freefield открыли по новой ссылке, не попадали в галерею (2026-10-15)
-      if ((b.created < this.since && Date.now() - b.created > 2 * 864e5) || (b.source === 'sync' && !b.ours)) continue;
+      // восстановленная история (restored: файлы из outputs после потери истории 2026-10-29) — берём целиком, за любые дни
+      if ((b.created < this.since && Date.now() - b.created > 2 * 864e5 && !b.restored) || (b.source === 'sync' && !b.ours)) continue;
       for (const it of b.items) {
         if (it.kind === '3d') { if (it.status === 'done') try { await this.importModel(b, it, got); } catch { /* в следующий раз */ } continue; }
         for (const f of it.files || []) {
-        try { await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: b.created, siteProject: b.siteProject}, got); } catch { /* попробуем в следующий раз */ }
+        try { await this.importFile(f.url, f.name || f.url, {...it, mime: f.mime, label: f.label, mtime: it.finished || b.created, siteProject: b.siteProject}, got); } catch { /* попробуем в следующий раз */ }
         }
       }
     }

@@ -53,12 +53,16 @@ const capped = (p, ms, what) => {
   return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new PortalError(`${what}: окно Chrome не ответило за ${Math.round(ms / 60e3)} мин — шаг прерван`, 'busy')), ms); })])
     .finally(() => clearTimeout(t));
 };
-let uiChain = Promise.resolve();
+// Клики — по одному в каждом окне профиля (вкладки сайтов одного профиля делят окно), а разные профили — одновременно.
+// 2026-10-29: после перехода на одну главную копию все 7 окон кликали строго по очереди одной цепочкой — раньше 11 копий
+// кликали каждая своей, и очередь в галерее встала на часы
+const uiChains = {};
 // вход в аккаунт (ждёт пользователя) и синхронизация (качает много файлов) — шаги долгие по делу
 const uiLong = fn => ui(fn, 20 * 60e3);
 export function ui(fn, ms = UI_STEP_MS) {
-  const run = uiChain.then(() => capped(Promise.resolve().then(fn), ms, 'Шаг в окне'));
-  uiChain = run.catch(() => {});
+  const key = currentProfile();
+  const run = (uiChains[key] || Promise.resolve()).then(() => capped(Promise.resolve().then(fn), ms, 'Шаг в окне'));
+  uiChains[key] = run.catch(() => {});
   return run;
 }
 
