@@ -147,14 +147,26 @@ async function sitePage(site, front = true) {
     page = tabs.find(p => file && p.url().startsWith(file));
     for (const p of tabs) if (!page && VIDS_FILE.test(p.url()) && /^Freefield/.test(await p.title().catch(() => ''))) page = p;
     page ||= tabs.find(p => !VIDS_FILE.test(p.url()));
-  } else for (const extra of tabs.slice(1)) await extra.close().catch(() => {});
+    // лишние вкладки Vids (вторая главная, второй ролик Freefield) — закрываем; чужие ролики пользователя не трогаем
+    for (const p of tabs) if (p !== page && (!VIDS_FILE.test(p.url()) || /^Freefield/.test(await p.title().catch(() => '')))) await p.close().catch(() => {});
+  } else {
+    // строго одна вкладка сервиса в окне профиля (2026-10-29: по 2 Flow и 2 Dola в одном окне): оставляем ту, с которой
+    // работали, остальные закрываем
+    const mine = lastTab.get(site + '@' + currentProfile());
+    if (mine && tabs.includes(mine)) page = mine;
+    for (const extra of tabs) if (extra !== page) await extra.close().catch(() => {});
+  }
   if (!page) {
-    page = (site !== 'vids' && pages.find(p => p.url().includes(cfg.match))) || pages.find(p => BLANK.test(p.url()) && !claimed.has(p)) || await newTab();
+    // вкладка сервиса ушла на вход Google (вышли из аккаунта) — берём её же, а не открываем новую: assertReady ниже
+    // остановит задание и скажет пользователю, что войти нужно в этом окне
+    const login = /^(flow|vids)$/.test(site) && pages.find(p => /accounts\.google\./.test(p.url()));
+    page = (site !== 'vids' && pages.find(p => p.url().includes(cfg.match))) || login || pages.find(p => BLANK.test(p.url()) && !claimed.has(p)) || await newTab();
     claimed.add(page);
     if (!page.url().includes(cfg.match)) await page.goto(cfg.home, {waitUntil: 'domcontentloaded', timeout: 60000});
   }
   // пустые вкладки копились по 10 на окно (2026-10-28: «в каждой по 10 вкладок, причём пустых») — закрываем все, кроме только что взятых
   for (const b of pages) if (b !== page && BLANK.test(b.url()) && !claimed.has(b)) await b.close().catch(() => {});
+  lastTab.set(site + '@' + currentProfile(), page);
   guardPage(page, site);
   // окно не выдёргиваем поверх всего, если вкладка и так на виду (пользователь 2026-10-28: «открываются прямо у меня на экране
   // поверх всего, пока я пишу промпт»): переключаем, только когда нужна другая вкладка окна или окно свёрнуто
@@ -221,6 +233,7 @@ async function wakeWindow(page) {
 const isSiteTab = p => Object.values(SITES).some(s => p.url().includes(s.match)) && !/accounts\.google\./.test(p.url());
 // вкладки, взятые под сайт (пока на них не открылся сайт, они пустые — их не закрываем); WeakSet — закрытые забываются сами
 const claimed = new WeakSet();
+const lastTab = new Map();   // «сайт@профиль» → вкладка, с которой Freefield работал последней
 const BLANK = /^(about:blank|chrome:\/\/(new-?tab|new-tab-page)|$)/;
 const newTab = async () => { const p = await newProfilePage(); claimed.add(p); return p; };
 // Вкладки сервисов, которые оказались в других окнах, переезжают в окно, где их больше (открываются там заново).

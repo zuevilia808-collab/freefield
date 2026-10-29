@@ -48,7 +48,7 @@ const readBatches = () => {
   return lastGood;   // null — прочитать не удалось ни разу
 };
 const plainBatch = b => ({id: b.id, source: b.source, created: b.created, done: b.done, pid: b.pid, items: b.items,
-  ...(b.jobId && {jobId: b.jobId}), ...(b.resumed && {resumed: b.resumed}),
+  ...(b.jobId && {jobId: b.jobId}), ...(b.resumed && {resumed: b.resumed}), ...(b.restored && {restored: true}),
   ...(b.siteTask && {siteTask: b.siteTask, siteProject: b.siteProject})});
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 // Пакет, который не доделала закрытая копия Freefield (перезапуск, сбой), доделывает другая (задача 7, 2026-10-27: из пакета
@@ -124,6 +124,37 @@ function runItems(batch, items, B) {
     save: (o, it) => saveOutput(o.buf, o.mime || (it.kind === 'video' ? 'video/mp4' : 'image/jpeg'), `s${it.n}-${it.title || it.prompt.replace(/^(On-screen text|Subject|Spoken line):[^\n]*\n?/gim, '')}`),
     onChange: persistBatches,
   }).catch(e => log('batch:', e.message)).finally(() => { batch.done = true; persistBatches(); runSync().catch(() => {}); });
+}
+
+// Файлы в outputs, которых нет в истории (сохранены мимо неё: скрипты, старые копии, сбои записи), — в историю, чтобы галерея
+// их увидела (2026-10-29: «в галерее нет того, что генерилось» — галерея берёт только то, что есть в истории). Раз в пару минут:
+// сегодня и вчера; файлы старше минуты (недописанные не трогаем). Свой пакет на день — «o<дата>», restored: галерея берёт его целиком
+const MEDIA = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.mp4': 'video/mp4', '.glb': 'model/gltf-binary'};
+export function adoptOrphans() {
+  if (!fs.existsSync(OUT)) return 0;
+  const all = allBatches();
+  const known = new Set(all.flatMap(b => b.items.flatMap(it => (it.files || []).map(f => path.basename(f.path)))));
+  let added = 0;
+  const days = fs.readdirSync(OUT).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().slice(-2);
+  for (const d of days) {
+    const fresh = fs.readdirSync(path.join(OUT, d)).filter(n => MEDIA[path.extname(n).toLowerCase()] && !known.has(n))
+      .map(n => ({n, t: fs.statSync(path.join(OUT, d, n)).mtimeMs})).filter(f => Date.now() - f.t > 60e3).sort((a, b) => a.t - b.t);
+    if (!fresh.length) continue;
+    const id = 'o' + d.replace(/-/g, '');
+    const b = batches.get(id) || all.find(x => x.id === id) || {id, source: 'restored', restored: true, created: 0, done: true, items: []};
+    for (const f of fresh) {
+      const ext = path.extname(f.n).toLowerCase(), kind = ext === '.mp4' ? 'video' : ext === '.glb' ? '3d' : 'image';
+      const site = /arena/i.test(f.n) ? 'arena' : /dola/i.test(f.n) ? 'dola' : /vids/i.test(f.n) ? 'vids' : /flux|pollinations/i.test(f.n) ? 'freefield' : 'flow';
+      const prompt = f.n.replace(/^freefield-/, '').replace(/-\d{6,}(-\d+)?\.\w+$/, '').replace(/\.\w+$/, '').replace(/^s\d+-/, '').replace(/-/g, ' ');
+      b.items.push({n: b.items.length + 1, prompt, kind, site, model: '', status: 'done', message: '', note: 'файл из папки outputs (без истории)',
+        files: [{path: path.join(OUT, d, f.n), mime: MEDIA[ext]}], finished: Math.round(f.t)});
+      b.created = Math.max(b.created, Math.round(f.t));
+      added++;
+    }
+    batches.set(id, b);
+  }
+  if (added) persistBatches();
+  return added;
 }
 
 // cancel_job: снять сцены пакета, которые ещё ждут (по номеру задачи batch-… или id пакета b…; nums — номера сцен, иначе все).

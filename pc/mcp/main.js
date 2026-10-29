@@ -12,7 +12,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import crypto from 'node:crypto';
 import {readState, writeState} from './state.js';
-import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog, setBatchJob, batchByJob, resumeBatches, cancelBatch} from './studio.js';
+import {recordGen, allBatches, runSync, startBatch, hubApi, ensureHub, hubRunning, setLog, setBatchJob, batchByJob, resumeBatches, cancelBatch, adoptOrphans} from './studio.js';
 import {fileInfo, aspectCheck} from './media.js';
 import {ECHO_URL, startEcho} from './echo.js';
 
@@ -1735,6 +1735,9 @@ import('./chat.js').then(async ({chatCtx}) => {
     return m;
   };
   const boot = codeAt();
+  // файлы в outputs без истории — в историю (их увидит галерея)
+  setTimeout(() => { try { const n = adoptOrphans(); if (n) log(`в галерею добавлено файлов без истории: ${n}`); } catch (e) { log('outputs:', e.message); } }, 5000).unref();
+  setInterval(() => { try { adoptOrphans(); } catch {} }, 2 * 60e3).unref();
   // окна Chrome профилей без работы 10 мин — закрываются (память)
   setInterval(() => import('./bridge.js').then(B => B.reapIdleProfiles()).then(c => c.length && log('закрыл простаивающие окна Chrome:', c.join(', '))).catch(() => {}), 2 * 60e3).unref();
   setInterval(() => {
