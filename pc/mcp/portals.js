@@ -148,7 +148,9 @@ async function sitePage(site, front = true) {
     for (const p of tabs) if (!page && VIDS_FILE.test(p.url()) && /^Freefield/.test(await p.title().catch(() => ''))) page = p;
     page ||= tabs.find(p => !VIDS_FILE.test(p.url()));
     // лишние вкладки Vids (вторая главная, второй ролик Freefield) — закрываем; чужие ролики пользователя не трогаем
-    for (const p of tabs) if (p !== page && (!VIDS_FILE.test(p.url()) || /^Freefield/.test(await p.title().catch(() => '')))) await p.close().catch(() => {});
+    // и вкладки «Доступ закрыт» (ролик другого аккаунта, открытый не в своём профиле) — пользы от них нет, а копились по 2–3
+    const junk = t => /^Freefield|Доступ закрыт|Access denied|You need access|Нужен доступ/i.test(t);
+    for (const p of tabs) if (p !== page && (!VIDS_FILE.test(p.url()) || junk(await p.title().catch(() => '')))) await p.close().catch(() => {});
   } else {
     // строго одна вкладка сервиса в окне профиля (2026-10-29: по 2 Flow и 2 Dola в одном окне): оставляем ту, с которой
     // работали, остальные закрываем
