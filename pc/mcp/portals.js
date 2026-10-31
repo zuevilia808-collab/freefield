@@ -162,12 +162,18 @@ async function sitePage(site, front = true) {
     // вкладка сервиса ушла на вход Google (вышли из аккаунта) — берём её же, а не открываем новую: assertReady ниже
     // остановит задание и скажет пользователю, что войти нужно в этом окне
     const login = /^(flow|vids)$/.test(site) && pages.find(p => /accounts\.google\./.test(p.url()));
-    page = (site !== 'vids' && pages.find(p => p.url().includes(cfg.match))) || login || pages.find(p => BLANK.test(p.url()) && !claimed.has(p)) || await newTab();
+    // без интернета вкладка сайта становится страницей ошибки (chrome-error://, в полосе вкладок — «www» с глобусом) и уже
+    // не похожа на сайт: раньше на каждый повтор открывалась новая (2026-10-31: по 10+ вкладок Dola и Arena в окне).
+    // Теперь берём её же; новую вкладку — только если в окне меньше вкладок, чем сервисов
+    const spare = pages.find(p => (BLANK.test(p.url()) || DEAD.test(p.url())) && !claimed.has(p));
+    page = (site !== 'vids' && pages.find(p => p.url().includes(cfg.match))) || login || spare
+      || (pages.length >= Object.keys(SITES).length ? pages.find(p => !isSiteTab(p) && !/accounts\.google\.|127\.0\.0\.1|localhost|github\.io|^chrome/.test(p.url())) : null)   // галерею Freefield не трогаем
+      || await newTab();
     claimed.add(page);
     if (!page.url().includes(cfg.match)) await page.goto(cfg.home, {waitUntil: 'domcontentloaded', timeout: 60000});
   }
   // пустые вкладки копились по 10 на окно (2026-10-28: «в каждой по 10 вкладок, причём пустых») — закрываем все, кроме только что взятых
-  for (const b of pages) if (b !== page && BLANK.test(b.url()) && !claimed.has(b)) await b.close().catch(() => {});
+  for (const b of pages) if (b !== page && (BLANK.test(b.url()) || DEAD.test(b.url())) && !claimed.has(b)) await b.close().catch(() => {});
   lastTab.set(site + '@' + currentProfile(), page);
   guardPage(page, site);
   // окно не выдёргиваем поверх всего, если вкладка и так на виду (пользователь 2026-10-28: «открываются прямо у меня на экране
@@ -237,7 +243,34 @@ const isSiteTab = p => Object.values(SITES).some(s => p.url().includes(s.match))
 const claimed = new WeakSet();
 const lastTab = new Map();   // «сайт@профиль» → вкладка, с которой Freefield работал последней
 const BLANK = /^(about:blank|chrome:\/\/(new-?tab|new-tab-page)|$)/;
+const DEAD = /^chrome-error:/;   // страница «нет сети / сайт не открылся»
 const newTab = async () => { const p = await newProfilePage(); claimed.add(p); return p; };
+// Уборка раз в минуту (пользователь 2026-10-31: «оставь только нужные, остальные снеси, и это как правило»): в каждом окне
+// по одной вкладке на сервис — остаётся та, с которой Freefield работает; пустые и страницы ошибок закрываются
+export async function sweepTabs() {
+  const ctx = await context();
+  const working = new Set(lastTab.values());
+  const groups = new Map();
+  let closed = 0;
+  for (const p of ctx.pages()) {
+    if (p.isClosed()) continue;
+    const url = p.url();
+    if ((BLANK.test(url) || DEAD.test(url)) && !claimed.has(p) && !working.has(p)) { await p.close().catch(() => {}); closed++; continue; }
+    const site = Object.keys(SITES).find(k => url.includes(SITES[k].match));
+    if (!site || site === 'vids') continue;   // свои ролики Vids пользователя не трогаем (их чистит sitePage)
+    const s = await ctx.newCDPSession(p).catch(() => null);
+    const win = s ? await s.send('Browser.getWindowForTarget').then(r => r.windowId, () => null) : null;
+    await s?.detach().catch(() => {});
+    const k = win + '|' + site;
+    (groups.get(k) || groups.set(k, []).get(k)).push(p);
+  }
+  for (const tabs of groups.values()) {
+    if (tabs.length < 2) continue;
+    const keep = tabs.find(p => working.has(p)) || tabs[0];
+    for (const p of tabs) if (p !== keep) { await p.close().catch(() => {}); closed++; }
+  }
+  return closed;
+}
 // Вкладки сервисов, которые оказались в других окнах, переезжают в окно, где их больше (открываются там заново).
 // Вызывать, когда генерации не идут.
 export async function oneWindow() {

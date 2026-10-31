@@ -1755,6 +1755,9 @@ import('./chat.js').then(async ({chatCtx}) => {
   setInterval(() => { try { adoptOrphans(); } catch {} }, 2 * 60e3).unref();
   // окна Chrome профилей без работы 10 мин — закрываются (память)
   setInterval(() => import('./bridge.js').then(B => B.reapIdleProfiles()).then(c => c.length && log('закрыл простаивающие окна Chrome:', c.join(', '))).catch(() => {}), 2 * 60e3).unref();
+  // лишние вкладки (дубли сервиса в окне, пустые, страницы ошибок) — закрываются каждую минуту
+  setInterval(() => import('./bridge.js').then(B => B.chromeOpen()).then(up => up && import('./portals.js').then(P => P.sweepTabs()))
+    .then(n => n && log('закрыл лишних вкладок:', n)).catch(() => {}), 60e3).unref();
   setInterval(() => {
     if (codeAt() <= boot) return;
     const running = [...jobs.values()].some(j => j.status === 'running') || allBatches().some(b => !b.done && b.pid === process.pid);
