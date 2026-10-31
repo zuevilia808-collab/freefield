@@ -34,6 +34,16 @@ if (mainSrv && await new Promise(res => { mainSrv.once('error', e => res(e.code 
   process.exit(3);
 }
 setLog(log);
+// 2026-10-30: одна необработанная ошибка (Flow, окно выбора файла) роняла главную копию — и с ней очередь всех чатов.
+// Теперь такие ошибки только пишутся в журнал. Если копия всё же упала — оставляем метку: новая копия в ближайшие 30 мин
+// сама продолжит брошенные пакеты (это сбой, а не запуск компьютера — тогда пакеты по-прежнему ждут resume_batches)
+const CRASH = path.join(HERE, '.crashed');
+process.on('unhandledRejection', e => log('необработанная ошибка (работа продолжается):', e?.stack || e));
+process.on('uncaughtException', e => {
+  log('сбой главной копии:', e?.stack || e);
+  try { fs.writeFileSync(CRASH, String(Date.now())); } catch {}
+  process.exit(1);
+});
 
 // ============================== модели ==============================
 const FREE_IMAGE = {
@@ -933,6 +943,11 @@ const batchJob = (b, id = b.jobId) => startJob('batch', async status => {
   return batchResult(b);
 }, id);
 const resumeNow = () => resumeBatches(b => { if (b.jobId) batchJob(b); }).catch(() => 0);
+try {
+  const at = +fs.readFileSync(CRASH, 'utf8') || 0;
+  fs.rmSync(CRASH, {force: true});
+  if (Date.now() - at < 30 * 60e3) setTimeout(() => resumeNow().then(n => n && log(`после сбоя продолжаю пакетов: ${n}`)), 5000);
+} catch {}
 resumeNow();
 setInterval(resumeNow, 60e3).unref();
 
