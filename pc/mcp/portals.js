@@ -683,9 +683,14 @@ async function flowAttach(page, file) {
   // это фото уже загружено в проект — просто выбираем его, иначе загружаем
   const had = await mine().count();
   if (!had) {
-    const fc = page.waitForEvent('filechooser', {timeout: 10000});
-    await ov.locator('button', {hasText: /Загрузить|Upload(?!s)/}).last().click();
-    await (await fc).setFiles(file);
+    // 2026-10-30: если клик по «Загрузить» падал, ожидание окна выбора файла оставалось без обработчика и через 10 с роняло
+    // всю главную копию — теперь любая ошибка тут обычная ошибка Flow (flowSetRefs повторит, потом сценарий уйдёт в другой сервис)
+    const fc = page.waitForEvent('filechooser', {timeout: 10000}).catch(() => null);
+    await ov.locator('button', {hasText: /Загрузить|Upload(?!s)/}).last().click({timeout: 10000})
+      .catch(() => { throw new PortalError('Flow: не нашёл кнопку «Загрузить» для фото-референса', 'busy'); });
+    const chooser = await fc;
+    if (!chooser) throw new PortalError('Flow не открыл выбор файла для фото-референса', 'busy');
+    await chooser.setFiles(file);
     for (let i = 0; i < 90 && (await mine().count()) <= had; i++) await sleep(1000);
   }
   await mine().first().click({timeout: 10000}).catch(() => { throw new PortalError('Flow не показал загруженное фото-референс', 'ui'); });
