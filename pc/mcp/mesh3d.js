@@ -319,7 +319,13 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
   const leftBefore = await readLeft(page, svc);
   let genBtnText = '', genCost = null, dlBefore = 0;
   const modelUrls = [];
-  const onResp = r => { const url = r.url(); if (/\.(glb|fbx|obj|zip)(\?|$)/i.test(url) || /model\/gltf/.test(r.headers()['content-type'] || '')) modelUrls.push({url, at: Date.now(), len: +r.headers()['content-length'] || 0}); };
+  // модели, которые сайт показывал раньше (прошлые генерации в просмотрщике, 2026-11-02: Tripo после старта новой генерации
+  // ещё загружал прошлого «Уколыша», и джип пришёл с его моделью) — берём только файл, которого не было ни на странице до
+  // старта, ни в прошлых выдачах
+  const seen = readSeen();
+  let startAt = 0;
+  const fresh = m => startAt && m.at > startAt && !m.old && !seen.has(modelKey(m.url)) && !modelUrls.some(o => o.old && modelKey(o.url) === modelKey(m.url));
+  const onResp = r => { const url = r.url(); if (/\.(glb|fbx|obj|zip)(\?|$)/i.test(url) || /model\/gltf/.test(r.headers()['content-type'] || '')) modelUrls.push({url, at: Date.now(), len: +r.headers()['content-length'] || 0, old: !startAt || /_next\/|webapp-build-assets|\/static\//.test(url)}); };
   page.on('response', onResp);
   try {
     await ui(async () => {
@@ -408,7 +414,7 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
     // кнопку генерации не нашли — минута, чтобы пользователь нажал её сам; генерация не пошла — сразу следующий сервис
     // (2026-11-02: раньше Tripo 8 минут показывал «генерация 60%» — чужой процент со страницы, а генерация не стартовала)
     let started = !!genBtnText;
-    const startAt = Date.now();
+    startAt = Date.now();
     let dl = null, lastPct = null, pctAt = 0, sawPct = false, noPct = 0;
     for (;;) {
       if (!started && Date.now() - startAt > 60e3)
@@ -444,7 +450,7 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       if (raw !== lastPct) { lastPct = raw; pctAt = Date.now(); }
       const pct = raw != null && Date.now() - pctAt < 60e3 ? raw : null;
       // готово: модель пришла в просмотрщик сайта или появилась новая кнопка «Скачать» — процент этому не мешает
-      const viewerGotModel = modelUrls.some(m => m.at > startAt);
+      const viewerGotModel = modelUrls.some(fresh);
       const nNow = await countButtons(page, RX.download);
       if (pct != null || viewerGotModel) started = true;
       // прогресс был и пропал (3 проверки подряд), а «Скачать» на странице есть — модель готова: у Meshy кнопка «Скачать»
@@ -484,12 +490,12 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
           if (ok) await ok.el.click().catch(() => {});
         }
       });
-      file = await cap.wait(modelUrls.some(m => m.at > startAt && /\.glb(\?|$)/i.test(m.url)) ? 45000 : 180000);
+      file = await cap.wait(modelUrls.some(m => fresh(m) && /\.glb(\?|$)/i.test(m.url)) ? 45000 : 180000);
     } finally { await cap.stop(); }
     // кнопка сайта файл не отдала (Tripo 2026-11-02: «Экспорт» у бесплатного аккаунта ничего не запускает) — берём модель,
     // которую сайт сам загрузил в свой просмотрщик (у Tripo это полная модель с PBR-текстурой, сжатая meshopt)
     if (!file) {
-      const m = modelUrls.filter(m => m.at > startAt && /\.glb(\?|$)/i.test(m.url)).sort((a, b) => (b.len || 0) - (a.len || 0))[0];
+      const m = modelUrls.filter(m => fresh(m) && /\.glb(\?|$)/i.test(m.url)).sort((a, b) => (b.len || 0) - (a.len || 0))[0];
       if (m) {
         onStatus(`${S.name}: кнопка скачивания не сработала — забираю модель из просмотрщика сайта`);
         const r = await page.request.get(m.url, {timeout: 180000}).catch(() => null);
@@ -505,10 +511,21 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
     }
     if (!file) throw new PortalError(`${S.name}: сайт не отдал файл модели — скачайте вручную в окне Chrome Freefield`, 'busy');
     track3d(svc, {downloads: 1});
+    markSeen(modelUrls.map(m => modelKey(m.url)));   // всё, что просмотрщик показывал, — в следующий раз уже не новое
     await readLeft(page, svc).catch(() => null);
     const ext = (path.extname(file.name || '').slice(1) || gotFormat || 'glb').toLowerCase();
     return {path: file.path, name: file.name, ext, model: S.name, applied, warnings, pbr: applied.pbr === true, textured: applied.texture !== false};
   } finally { page.off('response', onResp); }
+}
+
+// какие файлы моделей сайты уже показывали в прошлых выдачах (имя файла без подписи в ссылке) — чтобы не отдать старую модель
+const SEEN_FILE = new URL('./.3d-seen.json', import.meta.url);
+const modelKey = url => { try { return path.basename(new URL(url).pathname); } catch { return url; } };
+function readSeen() { try { return new Set(JSON.parse(fs.readFileSync(SEEN_FILE, 'utf8'))); } catch { return new Set(); } }
+function markSeen(keys) {
+  const s = readSeen();
+  for (const k of keys) s.add(k);
+  try { fs.writeFileSync(SEEN_FILE, JSON.stringify([...s].slice(-500))); } catch {}
 }
 
 // GLB, сжатый meshopt (так сайты отдают модель в свой просмотрщик), → обычный GLB: Roblox, Blender и glbToObj его читают.
