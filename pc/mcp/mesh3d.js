@@ -437,7 +437,11 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       const toast = await page.evaluate(() => [...document.querySelectorAll('[role="alert"], [role="status"], [class*="toast"], [class*="message"], [class*="notice"]')]
         .map(e => (e.innerText || '').replace(/\s+/g, ' ').trim()).filter(t => t && t.length < 200).pop() || '').catch(() => '');
       if (RX.noMoney.test(toast)) throw new PortalError(`${S.name}: «${toast}» — бесплатное закончилось; платные кредиты Freefield без allow_paid=true не тратит`, 'quota');
-      if (RX.error.test(toast) && !/\d\s?%/.test(toast)) throw new PortalError(`${S.name}: «${toast}»`, 'busy');
+      // сбой связи сайта со своим сервером (Hunyuan 2026-11-03: «Failed to retrieve details: … status code 500» / «查询任务状态失败»,
+      // а модель при этом готовилась дальше и пришла) — не провал генерации: ждём дальше, провал — только по таймауту
+      const transient = /status code 5\d\d|\b5\d\d\b|retrieve|查询|network|timeout|timed out|сеть|соединени|try again|稍后/i.test(toast);
+      if (RX.error.test(toast) && !/\d\s?%/.test(toast) && !transient) throw new PortalError(`${S.name}: «${toast}»`, 'busy');
+      if (transient && RX.error.test(toast)) onStatus(`${S.name}: сайт пишет «${toast.slice(0, 80)}» — жду дальше`);
       // процент — только из полосы прогресса (не «Экономия до 60%» из рекламы); процент, который минуту не меняется, — не прогресс
       const raw = await page.evaluate(() => {
         for (const e of document.querySelectorAll('[role="progressbar"], [class*="progress" i], [class*="percent" i]')) {
