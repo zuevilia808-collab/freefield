@@ -22,12 +22,13 @@ const today = () => new Date().toLocaleDateString('sv');
 const month = () => today().slice(0, 7);
 
 export const SERVICES_3D = {
-  hunyuan: {name: 'Hunyuan 3D', kind: 'web', home: 'https://3d.hunyuanglobal.com/', match: 'hunyuanglobal.com',
+  // 2026-11-02: 3d.hunyuanglobal.com переехал на hy3d.tencent.ai, Meshy убрал /workspace/image-to-3d (страница «не найдена»)
+  hunyuan: {name: 'Hunyuan 3D', kind: 'web', home: 'https://hy3d.tencent.ai/', match: 'hy3d.tencent.ai',
     free: {n: 20, per: 'day', unit: 'генераций', perGen: 1}, multiview: true},
   tripo: {name: 'Tripo', kind: 'web', home: 'https://studio.tripo3d.ai/', match: 'tripo3d.ai',
     free: {n: 300, per: 'month', unit: 'кредитов', perGen: 30}, multiview: true},
-  meshy: {name: 'Meshy', kind: 'web', home: 'https://www.meshy.ai/workspace/image-to-3d', match: 'meshy.ai',
-    free: {n: 100, per: 'month', unit: 'кредитов', perGen: 20, downloads: 10}, multiview: true},
+  meshy: {name: 'Meshy', kind: 'web', home: 'https://www.meshy.ai/workspace', match: 'meshy.ai',
+    free: {n: 100, per: 'month', unit: 'кредитов', perGen: 20, downloads: 10}, multiview: true, tab: /^(модель|model)$/i},
   hf: {name: 'Hugging Face Spaces', kind: 'hf', home: 'https://huggingface.co/', match: 'huggingface.co',
     spaces: {trellis: 'microsoft/TRELLIS.2', hunyuan: 'tencent/Hunyuan3D-2.1', hunyuanMv: 'tencent/Hunyuan3D-2mv'}},
 };
@@ -92,7 +93,7 @@ export async function hfFrame(space, onStatus = () => {}) {
     return {ok: true, name: j.name || null, pro: !!(j.isPro || j.plan?.type === 'pro')};
   }).catch(() => ({ok: false, status: 0}));
   noteSite('hf', {login: who.ok, name: who.name || null, pro: !!who.pro});
-  if (!who.ok) throw new HfError('Нужно войти в Hugging Face: окно Chrome Freefield открыто на huggingface.co — войдите в свой аккаунт (или впишите токен в config.json Freefield) и повторите', 'login');
+  if (!who.ok) throw new HfError('Нужно войти в Hugging Face: окно Chrome Freefield открыто на huggingface.co — войдите в свой аккаунт и повторите. Или впишите токен в файл Freefield\\config.json строкой "hf_token": "hf_…" (токен — huggingface.co/settings/tokens, тип Read): без входа или токена TRELLIS.2 и Hunyuan3D-2mv не запускаются', 'login');
   if ((await humanCheck(page)) === 'captcha') throw new HfError('Hugging Face просит пройти проверку «я не робот» — пройдите её в окне Chrome Freefield и повторите', 'captcha');
   for (let i = 0; i < 150; i++) {
     const f = page.frames().find(f => /\.hf\.space/.test(f.url()));
@@ -191,12 +192,17 @@ async function hfRun({input, views, quality, texture, onStatus}) {
 // ============================== сайты: Hunyuan 3D, Tripo, Meshy ==============================
 // Интерфейсы сайтов меняются, поэтому Freefield ищет элементы по смыслу (подписи на английском, китайском и русском),
 // а результат забирает кнопкой сайта «Скачать/Экспорт» — тем, что сайт разрешает бесплатному аккаунту.
+// Конец слова — (?![\p{L}\d]) с флагом u: \b не видит границу после русских букв (2026-11-02: Tripo и Meshy открываются
+// по-русски — «Создать», «Генерировать», «Скачать» не находились, и Tripo 8 минут ждал генерацию, которая не стартовала)
 const RX = {
-  login: /^(log ?in|sign ?in|sign ?up|войти|регистрация|登录|注册|登入)$/i,
-  imageMode: /^(image to 3d|image-to-3d|image|图生3d|图片生成3d|图生模型|изображение в 3d)$/i,
-  multiview: /multi-?view|multi-?image|多视图|多图|несколько (видов|ракурсов)|мультивью/i,
-  generate: /^(generate|generate model|create|create model|start|生成|开始生成|立即生成|сгенерировать|создать)\b/i,
-  download: /^(download|export|下载|导出|скачать|экспорт)\b/i,
+  login: /^(log ?in|sign ?in|sign ?up|войти|регистрация|зарегистрироваться( бесплатно)?|登录|注册|登入)$/i,
+  // без голых «Image»/«Изображение»: у Meshy это вкладка генерации 2D-картинок (2026-11-02), его 3D — вкладка «Модель» (S.tab)
+  imageMode: /^(image to 3d|image-to-3d|图生3d|图片生成3d|图生模型|изображение в 3d)$/i,
+  multiview: /multi-?view|multi-?image|multiple images|多视图|多图|несколько (видов|ракурсов)|мультивью|многовид/i,
+  generate: /^(?!.*(изображени|image|same style|similar|похож))(generate|generate model|generate now|create|create model|start|生成|开始生成|立即生成|сгенерировать|генерировать|создать)(?![\p{L}\d])/iu,
+  download: /^(download|export|下载|导出|скачать|экспорт)(?![\p{L}\d])/iu,
+  // страница входа по коду из письма (Hunyuan: /login-email «Verify your email address»)
+  emailCode: /verify your email|verification code|код (подтверждения|из письма)|验证码/i,
   texture: /^(texture|textur(ed|ing)|纹理|贴图|текстур)/i,
   pbr: /\bPBR\b/i,
   error: /(error|failed|failure|失败|错误|ошибк|не удалось)/i,
@@ -218,14 +224,28 @@ async function findButton(page, re, {enabled = false} = {}) {
     if (enabled && !(await el.isEnabled().catch(() => true))) continue;
     return {el, text};
   }
-  return null;
+  // кнопки-блоки без роли (Hunyuan: «Generate Now», «Multiple Images» — простые div с курсором-рукой), 2026-11-02
+  const id = await page.evaluate(([src, flags, enabled]) => {
+    const re = new RegExp(src, flags);
+    for (const e of document.querySelectorAll('div, span, li, p')) {
+      const t = (e.innerText || '').replace(/\s+/g, ' ').trim();
+      if (!t || t.length > 60 || !re.test(t) || !e.getClientRects().length || getComputedStyle(e).cursor !== 'pointer') continue;
+      if ([...e.children].some(c => (c.innerText || '').replace(/\s+/g, ' ').trim() === t && getComputedStyle(c).cursor === 'pointer')) continue;   // берём самый внутренний
+      if (enabled && (/disabled/i.test(String(e.className)) || e.getAttribute('aria-disabled') === 'true')) continue;
+      const k = 'ff' + Math.random().toString(36).slice(2, 8);
+      e.setAttribute('data-ff-btn', k);
+      return [k, t];
+    }
+    return null;
+  }, [re.source, re.flags, enabled]).catch(() => null);
+  return id ? {el: page.locator(`[data-ff-btn="${id[0]}"]`), text: id[1]} : null;
 }
 // сколько видимых кнопок с такой подписью (кнопки «Скачать» у старых моделей в истории не должны сойти за новую)
 async function countButtons(page, re) {
-  return page.evaluate(src => {
-    const re = new RegExp(src, 'i');
+  return page.evaluate(([src, flags]) => {
+    const re = new RegExp(src, flags);
     return [...document.querySelectorAll('button, [role="button"], a')].filter(e => e.getClientRects().length && re.test((e.innerText || e.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim())).length;
-  }, re.source).catch(() => 0);
+  }, [re.source, re.flags]).catch(() => 0);
 }
 async function setSwitch(page, re, on) {
   const loc = page.locator('[role="switch"], input[type="checkbox"], [role="checkbox"]');
@@ -246,10 +266,28 @@ async function setSwitch(page, re, on) {
   return false;
 }
 
+// всплывающие окна сайта (Meshy: «Ежедневная награда за вход», советы) закрывают собой страницу — клики не доходят
+async function dismissPopups(page) {
+  for (let i = 0; i < 4; i++) {
+    const b = page.locator('[role="dialog"] button, [role="alertdialog"] button, [class*="modal" i] button')
+      .filter({hasText: /^\s*(понятно|got it|ok|okay|закрыть|close|пропустить( пока что)?|skip( for now)?|later|позже|не сейчас|maybe later|知道了|关闭|跳过)\s*$/i});
+    const n = await b.count().catch(() => 0);
+    let hit = false;
+    for (let k = 0; k < n && !hit; k++) if (await b.nth(k).isVisible().catch(() => false)) { await b.nth(k).click({timeout: 3000}).catch(() => {}); hit = true; }
+    if (!hit) return;
+    await sleep(700);
+  }
+}
+
 async function webReady(page, svc) {
   await page.waitForLoadState('domcontentloaded').catch(() => {});
   await sleep(1200);
+  await dismissPopups(page);
   const h = await humanCheck(page);
+  if (/\/login/i.test(page.url()) && RX.emailCode.test(await visibleText(page))) {
+    noteSite(svc, {login: false});
+    throw new PortalError(`${NAME(svc)} просит код из письма («Verify your email») — введите его в окне Chrome Freefield и повторите.`, 'login');
+  }
   const loginBtn = await findButton(page, RX.login);
   const loggedOut = h === 'login' || !!loginBtn;
   noteSite(svc, {login: !loggedOut});
@@ -281,21 +319,32 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
   const leftBefore = await readLeft(page, svc);
   let genBtnText = '', genCost = null, dlBefore = 0;
   const modelUrls = [];
-  const onResp = r => { const url = r.url(); if (/\.(glb|fbx|obj|zip)(\?|$)/i.test(url) || /model\/gltf/.test(r.headers()['content-type'] || '')) modelUrls.push({url, at: Date.now()}); };
+  const onResp = r => { const url = r.url(); if (/\.(glb|fbx|obj|zip)(\?|$)/i.test(url) || /model\/gltf/.test(r.headers()['content-type'] || '')) modelUrls.push({url, at: Date.now(), len: +r.headers()['content-length'] || 0}); };
   page.on('response', onResp);
   try {
     await ui(async () => {
       await page.bringToFront().catch(() => {});
       // режим «картинка → 3D» и мультивью, если сайт их показывает отдельными вкладками
-      const mode = await findButton(page, RX.imageMode);
+      const mode = await findButton(page, S.tab || RX.imageMode);
       if (mode) { await mode.el.click().catch(() => {}); await sleep(1200); }
       if (views) {
         const mv = await findButton(page, RX.multiview);
         if (mv) { await mv.el.click().catch(() => {}); await sleep(1200); applied.multiview = true; }
         else { warnings.push(`${S.name}: не нашёл режим мультивью — отправлен только вид спереди`); }
+      } else {
+        // сайт помнит прошлый режим (Hunyuan остаётся в «Multiple Images») — одна картинка: явно включаем одиночный
+        const one = await findButton(page, /^(single image|single|одно изображение|单图|单张图片)$/i);
+        if (one) { await one.el.click().catch(() => {}); await sleep(1200); }
       }
       // загрузка: поле выбора файла (обычно скрыто за областью «перетащите сюда»)
       const files = page.locator('input[type="file"]');
+      // мультивью без полей на странице — поля в окне, которое открывает «Add Multiple Views» (Hunyuan, 2026-11-02)
+      if (views && applied.multiview && !(await files.count().catch(() => 0))) {
+        const re = /add (multiple )?views|添加多视图|添加视图|добавить (виды|ракурсы)/i;
+        const add = (await findButton(page, re))?.el || page.getByText(re).first();
+        await add.click({timeout: 5000}).catch(() => {});
+        await sleep(1500);
+      }
       const n = await files.count().catch(() => 0);
       const list = views && applied.multiview ? Object.entries(views) : [['front', input]];
       if (!n) {
@@ -307,18 +356,26 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       } else if (list.length > 1 && n >= list.length) {
         // мультивью: каждое поле — у своей подписи (Front/Back/Left/Right), иначе по порядку
         const used = new Set();
+        const nears = [];
+        for (let i = 0; i < n; i++) nears.push(await files.nth(i).evaluate(e => { let p = e, t = ''; for (let k = 0; k < 4 && p; k++) { p = p.parentElement; t = p?.innerText || ''; if (t.trim()) break; } return t.slice(0, 80); }).catch(() => ''));
         for (const [k, v] of list) {
-          let idx = -1;
-          for (let i = 0; i < n && idx < 0; i++) {
-            if (used.has(i)) continue;
-            const near = await files.nth(i).evaluate(e => { let p = e, t = ''; for (let k = 0; k < 4 && p; k++) { p = p.parentElement; t = p?.innerText || ''; if (t.trim()) break; } return t.slice(0, 80); }).catch(() => '');
-            if (RX.viewLabel[k]?.test(near)) idx = i;
-          }
+          // сначала поле, подписанное ровно этим видом («Right View»), а не «Right 45° View»
+          let idx = nears.findIndex((t, i) => !used.has(i) && RX.viewLabel[k]?.test(t) && !/\d\s*°/.test(t));
+          if (idx < 0) idx = nears.findIndex((t, i) => !used.has(i) && RX.viewLabel[k]?.test(t));
           if (idx < 0) idx = [...Array(n).keys()].find(i => !used.has(i));
           used.add(idx);
           await files.nth(idx).setInputFiles(v.path);
           await sleep(1500);
         }
+        // сайт проверяет каждый вид: Hunyuan пишет «Detection failed» на отклонённых — генерация так не запустится
+        await sleep(4000);
+        const bad = await page.getByText(/detection failed|检测失败|не прошл/i).count().catch(() => 0);
+        if (bad) throw new PortalError(`${S.name}: сайт не принял ${bad} из ${list.length} видов («Detection failed»)`, 'busy');
+        // окно видов закрывается своей кнопкой подтверждения, если она есть, иначе крестиком
+        const ok = await findButton(page, /^(confirm|ok|done|apply|确定|确认|完成|готово|подтвердить|применить)$/i, {enabled: true});
+        if (ok) await ok.el.click().catch(() => {});
+        else await page.locator('[class*="header-close"], [class*="popup"] .t-icon-close').first().click({timeout: 3000}).catch(() => page.keyboard.press('Escape').catch(() => {}));
+        await sleep(1500);
       } else {
         const multiple = await files.first().evaluate(e => e.multiple).catch(() => false);
         await files.first().setInputFiles(multiple ? list.map(([, v]) => v.path) : list[0][1].path);
@@ -333,6 +390,7 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
         if (q && !/pro|upgrade|lock|vip|会员/i.test(q.text)) { await q.el.click().catch(() => {}); applied.quality = q.text; } else applied.quality = 'по умолчанию сайта';
       }
       // цена на кнопке генерации («Generate 30», «生成 · 20 积分») и остаток
+      await dismissPopups(page);   // окна-подсказки, открывшиеся после загрузки (Meshy «Как начать»)
       const gen = await findButton(page, RX.generate, {enabled: true});
       if (!gen) return;   // кнопки нет — ниже попросим нажать самого пользователя
       genBtnText = gen.text;
@@ -347,13 +405,26 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       onStatus(`${S.name}: генерация запущена${cost ? ` (${cost} ${S.free.unit})` : ''}`);
     });
     if (!genBtnText) dlBefore = await countButtons(page, RX.download);
-    if (!genBtnText) onStatus(`${S.name}: не нашёл кнопку генерации — нажмите её сами в окне Chrome Freefield, дальше Freefield продолжит`);
-
-    // ждём: кнопка «Скачать/Экспорт» появилась, или модель пришла в просмотрщик, или ошибка сайта
+    // кнопку генерации не нашли — минута, чтобы пользователь нажал её сам; генерация не пошла — сразу следующий сервис
+    // (2026-11-02: раньше Tripo 8 минут показывал «генерация 60%» — чужой процент со страницы, а генерация не стартовала)
+    let started = !!genBtnText;
     const startAt = Date.now();
-    let dl = null;
+    let dl = null, lastPct = null, pctAt = 0, sawPct = false, noPct = 0;
     for (;;) {
-      if (Date.now() - startAt > (genBtnText ? 15 : 8) * 60e3) throw new PortalError(`${S.name}: модель не готова за ${genBtnText ? 15 : 8} минут — посмотрите в окно Chrome Freefield`, 'busy');
+      if (!started && Date.now() - startAt > 60e3)
+        throw new PortalError(`${S.name}: не нашёл кнопку генерации — интерфейс сайта изменился (генерация не запущена)`, 'ui');
+      // кнопка включается, когда сайт проверит картинку (Hunyuan — через 5–15 с), — нажимаем, как только можно
+      if (!started) {
+        const g = await ui(async () => { await dismissPopups(page); return findButton(page, RX.generate, {enabled: true}); });
+        const cost = g ? +(g.text.match(/(\d+)/)?.[1] || 0) || null : null;
+        if (g && !(cost != null && !allowPaid && (u.used + cost > S.free.n || (leftBefore != null && cost > leftBefore)))) {
+          dlBefore = await countButtons(page, RX.download);
+          await ui(() => g.el.click());
+          genBtnText = g.text; genCost = cost; started = true;
+          onStatus(`${S.name}: генерация запущена${cost ? ` (${cost} ${S.free.unit})` : ''}`);
+        }
+      }
+      if (Date.now() - startAt > 15 * 60e3) throw new PortalError(`${S.name}: модель не готова за 15 минут — посмотрите в окно Chrome Freefield`, 'busy');
       await sleep(4000);
       const h = await humanCheck(page);
       if (h === 'captcha') throw new PortalError(`${S.name} просит пройти проверку «я не робот» — пройдите её в окне Chrome Freefield и повторите.`, 'captcha');
@@ -361,16 +432,30 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
         .map(e => (e.innerText || '').replace(/\s+/g, ' ').trim()).filter(t => t && t.length < 200).pop() || '').catch(() => '');
       if (RX.noMoney.test(toast)) throw new PortalError(`${S.name}: «${toast}» — бесплатное закончилось; платные кредиты Freefield без allow_paid=true не тратит`, 'quota');
       if (RX.error.test(toast) && !/\d\s?%/.test(toast)) throw new PortalError(`${S.name}: «${toast}»`, 'busy');
-      const text = await visibleText(page);
-      const pct = text.match(/(\d{1,3})\s?%/)?.[1];
-      // готово: модель пришла в просмотрщик сайта или появилась новая кнопка «Скачать»
+      // процент — только из полосы прогресса (не «Экономия до 60%» из рекламы); процент, который минуту не меняется, — не прогресс
+      const raw = await page.evaluate(() => {
+        for (const e of document.querySelectorAll('[role="progressbar"], [class*="progress" i], [class*="percent" i]')) {
+          if (!e.getClientRects().length) continue;
+          const v = e.getAttribute('aria-valuenow') ?? (e.innerText || '').match(/(\d{1,3})\s?%/)?.[1];
+          if (v != null && !/off|save|discount|скидк|эконом|优惠/i.test(e.innerText || '')) return String(Math.round(+v));
+        }
+        return null;
+      }).catch(() => null);
+      if (raw !== lastPct) { lastPct = raw; pctAt = Date.now(); }
+      const pct = raw != null && Date.now() - pctAt < 60e3 ? raw : null;
+      // готово: модель пришла в просмотрщик сайта или появилась новая кнопка «Скачать» — процент этому не мешает
       const viewerGotModel = modelUrls.some(m => m.at > startAt);
       const nNow = await countButtons(page, RX.download);
-      if (!pct && (viewerGotModel || nNow > dlBefore)) {
+      if (pct != null || viewerGotModel) started = true;
+      // прогресс был и пропал (3 проверки подряд), а «Скачать» на странице есть — модель готова: у Meshy кнопка «Скачать»
+      // прошлой модели уже стояла, поэтому новой кнопки не прибавляется (2026-11-02)
+      if (pct != null) { sawPct = true; noPct = 0; } else if (sawPct) noPct++;
+      if (viewerGotModel || nNow > dlBefore || (noPct >= 3 && nNow > 0)) {
         dl = await ui(() => findButton(page, RX.download, {enabled: true}));
         if (dl) break;
       }
-      onStatus(`${S.name}: генерация${pct ? ` ${pct}%` : ''} (${Math.round((Date.now() - startAt) / 1000)} с)`);
+      onStatus(started ? `${S.name}: генерация${pct != null ? ` ${pct}%` : ''} (${Math.round((Date.now() - startAt) / 1000)} с)`
+        : `${S.name}: не нашёл кнопку генерации — нажмите её сами в окне Chrome Freefield (жду минуту)`);
     }
     track3d(svc, {used: genCost ?? S.free.perGen});
 
@@ -381,6 +466,7 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
     try {
       await ui(async () => {
         await page.bringToFront().catch(() => {});
+        await dismissPopups(page);
         await dl.el.click();
         await sleep(1500);
         if (cap.started()) return;
@@ -394,18 +480,50 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
           break;
         }
         if (!cap.started()) {
-          const ok = await findButton(page, /^(download|export|confirm|ok|确定|下载|导出|скачать|экспорт|подтвердить)\b/i, {enabled: true});
+          const ok = await findButton(page, /^(download|export|confirm|ok|确定|下载|导出|скачать|экспорт|подтвердить)(?![\p{L}\d])/iu, {enabled: true});
           if (ok) await ok.el.click().catch(() => {});
         }
       });
-      file = await cap.wait(180000);
+      file = await cap.wait(modelUrls.some(m => m.at > startAt && /\.glb(\?|$)/i.test(m.url)) ? 45000 : 180000);
     } finally { await cap.stop(); }
+    // кнопка сайта файл не отдала (Tripo 2026-11-02: «Экспорт» у бесплатного аккаунта ничего не запускает) — берём модель,
+    // которую сайт сам загрузил в свой просмотрщик (у Tripo это полная модель с PBR-текстурой, сжатая meshopt)
+    if (!file) {
+      const m = modelUrls.filter(m => m.at > startAt && /\.glb(\?|$)/i.test(m.url)).sort((a, b) => (b.len || 0) - (a.len || 0))[0];
+      if (m) {
+        onStatus(`${S.name}: кнопка скачивания не сработала — забираю модель из просмотрщика сайта`);
+        const r = await page.request.get(m.url, {timeout: 180000}).catch(() => null);
+        if (r?.ok()) {
+          const name = path.basename(new URL(m.url).pathname);
+          fs.mkdirSync(path.join(outDir, '.download'), {recursive: true});
+          file = {path: path.join(outDir, '.download', name), name};
+          fs.writeFileSync(file.path, await decodeGlb(await r.body()));
+          gotFormat = 'glb';
+          applied.source = 'просмотрщик сайта';
+        }
+      }
+    }
     if (!file) throw new PortalError(`${S.name}: сайт не отдал файл модели — скачайте вручную в окне Chrome Freefield`, 'busy');
     track3d(svc, {downloads: 1});
     await readLeft(page, svc).catch(() => null);
     const ext = (path.extname(file.name || '').slice(1) || gotFormat || 'glb').toLowerCase();
     return {path: file.path, name: file.name, ext, model: S.name, applied, warnings, pbr: applied.pbr === true, textured: applied.texture !== false};
   } finally { page.off('response', onResp); }
+}
+
+// GLB, сжатый meshopt (так сайты отдают модель в свой просмотрщик), → обычный GLB: Roblox, Blender и glbToObj его читают.
+// Без сжатия — возвращаем как есть
+async function decodeGlb(buf) {
+  const json = buf.length > 20 ? buf.subarray(20, 20 + buf.readUInt32LE(12)).toString('utf8') : '';
+  if (!/EXT_meshopt_compression|KHR_meshopt_compression|KHR_mesh_quantization/.test(json)) return buf;
+  const [{NodeIO}, {ALL_EXTENSIONS}, {dequantize}, {MeshoptDecoder}] = await Promise.all([import('@gltf-transform/core'), import('@gltf-transform/extensions'),
+    import('@gltf-transform/functions'), import('meshoptimizer')]);
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.decoder': MeshoptDecoder});
+  const doc = await io.readBinary(new Uint8Array(buf));
+  for (const e of doc.getRoot().listExtensionsUsed()) if (/meshopt/i.test(e.extensionName)) e.dispose();
+  await doc.transform(dequantize());   // квантованные вершины (KHR_mesh_quantization) — в обычные float: Roblox их не читает
+  return Buffer.from(await io.writeBinary(doc));
 }
 
 // ============================== общий запуск ==============================
@@ -479,7 +597,9 @@ export async function imageTo3d({image, views, service = 'auto', quality = 'high
   const readImg = p => { const buf = fs.readFileSync(p); const s = imageSize(buf); return {path: path.resolve(p), buf, name: path.basename(p), mime: mimeOf(p), width: s?.width, height: s?.height}; };
   const input = image ? readImg(image) : views?.front ? readImg(views.front) : null;
   const vimg = views ? Object.fromEntries(Object.entries(views).filter(([, v]) => v).map(([k, v]) => [k, readImg(v)])) : null;
-  const order = service !== 'auto' ? [service] : views ? ['hunyuan', 'tripo', 'meshy', 'hf'] : ['hunyuan', 'hf', 'tripo', 'meshy'];
+  // Tripo — первым (пользователь 2026-11-02: «обязательно через трипо» — единственный сервис, который проверенно отдал модель)
+  // Meshy — не в auto: модель делает, но скачать (любой формат) можно только по подписке (проверено 2026-11-02)
+  const order = service !== 'auto' ? [service] : ['tripo', 'hunyuan', 'hf'];
   const skipped = [];
   for (const svc of order) {
     const warnings = [];
@@ -487,8 +607,16 @@ export async function imageTo3d({image, views, service = 'auto', quality = 'high
     const release = svc === 'hf' && hfToken(currentProfile()) ? () => {} : await leaseProfile();
     try {
       onStatus(`${NAME(svc)}: начинаю`);
+      if (svc === 'meshy' && !allowPaid) throw new PortalError('Meshy: модель делает, но скачать её можно только по платной подписке — используйте Tripo или Hunyuan (allow_paid=true — всё равно попробовать)', 'quota');
+      const web = v => webRun(svc, {input, views: v, quality, texture, pbr, format, allowPaid, outDir, onStatus});
       const got = svc === 'hf' ? await hfRun({input, views: vimg, quality, texture, onStatus})
-        : await webRun(svc, {input, views: vimg, quality, texture, pbr, format, allowPaid, outDir, onStatus});
+        // сайт не принял виды (Hunyuan «Detection failed») — тот же сайт по одной картинке спереди
+        : await web(vimg).catch(e => {
+          if (!vimg || !/Detection failed|не принял/i.test(e.message)) throw e;
+          warnings.push(`${NAME(svc)} не принял несколько видов — модель сделана по виду спереди`);
+          onStatus(`${NAME(svc)}: виды не приняты — делаю по одной картинке`);
+          return web(null);
+        });
       warnings.push(...(got.warnings || []));
       if (svc === 'hf') track3d('hf', {used: 1});
       const fin = await finishModel(outDir, got, format, warnings);
