@@ -1488,10 +1488,16 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     if (pts) writeState({dolaPoints: {date: today(), left: +(pts[1] ?? pts[2]), at: Date.now()}});
     if (vids.length) break;
     // Dola отказалась или сломалась — не ждём впустую, а сразу решаем, что делать
+    // 2026-11-11: «Исчерпан ежедневный лимит бесплатного использования функции «Создание видео»» — раньше Freefield ждал
+    // 7 минут и брал тот же аккаунт снова; теперь Dola этого аккаунта до завтра пропускается
+    if (/Исчерпан\S* ежедневн\S* лимит|дневной лимит|лимит бесплатного использования|daily (free )?(usage )?limit|reached (your|the) (daily )?limit/i.test(reply.slice(-600))) {
+      markOut('dola');
+      throw new PortalError(`Dola: дневной лимит видео исчерпан — «${reply.slice(-200)}»`, 'quota');
+    }
     if (/В целях защиты права на образ|генерирование видео только с собой|Используйте другое изображение|нельзя генерировать видео из изображений реальных людей|real (people|person)/i.test(reply))
       throw new PortalError('Dola не делает видео по фото людей («защита права на образ»)', 'refused');
     if (/Произошла ошибка\.? Повторите попытку|Something went wrong/i.test(reply)) throw new PortalError('Dola: «Произошла ошибка. Повторите попытку»', 'retry');
-    if (/не могу (создать|сгенерировать)|не удалось создать видео|нарушает|правил[аи]? (сообщества|использования)|cannot (create|generate)|violat/i.test(reply))
+    if (/не могу (создать|сгенерировать)|не удалось создать видео|Невозможно создать видео|может нарушать|нарушает|правил[аи]? (сообщества|использования)|cannot (create|generate)|violat/i.test(reply))
       throw new PortalError(`Dola отказалась по содержанию промпта — «${reply.slice(-220)}»`, 'rejected');
     // генерация должна начаться: Dola отвечает «Создаю видео… будет готово через 1–3 минуты»
     if (Date.now() - t0 > 120000 && !/Создаю видео|Видео будет создано|будет готово|генерир|Generating|creating/i.test(reply))
