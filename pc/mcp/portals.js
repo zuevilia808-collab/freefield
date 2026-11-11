@@ -175,6 +175,7 @@ async function sitePage(site, front = true) {
   // пустые вкладки копились по 10 на окно (2026-10-28: «в каждой по 10 вкладок, причём пустых») — закрываем все, кроме только что взятых
   for (const b of pages) if (b !== page && (BLANK.test(b.url()) || DEAD.test(b.url())) && !claimed.has(b)) await b.close().catch(() => {});
   lastTab.set(site + '@' + currentProfile(), page);
+  usedAt.set(page, Date.now());
   guardPage(page, site);
   // окно не выдёргиваем поверх всего, если вкладка и так на виду (пользователь 2026-10-28: «открываются прямо у меня на экране
   // поверх всего, пока я пишу промпт»): переключаем, только когда нужна другая вкладка окна или окно свёрнуто
@@ -242,6 +243,8 @@ const isSiteTab = p => Object.values(SITES).some(s => p.url().includes(s.match))
 // вкладки, взятые под сайт (пока на них не открылся сайт, они пустые — их не закрываем); WeakSet — закрытые забываются сами
 const claimed = new WeakSet();
 const lastTab = new Map();   // «сайт@профиль» → вкладка, с которой Freefield работал последней
+// когда Freefield последний раз работал во вкладке (ждёт ответа сайта — тоже работа: проверки чатов идут через sitePage)
+const usedAt = new WeakMap(), BOOT = Date.now(), IDLE_TAB_MS = 10 * 60e3;
 const BLANK = /^(about:blank|chrome:\/\/(new-?tab|new-tab-page)|$)/;
 const DEAD = /^chrome-error:/;   // страница «нет сети / сайт не открылся»
 const newTab = async () => { const p = await newProfilePage(); claimed.add(p); return p; };
@@ -265,9 +268,12 @@ export async function sweepTabs() {
     (groups.get(k) || groups.set(k, []).get(k)).push(p);
   }
   for (const tabs of groups.values()) {
-    if (tabs.length < 2) continue;
-    const keep = tabs.find(p => working.has(p)) || tabs[0];
+    const keep = tabs.length < 2 ? tabs[0] : tabs.find(p => working.has(p)) || tabs[0];
     for (const p of tabs) if (p !== keep) { await p.close().catch(() => {}); closed++; }
+    // сервис 10 минут не нужен этому аккаунту — его вкладка закрывается (пользователь 2026-11-11: «вкладки только тех сервисов,
+    // которые сейчас реально работают»); понадобится — sitePage откроет заново
+    const at = usedAt.get(keep) ?? BOOT;
+    if (!claimed.has(keep) && Date.now() - at > IDLE_TAB_MS) { await keep.close().catch(() => {}); closed++; }
   }
   return closed;
 }
@@ -467,7 +473,9 @@ export const FLOW_VIDEO_MODELS = {
   'veo-3.1-lite': {label: 'Veo 3.1 Lite', re: /Veo 3\.1 - Lite/, credits: 10},
   'veo-3.1-fast': {label: 'Veo 3.1 Fast', re: /Veo 3\.1 - Fast/, credits: 20},
   'veo-3.1-quality': {label: 'Veo 3.1 Quality', re: /Veo 3\.1 - Quality/, credits: 100},
-  'omni-1.1-flash': {label: 'Omni 1.1 Flash', re: /Omni 1\.1 Flash/, credits: 20},
+  // 2026-11-11: во Flow появилась Omni 1.2 Flash, а 1.1 помечена «Устареет 5 дек.» и у части аккаунтов её уже нет — запасная 1.2
+  'omni-1.1-flash': {label: 'Omni 1.1 Flash', re: /Omni 1\.1 Flash/, credits: 20, fallback: 'omni-1.2-flash'},
+  'omni-1.2-flash': {label: 'Omni 1.2 Flash', re: /Omni 1\.2 Flash/, credits: 20},
 };
 export const FLOW_DAILY = 50;
 
@@ -647,11 +655,19 @@ const flowErrText = t => t.replace(/^(warning\s*)?(Ошибка|Error)\s*/i, '')
 export const flowPaused = () => (readState().flowPause || 0) > Date.now();
 // Пользователь 2026-10-27: «кидай один промпт, потом ждёшь 10 секунд и кидаешь второй… а когда вылазит — нажимай „Повторить“,
 // и будет всё нормально». Промпты подряд на один аккаунт ловили «подозрительную активность» и паузу на 30 мин.
-const FLOW_GAP_MS = 10000, FLOW_RETRIES = 3;
+// 2026-11-11 (пользователь): аккаунт с жалобой не выключаем, а замедляем — у него свой интервал 10 → 30 → 60 → 120 с
+// (всё по профилю: readState/writeState здесь — состояние текущего аккаунта); полчаса без жалоб — ступенькой назад
+const FLOW_GAPS = [10e3, 30e3, 60e3, 120e3], FLOW_RETRIES = 3;
+function flowGapMs() {
+  const a = readState();
+  let lvl = a.flowGapLvl || 0;
+  if (lvl && Date.now() - (a.flowGapAt || 0) > 30 * 60e3) writeState({flowGapLvl: --lvl, flowGapAt: Date.now()});
+  return FLOW_GAPS[Math.min(lvl, FLOW_GAPS.length - 1)];
+}
 const SUSPICIOUS = /подозрительн|suspicious|unusual activity/i;
 const flowLastSend = {};   // профиль → когда нажали «Создать»
 async function flowGap() {
-  const wait = (flowLastSend[currentProfile()] || 0) + FLOW_GAP_MS - Date.now();
+  const wait = (flowLastSend[currentProfile()] || 0) + flowGapMs() - Date.now();
   if (wait > 0) await sleep(wait);
 }
 // нажать «Повторить» (значок ↻ refresh) на плитке-ошибке: своей (data-ff=tag) или самой новой ошибке без своего текста
@@ -668,14 +684,15 @@ const flowRetryTile = (page, tag) => page.evaluate(tag => {
 }, tag).catch(() => false);
 function flowRetryLog(retries, ok, text) {
   try { fs.appendFileSync(path.join(HERE, '.problems.jsonl'), JSON.stringify({at: new Date().toLocaleString('sv-SE'), site: 'flow', profile: currentProfile(),
-    outcome: ok ? `«Повторить» помог с ${retries}-го раза` : `«Повторить» не помог за ${retries} раз`, message: text.slice(0, 200), gapMs: FLOW_GAP_MS}) + '\n'); } catch {}
+    outcome: ok ? `«Повторить» помог с ${retries}-го раза` : `«Повторить» не помог за ${retries} раз`, message: text.slice(0, 200), gapMs: flowGapMs()}) + '\n'); } catch {}
 }
 function flowFail(text) {
   const msg = flowErrText(text) || text;
   if (/подозрительн|suspicious|unusual activity/i.test(msg)) {
-    writeState({flowPause: Date.now() + 30 * 60e3});
-    return new PortalError(`Flow отклонил генерацию: «${msg}». Freefield не будет отправлять задания во Flow 30 минут — их возьмут другие сайты. ` +
-      'Если сообщения повторяются, лучше сделать перерыв подольше.', 'flagged');
+    const lvl = Math.min((readState().flowGapLvl || 0) + 1, FLOW_GAPS.length - 1);
+    writeState({flowPause: Date.now() + 5 * 60e3, flowGapLvl: lvl, flowGapAt: Date.now()});
+    return new PortalError(`Flow отклонил генерацию: «${msg}». На этом аккаунте — пауза 5 минут, дальше промпты раз в ${FLOW_GAPS[lvl] / 1000} с; ` +
+      'другие аккаунты работают как обычно.', 'flagged');
   }
   return new PortalError(`Flow: ${msg}`, /лимит|limit|quota|бонус/i.test(msg) ? 'quota' : 'busy');
 }
@@ -748,7 +765,7 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
   // отправка — по одной; ждём, пока появятся свои плитки, после этого можно отправлять следующий промпт
   const {page, before} = await siteRun('flow', async () => {
    // пауза между отправками на один аккаунт — до очереди кликов, чтобы окна других аккаунтов не ждали
-   if (!flowPaused()) { onStatus('пауза 10 с между промптами Flow'); await flowGap(); }
+   if (!flowPaused()) { onStatus(`пауза ${flowGapMs() / 1000} с между промптами Flow`); await flowGap(); }
    return ui(async () => {
     if (flowPaused()) throw new PortalError(`Flow недавно пожаловался на подозрительную активность — пауза до ${new Date(readState().flowPause).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'})}`, 'flagged');
     const page = await sitePage('flow');
@@ -1347,6 +1364,39 @@ export const dolaVideo = o => siteSlot('dola', async () => {
     }
   }
 }, {onWait: o.onStatus});
+// 2026-11-11: формат и длина видео в Dola — одна кнопка «Авто · 10 с.»: окно с сеткой форматов и ползунком длины 4–10 с
+async function dolaVideoParams(page, aspect, seconds) {
+  const btn = page.locator('button:visible').filter({hasText: /·\s*\d+\s*(с|s)\.?\s*$/}).first();
+  await tap(btn, 'Формат и длина видео');
+  await sleep(800);
+  const cell = page.locator('div:visible, span:visible, button:visible').filter({hasText: new RegExp(`^\\s*${aspect}\\s*$`)}).last();
+  await cell.click({timeout: 5000}).catch(() => cell.dispatchEvent('click'));
+  await sleep(400);
+  const slider = page.getByRole('slider').first();
+  if (await slider.isVisible().catch(() => false)) {
+    const val = () => slider.evaluate(e => ['aria-valuemin', 'aria-valuemax', 'aria-valuenow'].map(a => +e.getAttribute(a) || 0)).catch(() => [4, 10, 0]);
+    // значение ползунка — номер деления 0…6 (4 с … 10 с), не секунды
+    const [lo, hi] = await val();
+    const want = lo + Math.round((Math.max(4, Math.min(10, seconds)) - 4) / 6 * (hi - lo));
+    // клик в нужное место полосы (ползунок — внутри неё), потом доводка стрелками: фокус ставим перед каждым нажатием —
+    // с одной фокусировкой срабатывала только первая стрелка (2026-11-11: 10 → 9 с вместо 5)
+    const track = await slider.evaluate(e => { let t = e.parentElement; while (t && t.getBoundingClientRect().width < 60) t = t.parentElement; const r = t?.getBoundingClientRect(); return r ? {x: r.x, y: r.y, w: r.width, h: r.height} : null; }).catch(() => null);
+    if (track) { await page.mouse.click(track.x + track.w * (want - lo) / (hi - lo), track.y + track.h / 2); await sleep(400); }
+    for (let i = 0; i < 8; i++) {
+      const now = (await val())[2];
+      if (now === want) break;
+      await slider.focus().catch(() => {});
+      await page.keyboard.press(now < want ? 'ArrowRight' : 'ArrowLeft');
+      await sleep(250);
+    }
+  }
+  await page.keyboard.press('Escape').catch(() => {});
+  await sleep(500);
+  const label = (await btn.innerText().catch(() => '')).replace(/\s+/g, ' ');
+  const secs = Math.max(4, Math.min(10, seconds));
+  if (!label.includes(aspect) || !new RegExp(`(^|\\D)${secs}\\s*(с|s)`).test(label))
+    throw new PortalError(`Dola: не выставились формат ${aspect} и длина ${seconds} с (стоит «${label.trim()}»)`, 'retry');
+}
 async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA_VIDEO_MODELS['seedance-2.5'], imagePath, onStatus, timeoutMs = 420000}) {   // обычно 1–3 мин
   const chat = await siteRun('dola', () => ui(async () => {
     onStatus('открываю новый чат Dola (видео)');
@@ -1359,19 +1409,31 @@ async function dolaVideoRun({prompt, aspect = '9:16', seconds = 10, model = DOLA
     onStatus(`настраиваю: ${model.label}, ${seconds} с, ${aspect}`);
     await tap(page.getByRole('button', {name: /^(Модель|Model)/}).first(), 'Модель');
     await sleep(600);
+    // 2026-11-11: Dola убрала Seedance 2.5 из меню (остались 2.0 Fast и 1.0) — 15 пакетов подряд падали на поиске пункта.
+    // Нужной модели нет — берём лучшую из того, что есть, и говорим об этом
+    const inMenu = async re => (await menuItem(page, re).isVisible().catch(() => false)) || (await page.locator('button:visible').filter({hasText: re}).count().catch(() => 0)) > 0;
+    if (!(await inMenu(model.re))) {
+      const ok = [];
+      for (const m of ['seedance-2.5', 'seedance-2.0-fast', 'seedance-1.0'].map(k => DOLA_VIDEO_MODELS[k])) if (m !== model && await inMenu(m.re)) { ok.push(m); break; }
+      if (!ok.length) throw new PortalError(`Dola: в меню нет ${model.label} и других Seedance — сайт изменил список моделей`, 'ui');
+      onStatus(`в Dola сейчас нет ${model.label} — беру ${ok[0].label}`);
+      model = ok[0];
+    }
     await pickMenu(page, model.re);
     await sleep(500);
     // модель должна реально стоять — иначе видео не запускаем
     const picked = await page.getByRole('button', {name: /^(Модель|Model)/}).first().innerText().catch(() => '');
     if (/Seedance/i.test(picked) && !model.re.test(picked)) throw new PortalError(`Dola: не выбралась ${model.label} (стоит «${picked.trim()}») — видео не запускаю`, 'retry');
-    await tap(page.getByRole('button', {name: /^\d+s$/}).first(), 'Длина видео');
-    await sleep(500);
-    await pickMenu(page, new RegExp(`^${seconds}s$`));
-    await sleep(500);
-    await tap(page.getByRole('button', {name: /^(Соотношение|Ratio|\d+:\d+)$/}).first(), 'Соотношение сторон');
-    await sleep(500);
-    await pickMenu(page, new RegExp(`^${aspect}$`));
-    await sleep(500);
+    if (await page.getByRole('button', {name: /^\d+s$/}).first().isVisible().catch(() => false)) {
+      await tap(page.getByRole('button', {name: /^\d+s$/}).first(), 'Длина видео');
+      await sleep(500);
+      await pickMenu(page, new RegExp(`^${seconds}s$`));
+      await sleep(500);
+      await tap(page.getByRole('button', {name: /^(Соотношение|Ratio|\d+:\d+)$/}).first(), 'Соотношение сторон');
+      await sleep(500);
+      await pickMenu(page, new RegExp(`^${aspect}$`));
+      await sleep(500);
+    } else await dolaVideoParams(page, aspect, seconds);
     if (imagePath) {
       onStatus('прикрепляю фото-референс');
       await page.locator('input[type=file]').first().setInputFiles(imagePath);
@@ -1467,7 +1529,11 @@ async function vidsProject(page, onStatus) {
   if (st.vidsFile) {
     await page.goto(st.vidsFile, {waitUntil: 'domcontentloaded', timeout: 60000}).catch(() => {});
     await sleep(6000);
-    if (VIDS_FILE.test(page.url())) return;
+    // 2026-11-11: у нескольких профилей был записан один и тот же ролик (чужого аккаунта) — Vids показывал «Запросить доступ»,
+    // и кнопка ИИ-клипа не находилась. Нет доступа или это не наш ролик — забываем его и заводим свой
+    const noAccess = await page.getByRole('button', {name: /Запросить доступ|Request access/}).first().isVisible().catch(() => false);
+    if (VIDS_FILE.test(page.url()) && !noAccess && /^Freefield/.test(await page.title().catch(() => ''))) return;
+    writeState({vidsFile: null});
   }
   await page.goto(SITES.vids.home, {waitUntil: 'domcontentloaded', timeout: 60000});
   await sleep(4000);
@@ -1493,6 +1559,7 @@ async function vidsProject(page, onStatus) {
 // панель «Видеоклип от ИИ», вкладка «Создать»; окна «умных функций» и правил — не наше решение, останавливаемся
 async function vidsPanel(page) {
   const open = () => page.getByRole('button', {name: /^Generation settings|^Настройки генерации/}).first().isVisible().catch(() => false);
+  await vidsTips(page);
   if (!(await open())) {
     await page.getByRole('button', {name: 'Сгенерировать видеоклип от ИИ'}).first().click({timeout: 15000});
     await sleep(3000);
@@ -1506,6 +1573,18 @@ async function vidsPanel(page) {
   if (!r) throw new PortalError('Google Vids: не нашёл поле для описания видео', 'busy');
   await page.mouse.click(r.x, r.y);
   await sleep(800);
+}
+// окна-подсказки Google («Редактируйте с большей точностью … ОК», 2026-11-11) закрывают кнопки — закрываем их «ОК»;
+// окна с решениями пользователя («умные функции», правила фото) так не закрываются — их разбирает vidsDialogs
+async function vidsTips(page) {
+  for (let i = 0; i < 3; i++) {
+    const d = page.locator('[role=dialog], [role=alertdialog]').filter({hasNotText: VIDS_SMART}).filter({hasNotText: VIDS_TERMS})
+      .getByRole('button', {name: /^(ОК|OK|Понятно|Got it|Закрыть|Close|Не сейчас|Not now)$/});
+    const b = d.first();
+    if (!(await b.isVisible().catch(() => false))) return;
+    await b.click({timeout: 3000}).catch(() => {});
+    await sleep(800);
+  }
 }
 async function vidsDialogs(page) {
   const text = await page.evaluate(() => [...document.querySelectorAll('[role=dialog],[role=alertdialog]')].filter(d => d.getBoundingClientRect().width > 0).map(d => d.innerText).join(' ')).catch(() => '');

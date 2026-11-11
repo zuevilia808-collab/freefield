@@ -752,7 +752,7 @@ server.registerTool('flow_video', {
     'Обычно 1–3 минуты — дождись результата через check_job. ' + PORTAL_HINT,
   inputSchema: {
     prompt: z.string().min(3).describe('Сцена и движение камеры (лучше на английском).'),
-    model: z.enum(['omni-1.1-flash', 'veo-3.1-lite', 'veo-3.1-fast', 'veo-3.1-quality']).default('omni-1.1-flash'),
+    model: z.enum(['omni-1.1-flash', 'omni-1.2-flash', 'veo-3.1-lite', 'veo-3.1-fast', 'veo-3.1-quality']).default('omni-1.1-flash'),
     aspect_ratio: z.enum(['16:9', '9:16']).default('16:9'),
     free_form: z.boolean().default(false).describe('true — промпт НЕ по эталону видео пользователя; только если пользователь сам об этом попросил'),
   },
