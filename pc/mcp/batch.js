@@ -234,7 +234,10 @@ function altSlot(kind, site, p, aspect, photo = false, sheetOnly = false) {
   const free = x => !(photo && kind === 'video' && x.site === 'dola') && !loggedOut(x) && !siteTripped(x.site) &&
     withProfile(x.p, () => x.site === 'flow' ? !P.flowPaused() && P.flowLeft() >= Math.max(1, flowCost(kind, modelFor('flow', kind, {}))) : x.site === 'vids' ? !P.siteOut('vids') && !P.vidsBlocked(photo) : !P.siteOut(x.site));
   const good = x => free(x) && !(sheetOnly && x.site === 'arena');   // без кадра в локации Arena героя не увидит
-  return rest.find(x => ASPECTS[kind][x.site].includes(aspect || '16:9') && good(x)) || rest.find(good) || rest.find(free) || null;
+  // 2026-11-11: видео по фото — Dola только в крайнем случае (людей она не оживляет), но если больше некуда, пусть
+  // попробует: коллажи и предметы она делает, а отказ «защита права на образ» сам переносит задание дальше
+  const dolaLast = x => photo && kind === 'video' && x.site === 'dola' && !loggedOut(x) && !siteTripped(x.site) && withProfile(x.p, () => !P.siteOut('dola'));
+  return rest.find(x => ASPECTS[kind][x.site].includes(aspect || '16:9') && good(x)) || rest.find(good) || rest.find(free) || rest.find(dolaLast) || null;
 }
 const where = (site, p) => SITE_LABEL[site] + (profileIds().length > 1 ? ` (${profileName(p)})` : '');
 

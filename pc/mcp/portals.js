@@ -1534,6 +1534,11 @@ const vidsPanelText = page => page.evaluate(() => {
   const side = [...document.querySelectorAll('div')].find(d => /^\s*Видеоклип от ИИ/.test(d.innerText || '') && d.getBoundingClientRect().width > 300 && d.getBoundingClientRect().width < 700);
   return (side?.innerText || '').replace(/\s+/g, ' ');
 }).catch(() => '');
+// 2026-11-11: «Достигнуто ограничение на число сгенерированных видео в Vids» — карточкой в ленте, а не в тексте панели;
+// панель-поиск его не видел, и аккаунт 4 пять часов подряд ждал по 8 минут. Считаем такие карточки по всей странице
+const VIDS_LIMIT = /ограничение на число сгенерированных видео|generated video limit|limit on (the )?number of generated videos/gi;
+const vidsLimitCount = page => page.evaluate(src => (document.body.innerText.match(new RegExp(src, 'gi')) || []).length, VIDS_LIMIT.source).catch(() => 0);
+function vidsQuota() { markOut('vids'); return new PortalError('Google Vids: лимит ИИ-видео на этом аккаунте на сегодня («Достигнуто ограничение на число сгенерированных видео») — беру другой аккаунт', 'quota'); }
 const VIDS_SMART = /включите умные функции|умные функции в Google Workspace|turn on smart features/i;
 const VIDS_TERMS = /Создание контента на основе изображений|Generating content from images/i;
 // Vids сегодня не готов: Google ждёт «умные функции» (тогда ничего) или правила фото-ингредиентов (тогда — задания с фото);
@@ -1592,7 +1597,7 @@ async function vidsPanel(page) {
   await sleep(500);
   // раскрыть поле ввода (настройки и «Ингредиенты» видны, когда оно раскрыто)
   const r = await page.evaluate(() => { const e = [...document.querySelectorAll('div[role=textbox]')].find(x => x.getBoundingClientRect().width > 0); if (!e) return null; const b = e.getBoundingClientRect(); return {x: b.x + 40, y: b.y + 10}; });
-  if (!r) throw new PortalError('Google Vids: не нашёл поле для описания видео', 'busy');
+  if (!r) { if (await vidsLimitCount(page)) throw vidsQuota(); throw new PortalError('Google Vids: не нашёл поле для описания видео', 'busy'); }
   await page.mouse.click(r.x, r.y);
   await sleep(800);
 }
@@ -1676,7 +1681,7 @@ async function vidsIngredients(page, files, onStatus) {
 
 export const vidsVideo = o => siteSlot('vids', () => vidsRun(o), {onWait: o.onStatus});
 async function vidsRun({prompt, aspect = '9:16', quality = '720p', imagePaths = [], onStatus = () => {}, timeoutMs = 480000}) {
-  let before;
+  let before, limBefore = 0;
   await siteRun('vids', () => ui(async () => {
     onStatus('открываю Google Vids');
     const page = await sitePage('vids');
@@ -1706,6 +1711,7 @@ async function vidsRun({prompt, aspect = '9:16', quality = '720p', imagePaths = 
     await sleep(800);
     if ((await boxLen()) - had < Math.min(20, prompt.length)) throw new PortalError('Google Vids: промпт не вписался в поле — посмотрите в окно Chrome Freefield', 'busy');
     before = new Set(await vidsSrcs(page));
+    limBefore = await vidsLimitCount(page);
     const go = page.locator('button.collapsiblePromptBoxGenerateButton, button[aria-label="Сгенерировать"]').last();
     for (let i = 0; i < 10 && !(await go.isEnabled().catch(() => false)); i++) await sleep(1000);
     await go.click({timeout: 8000});
@@ -1720,12 +1726,13 @@ async function vidsRun({prompt, aspect = '9:16', quality = '720p', imagePaths = 
     const st = await siteRun('vids', async () => {
       const page = await sitePage('vids', false);
       await captchaCheck(page, 'vids');
-      return {srcs: await vidsSrcs(page), text: await vidsPanelText(page)};
+      return {srcs: await vidsSrcs(page), text: await vidsPanelText(page), lim: await vidsLimitCount(page)};
     });
     text = st.text;
     const pct = text.match(/генерируется[^%]*?(\d{1,3})\s?%/i)?.[1];
     src = st.srcs.find(s => !before.has(s));
     if (src && !pct) break;
+    if (!src && st.lim > limBefore) throw vidsQuota();
     // «Достигнуто ограничение на число сгенерированных видео в Vids» (пользователь 2026-10-17: «это значит кончились токены — переходи на другой способ»)
     if (/(исчерпал|достигли|достигнут|закончил)\S*[^.]{0,60}(лимит|квот|ограничени)|ограничение на число|limit reached|quota/i.test(text)) { markOut('vids'); throw new PortalError(`Google Vids: лимит ИИ-видео на этом аккаунте на сегодня — «${text.match(/[^.]*(лимит|limit|квот|ограничени)[^.]*\./i)?.[0] || ''}»`, 'quota'); }
     if (/Не удалось (создать|сгенерировать)|не можем создать|нарушает|Couldn.t generate|violat|Попробуйте другой запрос/i.test(text) && !pct)
