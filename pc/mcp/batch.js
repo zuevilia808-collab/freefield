@@ -232,7 +232,7 @@ function altSlot(kind, site, p, aspect, photo = false, sheetOnly = false) {
   const rest = [...all.slice(i + 1), ...all.slice(0, Math.max(i, 0))];
   // видео по фото человека Dola не делает — запасным для него она не бывает
   const free = x => !(photo && kind === 'video' && x.site === 'dola') && !loggedOut(x) && !siteTripped(x.site) &&
-    withProfile(x.p, () => x.site === 'flow' ? !P.flowPaused() && P.flowLeft() > 0 : x.site === 'vids' ? !P.siteOut('vids') && !P.vidsBlocked(photo) : !P.siteOut(x.site));
+    withProfile(x.p, () => x.site === 'flow' ? !P.flowPaused() && P.flowLeft() >= Math.max(1, flowCost(kind, modelFor('flow', kind, {}))) : x.site === 'vids' ? !P.siteOut('vids') && !P.vidsBlocked(photo) : !P.siteOut(x.site));
   const good = x => free(x) && !(sheetOnly && x.site === 'arena');   // без кадра в локации Arena героя не увидит
   return rest.find(x => ASPECTS[kind][x.site].includes(aspect || '16:9') && good(x)) || rest.find(good) || rest.find(free) || null;
 }

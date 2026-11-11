@@ -499,6 +499,10 @@ async function flowReadCredits(page) {
   await sleep(400);
   const m = text.match(/(\d+)\s*(бонус|credit)/i);
   if (!m) return null;
+  // 2026-11-11: Flow уже показал ⓘ вместо «Создать» — до завтра считаем 0, даже если в панели аккаунта видно число
+  // (раньше число из панели снова делало аккаунт «живым», и пакет раз за разом отправлял видео на аккаунт без кредитов)
+  const c0 = readState().flowCredits;
+  if (c0?.blocked && c0.date === today()) return 0;
   writeState({flowCredits: {date: today(), left: +m[1], at: Date.now()}});
   return +m[1];
 }
@@ -801,7 +805,7 @@ async function flowGenerateIn({kind, prompt, aspect, count, model, seconds, imag
           return /^(info|error|warning|info_outline|error_outline|priority_high)$/i.test(t) || /кредит|credit|недостаточно|insufficient|limit|лимит/i.test(a);
         });
       }).catch(() => false);
-      writeState({flowCredits: {date: today(), left: 0, at: Date.now()}});
+      writeState({flowCredits: {date: today(), left: 0, at: Date.now(), blocked: true}});
       // вкладку этого аккаунта закрываем, чтобы не копились окна (пользователь 2026-10-17: «аккаунт, где кончились токены, можешь закрывать»);
       // фото во Flow бесплатные — для них вкладка откроется заново сама. Пока на вкладке ждут другие генерации — не трогаем
       // закрываем сразу (не через таймер: следующая попытка успевала взять эту вкладку, и она закрывалась у неё в руках)
@@ -1313,8 +1317,20 @@ export const DOLA_VIDEO_MODELS = {
   'seedance-1.0': {label: 'Seedance 1.0', re: /Seedance 1\.0/},
 };
 export const dolaPoints = () => { const c = readState().dolaPoints; return c?.date === today() ? c.left : null; };
-const dolaVideoSrcs = page => page.evaluate(() => [...document.querySelectorAll('video')]
-  .map(v => v.currentSrc || v.src || v.querySelector('source')?.src || '').filter(s => /^https?:/.test(s)));
+// 2026-11-11: готовое видео Dola показывает карточкой-превью (картинка + ▶), а сам <video> появляется, только когда на
+// карточку наводят мышь, — «Ваше видео готово», а Freefield ждал 7 минут и сдавался. Наводим мышь на карточки без <video>
+async function dolaVideoSrcs(page) {
+  const cards = page.locator('[class*="block-video"]');
+  const n = Math.min(await cards.count().catch(() => 0), 8);
+  for (let i = 0; i < n; i++) {
+    const c = cards.nth(i);
+    if (await c.evaluate(e => !!e.querySelector('video')).catch(() => true)) continue;
+    await c.hover({timeout: 3000}).catch(() => {});
+    await sleep(1200);
+  }
+  return page.evaluate(() => [...document.querySelectorAll('video')]
+    .map(v => v.currentSrc || v.src || v.querySelector('source')?.src || '').filter(s => /^https?:/.test(s))).catch(() => []);
+}
 const dolaReplyText = page => page.evaluate(() => (document.querySelector('main') || document.body).innerText.replace(/\s+/g, ' ').slice(-1200)).catch(() => '');
 const menuItem = (page, re) => page.locator('[role=menuitem],[role=option],[role=menuitemradio]').filter({hasText: re}).first();
 // Выбрать пункт открытого меню Dola. Меню формата открывается ПОД полем ввода, и обычный клик Playwright 30 с упирается
@@ -1777,6 +1793,14 @@ function arenaStart({mode, prompt, imagePath, onStatus, has}) {
     const page = await sitePage('arena');
     await page.goto(`https://arena.ai/${mode.toLowerCase()}`, {waitUntil: 'domcontentloaded', timeout: 60000});
     await sleep(2500);
+    // 2026-11-11: Arena подолгу показывает пустой каркас страницы — промпт уходил «в никуда» («чат не создался» 28 раз).
+    // Ждём поле ввода; не появилось — одна перезагрузка
+    const loaded = page.locator('textarea:visible').first();
+    if (!(await loaded.waitFor({timeout: 30000}).then(() => true, () => false))) {
+      await page.reload({waitUntil: 'domcontentloaded', timeout: 60000}).catch(() => {});
+      if (!(await loaded.waitFor({timeout: 45000}).then(() => true, () => false)))
+        throw new PortalError('Arena не загрузилась (страница осталась пустой) — попробую позже', 'busy');
+    }
     await arenaAgree(page);
     await assertReady(page, 'arena');
     const modality = page.getByRole('button', {name: /^Modality/});
@@ -1809,7 +1833,13 @@ function arenaStart({mode, prompt, imagePath, onStatus, has}) {
     await sleep(2500);
     const lim = (await arenaState(page)).limit;
     if (lim) { markOut('arena'); throw new PortalError(`Arena: ${lim}`, 'quota'); }
-    const url = await chatUrlAfterSend(page, /arena\.ai\/c\//);
+    // 2026-11-11: сообщение о лимите Arena иногда появляется позже 2,5 с, а адрес чата так и не меняется — раньше это
+    // записывалось как «чат не создался», аккаунт не помечался исчерпанным и Arena брала его снова и снова
+    const url = await chatUrlAfterSend(page, /arena\.ai\/c\//).catch(async e => {
+      const late = (await arenaState(page).catch(() => ({}))).limit;
+      if (late) { markOut('arena'); throw new PortalError(`Arena: ${late}`, 'quota'); }
+      throw e;
+    });
     // не уходим из чата, пока «битва» не началась, — иначе Arena теряет сессию («Session not found»)
     for (let i = 0; i < 20; i++) {
       await sleep(2000);
