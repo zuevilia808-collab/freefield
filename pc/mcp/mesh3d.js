@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {profilePages, newProfilePage, leaseProfile, humanCheck, downloadCapture} from './bridge.js';
-import {readAcct, writeAcct, currentProfile} from './state.js';
+import {readAcct, writeAcct, currentProfile, withProfile, profileIds} from './state.js';
 import {ui, PortalError} from './portals.js';
 import {openSpace, HfError, lastQuota, zeroGpuDaily, whoamiToken} from './gradio.js';
 import {hfToken, hfTokenSource, blenderPath, scrub} from './config.js';
@@ -29,6 +29,10 @@ export const SERVICES_3D = {
     free: {n: 300, per: 'month', unit: 'кредитов', perGen: 30}, multiview: true},
   meshy: {name: 'Meshy', kind: 'web', home: 'https://www.meshy.ai/workspace', match: 'meshy.ai',
     free: {n: 100, per: 'month', unit: 'кредитов', perGen: 20, downloads: 10}, multiview: true, tab: /^(модель|model)$/i},
+  // 2026-11-25: Krea 3D — бесплатный аккаунт: 100 единиц в день, модель Hunyuan3D-2.1 ≈ 25 → около 4 моделей в день,
+  // скачивание GLB/OBJ/FBX/PLY/STL. Вход — свой у каждого аккаунта Chrome (Google)
+  krea: {name: 'Krea 3D', kind: 'web', home: 'https://www.krea.ai/3d', match: 'krea.ai',
+    free: {n: 4, per: 'day', unit: 'моделей', perGen: 1}, multiview: false},
   hf: {name: 'Hugging Face Spaces', kind: 'hf', home: 'https://huggingface.co/', match: 'huggingface.co',
     spaces: {trellis: 'microsoft/TRELLIS.2', hunyuan: 'tencent/Hunyuan3D-2.1', hunyuanMv: 'tencent/Hunyuan3D-2mv'}},
 };
@@ -196,6 +200,7 @@ async function hfRun({input, views, quality, texture, onStatus}) {
 // по-русски — «Создать», «Генерировать», «Скачать» не находились, и Tripo 8 минут ждал генерацию, которая не стартовала)
 const RX = {
   login: /^(log ?in|sign ?in|sign ?up|войти|регистрация|зарегистрироваться( бесплатно)?|登录|注册|登入)$/i,
+  loginDialog: /продолжить с (адресом электронной почты|google)|continue with (email|google)|начните создавать бесплатно|start creating for free|кредитная карта не требуется|no credit card required|使用邮箱|邮箱登录/i,
   // без голых «Image»/«Изображение»: у Meshy это вкладка генерации 2D-картинок (2026-11-02), его 3D — вкладка «Модель» (S.tab)
   imageMode: /^(image to 3d|image-to-3d|图生3d|图片生成3d|图生模型|изображение в 3d)$/i,
   multiview: /multi-?view|multi-?image|multiple images|多视图|多图|несколько (видов|ракурсов)|мультивью|многовид/i,
@@ -206,6 +211,7 @@ const RX = {
   texture: /^(texture|textur(ed|ing)|纹理|贴图|текстур)/i,
   pbr: /\bPBR\b/i,
   error: /(error|failed|failure|失败|错误|ошибк|не удалось)/i,
+  paywall: /обновите тариф|upgrade (your )?plan|upgrade to (pro|premium)|get more credits|больше кредитов|подписаться|subscribe now|升级|开通会员/i,
   noMoney: /(insufficient|not enough|out of credits|no credits|余额不足|积分不足|次数不足|次数已用完|недостаточно|закончил|upgrade to|subscribe)/i,
   balance: /(\d[\d,.]*)\s*(credits?|积分|кредит\S*)/i,
   hunyuanLeft: /(?:剩余|remaining|left)[^\d]{0,16}(\d+)|(\d+)\s*(?:次|generations?|times?)\s*(?:left|remaining|剩余)/i,
@@ -289,7 +295,11 @@ async function webReady(page, svc) {
     throw new PortalError(`${NAME(svc)} просит код из письма («Verify your email») — введите его в окне Chrome Freefield и повторите.`, 'login');
   }
   const loginBtn = await findButton(page, RX.login);
-  const loggedOut = h === 'login' || !!loginBtn;
+  // 2026-11-25: Tripo без входа показывает окно «Добро пожаловать в Tripo… Продолжить с адресом электронной почты» поверх
+  // страницы — кнопки «Войти» нет, и Freefield кликал сквозь окно 30 с, а потом падал с непонятной ошибкой
+  const loginDialog = await page.evaluate(() => [...document.querySelectorAll('[role=dialog], [role=alertdialog]')]
+    .filter(d => d.getBoundingClientRect().width > 0).map(d => d.innerText).join(' ')).catch(() => '');
+  const loggedOut = h === 'login' || !!loginBtn || RX.loginDialog.test(loginDialog);
   noteSite(svc, {login: !loggedOut});
   if (loggedOut) throw new PortalError(`Нужно войти в ${NAME(svc)}: окно Chrome Freefield открыто — войдите в свой аккаунт и повторите.`, 'login');
   if (h === 'captcha') throw new PortalError(`${NAME(svc)} просит пройти проверку «я не робот» — пройдите её в окне Chrome Freefield и повторите.`, 'captcha');
@@ -437,6 +447,14 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       const toast = await page.evaluate(() => [...document.querySelectorAll('[role="alert"], [role="status"], [class*="toast"], [class*="message"], [class*="notice"]')]
         .map(e => (e.innerText || '').replace(/\s+/g, ' ').trim()).filter(t => t && t.length < 200).pop() || '').catch(() => '');
       if (RX.noMoney.test(toast)) throw new PortalError(`${S.name}: «${toast}» — бесплатное закончилось; платные кредиты Freefield без allow_paid=true не тратит`, 'quota');
+      // 2026-11-25: Tripo на кнопку «Создать» без нужных кредитов (осталось 35, модель — 55) открывает окно «Обновите тариф…
+      // Подписаться» — генерация не идёт, а Freefield 15 минут ждал. Окно с тарифами = бесплатное на этом аккаунте кончилось
+      const paywall = await page.evaluate(re => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], [class*="modal" i]')]
+        .filter(d => d.getClientRects().length).map(d => d.innerText || '').find(t => new RegExp(re, 'i').test(t)) || '', RX.paywall.source).catch(() => '');
+      if (paywall) {
+        writeAcct({usage3d: {...readAcct().usage3d, [svc]: {...usage3d(svc), used: S.free.n}}});
+        throw new PortalError(`${S.name}: на этом аккаунте бесплатные кредиты кончились (сайт предлагает подписку) — беру другой аккаунт`, 'quota');
+      }
       // сбой связи сайта со своим сервером (Hunyuan 2026-11-03: «Failed to retrieve details: … status code 500» / «查询任务状态失败»,
       // а модель при этом готовилась дальше и пришла) — не провал генерации: ждём дальше, провал — только по таймауту
       const transient = /status code 5\d\d|\b5\d\d\b|retrieve|查询|network|timeout|timed out|сеть|соединени|try again|稍后/i.test(toast);
@@ -445,7 +463,7 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       // процент — только из полосы прогресса (не «Экономия до 60%» из рекламы); процент, который минуту не меняется, — не прогресс
       const raw = await page.evaluate(() => {
         for (const e of document.querySelectorAll('[role="progressbar"], [class*="progress" i], [class*="percent" i]')) {
-          if (!e.getClientRects().length) continue;
+          if (!e.getClientRects().length || e.closest('[role="dialog"], [role="alertdialog"], [class*="modal" i]')) continue;   // «EXP 42/100» в окне наград Tripo — не прогресс
           const v = e.getAttribute('aria-valuenow') ?? (e.innerText || '').match(/(\d{1,3})\s?%/)?.[1];
           if (v != null && !/off|save|discount|скидк|эконом|优惠/i.test(e.innerText || '')) return String(Math.round(+v));
         }
@@ -620,14 +638,45 @@ export async function imageTo3d({image, views, service = 'auto', quality = 'high
   const vimg = views ? Object.fromEntries(Object.entries(views).filter(([, v]) => v).map(([k, v]) => [k, readImg(v)])) : null;
   // Tripo — первым (пользователь 2026-11-02: «обязательно через трипо» — единственный сервис, который проверенно отдал модель)
   // Meshy — не в auto: модель делает, но скачать (любой формат) можно только по подписке (проверено 2026-11-02)
-  const order = service !== 'auto' ? [service] : ['tripo', 'hunyuan', 'hf'];
+  const order = service !== 'auto' ? [service] : ['tripo', 'hunyuan', 'krea', 'hf'];
   const skipped = [];
+  // 2026-11-25: в разных аккаунтах Chrome вход в 3D-сайты разный (Tripo, Hunyuan — только в аккаунте 4). Сервис пробуем
+  // сначала там, где в него уже вошли, затем в текущем аккаунте; сайт просит вход — следующий аккаунт, а не следующий сервис
+  const profilesFor = svc => {
+    const all = profileIds(), cur = currentProfile();
+    const known = all.filter(p => withProfile(p, () => readAcct().site3d?.[svc]?.login === true));
+    const out = all.filter(p => withProfile(p, () => readAcct().site3d?.[svc]?.login === false));
+    return [...new Set([...known, cur, ...all.filter(p => !out.includes(p)), ...out])];
+  };
   for (const svc of order) {
+    let lastErr = null, done = null;
+    const profs = svc === 'hf' && hfToken(currentProfile()) ? [currentProfile()] : profilesFor(svc);
+    for (const p of profs) {
+      try { done = await withProfile(p, () => attempt(svc)); break; }
+      catch (e) {
+        lastErr = e;
+        // нет входа или бесплатное на этом аккаунте кончилось — у сервиса лимит свой на каждом аккаунте, берём следующий
+        if (!['login', 'captcha', 'quota'].includes(e.kind)) break;
+        onStatus(`${NAME(svc)}: в аккаунте ${p} ${e.kind === 'quota' ? 'бесплатное кончилось' : 'нет входа'} — пробую другой аккаунт`);
+      }
+    }
+    if (done) return done;
+    const e = lastErr || new Error('нет аккаунтов');
+    const err = {service: svc, reason: scrub(e.message), kind: e.kind || 'other'};
+    if (service !== 'auto') throw Object.assign(new Error(err.reason), {kind: err.kind, skipped});
+    skipped.push(err);
+    onStatus(`${NAME(svc)}: ${err.reason} → следующий сервис`);
+  }
+  const login = skipped.filter(s => s.kind === 'login' || s.kind === 'captcha');
+  throw Object.assign(new Error('Ни один сервис не сделал модель: ' + skipped.map(s => `${NAME(s.service)} — ${s.reason}`).join('; ') +
+    (login.length ? `. Войдите (или пройдите проверку) в окне Chrome Freefield: ${login.map(s => NAME(s.service)).join(', ')}` : '')), {kind: login.length ? 'login' : 'other', skipped});
+
+  async function attempt(svc) {
     const warnings = [];
     // окно Chrome нужно сайтам и Spaces без токена; с токеном из config.json Space вызывается напрямую
     const release = svc === 'hf' && hfToken(currentProfile()) ? () => {} : await leaseProfile();
     try {
-      onStatus(`${NAME(svc)}: начинаю`);
+      onStatus(`${NAME(svc)} (аккаунт ${currentProfile()}): начинаю`);
       if (svc === 'meshy' && !allowPaid) throw new PortalError('Meshy: модель делает, но скачать её можно только по платной подписке — используйте Tripo или Hunyuan (allow_paid=true — всё равно попробовать)', 'quota');
       const web = v => webRun(svc, {input, views: v, quality, texture, pbr, format, allowPaid, outDir, onStatus});
       const got = svc === 'hf' ? await hfRun({input, views: vimg, quality, texture, onStatus})
@@ -647,16 +696,8 @@ export async function imageTo3d({image, views, service = 'auto', quality = 'high
         textures: fin.stats?.textures?.length ?? fin.files.filter(f => f.role === 'texture').length, textured: fin.stats?.textured ?? got.textured ?? null,
         pbr: fin.stats?.pbr ?? got.pbr ?? null, compressed: fin.stats?.compressed || [], applied: got.applied || null,
         free_left: freeLeft(svc), skipped, warnings, ...(fin.error ? {error: fin.error, error_kind: 'format'} : {})};
-    } catch (e) {
-      const err = {service: svc, reason: scrub(e.message), kind: e.kind || 'other'};
-      if (service !== 'auto') throw Object.assign(new Error(err.reason), {kind: err.kind, skipped});
-      skipped.push(err);
-      onStatus(`${NAME(svc)}: ${err.reason} → следующий сервис`);
     } finally { release(); }
   }
-  const login = skipped.filter(s => s.kind === 'login' || s.kind === 'captcha');
-  throw Object.assign(new Error('Ни один сервис не сделал модель: ' + skipped.map(s => `${NAME(s.service)} — ${s.reason}`).join('; ') +
-    (login.length ? `. Войдите (или пройдите проверку) в окне Chrome Freefield: ${login.map(s => NAME(s.service)).join(', ')}` : '')), {kind: login.length ? 'login' : 'other', skipped});
 }
 
 // Для portal_status: вход и остаток по 3D-сервисам (open — открыть сайты, чтобы проверить вход)

@@ -223,7 +223,7 @@ export async function resumeBatches(onResume = () => {}) {
 
 // ---- связь с приложением по Wi-Fi ----
 const hubKey = () => readState().hubKey;
-const SVC3D = {auto: 'авто', hunyuan: 'Hunyuan 3D', hf: 'Hugging Face', tripo: 'Tripo', meshy: 'Meshy'};
+const SVC3D = {auto: 'авто', hunyuan: 'Hunyuan 3D', hf: 'Hugging Face', tripo: 'Tripo', krea: 'Krea 3D', meshy: 'Meshy'};
 export const hubApi = {
   // вход, кредиты и расход — по каждому профилю Chrome (профиль 1 — ещё и в корне ответа, как раньше)
   hello: async () => {

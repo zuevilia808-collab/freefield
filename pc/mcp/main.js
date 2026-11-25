@@ -970,9 +970,9 @@ server.registerTool('cancel_job', {
 server.registerTool('image_to_3d', {
   title: 'Картинка → 3D-модель',
   description: 'Делает 3D-модель по картинке персонажа или предмета на бесплатных лимитах, под аккаунтами пользователя. Асинхронно: возвращает job_id — результат через check_job. ' +
-    'service: auto (по умолчанию: сайт Hunyuan 3D — 20 бесплатных в день → Spaces на Hugging Face → Tripo → Meshy; если сервис не смог — следующий), ' +
-    'hunyuan (официальный сайт Hunyuan 3D, международная версия), tripo (Tripo Studio, бесплатные кредиты в месяц), meshy (Meshy, 100 кредитов и 10 скачиваний в месяц), ' +
-    'hf (Spaces microsoft/TRELLIS.2 и tencent/Hunyuan3D-2.1, мультивью — tencent/Hunyuan3D-2mv, на квоте ZeroGPU аккаунта пользователя: ≈ 3,5 мин GPU в день — 1–3 модели). ' +
+    'service: auto (по умолчанию: Tripo → Hunyuan 3D → Krea 3D → Spaces на Hugging Face; если сервис не смог — следующий). Каждый сервис сам перебирает аккаунты Chrome: сначала те, где в него уже вошли; нет входа или кончилось бесплатное — следующий аккаунт (лимиты у каждого аккаунта свои). ' +
+    'tripo (Tripo Studio — лучшее качество, ≈ 5 моделей в месяц на аккаунт, берёт только вид спереди), hunyuan (сайт hy3d.tencent.ai — 20 в день на аккаунт, 1 картинка или виды), krea (Krea 3D — Hunyuan3D-2.1, ≈ 4 в день на аккаунт), meshy (скачивание только по подписке — не в auto), ' +
+    'hf (Spaces microsoft/TRELLIS.2 и tencent/Hunyuan3D-2.1, мультивью — tencent/Hunyuan3D-2mv, на квоте ZeroGPU аккаунта пользователя: 1–3 модели в день). ' +
     'Вход: image_path (одна картинка) ИЛИ views {front, back, left, right} (мультивью, где сервис умеет). quality: standard | high | max (max — максимум полигонов и текстур, что даёт сервис). ' +
     'texture (по умолчанию true), pbr, format: glb (по умолчанию) | fbx | obj — если сервис не отдаёт нужный формат, Freefield переводит сам (OBJ — сам, FBX — через установленный Blender). ' +
     'Результат (JSON): model_path и files[] — абсолютные пути модели и текстур в Freefield/outputs/3d/<job>/, polygons (треугольники, вершины), service, free_left (сколько бесплатного осталось). ' +
@@ -982,7 +982,7 @@ server.registerTool('image_to_3d', {
     image_path: z.string().optional().describe('Картинка (png, jpg, webp) — персонаж или предмет целиком.'),
     views: z.object({front: z.string(), back: z.string().optional(), left: z.string().optional(), right: z.string().optional()}).optional()
       .describe('Мультивью: пути к видам спереди (обязательно), сзади, слева, справа.'),
-    service: z.enum(['auto', 'hunyuan', 'tripo', 'meshy', 'hf']).default('auto'),
+    service: z.enum(['auto', 'tripo', 'hunyuan', 'krea', 'meshy', 'hf']).default('auto'),
     quality: z.enum(['standard', 'high', 'max']).default('high'),
     texture: z.boolean().default(true),
     pbr: z.boolean().default(false).describe('PBR-материалы (metallic/roughness/normal). TRELLIS.2 и Hunyuan3D-2.1 дают их всегда.'),

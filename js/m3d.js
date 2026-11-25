@@ -3,10 +3,18 @@
 // Картинка из галереи уходит в Freefield на компьютере: 3D-модель делают бесплатные сервисы под аккаунтами пользователя
 // (Hunyuan 3D, Hugging Face, Tripo, Meshy), увеличение — Flow или Real-ESRGAN. Пока идёт — живая карточка в галерее,
 // готовое само приходит в галерею (модель — карточкой с обложкой, увеличенная картинка — обычной картинкой).
-const M3D_SVC = [['auto', 'Авто', 'Сам выберет лучший бесплатный: Hunyuan 3D → Hugging Face → Tripo → Meshy; не вышло — следующий'],
-  ['hunyuan', 'Hunyuan 3D', 'Сайт Tencent: 20 бесплатных моделей в день'], ['hf', 'Hugging Face', 'TRELLIS.2 и Hunyuan3D-2.1: 1–3 модели в день на ваш аккаунт'],
-  ['tripo', 'Tripo', 'Бесплатные кредиты на месяц (≈ 10 моделей)'], ['meshy', 'Meshy', '100 кредитов и 10 скачиваний в месяц']];
-const m3d = {src: null, views: {}, sending: false, up: null, opts: {service: 'auto', quality: 'high', texture: true, pbr: false, format: 'glb', factor: 2, ...ls.get('freefield.m3d.opts', {})}};
+// 2026-11-25 (пользователь вернул раздел «3D»: «чтобы всё было по порядку, как на платных сервисах»). Честно про каждый сервис:
+// сколько бесплатно и сколько картинок он берёт. Meshy убран: модель делает, но скачать можно только по подписке
+const M3D_SVC = [
+  ['auto', 'Авто', 'Сам выберет: Tripo → Hunyuan 3D → Krea → Hugging Face; не вышло — следующий, нет входа в аккаунте — другой аккаунт', 'views'],
+  ['tripo', 'Tripo', 'Лучшее качество: ≈ 5 моделей в месяц на аккаунт (300 кредитов, модель — 55). Берёт 1 картинку спереди', 'one'],
+  ['hunyuan', 'Hunyuan 3D', '20 моделей в день на аккаунт. Берёт 1 картинку или 4 вида', 'views'],
+  ['krea', 'Krea 3D', 'Hunyuan3D-2.1: ≈ 4 модели в день на аккаунт, нужен вход в Krea. Берёт 1 картинку', 'one'],
+  ['hf', 'Hugging Face', 'TRELLIS.2 и Hunyuan3D-2.1: 1–3 модели в день на аккаунт. С видами — Hunyuan3D-2mv', 'views'],
+];
+const M3D_VIEWS = [['front', 'Спереди'], ['back', 'Сзади'], ['left', 'Слева'], ['right', 'Справа']];
+const m3d = {src: null, views: {}, sending: false, up: null, opts: {service: 'auto', quality: 'high', texture: true, pbr: false, format: 'glb', factor: 2, count: 1, ...ls.get('freefield.m3d.opts', {})}};
+if (!M3D_SVC.some(x => x[0] === m3d.opts.service)) m3d.opts.service = 'auto';   // был Meshy — его больше нет в списке
 const fmtTri = n => n == null ? '' : n >= 1e6 ? `${Math.round(n / 1e5) / 10} млн` : n >= 1000 ? `${Math.round(n / 1000)} тыс.` : String(n);
 function m3dCardHTML(it) {
   const m = it.m3d || {};
@@ -77,18 +85,27 @@ async function m3dFromFile(f) {
 }
 const m3dSeg = (key, list) => `<div class="seg">${list.map(([v, t]) => `<button data-m3d-${key}="${v}" class="${String(m3d.opts[key]) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
 function renderM3dPanel() {
-  const o = m3d.opts, src = m3d.src;
+  const o = m3d.opts, src = m3d.src, svc = M3D_SVC.find(x => x[0] === o.service) || M3D_SVC[0];
+  const four = o.count === 4;
+  const big = src ? `<img src="${urlOf(src.blob)}" alt=""><button class="asset-slot-rm" data-m3d-src-rm title="Убрать">✕</button>` : '<span>＋</span><small>Картинка персонажа или предмета</small>';
   const slot = (k, t) => { const v = m3d.views[k]; return `<div class="asset-slot ${v ? 'has' : ''}" data-m3d-view="${k}" title="${v ? 'Заменить' : 'Вид ' + t.toLowerCase()}">${v ? `<img src="${v}" alt=""><button class="asset-slot-rm" data-m3d-view-rm="${k}" title="Убрать">✕</button>` : '<span>＋</span>'}<small>${t}</small></div>`; };
+  const have = (src ? 1 : 0) + (four ? M3D_VIEWS.slice(1).filter(([k]) => m3d.views[k]).length : 0), need = four ? 4 : 1;
+  const warn = four && svc[3] === 'one' ? `<p class="m3d-note warn">⚠ ${svc[1]} берёт только вид спереди — остальные виды пропустит. Все 4 вида используют Hunyuan 3D и Hugging Face.</p>` : '';
   $('#m3dCreate').innerHTML = `
-    <div class="block-head"><span class="lbl">Картинка</span></div>
-    <div class="m3d-main"><div class="asset-slot ${src ? 'has' : ''}" data-m3d-src title="${src ? 'Заменить картинку' : 'Выбрать картинку — или нажмите 🧊 на картинке в галерее'}">${src ? `<img src="${urlOf(src.blob)}" alt=""><button class="asset-slot-rm" data-m3d-src-rm title="Убрать">✕</button>` : '<span>＋</span>'}</div></div>
-    <div class="block-head"><span class="lbl">Виды</span></div>
-    <div class="m3d-views">${slot('back', 'Сзади')}${slot('left', 'Слева')}${slot('right', 'Справа')}</div>
+    <div class="block-head"><span class="lbl">Сколько картинок</span><span class="m3d-count ${have >= need ? 'ok' : ''}">${have} из ${need}</span></div>
+    ${m3dSeg('count', [[1, '1 картинка'], [4, '4 вида (точнее)']])}
+    <p class="m3d-note">${four ? 'Один и тот же герой спереди, сзади, слева и справа, на однотонном фоне. Можно выбрать 4 файла сразу — встанут по порядку.' : 'Герой или предмет целиком, на однотонном фоне, без обрезанных рук и ног. Для игры лучше A- или T-поза.'}</p>
+    <div class="m3d-main"><div class="asset-slot ${src ? 'has' : ''}" data-m3d-src title="${src ? 'Заменить картинку' : 'Выбрать картинку — или нажмите 🧊 на картинке в галерее, перетащите файл, Ctrl+V'}">${big}${four ? '<small>Спереди</small>' : ''}</div></div>
+    ${four ? `<div class="m3d-views">${M3D_VIEWS.slice(1).map(([k, t]) => slot(k, t)).join('')}</div>` : ''}
+    ${warn}
     <div class="block-head"><span class="lbl">Где делать</span></div>
     <div class="chips">${M3D_SVC.map(([v, t, d]) => `<button class="chip ${o.service === v ? 'on' : ''}" data-m3d-service="${v}" title="${esc(d)}">${t}</button>`).join('')}</div>
+    <p class="m3d-note">${esc(svc[2])}</p>
     <div class="block-head"><span class="lbl">Качество</span></div>${m3dSeg('quality', [['standard', 'Обычное'], ['high', 'Высокое'], ['max', 'Максимум']])}
     <div class="block-head"><span class="lbl">Формат</span></div>${m3dSeg('format', [['glb', 'GLB'], ['obj', 'OBJ'], ['fbx', 'FBX']])}
-    <div class="m3d-check"><label><input type="checkbox" data-m3d-check="texture" ${o.texture ? 'checked' : ''}> Текстура</label><label><input type="checkbox" data-m3d-check="pbr" ${o.pbr ? 'checked' : ''}> PBR</label></div>`;
+    <p class="hint">GLB — для Roblox, Unity, Godot и просмотра; OBJ — для Blender и 3D-печати; FBX — через Blender на компьютере.</p>
+    <div class="m3d-check"><label><input type="checkbox" data-m3d-check="texture" ${o.texture ? 'checked' : ''}> Текстура (цвет)</label><label><input type="checkbox" data-m3d-check="pbr" ${o.pbr ? 'checked' : ''}> PBR-материалы</label></div>
+    <p class="m3d-note">Обычно 3–8 минут. Готовая модель придёт в галерею — её можно покрутить и скачать. Платные кредиты не тратятся.</p>`;
 }
 // картинка для компьютера — как есть (без уменьшения), в формате, который он принимает
 async function m3dDataUrl(blob) {
@@ -97,9 +114,9 @@ async function m3dDataUrl(blob) {
 }
 // что программа на компьютере сделает с заданием — для ⟨/⟩
 const M3D_PLAN = {
-  order: {auto: 'Hunyuan 3D → Hugging Face → Tripo → Meshy (с видами: Hunyuan 3D → Tripo → Meshy → Hugging Face); не вышло — следующий',
-    hunyuan: 'сайт 3d.hunyuanglobal.com в окне Chrome Freefield', hf: 'Spaces: с текстурой — microsoft/TRELLIS.2, затем tencent/Hunyuan3D-2.1; с видами — tencent/Hunyuan3D-2mv',
-    tripo: 'сайт studio.tripo3d.ai в окне Chrome Freefield', meshy: 'сайт meshy.ai/workspace/image-to-3d в окне Chrome Freefield'},
+  order: {auto: 'Tripo → Hunyuan 3D → Krea 3D → Hugging Face; не вышло — следующий; в аккаунте нет входа — другой аккаунт Chrome',
+    hunyuan: 'сайт hy3d.tencent.ai в окне Chrome Freefield', krea: 'сайт krea.ai/3d в окне Chrome Freefield', hf: 'Spaces: с текстурой — microsoft/TRELLIS.2, затем tencent/Hunyuan3D-2.1; с видами — tencent/Hunyuan3D-2mv',
+    tripo: 'сайт studio.tripo3d.ai в окне Chrome Freefield (аккаунт, где вы вошли в Tripo)'},
   quality: {standard: 'TRELLIS.2: 1024, 300 тыс. граней, текстура 2048 · Hunyuan3D-2.1: octree 256, 30 шагов',
     high: 'TRELLIS.2: 1536, 500 тыс. граней, текстура 2048 · Hunyuan3D-2.1: octree 384, 50 шагов',
     max: 'TRELLIS.2: 1536, 1 млн граней, текстура 4096 · Hunyuan3D-2.1: octree 512, 50 шагов'},
@@ -107,8 +124,12 @@ const M3D_PLAN = {
 async function m3dGo() {
   const src = m3d.src, o = m3d.opts;
   if (!src?.blob) { toast('Выберите картинку — или нажмите 🧊 на картинке в галерее', {type: 'err'}); return $('#m3dCreate [data-m3d-src]')?.click(); }
+  if (o.count === 4) {
+    const miss = M3D_VIEWS.slice(1).filter(([k]) => !m3d.views[k]).map(([, t]) => t.toLowerCase());
+    if (miss.length) { toast(`Не хватает видов: ${miss.join(', ')} — добавьте их или выберите «1 картинка»`, {type: 'err', ms: 6000}); return; }
+  }
   const body = {title: '3D: ' + (src.prompt || '').slice(0, 200), pc_name: src.pcName || undefined, image: await m3dDataUrl(src.blob), aspect: src.aspect,
-    views: {...m3d.views}, service: o.service, quality: o.quality, texture: o.texture, pbr: o.pbr, format: o.format};
+    views: o.count === 4 ? {...m3d.views} : {}, service: o.service, quality: o.quality, texture: o.texture, pbr: o.pbr, format: o.format};
   if (peek.on) return peekShow('3D', {prompts: [['Что сделает программа на компьютере', [
       `Сервис: ${M3D_PLAN.order[o.service]}`, `Качество «${o.quality}»: ${M3D_PLAN.quality[o.quality]}`,
       `Текстура: ${o.texture ? 'да' : 'нет'} · PBR: ${o.pbr ? 'да' : 'нет'} · формат: ${o.format.toUpperCase()}${o.format === 'obj' ? ' (из GLB — сама программа)' : o.format === 'fbx' ? ' (из GLB — через Blender)' : ''}`,
@@ -132,11 +153,19 @@ $('#m3dCreate').addEventListener('click', async e => {
   const b = e.target.closest('button, [data-m3d-view], [data-m3d-src]');
   if (!b) return;
   const o = m3d.opts, d = b.dataset;
-  if (d.m3dService) o.service = d.m3dService;
+  if (d.m3dCount) o.count = +d.m3dCount;
+  else if (d.m3dService) o.service = d.m3dService;
   else if (d.m3dQuality) o.quality = d.m3dQuality;
   else if (d.m3dFormat) o.format = d.m3dFormat;
   else if ('m3dSrcRm' in d) { m3d.src = null; updateGenButton(); }
-  else if ('m3dSrc' in d) return m3dFromFile(await pickFile('image/*'));
+  else if ('m3dSrc' in d) {
+    // в режиме «4 вида» можно выбрать сразу несколько файлов: спереди, сзади, слева, справа — по порядку
+    if (o.count !== 4) return m3dFromFile(await pickFile('image/*'));
+    const fs = (await pickFile('image/*', true)).filter(f => /^image\//.test(f.type));
+    if (!fs.length) return;
+    for (const [i, f] of fs.slice(1, 4).entries()) m3d.views[M3D_VIEWS[i + 1][0]] = await m3dDataUrl(f);
+    return m3dFromFile(fs[0]);
+  }
   else if (d.m3dViewRm) delete m3d.views[d.m3dViewRm];
   else if (d.m3dView) {
     const f = await pickFile('image/*');
