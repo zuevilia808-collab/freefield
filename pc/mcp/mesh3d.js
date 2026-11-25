@@ -199,7 +199,8 @@ async function hfRun({input, views, quality, texture, onStatus}) {
 // Конец слова — (?![\p{L}\d]) с флагом u: \b не видит границу после русских букв (2026-11-02: Tripo и Meshy открываются
 // по-русски — «Создать», «Генерировать», «Скачать» не находились, и Tripo 8 минут ждал генерацию, которая не стартовала)
 const RX = {
-  login: /^(log ?in|sign ?in|sign ?up|войти|регистрация|зарегистрироваться( бесплатно)?|登录|注册|登入)$/i,
+  // «Регистрация/Вход» (Tripo без входа, 2026-11-25) — две подписи через «/»
+  login: /^((log ?in|sign ?in|sign ?up|войти|вход|регистрация|зарегистрироваться( бесплатно)?|登录|注册|登入)\s*(\/|или|or)?\s*)+$/i,
   loginDialog: /продолжить с (адресом электронной почты|google)|continue with (email|google)|начните создавать бесплатно|start creating for free|кредитная карта не требуется|no credit card required|使用邮箱|邮箱登录/i,
   // без голых «Image»/«Изображение»: у Meshy это вкладка генерации 2D-картинок (2026-11-02), его 3D — вкладка «Модель» (S.tab)
   imageMode: /^(image to 3d|image-to-3d|图生3d|图片生成3d|图生模型|изображение в 3d)$/i,
@@ -463,6 +464,13 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       // Подписаться» — генерация не идёт, а Freefield 15 минут ждал. Окно с тарифами = бесплатное на этом аккаунте кончилось
       const paywall = await page.evaluate(re => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], [class*="modal" i]')]
         .filter(d => d.getClientRects().length).map(d => d.innerText || '').find(t => new RegExp(re, 'i').test(t)) || '', RX.paywall.source).catch(() => '');
+      // окно входа после «Создать» (Tripo без входа): генерация не пойдёт
+      const loginNow = await page.evaluate(re => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')]
+        .filter(d => d.getClientRects().length).some(d => new RegExp(re, 'i').test(d.innerText || '')), RX.loginDialog.source).catch(() => false);
+      if (loginNow || await countButtons(page, RX.login) > 0) {
+        noteSite(svc, {login: false});
+        throw new PortalError(`Нужно войти в ${NAME(svc)} на этом аккаунте — беру другой аккаунт`, 'login');
+      }
       if (paywall) {
         writeAcct({usage3d: {...readAcct().usage3d, [svc]: {...usage3d(svc), used: S.free.n}}});
         throw new PortalError(`${S.name}: на этом аккаунте бесплатные кредиты кончились (сайт предлагает подписку) — беру другой аккаунт`, 'quota');
