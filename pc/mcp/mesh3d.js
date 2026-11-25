@@ -280,6 +280,12 @@ async function dismissPopups(page) {
     const n = await b.count().catch(() => 0);
     let hit = false;
     for (let k = 0; k < n && !hit; k++) if (await b.nth(k).isVisible().catch(() => false)) { await b.nth(k).click({timeout: 3000}).catch(() => {}); hit = true; }
+    // 2026-11-25: у окна тарифов Tripo кнопка закрытия — значок «✕» с подписью только в aria-label («Закрыть»)
+    if (!hit) {
+      const x = page.locator(['[role="dialog"]', '[role="alertdialog"]'].flatMap(d => ['закрыть', 'close'].map(w => `${d} button[aria-label*="${w}" i]`)).join(', '));
+      const m = await x.count().catch(() => 0);
+      for (let k = 0; k < m && !hit; k++) if (await x.nth(k).isVisible().catch(() => false)) { await x.nth(k).click({timeout: 3000}).catch(() => {}); hit = true; }
+    }
     if (!hit) return;
     await sleep(700);
   }
@@ -433,6 +439,12 @@ async function webRun(svc, {input, views, quality, texture, pbr, format, allowPa
       if (!started) {
         const g = await ui(async () => { await dismissPopups(page); return findButton(page, RX.generate, {enabled: true}); });
         const cost = g ? +(g.text.match(/(\d+)/)?.[1] || 0) || null : null;
+        // кнопка «Создать 55», а на аккаунте 35 — не ждём минуту, сразу следующий аккаунт
+        if (g && cost != null && !allowPaid && leftBefore != null && cost > leftBefore)
+          throw new PortalError(`${S.name}: на этом аккаунте осталось ${leftBefore} ${S.free.unit}, а модель стоит ${cost} — беру другой аккаунт`, 'quota');
+        // Hunyuan проверяет картинку и пишет «Detection failed» — кнопка так и останется серой
+        if (!g && Date.now() - startAt > 8e3 && /detection failed|检测失败|не распозна/i.test(await visibleText(page)))
+          throw new PortalError(`${S.name} не принял картинку («Detection failed»: не нашёл на ней предмет) — попробуйте картинку посветлее, на однотонном светлом фоне`, 'rejected');
         if (g && !(cost != null && !allowPaid && (u.used + cost > S.free.n || (leftBefore != null && cost > leftBefore)))) {
           dlBefore = await countButtons(page, RX.download);
           await ui(() => g.el.click());
